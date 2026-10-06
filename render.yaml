@@ -3,9 +3,11 @@ services:
     name: course-assistant
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && FASTEMBED_CACHE_PATH=.cache/fastembed python -c "from ingestion.embedder import get_embedding_model; get_embedding_model()"
     startCommand: uvicorn api.main:app --host 0.0.0.0 --port $PORT
     envVars:
+      - key: FASTEMBED_CACHE_PATH
+        value: .cache/fastembed
       - key: DATABASE_URL
         sync: false
       - key: LLM_API_KEY

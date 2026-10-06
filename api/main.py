@@ -201,8 +201,10 @@ def search_endpoint(payload: SearchRequest):
 @app.post("/ask", response_model=AskResponse)
 def ask_endpoint(payload: AskRequest, request: Request):
     """Answer a question using retrieved passages, citations, and support checks."""
+    # The last entry is the one our hosting proxy appended; earlier entries can be
+    # forged by the caller, so they must not be used for rate limiting.
     client_ip = (
-        request.headers.get("x-forwarded-for", "").split(",")[0].strip()
+        request.headers.get("x-forwarded-for", "").split(",")[-1].strip()
         or (request.client.host if request.client else "127.0.0.1")
     )
     check_ask_rate_limit(client_ip)
