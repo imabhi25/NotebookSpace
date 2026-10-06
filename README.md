@@ -111,7 +111,7 @@ This evaluates the retrieval quality over answerable questions and outputs:
 ### Environment Variables
 Configure the LLM provider and answering thresholds in `.env`:
 - `LLM_PROVIDER`: Provider name (e.g. `gemini` for Google Gemini free tier, or `fake` for testing).
-- `LLM_MODEL`: Model identifier (e.g. `gemini-1.5-flash`).
+- `LLM_MODEL`: Model identifier (e.g. `gemini-2.5-flash`).
 - `LLM_API_KEY`: API key for the selected provider.
 - `SUPPORT_MIN_SCORE`: Minimum retrieval similarity score threshold for the pre-check (default: `0.25`).
 - `PRICE_PER_1M_INPUT`: Input token pricing per 1M tokens for cost estimation (default: `0.0`).
