@@ -1,0 +1,60 @@
+[
+  {
+    "id": "q1",
+    "question": "What is the course grading breakdown between exams and assignments?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      }
+    ]
+  },
+  {
+    "id": "q2",
+    "question": "When and where are the instructor office hours held?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      }
+    ]
+  },
+  {
+    "id": "q3",
+    "question": "How do prerequisites connect to the project topic requirements?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      },
+      {
+        "file": "project_guidelines.pdf",
+        "page": 3
+      }
+    ]
+  },
+  {
+    "id": "q4",
+    "question": "What is the penalty policy for late assignment submissions across different handouts?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      },
+      {
+        "file": "assignment1.pdf",
+        "page": 1
+      }
+    ]
+  },
+  {
+    "id": "q5",
+    "question": "What is the instructor's personal home phone number?",
+    "type": "not_in_documents",
+    "expected_sources": []
+  }
+]
