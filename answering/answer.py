@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 from pathlib import Path
 import time
@@ -10,6 +11,7 @@ from answering.logger import log_answer
 from db.retrieval import search
 
 load_dotenv()
+logger = logging.getLogger("course_assistant.answering")
 
 
 def format_passages_for_prompt(retrieved: list[dict[str, Any]]) -> str:
@@ -26,19 +28,34 @@ def format_passages_for_prompt(retrieved: list[dict[str, Any]]) -> str:
 def get_system_prompt() -> str:
     return (
         "You are a course-document assistant. Answer the user's question using ONLY the provided course document passages.\n"
-        "Cite each claim in your answer as [file p.N] (for example: [syllabus.pdf p.1]).\n"
-        "If the passages do not contain the answer, reply exactly with NOT_FOUND.\n"
+        "Cite each claim in your answer as [file p.N] (for example: [document.pdf p.1]).\n"
+        "If the passages do not contain the answer, reply exactly with NOT_FOUND.\n\n"
+        "Conflict detection rules:\n"
+        "- Report a conflict ONLY when two or more DIFFERENT files give different values for the same fact (for example, different due dates or grading percentages).\n"
+        "- NEVER report a conflict for mere wording differences, and NEVER report a conflict within a single file.\n"
+        "- When conflicts exist between different files, your answer text MUST present both values and MUST NOT pick one.\n"
+        "- If there is a conflict, report it under 'conflicts' with the topic and the contrasting claims.\n"
+        "- If there is no conflict, 'conflicts' must be an empty list [].\n\n"
         "You must respond ONLY with a JSON object in this exact format:\n"
         "{\n"
         '  "supported": true,\n'
         '  "answer": "<your answer containing [file p.N] citations>",\n'
-        '  "citations": [{"file": "<file_name>", "page": <page_number>}]\n'
+        '  "citations": [{"file": "<file_name>", "page": <page_number>}],\n'
+        '  "conflicts": [\n'
+        '    {\n'
+        '      "topic": "<topic of conflict>",\n'
+        '      "claims": [\n'
+        '        {"file": "<file_name>", "page": <page_number>, "value": "<stated value>"}\n'
+        '      ]\n'
+        '    }\n'
+        '  ]\n'
         "}\n"
         "If the answer cannot be found in the passages, output:\n"
         "{\n"
         '  "supported": false,\n'
         '  "answer": "NOT_FOUND",\n'
-        '  "citations": []\n'
+        '  "citations": [],\n'
+        '  "conflicts": []\n'
         "}\n"
         "Do not include any text, markdown backticks, or explanation outside the JSON object."
     )
@@ -53,6 +70,8 @@ def _make_result(
     retrieved: list[dict[str, Any]],
     tokens: dict[str, int],
     latency: float,
+    conflicts: list[dict[str, Any]] | None = None,
+    conflict_detected: bool = False,
     log_file: Path | str | None = None,
 ) -> dict[str, Any]:
     top_scores = [float(r.get("score", r.get("similarity_score", 0.0))) for r in retrieved]
@@ -65,11 +84,15 @@ def _make_result(
         top_scores=top_scores,
         tokens=tokens,
         latency=latency,
+        conflicts=conflicts,
+        conflict_detected=conflict_detected,
         log_file=log_file,
     )
     return {
         "answer": answer,
         "citations": citations,
+        "conflicts": conflicts or [],
+        "conflict_detected": conflict_detected,
         "abstained": abstained,
         "abstain_reason": abstain_reason,
         "retrieved": retrieved,
@@ -231,6 +254,17 @@ def answer_question(
         )
         for r in retrieved
     }
+    file_page_to_upload_date = {
+        (
+            Path(r.get("file_name", r.get("file", ""))).name.lower(),
+            int(r.get("page_number", r.get("page", 0))),
+        ): r.get("upload_date")
+        for r in retrieved
+    }
+    file_to_upload_date = {
+        Path(r.get("file_name", r.get("file", ""))).name.lower(): r.get("upload_date")
+        for r in retrieved
+    }
 
     validated_citations: list[dict[str, Any]] = []
     for cit in raw_citations:
@@ -278,6 +312,94 @@ def answer_question(
 
         validated_citations.append({"file": cit["file"], "page": cit_page})
 
+    # Step 2: Conflict validation
+    # Each conflict needs at least 2 claims from at least 2 distinct files,
+    # and every (file, page) must be among the retrieved passages.
+    # Drop invalid conflicts (do not fail the whole answer) and log the drop.
+    raw_conflicts = parsed.get("conflicts", [])
+    validated_conflicts: list[dict[str, Any]] = []
+
+    if isinstance(raw_conflicts, list):
+        for conflict in raw_conflicts:
+            if not isinstance(conflict, dict):
+                logger.warning("Dropping conflict: item is not a dict: %s", conflict)
+                continue
+
+            topic = str(conflict.get("topic", "")).strip()
+            claims = conflict.get("claims", [])
+            if not topic:
+                logger.warning("Dropping conflict: missing or empty topic in %s", conflict)
+                continue
+
+            if not isinstance(claims, list) or len(claims) < 2:
+                logger.warning(
+                    "Dropping conflict '%s': requires at least 2 claims, got %s",
+                    topic,
+                    len(claims) if isinstance(claims, list) else type(claims),
+                )
+                continue
+
+            valid_claims = []
+            distinct_files = set()
+            conflict_invalid = False
+
+            for claim in claims:
+                if (
+                    not isinstance(claim, dict)
+                    or "file" not in claim
+                    or "page" not in claim
+                    or "value" not in claim
+                ):
+                    logger.warning("Dropping conflict '%s': invalid claim structure %s", topic, claim)
+                    conflict_invalid = True
+                    break
+
+                try:
+                    c_file_clean = Path(str(claim["file"])).name.lower()
+                    c_page = int(claim["page"])
+                    c_val = str(claim["value"]).strip()
+                except (ValueError, TypeError):
+                    logger.warning("Dropping conflict '%s': invalid claim types %s", topic, claim)
+                    conflict_invalid = True
+                    break
+
+                if (c_file_clean, c_page) not in retrieved_sources:
+                    logger.warning(
+                        "Dropping conflict '%s': claim source (%s, %s) not in retrieved passages",
+                        topic,
+                        c_file_clean,
+                        c_page,
+                    )
+                    conflict_invalid = True
+                    break
+
+                distinct_files.add(c_file_clean)
+                upload_date = file_page_to_upload_date.get((c_file_clean, c_page)) or file_to_upload_date.get(c_file_clean)
+                valid_claims.append({
+                    "file": str(claim["file"]),
+                    "page": c_page,
+                    "value": c_val,
+                    "upload_date": upload_date,
+                })
+
+            if conflict_invalid:
+                continue
+
+            if len(distinct_files) < 2:
+                logger.warning(
+                    "Dropping conflict '%s': claims must come from at least 2 distinct files, got %s",
+                    topic,
+                    distinct_files,
+                )
+                continue
+
+            validated_conflicts.append({
+                "topic": topic,
+                "claims": valid_claims,
+            })
+
+    conflict_detected = len(validated_conflicts) > 0
+
     return _make_result(
         question=question,
         answer=raw_answer,
@@ -287,5 +409,7 @@ def answer_question(
         retrieved=retrieved,
         tokens=token_stats,
         latency=latency,
+        conflicts=validated_conflicts,
+        conflict_detected=conflict_detected,
         log_file=log_file,
     )

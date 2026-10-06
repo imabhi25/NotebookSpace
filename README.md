@@ -156,8 +156,45 @@ This evaluates questions in `evaluation/questions.json`, logs metrics per questi
 
 ---
 
+## Web Interface
+
+The web interface is a React application built with TypeScript and Vite. It provides an interface for asking questions, viewing answers with clickable citation chips, side-by-side conflict comparisons, a live document passage viewer, and PDF document uploads.
+
+### Running Backend and Frontend Together
+
+1. **Start the Backend API Service:**
+   Ensure your virtual environment is active and database migrations are applied, then start the server:
+   ```bash
+   uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+   ```
+   The backend runs on port 8000 (`http://localhost:8000`). By default, CORS allows requests from `http://localhost:5173` and any origins specified in the `ALLOWED_ORIGINS` environment variable.
+
+2. **Start the Frontend Development Server:**
+   From the repository root:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   The frontend runs on port 5173 (`http://localhost:5173`).
+
+### Frontend Environment Variables
+- `VITE_API_BASE_URL`: Base URL for the FastAPI backend (defaults to `http://localhost:8000`). Documented in `.env.example`.
+
+---
+
 ## Running Tests
-Run the test suite:
+
+### Backend Tests
+Run the pytest test suite:
 ```bash
 pytest
 ```
+
+### Frontend Tests
+Run Vitest tests in the frontend directory:
+```bash
+cd frontend
+npm test
+```
+

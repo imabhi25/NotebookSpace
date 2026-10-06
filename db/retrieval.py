@@ -31,13 +31,15 @@ def search(
             cur.execute(
                 """
                 SELECT 
-                    file_name,
-                    page_number,
-                    chunk_text,
-                    chunk_index,
-                    1 - (embedding <=> %s::vector) AS similarity_score
-                FROM chunks
-                ORDER BY embedding <=> %s::vector
+                    c.file_name,
+                    c.page_number,
+                    c.chunk_text,
+                    c.chunk_index,
+                    1 - (c.embedding <=> %s::vector) AS similarity_score,
+                    d.upload_date
+                FROM chunks c
+                LEFT JOIN documents d ON c.document_id = d.id
+                ORDER BY c.embedding <=> %s::vector
                 LIMIT %s;
                 """,
                 (query_vector, query_vector, k),
@@ -46,7 +48,12 @@ def search(
 
     results: list[dict[str, Any]] = []
     for row in rows:
-        file_name, page_num, text, chunk_idx, score = row
+        file_name, page_num, text, chunk_idx, score, upload_dt = row
+        upload_date_str = (
+            upload_dt.isoformat()
+            if hasattr(upload_dt, "isoformat")
+            else str(upload_dt) if upload_dt is not None else None
+        )
         results.append(
             {
                 "file": file_name,
@@ -58,6 +65,7 @@ def search(
                 "chunk_index": chunk_idx,
                 "score": float(score),
                 "similarity_score": float(score),
+                "upload_date": upload_date_str,
             }
         )
 

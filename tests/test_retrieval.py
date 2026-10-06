@@ -67,3 +67,32 @@ def test_search_empty_query():
     """Verify that empty or whitespace queries return empty list safely."""
     results = search("   ", k=5)
     assert results == []
+
+
+def test_search_includes_upload_date(seeded_syllabus: str):
+    """Verify that search results include document upload_date and preserve all existing keys."""
+    results = search("grading policy", k=1)
+    assert len(results) == 1
+    item = results[0]
+
+    # Verify upload_date exists and is populated
+    assert "upload_date" in item
+    assert isinstance(item["upload_date"], str)
+    assert len(item["upload_date"]) > 0
+
+    # Verify all existing keys are still working
+    expected_keys = {
+        "file",
+        "file_name",
+        "page",
+        "page_number",
+        "text",
+        "chunk_text",
+        "chunk_index",
+        "score",
+        "similarity_score",
+        "upload_date",
+    }
+    for key in expected_keys:
+        assert key in item
+

@@ -38,7 +38,11 @@ def test_ask_endpoint(monkeypatch):
     assert "retrieved" in data
     assert "tokens" in data
     assert "latency" in data
+    assert "conflicts" in data
+    assert "conflict_detected" in data
     assert isinstance(data["citations"], list)
+    assert isinstance(data["conflicts"], list)
+    assert isinstance(data["conflict_detected"], bool)
     assert isinstance(data["tokens"], dict)
 
 
@@ -94,3 +98,77 @@ def test_upload_corrupted_pdf_generic_error():
     assert response.status_code == 500
     detail = response.json()["detail"]
     assert detail == "An error occurred while processing the uploaded file."
+
+
+def test_cors_headers():
+    """Test CORS headers allow http://localhost:5173."""
+    response = client.options(
+        "/health",
+        headers={
+            "Origin": "http://localhost:5173",
+            "Access-Control-Request-Method": "GET",
+        },
+    )
+    assert response.status_code == 200
+    assert response.headers.get("access-control-allow-origin") == "http://localhost:5173"
+
+
+def test_documents_endpoint():
+    """Test GET /documents lists documents with file_name, upload_date, and chunk_count."""
+    file_name = "api_documents_test.pdf"
+    delete_document(file_name)
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer)
+    c.drawString(100, 750, "Doc test content")
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+
+    client.post(
+        "/upload",
+        files={"file": (file_name, buffer.getvalue(), "application/pdf")},
+    )
+
+    response = client.get("/documents")
+    assert response.status_code == 200
+    docs = response.json()
+    assert isinstance(docs, list)
+    found = next((d for d in docs if d["file_name"] == file_name), None)
+    assert found is not None
+    assert "upload_date" in found
+    assert found["chunk_count"] >= 1
+
+    delete_document(file_name)
+
+
+def test_passages_endpoint():
+    """Test GET /passages returns page chunks for a given file and page."""
+    file_name = "api_passages_test.pdf"
+    delete_document(file_name)
+
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer)
+    c.drawString(100, 750, "Sample page 1 content here")
+    c.showPage()
+    c.drawString(100, 750, "Sample page 2 content here")
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+
+    client.post(
+        "/upload",
+        files={"file": (file_name, buffer.getvalue(), "application/pdf")},
+    )
+
+    response = client.get(f"/passages?file={file_name}&page=1")
+    assert response.status_code == 200
+    passages = response.json()
+    assert isinstance(passages, list)
+    assert len(passages) >= 1
+    assert passages[0]["file_name"] == file_name
+    assert passages[0]["page_number"] == 1
+    assert "text" in passages[0]
+
+    delete_document(file_name)
+
