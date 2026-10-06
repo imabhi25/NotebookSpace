@@ -140,3 +140,26 @@ def test_low_score_pre_check(monkeypatch, tmp_path: Path):
     assert res["abstain_reason"] == "low_retrieval_score"
     assert res["tokens"]["total"] == 0
     assert client.call_count == 0  # Did not call the model!
+
+
+def test_latency_uses_recorded_model_latency_on_cache_hit(tmp_path, monkeypatch):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(
+                text='{"supported": true, "answer": "x [a.pdf p.1]", "citations": [{"file": "a.pdf", "page": 1}]}',
+                input_tokens=10,
+                output_tokens=5,
+                latency_seconds=2.5,
+            )
+
+    monkeypatch.setattr(
+        ans, "search",
+        lambda q, k=5, db_url=None: [
+            {"file_name": "a.pdf", "page_number": 1, "text": "t", "score": 0.9}
+        ],
+    )
+    out = ans.answer_question("q", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert out["latency"] >= 2.5

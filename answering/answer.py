@@ -125,6 +125,8 @@ def answer_question(
             log_file=log_file,
         )
 
+    pre_llm_seconds = time.perf_counter() - start_time
+
     # 2. Build prompt
     passages_text = format_passages_for_prompt(retrieved)
     system_prompt = get_system_prompt()
@@ -134,6 +136,7 @@ def answer_question(
     client = llm_client or get_llm_client()
     resp = client.generate(system=system_prompt, user=user_prompt)
 
+    llm_latency = resp.latency_seconds
     total_in_tok = resp.input_tokens
     total_out_tok = resp.output_tokens
 
@@ -162,11 +165,13 @@ def answer_question(
             "Please respond ONLY with the valid JSON object matching the requested schema."
         )
         retry_resp = client.generate(system=system_prompt, user=retry_user_prompt)
+        llm_latency += retry_resp.latency_seconds
         total_in_tok += retry_resp.input_tokens
         total_out_tok += retry_resp.output_tokens
         parsed = try_parse_json(retry_resp.text)
 
-    latency = time.perf_counter() - start_time
+    # Use recorded model latency so cached replays do not understate it.
+    latency = pre_llm_seconds + llm_latency
     token_stats = {
         "input": total_in_tok,
         "output": total_out_tok,
