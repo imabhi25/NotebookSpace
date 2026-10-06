@@ -1,4 +1,5 @@
-from typing import Sequence
+from pathlib import Path
+from typing import Any, Sequence
 from db.connection import get_connection
 from ingestion.chunker import Chunk
 
@@ -95,3 +96,61 @@ def delete_document(file_name: str, db_url: str | None = None) -> bool:
             with conn.cursor() as cur:
                 cur.execute("DELETE FROM documents WHERE file_name = %s;", (file_name,))
                 return cur.rowcount > 0
+
+
+def get_all_documents(db_url: str | None = None) -> list[dict[str, Any]]:
+    """List all stored documents with their upload dates and chunk counts."""
+    with get_connection(db_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT 
+                    d.file_name,
+                    d.upload_date,
+                    COUNT(c.id)::int as chunk_count
+                FROM documents d
+                LEFT JOIN chunks c ON d.id = c.document_id
+                GROUP BY d.id, d.file_name, d.upload_date
+                ORDER BY d.upload_date DESC;
+                """
+            )
+            rows = cur.fetchall()
+            return [
+                {
+                    "file_name": row[0],
+                    "upload_date": row[1].isoformat() if row[1] else None,
+                    "chunk_count": row[2],
+                }
+                for row in rows
+            ]
+
+
+def get_passages_for_page(
+    file_name: str, page_number: int, db_url: str | None = None
+) -> list[dict[str, Any]]:
+    """Return chunks for a specific document and page number."""
+    base_name = Path(file_name).name
+    with get_connection(db_url) as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT file_name, page_number, chunk_index, chunk_text
+                FROM chunks
+                WHERE (file_name = %s OR file_name = %s)
+                  AND page_number = %s
+                ORDER BY chunk_index ASC;
+                """,
+                (file_name, base_name, page_number),
+            )
+            rows = cur.fetchall()
+            return [
+                {
+                    "file_name": row[0],
+                    "page_number": row[1],
+                    "chunk_index": row[2],
+                    "text": row[3],
+                    "chunk_text": row[3],
+                }
+                for row in rows
+            ]
+
