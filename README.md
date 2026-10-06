@@ -45,10 +45,19 @@ A retrieval-augmented pipeline for querying course documents (syllabi, lecture n
 
 ### 1. Ingest Course Documents (PDFs)
 To ingest sample course PDFs into the vector store:
+
+Using the CLI:
 ```bash
 python -m ingestion.ingest sample.pdf
 ```
-Or via Python:
+
+Via the API endpoint:
+```bash
+curl -X POST http://localhost:8000/upload \
+  -F "file=@sample.pdf"
+```
+
+Or programmatically in Python:
 ```python
 from ingestion.pipeline import ingest_pdf
 ingest_pdf("sample.pdf")
