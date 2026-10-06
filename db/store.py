@@ -71,7 +71,7 @@ def store_document_chunks(
                         INSERT INTO chunks (
                             document_id, file_name, page_number, chunk_index, chunk_text, embedding
                         )
-                        VALUES (%s, %s, %s, %s, %s, %s);
+                        VALUES (%s, %s, %s, %s, %s, %s::vector);
                         """,
                         chunk_records,
                     )
