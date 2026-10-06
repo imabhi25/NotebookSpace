@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { AskResponse, Citation, DocumentItem, PassageItem } from './types';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/+$/, '');
@@ -76,22 +76,23 @@ export function App() {
     }
   };
 
+  const passageRequestId = useRef(0);
+
   const loadPassage = async (citation: Citation) => {
+    const requestId = ++passageRequestId.current;
     setSelectedCitation(citation);
     setPassageLoading(true);
     try {
       const url = `${API_BASE_URL}/passages?file=${encodeURIComponent(citation.file)}&page=${citation.page}`;
       const res = await fetch(url);
-      if (res.ok) {
-        const data = await res.json();
-        setPassages(data);
-      } else {
-        setPassages([]);
-      }
+      const data = res.ok ? await res.json() : [];
+      if (requestId !== passageRequestId.current) return; // a newer click superseded this one
+      setPassages(data);
     } catch {
+      if (requestId !== passageRequestId.current) return;
       setPassages([]);
     } finally {
-      setPassageLoading(false);
+      if (requestId === passageRequestId.current) setPassageLoading(false);
     }
   };
 
