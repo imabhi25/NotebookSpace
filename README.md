@@ -1,200 +1,116 @@
 # Course-Document Assistant
 
-A retrieval-augmented pipeline for querying course documents (syllabi, lecture notes, assignments, and course outlines).
+A retrieval-augmented assistant for querying course documents (syllabi, lecture notes, assignments, and announcements) with verified page-level citations, explicit abstention for unsupported questions, and automated conflict detection between documents.
 
-## Week 1 Overview
-- Page-by-page PDF parsing with metadata preservation (`file_name`, `page_number`).
-- In-page text chunking strictly constrained to page boundaries (chunks never span pages).
-- Local embedding generation via `sentence-transformers` (`all-MiniLM-L6-v2`, 384 dimensions).
-- PostgreSQL 16 vector storage using `pgvector` with idempotent document ingestion.
-- Plain top-k vector similarity retrieval.
-- FastAPI endpoint `POST /search`.
-- Retrieval quality evaluation suite reporting Top-3 and Top-5 page hit rates.
+## What It Measures
+
+The primary deliverable of this project is an honest, empirical evaluation of where retrieval and language models succeed and fail. The system measures retrieval hit rate across top passages, citation accuracy, unsupported-answer rates on unanswerable queries, false abstention on answerable questions, conflict detection precision when documents disagree, as well as latency percentiles and token costs. Full evaluation methodology, datasets, and protocols are documented in [evaluation/README.md](evaluation/README.md).
 
 ---
 
-## Prerequisites
-- Python 3.12+
-- PostgreSQL 16 with the `pgvector` extension enabled
+## Quickstart
 
----
+### Local Setup
 
-## Setup & Installation
-
-1. Clone repository and create a virtual environment:
+1. **Clone the repository and set up Python environment:**
    ```bash
    python3 -m venv .venv
    source .venv/bin/activate
    pip install -r requirements.txt
    ```
 
-2. Configure environment variables:
+2. **Configure environment variables:**
    ```bash
    cp .env.example .env
-   # Edit .env with your PostgreSQL credentials
+   # Set DATABASE_URL and LLM_API_KEY in .env
    ```
 
-3. Run database migrations:
+3. **Run database migrations:**
    ```bash
    python db/migrate.py
    ```
 
----
+4. **Seed sample course documents:**
+   ```bash
+   python tools/seed_demo.py
+   ```
 
-## Usage
-
-### 1. Ingest Course Documents (PDFs)
-To ingest sample course PDFs into the vector store:
-
-Using the CLI:
-```bash
-python -m ingestion.ingest sample.pdf
-```
-
-Via the API endpoint:
-```bash
-curl -X POST http://localhost:8000/upload \
-  -F "file=@sample.pdf"
-```
-
-Or programmatically in Python:
-```python
-from ingestion.pipeline import ingest_pdf
-ingest_pdf("sample.pdf")
-```
-
-### 2. Run the FastAPI Server
-Start the API service:
-```bash
-uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-### 3. Query the Retrieval Endpoint (`POST /search`)
-Perform a vector similarity search:
-```bash
-curl -X POST http://localhost:8000/search \
-  -H "Content-Type: application/json" \
-  -d '{"question": "When is the midterm exam?", "k": 5}'
-```
-
-Response format:
-```json
-{
-  "query": "When is the midterm exam?",
-  "results": [
-    {
-      "file_name": "syllabus.pdf",
-      "page_number": 3,
-      "text": "The midterm exam is scheduled for November 12th...",
-      "similarity_score": 0.8421
-    }
-  ]
-}
-```
-
----
-
-## Evaluation Benchmark
-To run the retrieval evaluation against `evaluation/questions.json`:
-```bash
-python evaluation/run_retrieval_eval.py
-```
-This evaluates the retrieval quality over answerable questions and outputs:
-- Top-3 Retrieval Recall (Recall@3)
-- Top-5 Retrieval Recall (Recall@5)
-- Breakdown of misses with expected vs. retrieved pages
-
----
-
-## Answering
-
-### Environment Variables
-Configure the LLM provider and answering thresholds in `.env`:
-- `LLM_PROVIDER`: Provider name (e.g. `gemini` for Google Gemini free tier, or `fake` for testing).
-- `LLM_MODEL`: Model identifier (e.g. `gemini-2.5-flash`).
-- `LLM_API_KEY`: API key for the selected provider.
-- `SUPPORT_MIN_SCORE`: Minimum retrieval similarity score threshold for the pre-check (default: `0.25`).
-- `PRICE_PER_1M_INPUT`: Input token pricing per 1M tokens for cost estimation (default: `0.0`).
-- `PRICE_PER_1M_OUTPUT`: Output token pricing per 1M tokens for cost estimation (default: `0.0`).
-
-### Query the Answering Endpoint (`POST /ask`)
-Generate an answer with validated citations and support checks:
-```bash
-curl -X POST http://localhost:8000/ask \
-  -H "Content-Type: application/json" \
-  -d '{"question": "When is the midterm exam?", "k": 5}'
-```
-
-Response format:
-```json
-{
-  "answer": "The midterm exam is scheduled for November 12th [syllabus.pdf p.3].",
-  "citations": [
-    {
-      "file": "syllabus.pdf",
-      "page": 3
-    }
-  ],
-  "abstained": false,
-  "abstain_reason": null,
-  "retrieved": [...],
-  "tokens": {
-    "input": 320,
-    "output": 45,
-    "total": 365
-  },
-  "latency": 0.8521
-}
-```
-
-### Run Answer Evaluation
-Run the answer evaluation benchmark across question types:
-```bash
-python evaluation/run_answer_eval.py
-```
-This evaluates questions in `evaluation/questions.json`, logs metrics per question type (`single_page`, `multi_page`, `not_in_documents`, `conflicting`), measures latency (p50/p95) and token costs, writes results to `evaluation/results/answers_<timestamp>.json`, and prints diagnostic failure details.
-
----
-
-## Web Interface
-
-The web interface is a React application built with TypeScript and Vite. It provides an interface for asking questions, viewing answers with clickable citation chips, side-by-side conflict comparisons, a live document passage viewer, and PDF document uploads.
-
-### Running Backend and Frontend Together
-
-1. **Start the Backend API Service:**
-   Ensure your virtual environment is active and database migrations are applied, then start the server:
+5. **Start backend API:**
    ```bash
    uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
    ```
-   The backend runs on port 8000 (`http://localhost:8000`). By default, CORS allows requests from `http://localhost:5173` and any origins specified in the `ALLOWED_ORIGINS` environment variable.
 
-2. **Start the Frontend Development Server:**
-   From the repository root:
+6. **Start frontend development server:**
    ```bash
    cd frontend
    npm install
    npm run dev
    ```
-   The frontend runs on port 5173 (`http://localhost:5173`).
 
-### Frontend Environment Variables
-- `VITE_API_BASE_URL`: Base URL for the FastAPI backend (defaults to `http://localhost:8000`). Documented in `.env.example`.
+### Docker Setup
+
+Build and run the containerized backend:
+
+```bash
+# Build the Docker image
+docker build -t course-assistant .
+
+# Run the container
+docker run -p 8000:8000 \
+  -e DATABASE_URL="postgresql://user:password@host:port/dbname" \
+  -e LLM_API_KEY="your_api_key" \
+  -e LLM_MODEL="gemini-2.5-flash" \
+  course-assistant
+```
+
+---
+
+## Deployment
+
+The application is structured for deployment across modern cloud platforms:
+
+- **Database (Neon)**: Provision a PostgreSQL database with the `pgvector` extension enabled on Neon. Apply migrations using `python db/migrate.py`.
+- **Backend (Render)**: Deploy the FastAPI application as a web service using `render.yaml` or Docker. Configure environment variables in the Render dashboard (`DATABASE_URL`, `LLM_API_KEY`, `LLM_MODEL`, `ALLOWED_ORIGINS`, `DEMO_MODE`).
+- **Frontend (Vercel)**: Deploy the `frontend/` directory as a Single Page Application on Vercel. Set the build command to `npm run build`, output directory to `dist`, and define `VITE_API_BASE_URL` pointing to the deployed Render backend URL.
+
+---
+
+## Evaluation & Labelling Tools
+
+The repository includes specialized tooling for ground-truth labelling and evaluation:
+
+- **Page Dumper (`tools/dump_pages.py`)**:
+  Extracts text page by page with delimiters to inspect exact text ingested by the parser:
+  ```bash
+  python tools/dump_pages.py docs/sample_docs/
+  ```
+
+- **Question Validator (`tools/validate_questions.py`)**:
+  Verifies question schemas, checks page bounds against physical documents, and ensures clean test-set formatting:
+  ```bash
+  python tools/validate_questions.py evaluation/questions.json
+  ```
+
+- **Evaluation Runner (`evaluation/run_answer_eval.py`)**:
+  Executes the evaluation suite and outputs JSON and Markdown reports with failure breakdowns:
+  ```bash
+  python evaluation/run_answer_eval.py --questions evaluation/questions.json --label baseline --markdown
+  ```
+
+- **Sample Document Generator & Seeder (`tools/make_sample_docs.py`, `tools/seed_demo.py`)**:
+  Generates synthetic course documents with intentional cross-document conflicts and seeds the database.
 
 ---
 
 ## Running Tests
 
-### Backend Tests
-Run the pytest test suite:
+Run backend tests:
 ```bash
 pytest
 ```
 
-### Frontend Tests
-Run Vitest tests in the frontend directory:
+Run frontend tests:
 ```bash
 cd frontend
 npm test
 ```
-
