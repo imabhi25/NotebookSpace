@@ -97,7 +97,7 @@ class GeminiLLMClient(BaseCachedLLMClient):
         api_key: str | None = None,
         cache_dir: Path | str | None = None,
     ):
-        model_name = model or os.getenv("LLM_MODEL", "gemini-1.5-flash")
+        model_name = model or os.getenv("LLM_MODEL", "gemini-2.5-flash")
         super().__init__(model=model_name, cache_dir=cache_dir)
         self.api_key = api_key or os.getenv("LLM_API_KEY", "")
 
@@ -105,17 +105,26 @@ class GeminiLLMClient(BaseCachedLLMClient):
         if not self.api_key:
             raise ValueError("LLM_API_KEY environment variable is not set for Gemini provider.")
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent?key={self.api_key}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+        headers = {"x-goog-api-key": self.api_key}
         payload = {
             "systemInstruction": {"parts": [{"text": system}]},
             "contents": [{"role": "user", "parts": [{"text": user}]}],
             "generationConfig": {"temperature": 0.0},
         }
 
+        data = None
         with httpx.Client(timeout=60.0) as client:
-            resp = client.post(url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
+            for attempt in range(4):
+                resp = client.post(url, json=payload, headers=headers)
+                if resp.status_code in (429, 500, 502, 503, 504) and attempt < 3:
+                    time.sleep(2 ** (attempt + 1))
+                    continue
+                if resp.status_code >= 400:
+                    # Do not include the request URL or headers in the error.
+                    raise RuntimeError(f"LLM request failed with status {resp.status_code}")
+                data = resp.json()
+                break
 
         candidates = data.get("candidates", [])
         if not candidates:
@@ -164,7 +173,7 @@ def get_llm_client(
 ) -> BaseCachedLLMClient:
     """Factory to instantiate the configured LLM client."""
     prov = (provider or os.getenv("LLM_PROVIDER", "gemini")).lower()
-    mod = model or os.getenv("LLM_MODEL", "gemini-1.5-flash")
+    mod = model or os.getenv("LLM_MODEL", "gemini-2.5-flash")
 
     if prov in ("gemini", "google"):
         return GeminiLLMClient(model=mod, api_key=api_key, cache_dir=cache_dir)
