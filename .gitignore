@@ -25,6 +25,9 @@ node_modules/
 uploads/
 data/
 *.pdf
+.cache/
+.llm_cache/
+logs/
 
 # IDE & OS
 .DS_Store
