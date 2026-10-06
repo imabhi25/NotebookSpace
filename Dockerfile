@@ -20,6 +20,10 @@ RUN chown -R appuser:appuser /app
 
 USER appuser
 
+# Download the embedding model at build time so the first request does not.
+ENV FASTEMBED_CACHE_PATH=/app/.cache/fastembed
+RUN python -c "from ingestion.embedder import get_embedding_model; get_embedding_model()"
+
 EXPOSE 8000
 
 CMD ["sh", "-c", "exec uvicorn api.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

@@ -228,3 +228,24 @@ def test_demo_mode_ask_rate_limit(monkeypatch):
     reset_rate_limits()
 
 
+
+
+def test_demo_rate_limit_ignores_forged_forwarded_for_prefix(monkeypatch):
+    """Rotating the first X-Forwarded-For entry must not bypass the limit."""
+    from api.main import reset_rate_limits
+
+    reset_rate_limits()
+    monkeypatch.setenv("DEMO_MODE", "true")
+    monkeypatch.setenv("DEMO_ASK_PER_MINUTE", "2")
+    monkeypatch.setenv("LLM_PROVIDER", "fake")
+
+    statuses = []
+    for i in range(3):
+        res = client.post(
+            "/ask",
+            json={"question": "q", "k": 1},
+            headers={"X-Forwarded-For": f"10.0.0.{i}, 203.0.113.7"},
+        )
+        statuses.append(res.status_code)
+    assert statuses[-1] == 429
+    reset_rate_limits()
