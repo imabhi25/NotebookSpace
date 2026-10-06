@@ -163,3 +163,147 @@ def test_latency_uses_recorded_model_latency_on_cache_hit(tmp_path, monkeypatch)
     )
     out = ans.answer_question("q", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
     assert out["latency"] >= 2.5
+
+
+def test_conflict_detection_two_distinct_files(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    mock_retrieved = [
+        {"file_name": "syllabus.pdf", "page_number": 1, "text": "Due Oct 10", "score": 0.9, "upload_date": "2026-09-01T10:00:00"},
+        {"file_name": "assignment.pdf", "page_number": 2, "text": "Due Oct 15", "score": 0.88, "upload_date": "2026-09-05T12:00:00"},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: mock_retrieved)
+
+    conflict_json = (
+        '{"supported": true, '
+        '"answer": "Syllabus says Oct 10 [syllabus.pdf p.1], but assignment says Oct 15 [assignment.pdf p.2].", '
+        '"citations": [{"file": "syllabus.pdf", "page": 1}, {"file": "assignment.pdf", "page": 2}], '
+        '"conflicts": [{'
+        '  "topic": "Due Date", '
+        '  "claims": ['
+        '    {"file": "syllabus.pdf", "page": 1, "value": "October 10"}, '
+        '    {"file": "assignment.pdf", "page": 2, "value": "October 15"}'
+        '  ]'
+        '}]}'
+    )
+
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=conflict_json, input_tokens=10, output_tokens=10, latency_seconds=0.5)
+
+    res = ans.answer_question("When is it due?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+
+    assert res["abstained"] is False
+    assert res["conflict_detected"] is True
+    assert len(res["conflicts"]) == 1
+    conflict = res["conflicts"][0]
+    assert conflict["topic"] == "Due Date"
+    assert len(conflict["claims"]) == 2
+    assert conflict["claims"][0]["file"] == "syllabus.pdf"
+    assert conflict["claims"][0]["upload_date"] == "2026-09-01T10:00:00"
+    assert conflict["claims"][1]["file"] == "assignment.pdf"
+    assert conflict["claims"][1]["upload_date"] == "2026-09-05T12:00:00"
+
+
+def test_conflict_dropped_when_single_file(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    mock_retrieved = [
+        {"file_name": "syllabus.pdf", "page_number": 1, "text": "Midterm 40%", "score": 0.9, "upload_date": "2026-09-01T10:00:00"},
+        {"file_name": "syllabus.pdf", "page_number": 2, "text": "Midterm 50%", "score": 0.88, "upload_date": "2026-09-01T10:00:00"},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: mock_retrieved)
+
+    # Conflict has 2 claims, but both from syllabus.pdf -> must be dropped
+    conflict_json = (
+        '{"supported": true, '
+        '"answer": "Midterm is 40% [syllabus.pdf p.1] or 50% [syllabus.pdf p.2].", '
+        '"citations": [{"file": "syllabus.pdf", "page": 1}, {"file": "syllabus.pdf", "page": 2}], '
+        '"conflicts": [{'
+        '  "topic": "Midterm weight", '
+        '  "claims": ['
+        '    {"file": "syllabus.pdf", "page": 1, "value": "40%"}, '
+        '    {"file": "syllabus.pdf", "page": 2, "value": "50%"}'
+        '  ]'
+        '}]}'
+    )
+
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=conflict_json, input_tokens=10, output_tokens=10, latency_seconds=0.5)
+
+    res = ans.answer_question("What is the midterm weight?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+
+    assert res["abstained"] is False
+    assert res["conflict_detected"] is False
+    assert res["conflicts"] == []
+
+
+def test_conflict_dropped_when_hallucinated_page(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    mock_retrieved = [
+        {"file_name": "syllabus.pdf", "page_number": 1, "text": "Due Oct 10", "score": 0.9, "upload_date": "2026-09-01T10:00:00"},
+        {"file_name": "assignment.pdf", "page_number": 2, "text": "Due Oct 15", "score": 0.88, "upload_date": "2026-09-05T12:00:00"},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: mock_retrieved)
+
+    # Claim points to assignment.pdf page 99 (not in retrieved passages) -> must be dropped
+    conflict_json = (
+        '{"supported": true, '
+        '"answer": "Due date mentioned [syllabus.pdf p.1].", '
+        '"citations": [{"file": "syllabus.pdf", "page": 1}], '
+        '"conflicts": [{'
+        '  "topic": "Due Date", '
+        '  "claims": ['
+        '    {"file": "syllabus.pdf", "page": 1, "value": "October 10"}, '
+        '    {"file": "assignment.pdf", "page": 99, "value": "October 15"}'
+        '  ]'
+        '}]}'
+    )
+
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=conflict_json, input_tokens=10, output_tokens=10, latency_seconds=0.5)
+
+    res = ans.answer_question("When is it due?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+
+    assert res["abstained"] is False
+    assert res["conflict_detected"] is False
+    assert res["conflicts"] == []
+
+
+def test_conflict_dropped_when_insufficient_claims(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    mock_retrieved = [
+        {"file_name": "syllabus.pdf", "page_number": 1, "text": "Due Oct 10", "score": 0.9, "upload_date": "2026-09-01T10:00:00"},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: mock_retrieved)
+
+    # Only 1 claim in conflict -> must be dropped
+    conflict_json = (
+        '{"supported": true, '
+        '"answer": "Due date mentioned [syllabus.pdf p.1].", '
+        '"citations": [{"file": "syllabus.pdf", "page": 1}], '
+        '"conflicts": [{'
+        '  "topic": "Due Date", '
+        '  "claims": ['
+        '    {"file": "syllabus.pdf", "page": 1, "value": "October 10"}'
+        '  ]'
+        '}]}'
+    )
+
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=conflict_json, input_tokens=10, output_tokens=10, latency_seconds=0.5)
+
+    res = ans.answer_question("When is it due?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+
+    assert res["abstained"] is False
+    assert res["conflict_detected"] is False
+    assert res["conflicts"] == []

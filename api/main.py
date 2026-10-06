@@ -44,6 +44,18 @@ class CitationItem(BaseModel):
     page: int
 
 
+class ConflictClaim(BaseModel):
+    file: str
+    page: int
+    value: str
+    upload_date: str | None = None
+
+
+class ConflictItem(BaseModel):
+    topic: str
+    claims: List[ConflictClaim]
+
+
 class TokenUsage(BaseModel):
     input: int
     output: int
@@ -58,6 +70,8 @@ class AskRequest(BaseModel):
 class AskResponse(BaseModel):
     answer: str
     citations: List[CitationItem]
+    conflicts: List[ConflictItem] = Field(default_factory=list)
+    conflict_detected: bool = False
     abstained: bool
     abstain_reason: str | None = None
     retrieved: List[dict[str, Any]]
