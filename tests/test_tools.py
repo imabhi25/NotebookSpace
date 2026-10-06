@@ -241,7 +241,61 @@ def test_validate_questions_target_counts(tmp_path: Path):
     is_valid, errors, _ = validate_questions_file(q_file, data_dir=data_dir, require_targets=False)
     assert is_valid is True
 
-    # With require_targets: fails because single_page count is 1 instead of 25
     is_valid_strict, errors_strict, _ = validate_questions_file(q_file, data_dir=data_dir, require_targets=True)
     assert is_valid_strict is False
     assert any("Target count mismatch for 'single_page'" in err for err in errors_strict)
+
+
+def test_make_sample_docs_and_seed_demo(tmp_path: Path):
+    from tools.make_sample_docs import (
+        HEADER_TEXT,
+        build_syllabus,
+        build_assignment_1,
+        build_announcement,
+    )
+    from tools.seed_demo import seed_demo_database
+    import pypdf
+
+    sample_dir = tmp_path / "sample_docs"
+    sample_dir.mkdir()
+
+    s_pdf = sample_dir / "syllabus.pdf"
+    a_pdf = sample_dir / "assignment_1.pdf"
+    u_pdf = sample_dir / "announcement_update.pdf"
+
+    build_syllabus(s_pdf)
+    build_assignment_1(a_pdf)
+    build_announcement(u_pdf)
+
+    assert s_pdf.exists() and a_pdf.exists() and u_pdf.exists()
+
+    # Verify each PDF has 3-6 pages and every page contains the required header
+    for pdf in [s_pdf, a_pdf, u_pdf]:
+        reader = pypdf.PdfReader(pdf)
+        assert 3 <= len(reader.pages) <= 6
+        for page in reader.pages:
+            text = page.extract_text()
+            assert HEADER_TEXT in text
+
+    # Verify deliberate conflicts exist between syllabus and announcement
+    s_text = " ".join(p.extract_text() for p in pypdf.PdfReader(s_pdf).pages)
+    u_text = " ".join(p.extract_text() for p in pypdf.PdfReader(u_pdf).pages)
+
+    # 1. Due date conflict
+    assert "October 14, 2026" in s_text
+    assert "October 21, 2026" in u_text
+
+    # 2. Late penalty conflict
+    assert "10 percent per day" in s_text
+    assert "5 percent per day" in u_text
+
+    # 3. Midterm exam conflict
+    assert "November 5, 2026" in s_text
+    assert "November 12, 2026" in u_text
+
+    # Test seed_demo_database ingests into database
+    seeded = seed_demo_database(docs_dir=sample_dir)
+    assert len(seeded) == 3
+    for name, count in seeded:
+        assert count >= 1
+

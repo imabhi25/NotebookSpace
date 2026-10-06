@@ -192,6 +192,7 @@ def test_demo_mode_ask_rate_limit(monkeypatch):
     reset_rate_limits()
     monkeypatch.setenv("DEMO_MODE", "true")
     monkeypatch.setenv("DEMO_ASK_PER_MINUTE", "3")
+    monkeypatch.setenv("LLM_PROVIDER", "fake")
 
     client_ip_headers = {"X-Forwarded-For": "192.168.1.100"}
 
