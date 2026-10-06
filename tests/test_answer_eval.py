@@ -84,3 +84,83 @@ def test_evaluate_answering_pipeline(tmp_path: Path):
     assert len(report["failures"]) == 0
 
     delete_document(file_name)
+
+
+def test_evaluate_answering_conflict_metrics(tmp_path: Path):
+    doc_a = "eval_conflict_a.pdf"
+    doc_b = "eval_conflict_b.pdf"
+    delete_document(doc_a)
+    delete_document(doc_b)
+
+    buf_a = io.BytesIO()
+    c_a = canvas.Canvas(buf_a)
+    c_a.drawString(100, 750, "Assignment due date is October 10.")
+    c_a.showPage()
+    c_a.save()
+    buf_a.seek(0)
+    ingest_pdf(buf_a, file_name=doc_a)
+
+    buf_b = io.BytesIO()
+    c_b = canvas.Canvas(buf_b)
+    c_b.drawString(100, 750, "Assignment due date is October 15.")
+    c_b.showPage()
+    c_b.save()
+    buf_b.seek(0)
+    ingest_pdf(buf_b, file_name=doc_b)
+
+    questions = [
+        {
+            "id": "c1",
+            "question": "When is the assignment due?",
+            "type": "conflicting",
+            "expected_sources": [{"file": doc_a, "page": 1}, {"file": doc_b, "page": 1}],
+            "expected_conflict_files": [doc_a, doc_b],
+            "expected_answer_contains": ["October 10", "October 15"],
+        },
+        {
+            "id": "c2",
+            "question": "What is the date in doc A?",
+            "type": "single_page",
+            "expected_sources": [{"file": doc_a, "page": 1}],
+            "expected_answer_contains": ["October 10"],
+        },
+    ]
+
+    q_file = tmp_path / "conflict_questions.json"
+    q_file.write_text(json.dumps(questions), encoding="utf-8")
+
+    # c1: returns detected conflict between doc_a and doc_b
+    resp_c1 = (
+        '{"supported": true, '
+        f'"answer": "Doc A says October 10 [{doc_a} p.1] but Doc B says October 15 [{doc_b} p.1].", '
+        f'"citations": [{{"file": "{doc_a}", "page": 1}}, {{"file": "{doc_b}", "page": 1}}], '
+        f'"conflicts": [{{"topic": "Due date", "claims": [{{"file": "{doc_a}", "page": 1, "value": "October 10"}}, {{"file": "{doc_b}", "page": 1, "value": "October 15"}}]}}]}}'
+    )
+    # c2: normal single page answer, no conflict
+    resp_c2 = (
+        '{"supported": true, '
+        f'"answer": "October 10 [{doc_a} p.1]", '
+        f'"citations": [{{"file": "{doc_a}", "page": 1}}], '
+        '"conflicts": []}'
+    )
+
+    fake_client = FakeLLMClient(
+        responses=[resp_c1, resp_c2],
+        cache_dir=tmp_path / "cache",
+    )
+
+    report = evaluate_answering(
+        questions_path=q_file,
+        llm_client=fake_client,
+        results_dir=tmp_path / "results",
+    )
+
+    assert report["total_questions"] == 2
+    assert "conflicting" in report["by_type"]
+    assert report["by_type"]["conflicting"]["conflict_detection_rate"] == 1.0
+    assert report["conflict_detection_rate"] == 1.0
+    assert report["false_positive_conflict_rate"] == 0.0
+    assert len(report["failures"]) == 0
+
+    delete_document(doc_a)
+    delete_document(doc_b)

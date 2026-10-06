@@ -76,12 +76,20 @@ def evaluate_answering(
             "retrieved_all": 0,
         },
         "not_in_documents": {"total": 0, "answered": 0, "abstained": 0},
-        "conflicting": {"total": 0, "answered": 0, "abstained": 0, "cited_page_correct": 0},
+        "conflicting": {
+            "total": 0,
+            "answered": 0,
+            "abstained": 0,
+            "cited_page_correct": 0,
+            "conflict_detected": 0,
+        },
     }
 
     latencies: list[float] = []
     total_in_tok = 0
     total_out_tok = 0
+    non_conflicting_total = 0
+    false_positive_conflicts = 0
 
     for q in questions:
         q_id = q.get("id")
@@ -106,7 +114,14 @@ def evaluate_answering(
 
         # Track type stats
         stats = type_stats.setdefault(
-            q_type, {"total": 0, "answered": 0, "abstained": 0, "cited_page_correct": 0}
+            q_type,
+            {
+                "total": 0,
+                "answered": 0,
+                "abstained": 0,
+                "cited_page_correct": 0,
+                "conflict_detected": 0,
+            },
         )
         stats["total"] += 1
         if abstained:
@@ -116,6 +131,40 @@ def evaluate_answering(
 
         # Check failures and type-specific metrics
         question_failures: list[str] = []
+
+        # Conflict evaluation: detection rate & false positive tracking
+        if q_type == "conflicting":
+            expected_conflict_files = [
+                Path(f).name.lower() for f in q.get("expected_conflict_files", [])
+            ]
+            claim_files = {
+                Path(c.get("file", "")).name.lower()
+                for conf in res.get("conflicts", [])
+                for c in conf.get("claims", [])
+            }
+            conflict_detected = bool(res.get("conflict_detected", False))
+            has_all_expected = (
+                all(ef in claim_files for ef in expected_conflict_files)
+                if expected_conflict_files
+                else True
+            )
+
+            if conflict_detected and has_all_expected:
+                stats["conflict_detected"] += 1
+            else:
+                if not conflict_detected:
+                    question_failures.append("Failed to detect conflict between sources.")
+                elif not has_all_expected:
+                    question_failures.append(
+                        f"Conflict detected but claims did not cover all expected files. Expected: {expected_conflict_files}, got: {list(claim_files)}"
+                    )
+        else:
+            non_conflicting_total += 1
+            if res.get("conflict_detected", False):
+                false_positive_conflicts += 1
+                question_failures.append(
+                    "False positive: conflict reported on non-conflicting question."
+                )
 
         if q_type == "not_in_documents":
             if not abstained:
@@ -230,6 +279,10 @@ def evaluate_answering(
             if t_name == "multi_page":
                 summary_by_type[t_name]["retrieved_any_rate"] = s.get("retrieved_any", 0) / tot
                 summary_by_type[t_name]["retrieved_all_rate"] = s.get("retrieved_all", 0) / tot
+            elif t_name == "conflicting":
+                summary_by_type[t_name]["conflict_detection_rate"] = (
+                    s.get("conflict_detected", 0) / tot
+                )
         elif t_name == "not_in_documents":
             summary_by_type[t_name] = {
                 "total": tot,
@@ -244,10 +297,23 @@ def evaluate_answering(
     total_cost = (total_in_tok * price_in / 1e6) + (total_out_tok * price_out / 1e6)
     cost_per_100 = (total_cost / tot_q * 100) if tot_q > 0 else 0.0
 
+    conflicting_tot = type_stats.get("conflicting", {}).get("total", 0)
+    conflict_det_count = type_stats.get("conflicting", {}).get("conflict_detected", 0)
+    conflict_detection_rate = (
+        (conflict_det_count / conflicting_tot) if conflicting_tot > 0 else 0.0
+    )
+    fp_conflict_rate = (
+        (false_positive_conflicts / non_conflicting_total)
+        if non_conflicting_total > 0
+        else 0.0
+    )
+
     report = {
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "total_questions": tot_q,
         "by_type": summary_by_type,
+        "conflict_detection_rate": round(conflict_detection_rate, 4),
+        "false_positive_conflict_rate": round(fp_conflict_rate, 4),
         "latency_p50": round(p50, 4),
         "latency_p95": round(p95, 4),
         "tokens": {
@@ -291,9 +357,13 @@ def print_answer_eval_report(report: dict[str, Any]):
             if q_type == "multi_page":
                 print(f"  Retrieved Any-Page Rate:   {data.get('retrieved_any_rate', 0.0)*100:.1f}%")
                 print(f"  Retrieved All-Pages Rate:  {data.get('retrieved_all_rate', 0.0)*100:.1f}%")
+            elif q_type == "conflicting":
+                print(f"  Conflict Detection Rate:   {data.get('conflict_detection_rate', 0.0)*100:.1f}%")
         print()
 
     print("-" * 65)
+    print(f"Conflict Detection Rate:       {report.get('conflict_detection_rate', 0.0)*100:.1f}%")
+    print(f"False-Positive Conflict Rate:  {report.get('false_positive_conflict_rate', 0.0)*100:.1f}%")
     print(f"Latency: p50={report['latency_p50']:.3f}s | p95={report['latency_p95']:.3f}s")
     print(f"Tokens:  Input={report['tokens']['input']} | Output={report['tokens']['output']} | Total={report['tokens']['total']}")
     print(f"Cost:    ${report['cost_per_100_questions']:.4f} per 100 questions")

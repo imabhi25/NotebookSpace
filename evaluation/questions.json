@@ -49,7 +49,7 @@
   },
   {
     "id": "q4",
-    "question": "What is the penalty policy for late assignment submissions across different handouts?",
+    "question": "[PLACEHOLDER - CONFLICTING] What is the penalty policy for late assignment submissions across different handouts?",
     "type": "conflicting",
     "expected_sources": [
       {
@@ -60,6 +60,10 @@
         "file": "assignment1.pdf",
         "page": 1
       }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "assignment1.pdf"
     ],
     "expected_answer_contains": [
       "late"
