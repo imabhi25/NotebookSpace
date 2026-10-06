@@ -10,7 +10,7 @@ from ingestion.pipeline import ingest_pdf
 
 
 def test_embedder_dimensions():
-    """Verify that sentence-transformers model produces 384-dimensional embeddings."""
+    """Verify that FastEmbed model produces 384-dimensional embeddings."""
     vec = embed_text("Course document sample text")
     assert isinstance(vec, list)
     assert len(vec) == 384
@@ -19,6 +19,28 @@ def test_embedder_dimensions():
     assert len(batch_vecs) == 2
     assert len(batch_vecs[0]) == 384
     assert len(batch_vecs[1]) == 384
+
+
+def test_embed_five_sentences_unit_normalized():
+    """Verify that embedding 5 fixed sentences produces 384-dim vectors with unit L2 norm."""
+    sentences = [
+        "The course syllabus outlines lecture topics and grading criteria.",
+        "Assignment one is due on Friday at midnight.",
+        "Office hours are held on Tuesdays and Thursdays in room 302.",
+        "Final examination accounts for fifty percent of the total grade.",
+        "Academic honesty policy is strictly enforced across all submissions.",
+    ]
+    vectors = embed_batch(sentences)
+    assert len(vectors) == 5
+    for vec in vectors:
+        assert isinstance(vec, list)
+        assert len(vec) == 384
+        l2_norm = sum(x * x for x in vec) ** 0.5
+        assert pytest.approx(1.0, abs=1e-4) == l2_norm
+
+    single_vec = embed_text(sentences[0])
+    assert len(single_vec) == 384
+    assert pytest.approx(1.0, abs=1e-4) == (sum(x * x for x in single_vec) ** 0.5)
 
 
 def test_store_and_idempotency():

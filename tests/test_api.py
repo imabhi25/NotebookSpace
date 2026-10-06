@@ -172,3 +172,80 @@ def test_passages_endpoint():
 
     delete_document(file_name)
 
+
+def test_demo_mode_upload_disabled(monkeypatch):
+    """Test POST /upload returns 403 when DEMO_MODE=true."""
+    monkeypatch.setenv("DEMO_MODE", "true")
+    buffer = io.BytesIO(b"%PDF-1.4 test")
+    response = client.post(
+        "/upload",
+        files={"file": ("test.pdf", buffer.getvalue(), "application/pdf")},
+    )
+    assert response.status_code == 403
+    assert response.json()["detail"] == "Upload is disabled in demo mode."
+
+
+def test_demo_mode_ask_rate_limit(monkeypatch):
+    """Test POST /ask rate limiting per IP when DEMO_MODE=true."""
+    from api.main import reset_rate_limits
+
+    reset_rate_limits()
+    monkeypatch.setenv("DEMO_MODE", "true")
+    monkeypatch.setenv("DEMO_ASK_PER_MINUTE", "3")
+    monkeypatch.setenv("LLM_PROVIDER", "fake")
+
+    client_ip_headers = {"X-Forwarded-For": "192.168.1.100"}
+
+    # 3 requests should succeed
+    for _ in range(3):
+        res = client.post(
+            "/ask",
+            json={"question": "What is the policy?", "k": 1},
+            headers=client_ip_headers,
+        )
+        assert res.status_code == 200
+
+    # 4th request from same IP should be rejected with 429
+    res_blocked = client.post(
+        "/ask",
+        json={"question": "What is the policy?", "k": 1},
+        headers=client_ip_headers,
+    )
+    assert res_blocked.status_code == 429
+    assert (
+        res_blocked.json()["detail"]
+        == "Rate limit exceeded. Demo allows up to 3 questions per minute."
+    )
+
+    # Different IP should succeed
+    res_other = client.post(
+        "/ask",
+        json={"question": "What is the policy?", "k": 1},
+        headers={"X-Forwarded-For": "192.168.1.200"},
+    )
+    assert res_other.status_code == 200
+
+    reset_rate_limits()
+
+
+
+
+def test_demo_rate_limit_ignores_forged_forwarded_for_prefix(monkeypatch):
+    """Rotating the first X-Forwarded-For entry must not bypass the limit."""
+    from api.main import reset_rate_limits
+
+    reset_rate_limits()
+    monkeypatch.setenv("DEMO_MODE", "true")
+    monkeypatch.setenv("DEMO_ASK_PER_MINUTE", "2")
+    monkeypatch.setenv("LLM_PROVIDER", "fake")
+
+    statuses = []
+    for i in range(3):
+        res = client.post(
+            "/ask",
+            json={"question": "q", "k": 1},
+            headers={"X-Forwarded-For": f"10.0.0.{i}, 203.0.113.7"},
+        )
+        statuses.append(res.status_code)
+    assert statuses[-1] == 429
+    reset_rate_limits()
