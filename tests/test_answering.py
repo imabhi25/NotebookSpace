@@ -307,3 +307,36 @@ def test_conflict_dropped_when_insufficient_claims(monkeypatch, tmp_path):
     assert res["abstained"] is False
     assert res["conflict_detected"] is False
     assert res["conflicts"] == []
+
+
+import pytest
+
+
+@pytest.mark.parametrize(
+    "v1,v2",
+    [("October 10", "october  10"), ("", "October 15"), ("  ", "  ")],
+)
+def test_conflict_dropped_when_values_do_not_differ(monkeypatch, tmp_path, v1, v2):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "a.pdf", "page_number": 1, "text": "x", "score": 0.9},
+        {"file_name": "b.pdf", "page_number": 1, "text": "y", "score": 0.8},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = (
+        '{"supported": true, "answer": "x [a.pdf p.1]", '
+        '"citations": [{"file": "a.pdf", "page": 1}], '
+        '"conflicts": [{"topic": "T", "claims": ['
+        '{"file": "a.pdf", "page": 1, "value": "%s"}, '
+        '{"file": "b.pdf", "page": 1, "value": "%s"}]}]}' % (v1, v2)
+    )
+
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=1, output_tokens=1, latency_seconds=0.1)
+
+    res = ans.answer_question("q", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert res["conflict_detected"] is False
+    assert res["conflicts"] == []

@@ -341,6 +341,7 @@ def answer_question(
 
             valid_claims = []
             distinct_files = set()
+            distinct_values: set[str] = set()
             conflict_invalid = False
 
             for claim in claims:
@@ -373,7 +374,13 @@ def answer_question(
                     conflict_invalid = True
                     break
 
+                if not c_val:
+                    logger.warning("Dropping conflict '%s': empty claim value", topic)
+                    conflict_invalid = True
+                    break
+
                 distinct_files.add(c_file_clean)
+                distinct_values.add(" ".join(c_val.lower().split()))
                 upload_date = file_page_to_upload_date.get((c_file_clean, c_page)) or file_to_upload_date.get(c_file_clean)
                 valid_claims.append({
                     "file": str(claim["file"]),
@@ -383,6 +390,10 @@ def answer_question(
                 })
 
             if conflict_invalid:
+                continue
+
+            if len(distinct_values) < 2:
+                logger.warning("Dropping conflict '%s': claim values do not differ", topic)
                 continue
 
             if len(distinct_files) < 2:

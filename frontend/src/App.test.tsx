@@ -277,4 +277,62 @@ describe('Course-Document Assistant UI', () => {
 
     expect(screen.getByTestId('passage-pane')).toHaveTextContent('grading.pdf • Page 3');
   });
+  it('ignores a stale passage response when a newer chip was clicked', async () => {
+    const ask = {
+      answer: 'A [syllabus.pdf p.1] B [grading.pdf p.3].',
+      citations: [
+        { file: 'syllabus.pdf', page: 1 },
+        { file: 'grading.pdf', page: 3 },
+      ],
+      conflicts: [],
+      conflict_detected: false,
+      abstained: false,
+      abstain_reason: null,
+      retrieved: [],
+      tokens: { input: 1, output: 1, total: 2 },
+      latency: 0.1,
+    };
+    let releaseSyllabus: (r: Response) => void = () => {};
+    const syllabusPending = new Promise<Response>((resolve) => {
+      releaseSyllabus = resolve;
+    });
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(async (url: any) => {
+      const u = String(url);
+      if (u.includes('/documents')) return { ok: true, json: async () => [] } as Response;
+      if (u.includes('/ask')) return { ok: true, json: async () => ask } as Response;
+      if (u.includes('/passages') && u.includes('syllabus.pdf')) return syllabusPending;
+      if (u.includes('/passages') && u.includes('grading.pdf')) {
+        return {
+          ok: true,
+          json: async () => [
+            { file_name: 'grading.pdf', page_number: 3, chunk_index: 0, text: 'Grading text' },
+          ],
+        } as Response;
+      }
+      return { ok: false } as Response;
+    });
+
+    render(<App />);
+    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), {
+      target: { value: 'q' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
+
+    const chip2 = await screen.findByTestId('citation-chip-1');
+    fireEvent.click(chip2);
+    await waitFor(() => expect(screen.getByText(/Grading text/)).toBeInTheDocument());
+
+    // The earlier (syllabus) request finishes last and must not overwrite the pane.
+    releaseSyllabus({
+      ok: true,
+      json: async () => [
+        { file_name: 'syllabus.pdf', page_number: 1, chunk_index: 0, text: 'Stale syllabus text' },
+      ],
+    } as Response);
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(screen.queryByText(/Stale syllabus text/)).not.toBeInTheDocument();
+    expect(screen.getByTestId('passage-pane')).toHaveTextContent('grading.pdf • Page 3');
+  });
 });
