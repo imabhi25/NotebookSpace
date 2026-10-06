@@ -86,3 +86,21 @@ def test_parse_pdf_nonexistent_file(tmp_path: Path):
     """Test error handling when file does not exist."""
     with pytest.raises(FileNotFoundError):
         parse_pdf(tmp_path / "does_not_exist.pdf")
+
+
+def test_parse_pdf_strips_nul_bytes(monkeypatch):
+    """PostgreSQL text fields cannot hold NUL bytes, so the parser must remove them."""
+    import io
+    from ingestion import parser
+
+    class FakePage:
+        def extract_text(self):
+            return "  before\x00after \x00 "
+
+    class FakeReader:
+        def __init__(self, source):
+            self.pages = [FakePage()]
+
+    monkeypatch.setattr(parser.pypdf, "PdfReader", FakeReader)
+    result = parser.parse_pdf(io.BytesIO(b"x"), file_name="f.pdf")
+    assert result == [("f.pdf", 1, "beforeafter")]

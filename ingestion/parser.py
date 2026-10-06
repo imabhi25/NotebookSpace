@@ -42,7 +42,8 @@ def parse_pdf(
 
     for page_idx, page in enumerate(reader.pages, start=1):
         raw_text = page.extract_text() or ""
-        cleaned_text = raw_text.strip()
+        # Some PDFs yield NUL bytes, which PostgreSQL text columns reject.
+        cleaned_text = raw_text.replace("\x00", "").strip()
 
         if skip_empty and not cleaned_text:
             continue
