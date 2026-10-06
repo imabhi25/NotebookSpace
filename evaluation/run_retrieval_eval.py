@@ -53,6 +53,9 @@ def evaluate_retrieval(
     total_answerable = len(answerable)
     top_3_hits = 0
     top_5_hits = 0
+    multi_page_total = 0
+    multi_page_any_hits = 0
+    multi_page_all_hits = 0
     misses: list[dict[str, Any]] = []
 
     for item in answerable:
@@ -105,8 +108,22 @@ def evaluate_retrieval(
                 }
             )
 
+        # Multi-page all vs any check in top 5
+        if q_type == "multi_page" and expected:
+            multi_page_total += 1
+            if hit_top_5:
+                multi_page_any_hits += 1
+            all_found = all(
+                any(is_source_match(exp["file"], exp["page"], r["file_name"], r["page_number"]) for r in results[:5])
+                for exp in expected
+            )
+            if all_found:
+                multi_page_all_hits += 1
+
     recall_at_3 = (top_3_hits / total_answerable) if total_answerable > 0 else 0.0
     recall_at_5 = (top_5_hits / total_answerable) if total_answerable > 0 else 0.0
+    multi_page_any_rate = (multi_page_any_hits / multi_page_total) if multi_page_total > 0 else 0.0
+    multi_page_all_rate = (multi_page_all_hits / multi_page_total) if multi_page_total > 0 else 0.0
 
     return {
         "total_questions": len(questions),
@@ -116,6 +133,11 @@ def evaluate_retrieval(
         "top_5_hits": top_5_hits,
         "recall_at_3": recall_at_3,
         "recall_at_5": recall_at_5,
+        "multi_page_total": multi_page_total,
+        "multi_page_any_hits": multi_page_any_hits,
+        "multi_page_all_hits": multi_page_all_hits,
+        "multi_page_any_rate": multi_page_any_rate,
+        "multi_page_all_rate": multi_page_all_rate,
         "misses": misses,
     }
 
@@ -137,6 +159,17 @@ def print_eval_report(report: dict[str, Any]):
         print(f"Top-5 Hit Rate (Recall@5): {report['top_5_hits']}/{ans} ({r5_pct:.1f}%)")
     else:
         print("No answerable questions in the dataset.")
+
+    mp_total = report.get("multi_page_total", 0)
+    if mp_total > 0:
+        mp_any = report.get("multi_page_any_hits", 0)
+        mp_all = report.get("multi_page_all_hits", 0)
+        mp_any_pct = report.get("multi_page_any_rate", 0.0) * 100
+        mp_all_pct = report.get("multi_page_all_rate", 0.0) * 100
+        print("-" * 60)
+        print(f"Multi-Page Questions ({mp_total}):")
+        print(f"  Any-Page Hit Rate:       {mp_any}/{mp_total} ({mp_any_pct:.1f}%)")
+        print(f"  All-Expected-Pages Rate: {mp_all}/{mp_total} ({mp_all_pct:.1f}%)")
     print("=" * 60)
 
     misses = report.get("misses", [])
