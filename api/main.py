@@ -1,8 +1,10 @@
+from collections import defaultdict
 import io
 import logging
 import os
+import time
 from typing import Any, List
-from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -31,11 +33,47 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_headers=["Content-Type"],
 )
 
 MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
+
+# Demo mode in-memory rate limiter tracking timestamps per IP
+ask_rate_limit_history: dict[str, list[float]] = defaultdict(list)
+
+
+def is_demo_mode() -> bool:
+    return os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
+
+
+def get_demo_ask_limit() -> int:
+    try:
+        return int(os.getenv("DEMO_ASK_PER_MINUTE", "10"))
+    except ValueError:
+        return 10
+
+
+def check_ask_rate_limit(client_ip: str) -> None:
+    if not is_demo_mode():
+        return
+    limit = get_demo_ask_limit()
+    now = time.time()
+    window = 60.0
+    timestamps = [ts for ts in ask_rate_limit_history[client_ip] if now - ts < window]
+    if len(timestamps) >= limit:
+        ask_rate_limit_history[client_ip] = timestamps
+        raise HTTPException(
+            status_code=429,
+            detail=f"Rate limit exceeded. Demo allows up to {limit} questions per minute.",
+        )
+    timestamps.append(now)
+    ask_rate_limit_history[client_ip] = timestamps
+
+
+def reset_rate_limits() -> None:
+    """Helper for testing to clear in-memory rate limit counts."""
+    ask_rate_limit_history.clear()
 
 
 class SearchRequest(BaseModel):
@@ -161,8 +199,15 @@ def search_endpoint(payload: SearchRequest):
 
 
 @app.post("/ask", response_model=AskResponse)
-def ask_endpoint(payload: AskRequest):
+def ask_endpoint(payload: AskRequest, request: Request):
     """Answer a question using retrieved passages, citations, and support checks."""
+    # The last entry is the one our hosting proxy appended; earlier entries can be
+    # forged by the caller, so they must not be used for rate limiting.
+    client_ip = (
+        request.headers.get("x-forwarded-for", "").split(",")[-1].strip()
+        or (request.client.host if request.client else "127.0.0.1")
+    )
+    check_ask_rate_limit(client_ip)
     result = answer_question(question=payload.question, k=payload.k)
     return AskResponse(**result)
 
@@ -170,6 +215,12 @@ def ask_endpoint(payload: AskRequest):
 @app.post("/upload", response_model=UploadResponse)
 async def upload_endpoint(file: UploadFile = File(...)):
     """Upload and ingest a course PDF document (capped at 10 MB)."""
+    if is_demo_mode():
+        raise HTTPException(
+            status_code=403,
+            detail="Upload is disabled in demo mode.",
+        )
+
     if not file.filename or not file.filename.lower().endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
