@@ -1,79 +1,91 @@
-# Course-Document Assistant Specification
+# Course Document Assistant: Project Spec
 
-## 1. System Overview
-The Course-Document Assistant is an intelligent retrieval and question-answering system designed to assist students and instructors with course materials (course outlines, syllabi, lecture slides, assignments, and reference documents).
+A web app where you upload course documents, ask questions, and get answers that cite the exact file and page, or say "not found" when the documents don't support an answer. Its main deliverable is a published evaluation that shows where it fails.
 
-## 2. Multi-Week Roadmap
+## Goal and scope
 
-### Week 1: Ingestion, Vector Storage & Retrieval Quality Benchmark
-- **Goal**: End-to-end pipeline to ingest PDFs, parse text page-by-page, chunk with page boundary constraints, embed with a local open-source model, store in PostgreSQL using pgvector with idempotent uploads, perform plain top-k vector similarity retrieval, and measure retrieval quality with an evaluation benchmark.
-- **Answer Generation**: None in Week 1. Focus strictly on retrieval accuracy and pipeline correctness.
+**It will:**
+- Accept PDFs of syllabi, lecture notes and slides, and index them by page.
+- Answer a question with a short answer plus the file and page numbers it came from.
+- Refuse to answer when the retrieved pages don't support one, and say what is missing.
+- Flag when two documents disagree (for example, a syllabus and a later announcement giving different due dates), and show both sources.
+- Ship a written evaluation covering bad retrieval, unsupported answers, conflicting documents, latency and cost per question.
 
-### Later Weeks (Future Scope)
-- **Week 2+**: Grounded answer generation with LLMs, explicit inline page citations, conflict resolution, guardrails for out-of-domain / not-in-document queries, and UI / chat interface.
+**It will not:**
+- Handle scanned images or handwriting in version 1 (text-based PDFs only).
+- Have accounts, sharing or multi-user permissions. One user, one workspace.
+- Use fine-tuning. The work is in retrieval, prompting and measurement.
 
----
+**Public demo rule:** the public demo uses a sample set of openly licensed course notes, not university material. Private course documents are used only for the evaluation, and only aggregate numbers are published.
 
-## 3. Week 1 Architectural Specification
+## How it works
 
-### 3.1 Technology Stack
-- **Language**: Python 3.12
-- **API Framework**: FastAPI
-- **Database**: PostgreSQL 16 with the `pgvector` extension
-- **Database Driver**: `psycopg` (v3) / `psycopg2`
-- **Embeddings**: Local open-source model via `sentence-transformers` (`all-MiniLM-L6-v2`, 384 dimensions). Zero paid API calls.
-- **Testing**: `pytest`
-- **CI/CD**: GitHub Actions with PostgreSQL 16 + pgvector service container.
+Every answer follows the same path, and each step is logged so the evaluation can say which step failed.
 
-### 3.2 Ingestion & Parsing
-- **PDF Extraction**: Extract text per page using `pypdf`.
-- **Page Metadata**: Every extracted record retains `(file_name, page_number, text)`. Pages are 1-indexed.
-- **Empty Pages**: Handled gracefully without errors.
+1. **Upload and parse.** Extract text page by page, keeping file name and page number with every piece of text.
+2. **Chunk.** Split each page into passages of roughly 200 to 400 words with a small overlap, never crossing a page boundary.
+3. **Embed and store.** Store vectors in PostgreSQL with pgvector, next to file, page and upload date.
+4. **Retrieve.** Fetch the top passages by vector similarity. This plain retrieval is the baseline; nothing fancier is added until the evaluation shows it helps.
+5. **Check support.** Decide whether the retrieved passages contain the answer. If not, abstain and say what was searched.
+6. **Answer with citations.** The model answers only from the retrieved passages and cites file and page for each claim. An answer with no valid citation is rejected.
+7. **Detect conflicts.** If passages from different documents give different values for the same fact, show both with sources and dates, and do not pick one silently.
 
-### 3.3 Chunking Strategy
-- **Page Boundaries**: A chunk must **never** span two pages. Each chunk belongs strictly to a single page.
-- **Chunk Size**: Approximately 200–400 words per chunk.
-- **Overlap**: Small word overlap (e.g., 30–50 words) between consecutive chunks on the same page.
-- **Metadata Retention**: Every chunk preserves `file_name` and `page_number`.
+Backend: FastAPI. Frontend: React, with the answer on the left and the cited pages on the right.
 
-### 3.4 Storage & Idempotency
-- **Database Schema**: Managed via sequential migrations (`db/migrations/001_...sql`, etc.) executed by `db/migrate.py`.
-- **Tables**:
-  - `documents`: Tracks uploaded documents (`id`, `file_name`, `file_hash`, `upload_date`).
-  - `chunks`: Stores chunk content and embeddings (`id`, `document_id`, `file_name`, `page_number`, `chunk_index`, `chunk_text`, `embedding vector(384)`, `created_at`).
-- **Idempotency**: Re-uploading the same file replaces previous chunks transactionally or updates without duplication.
+## Evaluation plan
 
-### 3.5 Retrieval Engine
-- **Method**: Plain top-k vector similarity search using vector cosine distance (`<=>`).
-- **Constraints**: No keyword search, hybrid search, or reranking in Week 1.
-- **Search Output**: Top-k matching chunks with `file_name`, `page_number`, `chunk_text`, and `similarity_score` (`1 - cosine_distance`).
-- **API**: `POST /search` accepting `question` and `k`.
+About 60 hand-written questions over two or three document sets, labelled in advance with the correct file and page (or "no answer").
 
----
+| Question type | Count | Correct means |
+|---|---|---|
+| Answerable from one page | 25 | Correct answer, cited page is the labelled one |
+| Answerable only by combining two pages | 10 | Correct answer, both labelled pages cited |
+| Not answered anywhere in the documents | 15 | The system abstains instead of guessing |
+| Documents disagree | 10 | Both sources shown and the conflict named |
 
-## 4. Evaluation Design
+**Metrics**, each reported with the failures behind it:
+- **Retrieval hit rate:** how often the labelled page appears in the top 3 and top 5.
+- **Citation accuracy:** how often each cited page supports the claim next to it.
+- **Unsupported-answer rate:** how often the system answers a "not in the documents" question anyway.
+- **Abstention on answerable questions:** how often it refuses when the answer was available.
+- **Conflict detection:** how many disagreeing-document questions are flagged.
+- **Latency and cost:** median and 95th-percentile seconds per question, and dollars per 100 questions.
 
-### 4.1 Question Dataset (`evaluation/questions.json`)
-The evaluation dataset consists of categorized test questions formatted as follows:
-- `id`: Unique identifier (string or integer).
-- `question`: Natural language question string.
-- `type`: One of:
-  - `single_page`: The answer is found entirely on a single page of a single document.
-  - `multi_page`: The answer requires information from two or more pages or documents.
-  - `not_in_documents`: The answer is not present in the ingested documents.
-  - `conflicting`: The ingested documents contain contradictory information regarding the question.
-- `expected_sources`: List of expected source targets `{"file": "<file_name>", "page": <page_number>}`. For `not_in_documents`, this list must be empty (`[]`).
+**Baseline first:** run plain vector retrieval and record every number. Add keyword search, hybrid search or a reranker only if a specific failure points to it, and report before and after. If a change doesn't help, say so.
 
-### 4.2 Metrics & Evaluation Protocol
-The retrieval evaluation script (`evaluation/run_retrieval_eval.py`):
-1. Filters for answerable questions (`type != 'not_in_documents'`).
-2. Queries the retrieval engine with `k=5`.
-3. Measures:
-   - **Top-3 Retrieval Recall (Recall@3 / Hit@3)**: Fraction of answerable questions for which at least one expected page appears within the top 3 retrieved chunks.
-   - **Top-5 Retrieval Recall (Recall@5 / Hit@5)**: Fraction of answerable questions for which at least one expected page appears within the top 5 retrieved chunks.
-4. Identifies misses and logs detailed diagnostic output including question text, expected sources, and retrieved pages.
+**Honesty rules:** labels are written before any results are seen; the 60 questions are never used to tune prompts (write 10 extra questions for tuning); the write-up includes at least five concrete failed examples.
 
-### 4.3 Labeling Rules
-- Expected sources must always match the exact filename and 1-indexed page number of the source PDF.
-- A question labeled `not_in_documents` must have `expected_sources: []`.
-- Multi-page and conflicting questions must list all relevant pages that contain the pertinent evidence.
+## Stack and cost
+
+| Part | Choice |
+|---|---|
+| Database | PostgreSQL with pgvector (Neon free tier) |
+| Backend | FastAPI |
+| Frontend | React and TypeScript on Vercel |
+| Embeddings | Small open-source model run locally (sentence-transformers) |
+| Answer model | One hosted language model via API, with a hard spending cap |
+| Tests and CI | pytest, Vitest, GitHub Actions |
+
+Keeping spend near zero: run the full evaluation locally, cache repeated answers, record tokens per question from day one, and set a hard monthly limit before the first API call.
+
+## Milestones
+
+| Week | Build | Done when |
+|---|---|---|
+| 1 | PDF parsing with page numbers, chunking, pgvector storage, plain retrieval, labelled test set | Retrieval hit rate measured on the full test set |
+| 2 | Answer generation with citations, support check, abstention | Unsupported-answer rate and citation accuracy measured |
+| 3 | Conflict detection, React interface | All four question types scored |
+| 4 | Evaluation write-up with failures, deployment, README | A stranger can run it and read the results |
+
+If week 1 or 2 runs long, shrink the conflict test set before cutting the evaluation.
+
+## Risks
+
+- **PDF parsing is messy.** Test the parser on real files before building on top of it.
+- **Labelling takes time.** It is the core of the project; do it first, in small batches.
+- **A model that sounds sure but is wrong.** This is what the unsupported-answer metric measures; a bad number is a finding.
+- **Cost creep.** Hard cap and token logging from the first call.
+
+## Resume claims
+
+Only claim what the evaluation measured, using the real numbers.
