@@ -1,11 +1,14 @@
 import io
 import logging
+import os
 from typing import Any, List
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from answering.answer import answer_question
 from db.retrieval import search
+from db.store import get_all_documents, get_passages_for_page
 from ingestion.pipeline import ingest_pdf
 
 logger = logging.getLogger("course_assistant.api")
@@ -14,6 +17,22 @@ app = FastAPI(
     title="Course-Document Assistant",
     description="Vector search retrieval and answering service for course documents.",
     version="2.0.0",
+)
+
+allowed_origins = ["http://localhost:5173"]
+env_origins = os.getenv("ALLOWED_ORIGINS", "")
+if env_origins:
+    for orig in env_origins.split(","):
+        cleaned = orig.strip()
+        if cleaned and cleaned not in allowed_origins:
+            allowed_origins.append(cleaned)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB
@@ -85,9 +104,38 @@ class UploadResponse(BaseModel):
     message: str
 
 
+class DocumentItem(BaseModel):
+    file_name: str
+    upload_date: str | None = None
+    chunk_count: int
+
+
+class PassageItem(BaseModel):
+    file_name: str
+    page_number: int
+    chunk_index: int
+    text: str
+    chunk_text: str | None = None
+
+
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/documents", response_model=List[DocumentItem])
+def get_documents_endpoint():
+    """List stored documents, their upload dates, and chunk counts."""
+    return get_all_documents()
+
+
+@app.get("/passages", response_model=List[PassageItem])
+def get_passages_endpoint(
+    file: str = Query(..., description="Document file name"),
+    page: int = Query(..., ge=1, description="Page number"),
+):
+    """Return chunks for a given file and page number."""
+    return get_passages_for_page(file_name=file, page_number=page)
 
 
 @app.post("/search", response_model=SearchResponse)
