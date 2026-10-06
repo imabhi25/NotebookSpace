@@ -91,43 +91,57 @@ def answer_question(
     system_prompt = get_system_prompt()
     user_prompt = f"Passages:\n{passages_text}\n\nQuestion: {question}"
 
-    # 3. Call model
+    # 3. Call model with single retry on JSON parse failure
     client = llm_client or get_llm_client()
     resp = client.generate(system=system_prompt, user=user_prompt)
 
     total_in_tok = resp.input_tokens
     total_out_tok = resp.output_tokens
 
-    # Parse response
-    content = resp.text.strip()
-    if content.startswith("```"):
-        # Strip markdown code fencing if present
-        lines = content.splitlines()
-        if lines[0].startswith("```"):
-            lines = lines[1:]
-        if lines and lines[-1].startswith("```"):
-            lines = lines[:-1]
-        content = "\n".join(lines).strip()
+    def try_parse_json(text: str) -> dict[str, Any] | None:
+        content = text.strip()
+        if content.startswith("```"):
+            lines = content.splitlines()
+            if lines[0].startswith("```"):
+                lines = lines[1:]
+            if lines and lines[-1].startswith("```"):
+                lines = lines[:-1]
+            content = "\n".join(lines).strip()
+        try:
+            val = json.loads(content)
+            return val if isinstance(val, dict) else None
+        except Exception:
+            return None
 
-    try:
-        parsed = json.loads(content)
-    except Exception:
-        parsed = None
+    parsed = try_parse_json(resp.text)
+
+    # If first attempt failed to parse, retry once
+    if parsed is None:
+        retry_user_prompt = (
+            f"{user_prompt}\n\n"
+            "Error: Your previous response was not valid JSON. "
+            "Please respond ONLY with the valid JSON object matching the requested schema."
+        )
+        retry_resp = client.generate(system=system_prompt, user=retry_user_prompt)
+        total_in_tok += retry_resp.input_tokens
+        total_out_tok += retry_resp.output_tokens
+        parsed = try_parse_json(retry_resp.text)
 
     latency = time.perf_counter() - start_time
+    token_stats = {
+        "input": total_in_tok,
+        "output": total_out_tok,
+        "total": total_in_tok + total_out_tok,
+    }
 
-    if not parsed or not isinstance(parsed, dict):
+    if parsed is None:
         return {
             "answer": "NOT_FOUND",
             "citations": [],
             "abstained": True,
             "abstain_reason": "bad_output",
             "retrieved": retrieved,
-            "tokens": {
-                "input": total_in_tok,
-                "output": total_out_tok,
-                "total": total_in_tok + total_out_tok,
-            },
+            "tokens": token_stats,
             "latency": latency,
         }
 
@@ -142,24 +156,78 @@ def answer_question(
             "abstained": True,
             "abstain_reason": "not_found",
             "retrieved": retrieved,
-            "tokens": {
-                "input": total_in_tok,
-                "output": total_out_tok,
-                "total": total_in_tok + total_out_tok,
-            },
+            "tokens": token_stats,
             "latency": latency,
         }
 
+    # Step 3: Citation validation
+    # Reject and convert to an abstention any answer whose citations are empty
+    # or point to a file/page not among the retrieved passages. Record abstain_reason = "invalid_citation".
+    if not isinstance(raw_citations, list) or len(raw_citations) == 0:
+        return {
+            "answer": "NOT_FOUND",
+            "citations": [],
+            "abstained": True,
+            "abstain_reason": "invalid_citation",
+            "retrieved": retrieved,
+            "tokens": token_stats,
+            "latency": latency,
+        }
+
+    retrieved_sources = {
+        (
+            Path(r.get("file_name", r.get("file", ""))).name.lower(),
+            int(r.get("page_number", r.get("page", 0))),
+        )
+        for r in retrieved
+    }
+
+    validated_citations: list[dict[str, Any]] = []
+    for cit in raw_citations:
+        if not isinstance(cit, dict) or "file" not in cit or "page" not in cit:
+            return {
+                "answer": "NOT_FOUND",
+                "citations": [],
+                "abstained": True,
+                "abstain_reason": "invalid_citation",
+                "retrieved": retrieved,
+                "tokens": token_stats,
+                "latency": latency,
+            }
+
+        try:
+            cit_file = Path(str(cit["file"])).name.lower()
+            cit_page = int(cit["page"])
+        except (ValueError, TypeError):
+            return {
+                "answer": "NOT_FOUND",
+                "citations": [],
+                "abstained": True,
+                "abstain_reason": "invalid_citation",
+                "retrieved": retrieved,
+                "tokens": token_stats,
+                "latency": latency,
+            }
+
+        if (cit_file, cit_page) not in retrieved_sources:
+            return {
+                "answer": "NOT_FOUND",
+                "citations": [],
+                "abstained": True,
+                "abstain_reason": "invalid_citation",
+                "retrieved": retrieved,
+                "tokens": token_stats,
+                "latency": latency,
+            }
+
+        validated_citations.append({"file": cit["file"], "page": cit_page})
+
     return {
         "answer": raw_answer,
-        "citations": raw_citations,
+        "citations": validated_citations,
         "abstained": False,
         "abstain_reason": None,
         "retrieved": retrieved,
-        "tokens": {
-            "input": total_in_tok,
-            "output": total_out_tok,
-            "total": total_in_tok + total_out_tok,
-        },
+        "tokens": token_stats,
         "latency": latency,
     }
