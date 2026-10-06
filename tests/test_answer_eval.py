@@ -164,3 +164,136 @@ def test_evaluate_answering_conflict_metrics(tmp_path: Path):
 
     delete_document(doc_a)
     delete_document(doc_b)
+
+
+def test_evaluate_answering_with_label_and_markdown(tmp_path: Path):
+    doc_name = "eval_md_doc.pdf"
+    delete_document(doc_name)
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    c.drawString(100, 750, "Sample course notes for markdown test.")
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    ingest_pdf(buf, file_name=doc_name)
+
+    questions = [
+        {
+            "id": "md1",
+            "question": "What are these notes?",
+            "type": "single_page",
+            "expected_sources": [{"file": doc_name, "page": 1}],
+            "expected_answer_contains": ["Sample course notes"],
+        }
+    ]
+    q_file = tmp_path / "custom_questions.json"
+    q_file.write_text(json.dumps(questions), encoding="utf-8")
+
+    fake_client = FakeLLMClient(
+        responses=[
+            f'{{"supported": true, "answer": "Sample course notes [{doc_name} p.1]", "citations": [{{"file": "{doc_name}", "page": 1}}]}}'
+        ],
+        cache_dir=tmp_path / "cache",
+    )
+
+    report = evaluate_answering(
+        questions_path=q_file,
+        llm_client=fake_client,
+        label="test_run",
+        results_dir=tmp_path / "results",
+        generate_markdown=True,
+    )
+
+    assert report["label"] == "test_run"
+    assert "saved_to" in report
+    assert "saved_to_markdown" in report
+    json_path = Path(report["saved_to"])
+    md_path = Path(report["saved_to_markdown"])
+
+    assert json_path.exists()
+    assert json_path.name.startswith("test_run_")
+    assert json_path.suffix == ".json"
+
+    assert md_path.exists()
+    assert md_path.name.startswith("test_run_")
+    assert md_path.suffix == ".md"
+
+    md_content = md_path.read_text(encoding="utf-8")
+    assert "# Answer Generation Evaluation Report: test_run" in md_content
+    assert "Retrieval Hit Rate" in md_content
+    assert "Worst Failures by Question Type" in md_content
+
+    delete_document(doc_name)
+
+
+def test_evaluate_answering_failure_reporting(tmp_path: Path):
+    doc_name = "eval_fail_doc.pdf"
+    delete_document(doc_name)
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    c.drawString(100, 750, "The secret pass phrase is not revealed in this course.")
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    ingest_pdf(buf, file_name=doc_name)
+
+    # A question that should abstain because document explicitly says it is not revealed
+    questions = [
+        {
+            "id": "fail1",
+            "question": "What is the secret pass phrase?",
+            "type": "not_in_documents",
+            "expected_sources": [],
+            "expected_answer_contains": [],
+        }
+    ]
+    q_file = tmp_path / "fail_questions.json"
+    q_file.write_text(json.dumps(questions), encoding="utf-8")
+
+    # Model hallucinates supported answer
+    fake_client = FakeLLMClient(
+        responses=[
+            f'{{"supported": true, "answer": "The secret is xyz [{doc_name} p.1]", "citations": [{{"file": "{doc_name}", "page": 1}}]}}'
+        ],
+        cache_dir=tmp_path / "cache",
+    )
+
+    report = evaluate_answering(
+        questions_path=q_file,
+        llm_client=fake_client,
+        label="fail_test",
+        results_dir=tmp_path / "results",
+        generate_markdown=True,
+    )
+
+    assert report["failures_count"] == 1
+    worst = report["worst_failures_by_type"]["not_in_documents"]
+    assert len(worst) == 1
+    fail_entry = worst[0]
+    assert fail_entry["id"] == "fail1"
+    assert "secret" in fail_entry["question"]
+    assert "Abstain" in fail_entry["expected"]
+    assert fail_entry["model_answer"].startswith("The secret is xyz")
+    assert "Answered unsupported question" in fail_entry["failure_reason"]
+
+    delete_document(doc_name)
+
+
+def test_evaluate_answering_refuses_canonical_without_label():
+    from evaluation.run_answer_eval import project_root
+    canonical = project_root / "evaluation" / "questions.json"
+    with pytest.raises(ValueError, match="requires a label"):
+        evaluate_answering(questions_path=canonical, label=None)
+
+
+def test_cli_main_refuses_without_label(monkeypatch):
+    import sys
+    from evaluation.run_answer_eval import main
+
+    monkeypatch.setattr(sys, "argv", ["run_answer_eval.py"])
+    with pytest.raises(SystemExit) as exc_info:
+        main()
+    assert exc_info.value.code == 1
+
