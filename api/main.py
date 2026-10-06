@@ -30,6 +30,7 @@ class SearchResultItem(BaseModel):
     text: str
     score: float
     chunk_index: int | None = None
+    upload_date: str | None = None
 
 
 class SearchResponse(BaseModel):
@@ -86,6 +87,7 @@ def search_endpoint(payload: SearchRequest):
             text=r["text"],
             score=r["score"],
             chunk_index=r.get("chunk_index"),
+            upload_date=r.get("upload_date"),
         )
         for r in results
     ]
