@@ -106,6 +106,56 @@ This evaluates the retrieval quality over answerable questions and outputs:
 
 ---
 
+## Answering
+
+### Environment Variables
+Configure the LLM provider and answering thresholds in `.env`:
+- `LLM_PROVIDER`: Provider name (e.g. `gemini` for Google Gemini free tier, or `fake` for testing).
+- `LLM_MODEL`: Model identifier (e.g. `gemini-2.5-flash`).
+- `LLM_API_KEY`: API key for the selected provider.
+- `SUPPORT_MIN_SCORE`: Minimum retrieval similarity score threshold for the pre-check (default: `0.25`).
+- `PRICE_PER_1M_INPUT`: Input token pricing per 1M tokens for cost estimation (default: `0.0`).
+- `PRICE_PER_1M_OUTPUT`: Output token pricing per 1M tokens for cost estimation (default: `0.0`).
+
+### Query the Answering Endpoint (`POST /ask`)
+Generate an answer with validated citations and support checks:
+```bash
+curl -X POST http://localhost:8000/ask \
+  -H "Content-Type: application/json" \
+  -d '{"question": "When is the midterm exam?", "k": 5}'
+```
+
+Response format:
+```json
+{
+  "answer": "The midterm exam is scheduled for November 12th [syllabus.pdf p.3].",
+  "citations": [
+    {
+      "file": "syllabus.pdf",
+      "page": 3
+    }
+  ],
+  "abstained": false,
+  "abstain_reason": null,
+  "retrieved": [...],
+  "tokens": {
+    "input": 320,
+    "output": 45,
+    "total": 365
+  },
+  "latency": 0.8521
+}
+```
+
+### Run Answer Evaluation
+Run the answer evaluation benchmark across question types:
+```bash
+python evaluation/run_answer_eval.py
+```
+This evaluates questions in `evaluation/questions.json`, logs metrics per question type (`single_page`, `multi_page`, `not_in_documents`, `conflicting`), measures latency (p50/p95) and token costs, writes results to `evaluation/results/answers_<timestamp>.json`, and prints diagnostic failure details.
+
+---
+
 ## Running Tests
 Run the test suite:
 ```bash
