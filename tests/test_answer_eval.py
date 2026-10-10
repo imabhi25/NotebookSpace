@@ -297,3 +297,86 @@ def test_cli_main_refuses_without_label(monkeypatch):
         main()
     assert exc_info.value.code == 1
 
+
+def test_expected_answer_contains_string_and_list_variants(tmp_path: Path):
+    doc_name = "eval_contains_variants_doc.pdf"
+    delete_document(doc_name)
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    c.drawString(100, 750, "Course grading details and test passage.")
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    ingest_pdf(buf, file_name=doc_name)
+
+    questions = [
+        # 1. string element matches
+        {
+            "id": "q_str",
+            "question": "What is the course topic?",
+            "type": "single_page",
+            "expected_sources": [{"file": doc_name, "page": 1}],
+            "expected_answer_contains": ["grading details"],
+        },
+        # 2. list element where the first alternative matches
+        {
+            "id": "q_first",
+            "question": "What is the penalty for late assignments?",
+            "type": "single_page",
+            "expected_sources": [{"file": doc_name, "page": 1}],
+            "expected_answer_contains": [["10 percent", "10%"]],
+        },
+        # 3. list element where only the second matches
+        {
+            "id": "q_second",
+            "question": "What is the penalty percentage?",
+            "type": "single_page",
+            "expected_sources": [{"file": doc_name, "page": 1}],
+            "expected_answer_contains": [["10 percent", "10%"]],
+        },
+        # 4. failure when none match
+        {
+            "id": "q_none",
+            "question": "What is the penalty rate?",
+            "type": "single_page",
+            "expected_sources": [{"file": doc_name, "page": 1}],
+            "expected_answer_contains": [["10 percent", "10%"]],
+        },
+    ]
+
+    q_file = tmp_path / "contains_test_questions.json"
+    q_file.write_text(json.dumps(questions), encoding="utf-8")
+
+    responses = [
+        # q_str: string matches ("grading details")
+        f'{{"supported": true, "answer": "The course has grading details [{doc_name} p.1]", "citations": [{{"file": "{doc_name}", "page": 1}}]}}',
+        # q_first: first alternative matches ("10 percent")
+        f'{{"supported": true, "answer": "The penalty is 10 percent [{doc_name} p.1]", "citations": [{{"file": "{doc_name}", "page": 1}}]}}',
+        # q_second: only second alternative matches ("10%")
+        f'{{"supported": true, "answer": "The penalty is 10% [{doc_name} p.1]", "citations": [{{"file": "{doc_name}", "page": 1}}]}}',
+        # q_none: neither matches ("25 points")
+        f'{{"supported": true, "answer": "The penalty is 25 points [{doc_name} p.1]", "citations": [{{"file": "{doc_name}", "page": 1}}]}}',
+    ]
+
+    fake_client = FakeLLMClient(
+        responses=responses,
+        cache_dir=tmp_path / "cache",
+    )
+
+    report = evaluate_answering(
+        questions_path=q_file,
+        llm_client=fake_client,
+        results_dir=tmp_path / "results",
+    )
+
+    # q_str, q_first, q_second should succeed; q_none should fail
+    failures = {f["id"]: f.get("failures", []) for f in report["failures"]}
+    assert "q_str" not in failures
+    assert "q_first" not in failures
+    assert "q_second" not in failures
+    assert "q_none" in failures
+    assert any("Answer missing expected phrase(s)" in reason for reason in failures["q_none"])
+
+    delete_document(doc_name)
+

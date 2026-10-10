@@ -312,7 +312,14 @@ def evaluate_answering(
                 # Check expected_answer_contains
                 if expected_contains and not abstained:
                     answer_lower = answer.lower()
-                    missing = [c for c in expected_contains if c.lower() not in answer_lower]
+                    missing = []
+                    for c in expected_contains:
+                        if isinstance(c, list):
+                            if not any(isinstance(alt, str) and alt.lower() in answer_lower for alt in c):
+                                missing.append(c)
+                        elif isinstance(c, str):
+                            if c.lower() not in answer_lower:
+                                missing.append(c)
                     if missing:
                         question_failures.append(f"Answer missing expected phrase(s): {missing}")
 

@@ -1,18 +1,28 @@
 #!/usr/bin/env python3
 """
-Generate synthetic sample course documents for the public demo.
-Creates 3 PDFs in docs/sample_docs/:
+Generate synthetic sample course documents for the public demo and evaluation.
+Creates 6 PDFs in docs/sample_docs/ (22 pages total):
 - syllabus.pdf (4 pages)
 - assignment_1.pdf (3 pages)
 - announcement_update.pdf (3 pages)
+- assignment_2.pdf (4 pages)
+- exam_guide.pdf (4 pages)
+- lecture_schedule.pdf (4 pages)
 
 Every page includes the required visible header:
 "SYNTHETIC SAMPLE DOCUMENT - not a real course"
 
-Includes 3 deliberate conflicts between syllabus.pdf and announcement_update.pdf:
-1. Assignment 1 due date (October 14 vs October 21)
-2. Late submission penalty (10% per day up to 3 days vs 5% per day up to 2 days)
-3. Midterm examination date (November 5 vs November 12)
+Intentional conflicts ground truth (10 total):
+1. Assignment 1 due date: syllabus.pdf (p. 3: October 14, 2026) vs announcement_update.pdf (p. 1: October 21, 2026)
+2. Late submission penalty: syllabus.pdf (p. 2: 10 percent per day up to 3 days) vs announcement_update.pdf (p. 2: 5 percent per day up to 2 days)
+3. Midterm examination date: syllabus.pdf (p. 2: November 5, 2026 in Hall B) vs announcement_update.pdf (p. 2: November 12, 2026 in Hall B)
+4. Assignment 2 due date: syllabus.pdf (p. 3: November 18, 2026) vs assignment_2.pdf (p. 1: November 25, 2026)
+5. Instructor office hours location: syllabus.pdf (p. 1: Science Center Room 405) vs lecture_schedule.pdf (p. 1: Turing Hall Room 310)
+6. Final Term Project grade weight: syllabus.pdf (p. 2: 25 percent) vs lecture_schedule.pdf (p. 4: 30 percent)
+7. Assignment 1 minimum lock shard count: assignment_1.pdf (p. 2: at least 64 distinct lock shards) vs lecture_schedule.pdf (p. 2: at least 32 distinct lock shards)
+8. Teaching Assistant walk-in tutoring location: announcement_update.pdf (p. 3: Turing Hall Room 204) vs exam_guide.pdf (p. 4: Science Center Room 215)
+9. Assignment 2 benchmark cluster nodes: assignment_2.pdf (p. 2: 2, 4, and 8 cluster node instances) vs lecture_schedule.pdf (p. 3: 3, 5, and 7 cluster node instances)
+10. Official course C++ standard: exam_guide.pdf (p. 2: modern C++20 standard) vs lecture_schedule.pdf (p. 1: standardized on C++17)
 """
 
 from pathlib import Path
@@ -225,25 +235,204 @@ def build_announcement(out_path: Path):
     c.save()
 
 
+def build_assignment_2(out_path: Path):
+    c = canvas.Canvas(str(out_path), pagesize=letter)
+
+    # Page 1: Overview and Objectives
+    _draw_page_content(
+        c,
+        "Assignment 2: Distributed Consensus with Raft",
+        [
+            "Course: CS 401 Advanced Systems Programming.",
+            "Due Date: November 25, 2026 at 11:59 PM via the course submission portal.",
+            "Objective: Implement a fault-tolerant distributed consensus service based on the Raft protocol specification.",
+            "The consensus service must manage replicated state machine logs and elect a new leader when network partitions or node crashes occur.",
+            "Key RPCs: Implement RequestVote and AppendEntries RPC interfaces with strict message ordering.",
+        ],
+    )
+
+    # Page 2: Timing and Benchmark Requirements
+    _draw_page_content(
+        c,
+        "Raft Timing Requirements and Benchmark Harness",
+        [
+            "Heartbeat and Election Timers: Heartbeat intervals must be set to 50 milliseconds. Election timeouts must be randomized between 150 milliseconds and 300 milliseconds.",
+            "Benchmark Harness: The automated test suite evaluates performance on 2, 4, and 8 cluster node instances under simulated packet loss.",
+            "Linearizability Guarantee: All client read and write operations must satisfy strict linearizability across leader transitions.",
+            "Concurrency Controls: Use mutexes and condition variables to guard internal state machine transitions without deadlocks.",
+        ],
+    )
+
+    # Page 3: State Machine Persistence and Log Compaction
+    _draw_page_content(
+        c,
+        "State Machine Persistence and Log Compaction",
+        [
+            "Log Compaction: Implement Snapshot RPC to discard committed log entries and bound disk usage.",
+            "Persistent Storage Interface: Persist currentTerm, votedFor, and log entries to the mock disk interface before responding to RPCs.",
+            "Crash Recovery: Nodes must successfully reconstruct in-memory state machines upon simulated reboot from persistent storage.",
+            "Network Partitions: Sub-clusters with fewer than a majority of nodes must reject client write operations.",
+        ],
+    )
+
+    # Page 4: Grading Rubric and Submission Format
+    _draw_page_content(
+        c,
+        "Assignment 2 Grading Rubric and Submission Format",
+        [
+            "Evaluation Breakdown: Leader Election (30 points), Log Replication (40 points), Partition Recovery and Persistence (30 points).",
+            "Submission Packaging: Submit a single compressed archive named assignment2.tar.gz containing your src/ directory and tests/ suite.",
+            "Collaboration Rule: All implementation code must be written individually. Group submissions are not accepted.",
+            "Late Penalty: Submissions follow the revised course late submission policy stated in the latest course announcements.",
+        ],
+    )
+
+    c.save()
+
+
+def build_exam_guide(out_path: Path):
+    c = canvas.Canvas(str(out_path), pagesize=letter)
+
+    # Page 1: Exam Structure and Permitted Items
+    _draw_page_content(
+        c,
+        "CS 401 Midterm Examination Study and Logistics Guide",
+        [
+            "Examination Overview: The CS 401 Midterm Examination evaluates core concepts in multi-threaded programming and distributed consensus.",
+            "Duration and Format: The exam duration is 120 minutes. It includes 20 multiple-choice questions and 3 handwritten systems coding problems.",
+            "Allowed Reference Materials: Students may bring one double-sided 8.5x11 inch handwritten notes sheet and a basic non-programmable calculator.",
+            "Prohibited Devices: Cellular phones, smartwatches, laptops, and connected devices are strictly forbidden during the exam.",
+        ],
+    )
+
+    # Page 2: Technical Scope and Required Standard
+    _draw_page_content(
+        c,
+        "Technical Scope and Required Programming Standard",
+        [
+            "Programming Language Standard: All midterm and exam code syntax must use modern C++20 standard conventions including std::jthread and concepts.",
+            "Topic 1: Concurrency Primitives: Mutexes, shared_mutex, condition variables, atomic variables, and sequentially consistent memory ordering.",
+            "Topic 2: Lock-Free Programming: Compare-and-swap loops, ABA problem mitigation, and memory reclamation strategies.",
+            "Topic 3: Distributed Consensus: Raft leader election invariants, term management, and safety properties.",
+        ],
+    )
+
+    # Page 3: Problem Strategies and Common Pitfalls
+    _draw_page_content(
+        c,
+        "Exam Problem Strategies and Common Pitfalls",
+        [
+            "Reader-Writer Lock Invariants: Ensure write acquisition requests give priority over newly arriving read requests to prevent writer starvation.",
+            "Deadlock Avoidance: Enforce strict global lock acquisition ordering across all nested synchronization regions.",
+            "Spurious Wakeups: Condition variable wait operations must always be enclosed within a while predicate loop.",
+            "Memory Fences: Do not assume relaxed atomic operations establish synchronization barriers without explicit fences.",
+        ],
+    )
+
+    # Page 4: Review Sessions, Tutoring, and Regrade Policies
+    _draw_page_content(
+        c,
+        "Review Sessions, Tutoring, and Regrade Policies",
+        [
+            "Tutoring and Review Support: Teaching Assistant walk-in tutoring is conducted in Science Center Room 215 on Thursday mornings from 10:00 AM to 12:00 PM.",
+            "Official Exam Review: Solutions and rubric guidelines will be discussed in lecture following the return of graded exams.",
+            "Regrade Requests: Regrade petitions must be submitted through the course portal within 5 business days of exam distribution.",
+            "Accommodated Testing: Students with approved testing accommodations must schedule room reservations with the Accessibility Center 7 days in advance.",
+        ],
+    )
+
+    c.save()
+
+
+def build_lecture_schedule(out_path: Path):
+    c = canvas.Canvas(str(out_path), pagesize=letter)
+
+    # Page 1: Course Info and Technology Standards
+    _draw_page_content(
+        c,
+        "CS 401 Weekly Lecture Schedule and Technology Standards",
+        [
+            "Course Overview: Advanced Systems Programming meets Monday and Wednesday from 10:00 AM to 11:30 AM in Turing Hall Room 101.",
+            "Official Technology Standards: All code examples, assignments, and exam reference syntax are standardized on C++17.",
+            "Staff and Office Hours: Dr. Alex Mercer holds office hours in Turing Hall Room 310 on Mondays from 1:00 PM to 3:00 PM.",
+            "Course Repository: Weekly lecture slides and coding examples are published to the department course git server each Friday.",
+        ],
+    )
+
+    # Page 2: Weeks 1-5 Lecture Topics
+    _draw_page_content(
+        c,
+        "Weeks 1 through 5: Concurrency and Thread Safety",
+        [
+            "Week 1: Multi-core hardware architectures, memory hierarchies, cache coherence, and false sharing.",
+            "Week 2: POSIX threads, C++ thread lifecycles, race conditions, and AddressSanitizer/ThreadSanitizer diagnostics.",
+            "Week 3: Synchronization primitives, reader-writer locks, and semaphore implementations.",
+            "Week 4: Assignment 1 Architecture: Concurrent hash tables, bucket striping, and lock sharding requirements. Note: Assignment 1 requires bucket-level locking with at least 32 distinct lock shards.",
+            "Week 5: Lock-free data structures, atomic memory models, and non-blocking queue design.",
+        ],
+    )
+
+    # Page 3: Weeks 6-10 Lecture Topics
+    _draw_page_content(
+        c,
+        "Weeks 6 through 10: Distributed Systems and Consensus",
+        [
+            "Week 6: RPC communication patterns, failure detection, and network timeouts.",
+            "Week 7: Fault-tolerant state machine replication and quorum systems.",
+            "Week 8: The Raft consensus algorithm: Leader election and heartbeat protocols.",
+            "Week 9: Assignment 2 Architecture: Raft log replication and cluster testing harness. Note: Assignment 2 automated evaluation is conducted on 3, 5, and 7 cluster node instances.",
+            "Week 10: Distributed log compaction and snapshotting mechanisms.",
+        ],
+    )
+
+    # Page 4: Weeks 11-15 Lecture Topics and Final Deliverables
+    _draw_page_content(
+        c,
+        "Weeks 11 through 15: Storage Systems and Final Projects",
+        [
+            "Week 11: Write-ahead logging, crash recovery, and ARIES database algorithms.",
+            "Week 12: Distributed key-value systems and consistency trade-offs.",
+            "Week 13: Final term project design presentations and architecture reviews.",
+            "Course Deliverables Overview: Final Term Project accounts for 30 percent of the total course grade, evaluated on performance benchmarks.",
+            "Final Demo Schedule: Final project live demonstrations will take place December 18 through December 20, 2026.",
+        ],
+    )
+
+    c.save()
+
+
 def make_sample_docs():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     syllabus_path = OUTPUT_DIR / "syllabus.pdf"
-    assignment_path = OUTPUT_DIR / "assignment_1.pdf"
+    assignment1_path = OUTPUT_DIR / "assignment_1.pdf"
     announcement_path = OUTPUT_DIR / "announcement_update.pdf"
+    assignment2_path = OUTPUT_DIR / "assignment_2.pdf"
+    exam_guide_path = OUTPUT_DIR / "exam_guide.pdf"
+    lecture_schedule_path = OUTPUT_DIR / "lecture_schedule.pdf"
 
     print(f"Generating synthetic sample documents in {OUTPUT_DIR}...")
     build_syllabus(syllabus_path)
     print(f"Generated {syllabus_path.name}")
 
-    build_assignment_1(assignment_path)
-    print(f"Generated {assignment_path.name}")
+    build_assignment_1(assignment1_path)
+    print(f"Generated {assignment1_path.name}")
 
     build_announcement(announcement_path)
     print(f"Generated {announcement_path.name}")
+
+    build_assignment_2(assignment2_path)
+    print(f"Generated {assignment2_path.name}")
+
+    build_exam_guide(exam_guide_path)
+    print(f"Generated {exam_guide_path.name}")
+
+    build_lecture_schedule(lecture_schedule_path)
+    print(f"Generated {lecture_schedule_path.name}")
 
     print("All sample documents successfully generated.")
 
 
 if __name__ == "__main__":
     make_sample_docs()
+
