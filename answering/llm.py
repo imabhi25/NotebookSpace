@@ -1,8 +1,10 @@
 from dataclasses import dataclass
+from datetime import datetime, timezone, timedelta
 import hashlib
 import json
 import os
 from pathlib import Path
+import re
 import time
 from typing import Protocol
 import httpx
@@ -88,6 +90,50 @@ class BaseCachedLLMClient:
         raise NotImplementedError
 
 
+def parse_retry_delay(resp: httpx.Response) -> tuple[float | None, str | None]:
+    """
+    Parse retry delay in seconds and error status from response headers or body.
+
+    Returns:
+        (delay_seconds, error_status)
+    """
+    # 1. Inspect Retry-After header
+    retry_header = resp.headers.get("retry-after")
+    if retry_header:
+        try:
+            return float(retry_header), None
+        except ValueError:
+            pass
+
+    # 2. Inspect JSON body error details
+    try:
+        data = resp.json()
+        error = data.get("error", {})
+        status = error.get("status")
+        message = error.get("message", "")
+
+        # Look for duration patterns such as "Please retry in 3h17m45.6s" or "retry in 15s"
+        m = re.search(r"retry in\s+([0-9hms\.]+)", message, re.IGNORECASE)
+        if m:
+            dur_str = m.group(1)
+            total_sec = 0.0
+            h = re.search(r"(\d+)h", dur_str)
+            if h:
+                total_sec += float(h.group(1)) * 3600.0
+            m_min = re.search(r"(\d+)m", dur_str)
+            if m_min:
+                total_sec += float(m_min.group(1)) * 60.0
+            s = re.search(r"([\d\.]+)s", dur_str)
+            if s:
+                total_sec += float(s.group(1))
+            if total_sec > 0:
+                return total_sec, status
+
+        return None, status
+    except Exception:
+        return None, None
+
+
 class GeminiLLMClient(BaseCachedLLMClient):
     """Google Gemini client via HTTP using the free-tier API."""
 
@@ -97,7 +143,7 @@ class GeminiLLMClient(BaseCachedLLMClient):
         api_key: str | None = None,
         cache_dir: Path | str | None = None,
     ):
-        model_name = model or os.getenv("LLM_MODEL", "gemini-2.5-flash")
+        model_name = model or os.getenv("LLM_MODEL", "gemini-3.5-flash")
         super().__init__(model=model_name, cache_dir=cache_dir)
         self.api_key = api_key or os.getenv("LLM_API_KEY", "")
 
@@ -117,14 +163,40 @@ class GeminiLLMClient(BaseCachedLLMClient):
         with httpx.Client(timeout=60.0) as client:
             for attempt in range(4):
                 resp = client.post(url, json=payload, headers=headers)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    break
+
+                delay_sec, err_status = parse_retry_delay(resp)
+
+                # For exhausted quota requiring a long wait (> 60s), preserve progress and exit immediately
+                if resp.status_code == 429 and (err_status == "RESOURCE_EXHAUSTED" or (delay_sec is not None and delay_sec > 60.0)):
+                    if delay_sec is not None and delay_sec > 60.0:
+                        reset_dt = datetime.now(timezone.utc) + timedelta(seconds=delay_sec)
+                        reset_iso = reset_dt.isoformat()
+                        raise RuntimeError(
+                            f"LLM quota exhausted (status 429 {err_status or ''}). "
+                            f"Retry after {delay_sec:.1f}s (estimated reset: {reset_iso})."
+                        )
+                    elif err_status == "RESOURCE_EXHAUSTED":
+                        raise RuntimeError(
+                            f"LLM quota exhausted (status 429 {err_status}). "
+                            "Quota window exceeded. Please wait for provider quota reset."
+                        )
+
+                # Short transient failures: bounded retries up to 3 times (attempts 0, 1, 2)
                 if resp.status_code in (429, 500, 502, 503, 504) and attempt < 3:
-                    time.sleep(2 ** (attempt + 1))
+                    if delay_sec is not None and 0.0 < delay_sec <= 60.0:
+                        sleep_time = delay_sec
+                    else:
+                        sleep_time = float(2 ** (attempt + 1))
+                    time.sleep(sleep_time)
                     continue
+
                 if resp.status_code >= 400:
-                    # Do not include the request URL or headers in the error.
-                    raise RuntimeError(f"LLM request failed with status {resp.status_code}")
-                data = resp.json()
-                break
+                    # Non-transient or exhausted retries
+                    status_detail = f" {err_status}" if err_status else ""
+                    raise RuntimeError(f"LLM request failed with status {resp.status_code}{status_detail}")
 
         candidates = data.get("candidates", [])
         if not candidates:
@@ -173,7 +245,7 @@ def get_llm_client(
 ) -> BaseCachedLLMClient:
     """Factory to instantiate the configured LLM client."""
     prov = (provider or os.getenv("LLM_PROVIDER", "gemini")).lower()
-    mod = model or os.getenv("LLM_MODEL", "gemini-2.5-flash")
+    mod = model or os.getenv("LLM_MODEL", "gemini-3.5-flash")
 
     if prov in ("gemini", "google"):
         return GeminiLLMClient(model=mod, api_key=api_key, cache_dir=cache_dir)
