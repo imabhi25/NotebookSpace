@@ -1,31 +1,68 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { AskResponse, Citation, DocumentItem, PassageItem } from './types';
+import { AskResponse, Citation, ActiveCitation, DocumentItem, PassageItem, normalizeFileName } from './types';
+import { Sidebar } from './components/Sidebar';
+import { Composer } from './components/Composer';
+import { AssistantMessage } from './components/AssistantMessage';
+import { SourcePanel } from './components/SourcePanel';
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000').replace(/\/+$/, '');
 
-export function App() {
-  const [question, setQuestion] = useState('');
-  const [lastSearched, setLastSearched] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<AskResponse | null>(null);
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content?: string;
+  result?: AskResponse | null;
+  loading?: boolean;
+  error?: string | null;
+  questionText?: string;
+}
 
-  // Cited page pane
-  const [selectedCitation, setSelectedCitation] = useState<Citation | null>(null);
+interface AppProps {
+  isDemoMode?: boolean;
+}
+
+const isDemoFromQuery =
+  typeof window !== 'undefined' &&
+  new URLSearchParams(window.location.search).get('demo') === 'true';
+
+export function App({
+  isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || isDemoFromQuery,
+}: AppProps = {}) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [question, setQuestion] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Cited page / Source panel state: tracked by owning assistant message ID plus file/page
+  const [selectedCitation, setSelectedCitation] = useState<ActiveCitation | null>(null);
   const [passageLoading, setPassageLoading] = useState(false);
   const [passages, setPassages] = useState<PassageItem[]>([]);
+  const [isSourceOpen, setIsSourceOpen] = useState(false);
 
-  // Documents and upload
+  // Documents and upload state
   const [documents, setDocuments] = useState<DocumentItem[]>([]);
-  const [showDocs, setShowDocs] = useState(false);
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [uploadMsg, setUploadMsg] = useState<string | null>(null);
+
+  // Responsive mobile drawer state
+  const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
+
+  const passageRequestId = useRef(0);
+  const threadBottomRef = useRef<HTMLDivElement>(null);
 
   // Fetch documents list on mount
   useEffect(() => {
     fetchDocuments();
   }, []);
+
+  const latestTurnRef = useRef<HTMLDivElement>(null);
+
+  // Scroll to latest message turn on message update
+  useEffect(() => {
+    if (latestTurnRef.current && typeof latestTurnRef.current.scrollIntoView === 'function') {
+      latestTurnRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [messages, loading]);
 
   const fetchDocuments = async () => {
     try {
@@ -39,54 +76,30 @@ export function App() {
     }
   };
 
-  const handleAsk = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = question.trim();
-    if (!trimmed) return;
-
-    setLoading(true);
-    setError(null);
-    setResult(null);
+  const handleNewChat = () => {
+    setMessages([]);
+    setQuestion('');
     setSelectedCitation(null);
     setPassages([]);
-    setLastSearched(trimmed);
-
-    try {
-      const res = await fetch(`${API_BASE_URL}/ask`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question: trimmed, k: 5 }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`Server returned status ${res.status}`);
-      }
-
-      const data: AskResponse = await res.json();
-      setResult(data);
-
-      // If citations exist and not abstained, automatically select first citation
-      if (data.citations && data.citations.length > 0 && !data.abstained) {
-        loadPassage(data.citations[0]);
-      }
-    } catch (err: any) {
-      setError(err.message || 'An error occurred while answering.');
-    } finally {
-      setLoading(false);
-    }
+    setIsSourceOpen(false);
+    setIsSidebarOpenMobile(false);
   };
 
-  const passageRequestId = useRef(0);
+  const handleSelectCitation = (citation: Citation, messageId?: string) => {
+    const targetMsgId = messageId || selectedCitation?.messageId || activeMessage?.id || '';
+    setIsSourceOpen(true);
+    loadPassage(targetMsgId, citation);
+  };
 
-  const loadPassage = async (citation: Citation) => {
+  const loadPassage = async (messageId: string, citation: Citation) => {
     const requestId = ++passageRequestId.current;
-    setSelectedCitation(citation);
+    setSelectedCitation({ messageId, file: citation.file, page: citation.page });
     setPassageLoading(true);
     try {
       const url = `${API_BASE_URL}/passages?file=${encodeURIComponent(citation.file)}&page=${citation.page}`;
       const res = await fetch(url);
       const data = res.ok ? await res.json() : [];
-      if (requestId !== passageRequestId.current) return; // a newer click superseded this one
+      if (requestId !== passageRequestId.current) return;
       setPassages(data);
     } catch {
       if (requestId !== passageRequestId.current) return;
@@ -96,8 +109,97 @@ export function App() {
     }
   };
 
+  const executeAsk = async (queryText: string) => {
+    const trimmed = queryText.trim();
+    if (!trimmed || loading) return;
+
+    const userMessageId = `user-${Date.now()}`;
+    const assistantMessageId = `asst-${Date.now()}`;
+
+    setMessages((prev) => [
+      ...prev,
+      { id: userMessageId, role: 'user', content: trimmed },
+      { id: assistantMessageId, role: 'assistant', loading: true, questionText: trimmed },
+    ]);
+    setQuestion('');
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_BASE_URL}/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: trimmed, k: 5 }),
+      });
+
+      if (!res.ok) {
+        const errData = typeof res.json === 'function' ? await res.json().catch(() => ({})) : {};
+        throw new Error(errData?.detail || `Server returned status ${res.status}`);
+      }
+
+      const data: AskResponse = await res.json();
+
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId
+            ? {
+                ...msg,
+                loading: false,
+                result: data,
+                error: null,
+              }
+            : msg
+        )
+      );
+
+      if (data.citations && data.citations.length > 0 && !data.abstained) {
+        if (typeof window !== 'undefined' && window.innerWidth > 768) {
+          setIsSourceOpen(true);
+        }
+        loadPassage(assistantMessageId, data.citations[0]);
+      } else if (!data.abstained && data.conflict_detected && data.conflicts && data.conflicts.length > 0) {
+        const firstClaim = data.conflicts[0]?.claims?.[0];
+        if (firstClaim) {
+          if (typeof window !== 'undefined' && window.innerWidth > 768) {
+            setIsSourceOpen(true);
+          }
+          loadPassage(assistantMessageId, { file: firstClaim.file, page: firstClaim.page });
+        }
+      }
+    } catch (err: any) {
+      const errMsg = err.message || 'An error occurred while answering.';
+      setMessages((prev) =>
+        prev.map((msg) =>
+          msg.id === assistantMessageId
+            ? {
+                ...msg,
+                loading: false,
+                error: errMsg,
+                result: null,
+              }
+            : msg
+        )
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAsk = (e: React.FormEvent) => {
+    e.preventDefault();
+    executeAsk(question);
+  };
+
+  const handleStarterSubmit = (starterQuery: string) => {
+    setQuestion(starterQuery);
+    executeAsk(starterQuery);
+  };
+
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isDemoMode) {
+      setUploadMsg('Error: Upload is disabled in demo mode.');
+      return;
+    }
     if (!uploadFile) return;
 
     setUploading(true);
@@ -113,8 +215,8 @@ export function App() {
       });
 
       if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.detail || 'Upload failed');
+        const errData = typeof res.json === 'function' ? await res.json().catch(() => ({})) : {};
+        throw new Error(errData?.detail || 'Upload failed');
       }
 
       const data = await res.json();
@@ -128,231 +230,232 @@ export function App() {
     }
   };
 
-  const getPlainAbstainReason = (reason?: string | null) => {
-    switch (reason) {
-      case 'not_found':
-        return 'The requested information could not be found in the course documents.';
-      case 'low_retrieval_score':
-        return 'No sufficiently relevant course passages were found for this question.';
-      case 'invalid_citation':
-        return 'The generated answer could not be verified against the cited course documents.';
-      case 'bad_output':
-        return 'Unable to produce a valid response format from the course documents.';
-      default:
-        return reason ? `The assistant abstained (${reason}).` : 'The assistant abstained from answering.';
+  // Find owning assistant message directly by messageId; fallback only when no citation is selected
+  const activeMessage = selectedCitation
+    ? messages.find((m) => m.id === selectedCitation.messageId)
+    : [...messages]
+        .reverse()
+        .find(
+          (m) =>
+            m.result &&
+            ((m.result.citations && m.result.citations.length > 0) ||
+              (m.result.conflicts && m.result.conflicts.length > 0))
+        );
+
+  // All citations from the selected message's response, including conflict claims
+  const activeCitations = React.useMemo(() => {
+    if (!activeMessage?.result) return [];
+    const list: Citation[] = [];
+    const seen = new Set<string>();
+
+    // 1. Normal citations
+    for (const c of activeMessage.result.citations || []) {
+      const key = `${normalizeFileName(c.file)}:${c.page}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({ file: c.file, page: c.page });
+      }
     }
-  };
+
+    // 2. Conflict claims
+    for (const conf of activeMessage.result.conflicts || []) {
+      for (const claim of conf.claims || []) {
+        const key = `${normalizeFileName(claim.file)}:${claim.page}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({ file: claim.file, page: claim.page });
+        }
+      }
+    }
+
+    return list;
+  }, [activeMessage]);
+
+  const activeRetrieved = activeMessage?.result?.retrieved || [];
 
   return (
-    <div className="app-wrapper">
-      <header className="header">
-        <h1>Course-Document Assistant</h1>
-        <button
-          className="btn btn-secondary"
-          onClick={() => setShowDocs(!showDocs)}
-          aria-expanded={showDocs}
-        >
-          {showDocs ? 'Hide Documents' : `View Documents (${documents.length})`}
-        </button>
-      </header>
+    <div className="chat-app-root">
+      {/* Mobile Drawer Overlay */}
+      {isSidebarOpenMobile && (
+        <div
+          className="sidebar-overlay"
+          onClick={() => setIsSidebarOpenMobile(false)}
+          aria-hidden="true"
+        />
+      )}
 
-      {/* Upload and Documents Section */}
-      <section className="upload-section">
-        <form onSubmit={handleUpload} className="upload-row">
-          <label htmlFor="pdf-upload" style={{ fontWeight: 500, fontSize: '0.9rem' }}>
-            Upload PDF Document:
-          </label>
-          <input
-            id="pdf-upload"
-            type="file"
-            accept=".pdf"
-            onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
-          />
-          <button type="submit" className="btn" disabled={!uploadFile || uploading}>
-            {uploading ? 'Uploading...' : 'Upload'}
-          </button>
-          <span className="file-limit-note">Max file size: 10 MB limit</span>
-        </form>
+      {/* 1. Left Sidebar */}
+      <Sidebar
+        documents={documents}
+        isDemoMode={isDemoMode}
+        onNewChat={handleNewChat}
+        onUpload={handleUpload}
+        uploadFile={uploadFile}
+        setUploadFile={setUploadFile}
+        uploading={uploading}
+        uploadMsg={uploadMsg}
+        isOpenMobile={isSidebarOpenMobile}
+        onCloseMobile={() => setIsSidebarOpenMobile(false)}
+      />
 
-        {uploadMsg && (
-          <p style={{ marginTop: '8px', fontSize: '0.85rem', color: uploadMsg.startsWith('Error') ? '#b91c1c' : '#15803d' }}>
-            {uploadMsg}
-          </p>
-        )}
-
-        {showDocs && (
-          <div className="documents-list">
-            <h3 style={{ fontSize: '0.9rem', marginBottom: '8px' }}>Uploaded Documents</h3>
-            {documents.length === 0 ? (
-              <p className="empty-state">No documents stored yet.</p>
-            ) : (
-              documents.map((doc, idx) => (
-                <div key={idx} className="doc-item">
-                  <span style={{ fontWeight: 600 }}>{doc.file_name}</span>
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    {doc.chunk_count} chunk(s) &bull; {doc.upload_date ? new Date(doc.upload_date).toLocaleDateString() : 'N/A'}
-                  </span>
-                </div>
-              ))
+      {/* Main Center Area */}
+      <div className="chat-main-area">
+        {/* Top Header */}
+        <header className="chat-header">
+          <div className="chat-header-left">
+            <button
+              type="button"
+              className="btn-icon mobile-menu-btn"
+              onClick={() => setIsSidebarOpenMobile(true)}
+              aria-label="Open sidebar menu"
+            >
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="3" y1="12" x2="21" y2="12" />
+                <line x1="3" y1="6" x2="21" y2="6" />
+                <line x1="3" y1="18" x2="21" y2="18" />
+              </svg>
+            </button>
+            <span className="chat-header-title">Course-Document Assistant</span>
+          </div>
+          <div className="chat-header-right">
+            {isDemoMode && (
+              <span className="demo-pill" data-testid="demo-pill">
+                Public demo
+              </span>
             )}
+            <button
+              type="button"
+              className="btn-icon mobile-new-btn"
+              onClick={handleNewChat}
+              aria-label="New conversation"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19" />
+                <line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
           </div>
-        )}
-      </section>
+        </header>
 
-      {/* Main Two-Column Layout */}
-      <main className="main-layout">
-        {/* Left Column */}
-        <section className="column-left">
-          {/* Question Box */}
-          <div className="card question-box">
-            <label htmlFor="question-input" style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-              Ask a question about your course materials:
-            </label>
-            <textarea
-              id="question-input"
-              className="question-input"
-              placeholder="e.g., When is the final exam and what is the grading breakdown?"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              disabled={loading}
-            />
-            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <button
-                type="button"
-                className="btn"
-                onClick={handleAsk}
-                disabled={loading || !question.trim()}
-              >
-                {loading ? 'Searching & Answering...' : 'Ask Question'}
-              </button>
-            </div>
-          </div>
-
-          {/* Loading State */}
-          {loading && (
-            <div className="status-box status-loading" role="status">
-              Searching course documents and verifying answer...
-            </div>
-          )}
-
-          {/* Error State */}
-          {error && (
-            <div className="status-box status-error" role="alert">
-              <strong>Error:</strong> {error}
-            </div>
-          )}
-
-          {/* Abstained State */}
-          {result && result.abstained && (
-            <div className="status-box status-abstained" data-testid="abstained-view">
-              <div className="abstain-reason">{getPlainAbstainReason(result.abstain_reason)}</div>
-              <div className="abstain-query">Searched for: &ldquo;{lastSearched}&rdquo;</div>
-            </div>
-          )}
-
-          {/* Conflict State */}
-          {result && !result.abstained && result.conflict_detected && result.conflicts && result.conflicts.length > 0 && (
-            <div className="conflict-container" data-testid="conflict-view">
-              <div className="conflict-header">
-                <span style={{ fontSize: '1.25rem' }}>⚠️</span>
-                <h2 className="conflict-heading">These documents disagree</h2>
+        {/* 2. Center Thread Area */}
+        {messages.length === 0 ? (
+          <main className="empty-state-scroll-container">
+            <div className="empty-state-centered-box">
+              {/* Brand mark */}
+              <div className="empty-state-brand-mark" aria-hidden="true">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                  <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                  <line x1="9" y1="7" x2="15" y2="7" />
+                  <line x1="9" y1="11" x2="13" y2="11" />
+                </svg>
               </div>
-              {result.conflicts.map((conf, cIdx) => (
-                <div key={cIdx} style={{ marginBottom: '12px' }}>
-                  <div className="conflict-topic">Conflict Topic: {conf.topic}</div>
-                  <div className="conflict-cards-row">
-                    {conf.claims.map((claim, clIdx) => (
-                      <div
-                        key={clIdx}
-                        className="conflict-source-card"
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => loadPassage({ file: claim.file, page: claim.page })}
-                        role="button"
-                        tabIndex={0}
-                      >
-                        <div className="source-value">&ldquo;{claim.value}&rdquo;</div>
-                        <div className="source-meta">
-                          <div><strong>File:</strong> {claim.file} (Page {claim.page})</div>
-                          {claim.upload_date && <div><strong>Uploaded:</strong> {claim.upload_date}</div>}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
 
-          {/* Answer State */}
-          {result && !result.abstained && (
-            <div className="card answer-card" data-testid="answer-view">
-              <h2>Answer</h2>
-              <div className="answer-text">{result.answer}</div>
+              {/* Heading */}
+              <h1 className="empty-state-heading">What would you like to understand?</h1>
 
-              {result.citations && result.citations.length > 0 && (
-                <div className="citations-section">
-                  <h3>Citations</h3>
-                  <div className="chips-row">
-                    {result.citations.map((cit, idx) => {
-                      const isActive =
-                        selectedCitation?.file === cit.file &&
-                        selectedCitation?.page === cit.page;
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          className={`chip ${isActive ? 'active' : ''}`}
-                          onClick={() => loadPassage(cit)}
-                          data-testid={`citation-chip-${idx}`}
-                        >
-                          📄 {cit.file} p.{cit.page}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-        </section>
-
-        {/* Right Column: Cited Page Text */}
-        <section className="column-right">
-          <div className="card passage-viewer" data-testid="passage-pane">
-            <div className="passage-header">
-              <h2 style={{ fontSize: '1.1rem', color: '#1e293b' }}>Cited Document Passage</h2>
-              {selectedCitation && (
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                  {selectedCitation.file} &bull; Page {selectedCitation.page}
-                </span>
-              )}
-            </div>
-
-            {passageLoading ? (
-              <p className="empty-state">Loading passage text...</p>
-            ) : selectedCitation ? (
-              <div className="passage-content" data-testid="passage-content">
-                <div style={{ marginBottom: '8px', fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  Showing content from {selectedCitation.file} (Page {selectedCitation.page}):
-                </div>
-                {passages.length > 0 ? (
-                  passages.map((p, idx) => (
-                    <p key={idx} style={{ marginBottom: '8px' }}>
-                      {p.text || p.chunk_text}
-                    </p>
-                  ))
-                ) : (
-                  <p className="empty-state">No text chunks found for this page.</p>
-                )}
-              </div>
-            ) : (
-              <p className="empty-state">
-                Click a citation chip or conflict card to inspect the cited page text here.
+              {/* One line of subtext */}
+              <p className="empty-state-subtext">
+                Ask about your course. Every answer starts with your sources.
               </p>
-            )}
-          </div>
-        </section>
-      </main>
+
+              {/* Three starter chips */}
+              <div className="starter-chips-container" role="group" aria-label="Starter questions">
+                <button
+                  type="button"
+                  className="starter-chip-btn"
+                  onClick={() => handleStarterSubmit('What is the grade breakdown for this course?')}
+                >
+                  Grade breakdown
+                </button>
+                <button
+                  type="button"
+                  className="starter-chip-btn"
+                  onClick={() => handleStarterSubmit('Where is the lecture room and when does class meet?')}
+                >
+                  Lecture room
+                </button>
+                <button
+                  type="button"
+                  className="starter-chip-btn"
+                  onClick={() => handleStarterSubmit('Do the syllabi disagree on any policies or dates?')}
+                >
+                  Do the syllabi disagree?
+                </button>
+              </div>
+
+              {/* Composer */}
+              <Composer
+                question={question}
+                setQuestion={setQuestion}
+                onSubmit={handleAsk}
+                loading={loading}
+              />
+            </div>
+          </main>
+        ) : (
+          <>
+            <main className="thread-scroll-container">
+              <div className="thread-content-max">
+                <div className="thread-messages-list">
+                  {messages.map((msg, idx) => (
+                    <div
+                      key={msg.id}
+                      ref={idx === messages.length - 1 ? latestTurnRef : undefined}
+                      className={`thread-turn turn-${msg.role}`}
+                    >
+                      {msg.role === 'user' ? (
+                        <div className="user-message-bubble">
+                          {msg.content}
+                        </div>
+                      ) : (
+                        <AssistantMessage
+                          messageId={msg.id}
+                          loading={msg.loading}
+                          error={msg.error}
+                          result={msg.result}
+                          searchedQuery={msg.questionText}
+                          selectedCitation={selectedCitation}
+                          onSelectCitation={(cit, mId) => handleSelectCitation(cit, mId || msg.id)}
+                        />
+                      )}
+                    </div>
+                  ))}
+                  <div ref={threadBottomRef} />
+                </div>
+              </div>
+            </main>
+
+            {/* Composer pinned at bottom when thread is active */}
+            <Composer
+              question={question}
+              setQuestion={setQuestion}
+              onSubmit={handleAsk}
+              loading={loading}
+            />
+          </>
+        )}
+      </div>
+
+      {/* 3. Right: Source Panel */}
+      <SourcePanel
+        selectedCitation={selectedCitation}
+        citations={activeCitations}
+        passages={passages}
+        passageLoading={passageLoading}
+        retrieved={activeRetrieved}
+        onSelectCitation={(cit) => {
+          const targetMsgId = selectedCitation?.messageId || activeMessage?.id;
+          if (targetMsgId) {
+            handleSelectCitation(cit, targetMsgId);
+          }
+        }}
+        onClose={() => {
+          setIsSourceOpen(false);
+          setSelectedCitation(null);
+        }}
+        isOpen={isSourceOpen}
+      />
     </div>
   );
 }

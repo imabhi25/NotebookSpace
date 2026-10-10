@@ -3,6 +3,13 @@ export interface Citation {
   page: number;
 }
 
+export const normalizeFileName = (name?: string | null): string =>
+  (name || '').trim().normalize().toLowerCase();
+
+export interface ActiveCitation extends Citation {
+  messageId: string;
+}
+
 export interface ConflictClaim {
   file: string;
   page: number;
@@ -37,12 +44,14 @@ export interface AskResponse {
     total: number;
   };
   latency: number;
+  model?: string | null;
 }
 
 export interface DocumentItem {
   file_name: string;
   upload_date?: string | null;
   chunk_count: number;
+  page_count?: number | null;
 }
 
 export interface PassageItem {
