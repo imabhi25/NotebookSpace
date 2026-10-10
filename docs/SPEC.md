@@ -1,4 +1,4 @@
-# Course Document Assistant: Project Spec
+# NotebookSpace: Project Spec
 
 A web app where you upload course documents, ask questions, and get answers that cite the exact file and page, or say "not found" when the documents don't support an answer. Its main deliverable is a published evaluation that shows where it fails.
 
