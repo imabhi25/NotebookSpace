@@ -1,6 +1,7 @@
 import json
 import io
 from pathlib import Path
+from unittest.mock import patch
 import pytest
 from reportlab.pdfgen import canvas
 
@@ -379,4 +380,78 @@ def test_expected_answer_contains_string_and_list_variants(tmp_path: Path):
     assert any("Answer missing expected phrase(s)" in reason for reason in failures["q_none"])
 
     delete_document(doc_name)
+
+
+def test_evaluate_answering_sleep_between_questions(tmp_path: Path):
+    doc_name = "eval_sleep_test_doc.pdf"
+    delete_document(doc_name)
+
+    buf = io.BytesIO()
+    c = canvas.Canvas(buf)
+    c.drawString(100, 750, "Sample content for testing sleep flag.")
+    c.showPage()
+    c.save()
+    buf.seek(0)
+    ingest_pdf(buf, file_name=doc_name)
+
+    questions = [
+        {
+            "id": "sq1",
+            "question": "What is the content?",
+            "type": "single_page",
+            "expected_sources": [{"file": doc_name, "page": 1}],
+            "expected_answer_contains": ["Sample content"],
+        },
+        {
+            "id": "sq2",
+            "question": "What is the content again?",
+            "type": "single_page",
+            "expected_sources": [{"file": doc_name, "page": 1}],
+            "expected_answer_contains": ["Sample content"],
+        },
+    ]
+
+    q_file = tmp_path / "sleep_questions.json"
+    q_file.write_text(json.dumps(questions), encoding="utf-8")
+
+    responses = [
+        f'{{"supported": true, "answer": "Sample content [{doc_name} p.1]", "citations": [{{"file": "{doc_name}", "page": 1}}]}}',
+        f'{{"supported": true, "answer": "Sample content [{doc_name} p.1]", "citations": [{{"file": "{doc_name}", "page": 1}}]}}',
+    ]
+
+    fake_client = FakeLLMClient(
+        responses=responses,
+        cache_dir=tmp_path / "cache",
+    )
+
+    # When sleep_between_questions is set to 2.5s, time.sleep should be called after each question (twice)
+    with patch("time.sleep") as mock_sleep:
+        report = evaluate_answering(
+            questions_path=q_file,
+            llm_client=fake_client,
+            results_dir=tmp_path / "results",
+            sleep_between_questions=2.5,
+        )
+        assert mock_sleep.call_count == 2
+        mock_sleep.assert_called_with(2.5)
+
+    assert report["total_questions"] == 2
+
+    # When sleep_between_questions is 0.0 (default), time.sleep should not be called
+    fake_client_zero = FakeLLMClient(
+        responses=responses,
+        cache_dir=tmp_path / "cache_zero",
+    )
+    with patch("time.sleep") as mock_sleep:
+        report_zero = evaluate_answering(
+            questions_path=q_file,
+            llm_client=fake_client_zero,
+            results_dir=tmp_path / "results_zero",
+            sleep_between_questions=0.0,
+        )
+        assert mock_sleep.call_count == 0
+
+    assert report_zero["total_questions"] == 2
+    delete_document(doc_name)
+
 

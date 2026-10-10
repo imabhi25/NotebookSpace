@@ -4,6 +4,7 @@ import json
 import os
 from pathlib import Path
 import sys
+import time
 from typing import Any
 
 # Ensure project root is in sys.path
@@ -80,6 +81,7 @@ def evaluate_answering(
     label: str | None = None,
     results_dir: Path | str | None = None,
     generate_markdown: bool = False,
+    sleep_between_questions: float = 0.0,
 ) -> dict[str, Any]:
     """
     Run answer evaluation across questions dataset.
@@ -92,6 +94,7 @@ def evaluate_answering(
         label: Optional run label (required when running canonical test set).
         results_dir: Directory to save results files.
         generate_markdown: Whether to write markdown report.
+        sleep_between_questions: Optional seconds to sleep after each question.
 
     Returns:
         Evaluation report dictionary.
@@ -354,6 +357,9 @@ def evaluate_answering(
                 "failures": question_failures,
             }
         )
+
+        if sleep_between_questions > 0:
+            time.sleep(sleep_between_questions)
 
     # Compute rates
     summary_by_type: dict[str, Any] = {}
@@ -630,6 +636,12 @@ def main():
         help="Directory to save evaluation results",
     )
     parser.add_argument(
+        "--sleep-between-questions",
+        type=float,
+        default=0.0,
+        help="Seconds to sleep after each question (default: 0)",
+    )
+    parser.add_argument(
         "positional_questions",
         nargs="?",
         default=None,
@@ -658,6 +670,7 @@ def main():
             label=args.label,
             results_dir=args.results_dir,
             generate_markdown=args.markdown,
+            sleep_between_questions=args.sleep_between_questions,
         )
         print_answer_eval_report(report)
     except Exception as e:
