@@ -46,6 +46,37 @@ def test_ask_endpoint(monkeypatch):
     assert isinstance(data["tokens"], dict)
 
 
+def test_ask_response_optional_model():
+    """Verify AskResponse handles the optional model field."""
+    from api.main import AskResponse, TokenUsage
+    resp = AskResponse(
+        answer="sample",
+        citations=[],
+        conflicts=[],
+        conflict_detected=False,
+        abstained=False,
+        abstain_reason=None,
+        retrieved=[],
+        tokens=TokenUsage(input=1, output=1, total=2),
+        latency=0.2,
+        model="gemini-1.5-flash",
+    )
+    assert resp.model == "gemini-1.5-flash"
+
+    resp_default = AskResponse(
+        answer="sample",
+        citations=[],
+        conflicts=[],
+        conflict_detected=False,
+        abstained=False,
+        abstain_reason=None,
+        retrieved=[],
+        tokens=TokenUsage(input=1, output=1, total=2),
+        latency=0.2,
+    )
+    assert resp_default.model is None
+
+
 def test_upload_endpoint():
     file_name = "api_upload_test.pdf"
     delete_document(file_name)
@@ -249,3 +280,84 @@ def test_demo_rate_limit_ignores_forged_forwarded_for_prefix(monkeypatch):
         statuses.append(res.status_code)
     assert statuses[-1] == 429
     reset_rate_limits()
+
+
+def test_ask_endpoint_model_null_on_pre_generation_abstention(monkeypatch):
+    """Verify /ask returns model=null when abstaining before any model invocation."""
+    class FailingLLMClient:
+        model = "should-not-be-called"
+
+        def generate(self, system: str, user: str):
+            raise AssertionError("generate() must not be invoked when abstaining on low retrieval score")
+
+    monkeypatch.setattr("answering.answer.get_llm_client", lambda: FailingLLMClient())
+    monkeypatch.setattr("answering.answer.search", lambda question, k=5, db_url=None: [])
+
+    response = client.post(
+        "/ask",
+        json={"question": "Nonexistent course info query", "k": 3},
+    )
+    assert response.status_code == 200
+    data = response.json()
+    assert data["abstained"] is True
+    assert data["abstain_reason"] == "low_retrieval_score"
+    assert data["model"] is None
+
+
+def test_ask_endpoint_returns_custom_model_name(monkeypatch, tmp_path):
+    """Verify /ask returns the model name from the LLM client, including on cached replay."""
+    from answering.llm import FakeLLMClient
+
+    custom_model = "fake-custom-llm-v1"
+    client_instance = FakeLLMClient(
+        model=custom_model,
+        default_response='{"supported": true, "answer": "Policy test answer [api_documents_test.pdf p.1]", "citations": [{"file": "api_documents_test.pdf", "page": 1}]}',
+        cache_dir=tmp_path / "cache",
+    )
+    monkeypatch.setattr("answering.answer.get_llm_client", lambda: client_instance)
+
+    file_name = "api_documents_test.pdf"
+    delete_document(file_name)
+    buffer = io.BytesIO()
+    c = canvas.Canvas(buffer)
+    c.drawString(100, 750, "The course policy is strictly enforced.")
+    c.showPage()
+    c.save()
+    buffer.seek(0)
+    client.post(
+        "/upload",
+        files={"file": (file_name, buffer.getvalue(), "application/pdf")},
+    )
+
+    response = client.post("/ask", json={"question": "What is the course policy?", "k": 3})
+    assert response.status_code == 200
+    data = response.json()
+    assert data["model"] == custom_model
+
+    # Verify cached replay also reports the custom model name
+    cached_response = client.post("/ask", json={"question": "What is the course policy?", "k": 3})
+    assert cached_response.status_code == 200
+    cached_data = cached_response.json()
+    assert cached_data["model"] == custom_model
+
+    delete_document(file_name)
+
+
+def test_old_response_shapes_validate():
+    """Verify that old response shapes without model still validate."""
+    from api.main import AskResponse, TokenUsage
+
+    old_ask = AskResponse(
+        answer="Sample legacy answer",
+        citations=[],
+        conflicts=[],
+        conflict_detected=False,
+        abstained=False,
+        abstain_reason=None,
+        retrieved=[],
+        tokens=TokenUsage(input=10, output=5, total=15),
+        latency=0.35,
+    )
+    assert old_ask.model is None
+    assert old_ask.answer == "Sample legacy answer"
+

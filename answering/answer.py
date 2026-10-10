@@ -72,6 +72,7 @@ def _make_result(
     latency: float,
     conflicts: list[dict[str, Any]] | None = None,
     conflict_detected: bool = False,
+    model: str | None = None,
     log_file: Path | str | None = None,
 ) -> dict[str, Any]:
     top_scores = [float(r.get("score", r.get("similarity_score", 0.0))) for r in retrieved]
@@ -98,6 +99,7 @@ def _make_result(
         "retrieved": retrieved,
         "tokens": tokens,
         "latency": latency,
+        "model": model,
     }
 
 
@@ -119,7 +121,7 @@ def answer_question(
         log_file: Optional path to append log JSON line (default: logs/answers.jsonl).
 
     Returns:
-        dict with: answer, citations, abstained, abstain_reason, retrieved, tokens, latency.
+        dict with: answer, citations, abstained, abstain_reason, retrieved, tokens, latency, model.
     """
     start_time = time.perf_counter()
     support_min_score = float(os.getenv("SUPPORT_MIN_SCORE", "0.25"))
@@ -157,6 +159,7 @@ def answer_question(
 
     # 3. Call model with single retry on JSON parse failure
     client = llm_client or get_llm_client()
+    model_name = getattr(client, "model", None)
     resp = client.generate(system=system_prompt, user=user_prompt)
 
     llm_latency = resp.latency_seconds
@@ -211,6 +214,7 @@ def answer_question(
             retrieved=retrieved,
             tokens=token_stats,
             latency=latency,
+            model=model_name,
             log_file=log_file,
         )
 
@@ -228,6 +232,7 @@ def answer_question(
             retrieved=retrieved,
             tokens=token_stats,
             latency=latency,
+            model=model_name,
             log_file=log_file,
         )
 
@@ -244,6 +249,7 @@ def answer_question(
             retrieved=retrieved,
             tokens=token_stats,
             latency=latency,
+            model=model_name,
             log_file=log_file,
         )
 
@@ -278,6 +284,7 @@ def answer_question(
                 retrieved=retrieved,
                 tokens=token_stats,
                 latency=latency,
+                model=model_name,
                 log_file=log_file,
             )
 
@@ -294,6 +301,7 @@ def answer_question(
                 retrieved=retrieved,
                 tokens=token_stats,
                 latency=latency,
+                model=model_name,
                 log_file=log_file,
             )
 
@@ -307,6 +315,7 @@ def answer_question(
                 retrieved=retrieved,
                 tokens=token_stats,
                 latency=latency,
+                model=model_name,
                 log_file=log_file,
             )
 
@@ -422,5 +431,6 @@ def answer_question(
         latency=latency,
         conflicts=validated_conflicts,
         conflict_detected=conflict_detected,
+        model=model_name,
         log_file=log_file,
     )
