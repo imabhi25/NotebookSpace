@@ -255,6 +255,23 @@ def validate_questions_file(
                     f"Question '{q_id}': page {src_page} exceeds total page count ({total_pages}) for file '{src_file}'."
                 )
 
+        # 7. Verify expected_answer_contains shape if present
+        expected_contains = item.get("expected_answer_contains")
+        if expected_contains is not None:
+            if not isinstance(expected_contains, list):
+                errors.append(f"Question '{q_id}' expected_answer_contains must be a list.")
+            else:
+                for c_idx, c_elem in enumerate(expected_contains):
+                    if isinstance(c_elem, list):
+                        if not all(isinstance(alt, str) for alt in c_elem):
+                            errors.append(
+                                f"Question '{q_id}' expected_answer_contains[{c_idx}] list must contain only strings."
+                            )
+                    elif not isinstance(c_elem, str):
+                        errors.append(
+                            f"Question '{q_id}' expected_answer_contains[{c_idx}] must be a string or list of strings."
+                        )
+
     # Check targets if required
     if require_targets:
         for t_name, target in TARGET_COUNTS.items():

@@ -1,0 +1,1189 @@
+[
+  {
+    "id": "s1",
+    "question": "How many credit hours is CS 401 worth?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      }
+    ],
+    "source_quote": "Credits: 4.0",
+    "expected_answer_contains": [
+      "4.0",
+      [
+        "credit",
+        "credits"
+      ]
+    ]
+  },
+  {
+    "id": "s2",
+    "question": "What is the official university email address for Dr. Alex Mercer?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      }
+    ],
+    "source_quote": "Instructor: Dr. Alex Mercer (email: amercer@example.edu).",
+    "expected_answer_contains": [
+      "amercer@example.edu"
+    ]
+  },
+  {
+    "id": "s3",
+    "question": "What is the minimum percentage required to earn a grade of A according to the grading scale?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "Grading Scale: A (93-100), A- (90-92), B+ (87-89)",
+    "expected_answer_contains": [
+      "93"
+    ]
+  },
+  {
+    "id": "s4",
+    "question": "What percentage of the total grade is assigned to class participation and quizzes?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "Class Participation and Quizzes: 10 percent of total grade.",
+    "expected_answer_contains": [
+      [
+        "10 percent",
+        "10%"
+      ]
+    ]
+  },
+  {
+    "id": "s5",
+    "question": "What is the title and due date for Assignment 4?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 3
+      }
+    ],
+    "source_quote": "Assignment 4: Asynchronous Network RPC Framework. Assignment 4 is due on December 16, 2026 at 11:59 PM.",
+    "expected_answer_contains": [
+      [
+        "Asynchronous Network RPC",
+        "Network RPC"
+      ],
+      [
+        "December 16",
+        "Dec 16",
+        "Dec. 16"
+      ]
+    ]
+  },
+  {
+    "id": "s6",
+    "question": "What system topic is implemented in Assignment 3 according to the syllabus schedule?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 3
+      }
+    ],
+    "source_quote": "Assignment 3: Write-Ahead Logging and Crash Recovery Engine.",
+    "expected_answer_contains": [
+      [
+        "Write-Ahead Logging",
+        "WAL"
+      ],
+      "Crash Recovery"
+    ]
+  },
+  {
+    "id": "s7",
+    "question": "To which university body are academic integrity violations reported?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 4
+      }
+    ],
+    "source_quote": "Violations will be reported directly to the Academic Conduct Board",
+    "expected_answer_contains": [
+      "Academic Conduct Board"
+    ]
+  },
+  {
+    "id": "s8",
+    "question": "Which campus office should students contact to coordinate documented accessibility needs?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 4
+      }
+    ],
+    "source_quote": "Students with documented accessibility needs should contact the Student Support Office",
+    "expected_answer_contains": [
+      "Student Support Office"
+    ]
+  },
+  {
+    "id": "s9",
+    "question": "Which type of locking mechanism is explicitly prohibited in Assignment 1?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "assignment_1.pdf",
+        "page": 1
+      }
+    ],
+    "source_quote": "Coarse-grained global locks are explicitly prohibited and will receive a failing score",
+    "expected_answer_contains": [
+      [
+        "Coarse-grained global locks",
+        "global locks"
+      ]
+    ]
+  },
+  {
+    "id": "s10",
+    "question": "What data structure are students required to design and implement for Assignment 1?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "assignment_1.pdf",
+        "page": 1
+      }
+    ],
+    "source_quote": "Objective: Design and implement an in-memory concurrent hash map supporting high-concurrency read and write operations.",
+    "expected_answer_contains": [
+      [
+        "concurrent hash map",
+        "hash map",
+        "hash table"
+      ]
+    ]
+  },
+  {
+    "id": "s11",
+    "question": "What table load factor threshold triggers dynamic rehashing in Assignment 1?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "assignment_1.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "Support dynamic rehashing when table load factor exceeds 0.75 without causing deadlocks.",
+    "expected_answer_contains": [
+      "0.75",
+      [
+        "load factor",
+        "load-factor"
+      ]
+    ]
+  },
+  {
+    "id": "s12",
+    "question": "Which sanitizer tools must detect zero memory leaks or undefined behavior in Assignment 1?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "assignment_1.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "Zero memory leaks or undefined behavior detected by AddressSanitizer and ThreadSanitizer.",
+    "expected_answer_contains": [
+      [
+        "AddressSanitizer",
+        "ASan"
+      ],
+      [
+        "ThreadSanitizer",
+        "TSan"
+      ]
+    ]
+  },
+  {
+    "id": "s13",
+    "question": "How many points are allocated to the design document and code style in the Assignment 1 rubric?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "assignment_1.pdf",
+        "page": 3
+      }
+    ],
+    "source_quote": "Design Document and Code Style (15 points): Clear architecture explanations",
+    "expected_answer_contains": [
+      [
+        "15 points",
+        "15 pts"
+      ],
+      "Design Document"
+    ]
+  },
+  {
+    "id": "s14",
+    "question": "What is the course grading breakdown across assignments, exams, projects, and participation according to the syllabus?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "- Programming Assignments (4 projects): 40 percent of total grade (10 percent each). / - Midterm Examination: 25 percent of total grade. / - Final Term Project: 25 percent of total grade. / - Class Participation and Quizzes: 10 percent of total grade.",
+    "expected_answer_contains": [
+      [
+        "40 percent",
+        "40%"
+      ],
+      [
+        "25 percent",
+        "25%"
+      ],
+      [
+        "10 percent",
+        "10%"
+      ]
+    ]
+  },
+  {
+    "id": "s15",
+    "question": "On what date will the practice midterm review session take place during lecture?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "announcement_update.pdf",
+        "page": 3
+      }
+    ],
+    "source_quote": "Midterm Review Session: A practice review session will be conducted on November 9, 2026 during the regularly scheduled lecture period.",
+    "expected_answer_contains": [
+      [
+        "November 9, 2026",
+        "November 9",
+        "Nov 9",
+        "Nov. 9"
+      ]
+    ]
+  },
+  {
+    "id": "s16",
+    "question": "When and where are the instructor office hours held according to the syllabus?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      }
+    ],
+    "source_quote": "Office Hours: Tuesdays and Thursdays from 2:00 PM to 4:00 PM in Science Center Room 405.",
+    "expected_answer_contains": [
+      [
+        "Tuesday",
+        "Tuesdays"
+      ],
+      [
+        "Thursday",
+        "Thursdays"
+      ],
+      [
+        "Room 405",
+        "405"
+      ]
+    ]
+  },
+  {
+    "id": "s17",
+    "question": "What protocol specification serves as the foundation for the consensus service in Assignment 2?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "assignment_2.pdf",
+        "page": 1
+      }
+    ],
+    "source_quote": "Objective: Implement a fault-tolerant distributed consensus service based on the Raft protocol specification.",
+    "expected_answer_contains": [
+      [
+        "Raft protocol",
+        "Raft"
+      ]
+    ]
+  },
+  {
+    "id": "s18",
+    "question": "What is the randomized millisecond range required for election timeouts in Assignment 2?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "assignment_2.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "Election timeouts must be randomized between 150 milliseconds and 300 milliseconds.",
+    "expected_answer_contains": [
+      "150",
+      "300",
+      [
+        "milliseconds",
+        "ms"
+      ]
+    ]
+  },
+  {
+    "id": "s19",
+    "question": "How must minority sub-clusters handle client write operations during a network partition in Assignment 2?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "assignment_2.pdf",
+        "page": 3
+      }
+    ],
+    "source_quote": "Network Partitions: Sub-clusters with fewer than a majority of nodes must reject client write operations.",
+    "expected_answer_contains": [
+      [
+        "reject client write operations",
+        "reject write operations"
+      ]
+    ]
+  },
+  {
+    "id": "s20",
+    "question": "How many rubric points are awarded for log replication in Assignment 2?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "assignment_2.pdf",
+        "page": 4
+      }
+    ],
+    "source_quote": "Log Replication (40 points)",
+    "expected_answer_contains": [
+      [
+        "40 points",
+        "40 pts",
+        "40 marks"
+      ]
+    ]
+  },
+  {
+    "id": "s21",
+    "question": "How many multiple-choice questions are included on the midterm examination?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "exam_guide.pdf",
+        "page": 1
+      }
+    ],
+    "source_quote": "It includes 20 multiple-choice questions and 3 handwritten systems coding problems.",
+    "expected_answer_contains": [
+      "20",
+      [
+        "multiple-choice",
+        "multiple choice"
+      ]
+    ]
+  },
+  {
+    "id": "s22",
+    "question": "What are the three main technical topics evaluated on the midterm examination?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "exam_guide.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "Topic 1: Concurrency Primitives... Topic 2: Lock-Free Programming... Topic 3: Distributed Consensus",
+    "expected_answer_contains": [
+      "Concurrency Primitives",
+      "Lock-Free Programming",
+      "Distributed Consensus"
+    ]
+  },
+  {
+    "id": "s23",
+    "question": "What loop construct must enclose condition variable wait operations to guard against spurious wakeups?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "exam_guide.pdf",
+        "page": 3
+      }
+    ],
+    "source_quote": "Spurious Wakeups: Condition variable wait operations must always be enclosed within a while predicate loop.",
+    "expected_answer_contains": [
+      [
+        "while predicate loop",
+        "while loop"
+      ]
+    ]
+  },
+  {
+    "id": "s24",
+    "question": "How many days in advance must students with approved testing accommodations schedule rooms with Accessibility Services?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "exam_guide.pdf",
+        "page": 4
+      }
+    ],
+    "source_quote": "schedule room reservations with the Accessibility Center 7 days in advance.",
+    "expected_answer_contains": [
+      [
+        "7 days in advance",
+        "7 days"
+      ]
+    ]
+  },
+  {
+    "id": "s25",
+    "question": "Which synchronization primitives are covered in Week 3 of the lecture schedule?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "Week 3: Synchronization primitives, reader-writer locks, and semaphore implementations.",
+    "expected_answer_contains": [
+      [
+        "reader-writer locks",
+        "RW locks"
+      ],
+      [
+        "semaphore",
+        "semaphores"
+      ]
+    ]
+  },
+  {
+    "id": "m1",
+    "question": "What are the prerequisite courses for CS 401, and what programming language standard is required for exam code snippets?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      },
+      {
+        "file": "exam_guide.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "Students must have completed CS 201 (Data Structures) and CS 202 (Computer Systems Fundamentals) with a grade of C or better. / All midterm and exam code syntax must use modern C++20 standard conventions including std::jthread and concepts.",
+    "expected_answer_contains": [
+      "CS 201",
+      "CS 202",
+      [
+        "C++20",
+        "C++ 20"
+      ]
+    ]
+  },
+  {
+    "id": "m2",
+    "question": "Which operations must be supported by the Assignment 1 data store, and how many rubric points are allocated to correctness and thread safety?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "assignment_1.pdf",
+        "page": 1
+      },
+      {
+        "file": "assignment_1.pdf",
+        "page": 3
+      }
+    ],
+    "source_quote": "The data store must provide thread-safe implementations of Put(key, value), Get(key), and Delete(key). / Correctness and Thread Safety (60 points): Passes all concurrency stress tests",
+    "expected_answer_contains": [
+      "Put",
+      "Get",
+      "Delete",
+      [
+        "60 points",
+        "60 pts"
+      ]
+    ]
+  },
+  {
+    "id": "m3",
+    "question": "Which two RPC interfaces must be implemented for Raft in Assignment 2, and what is the required heartbeat timer interval?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "assignment_2.pdf",
+        "page": 1
+      },
+      {
+        "file": "assignment_2.pdf",
+        "page": 2
+      }
+    ],
+    "source_quote": "Key RPCs: Implement RequestVote and AppendEntries RPC interfaces with strict message ordering. / Heartbeat intervals must be set to 50 milliseconds.",
+    "expected_answer_contains": [
+      "RequestVote",
+      "AppendEntries",
+      [
+        "50 milliseconds",
+        "50 ms"
+      ]
+    ]
+  },
+  {
+    "id": "m4",
+    "question": "Which RPC is implemented for log compaction in Assignment 2, and what archive name is required for submission?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "assignment_2.pdf",
+        "page": 3
+      },
+      {
+        "file": "assignment_2.pdf",
+        "page": 4
+      }
+    ],
+    "source_quote": "Log Compaction: Implement Snapshot RPC to discard committed log entries and bound disk usage. / Submit a single compressed archive named assignment2.tar.gz containing your src/ directory",
+    "expected_answer_contains": [
+      "Snapshot",
+      "assignment2.tar.gz"
+    ]
+  },
+  {
+    "id": "m5",
+    "question": "What is the total duration of the midterm exam in minutes, and within how many business days must regrade requests be submitted?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "exam_guide.pdf",
+        "page": 1
+      },
+      {
+        "file": "exam_guide.pdf",
+        "page": 4
+      }
+    ],
+    "source_quote": "The exam duration is 120 minutes. / Regrade Requests: Regrade petitions must be submitted through the course portal within 5 business days of exam distribution.",
+    "expected_answer_contains": [
+      [
+        "120 minutes",
+        "120 min"
+      ],
+      [
+        "5 business days",
+        "5 days"
+      ]
+    ]
+  },
+  {
+    "id": "m6",
+    "question": "Which hardware topics are discussed in Week 1, and which recovery algorithm is covered in Week 11 of the lecture schedule?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 2
+      },
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 4
+      }
+    ],
+    "source_quote": "Week 1: Multi-core hardware architectures, memory hierarchies, cache coherence, and false sharing. / Week 11: Write-ahead logging, crash recovery, and ARIES database algorithms.",
+    "expected_answer_contains": [
+      "cache coherence",
+      "ARIES"
+    ]
+  },
+  {
+    "id": "m7",
+    "question": "In which room does CS 401 meet, and what are the scheduled weekly lecture meeting times?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      },
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 1
+      }
+    ],
+    "source_quote": "Location: Turing Hall Room 101. / Advanced Systems Programming meets Monday and Wednesday from 10:00 AM to 11:30 AM in Turing Hall Room 101.",
+    "expected_answer_contains": [
+      [
+        "Turing Hall Room 101",
+        "Room 101"
+      ],
+      [
+        "10:00 AM",
+        "10:00"
+      ],
+      [
+        "11:30 AM",
+        "11:30"
+      ]
+    ]
+  },
+  {
+    "id": "m8",
+    "question": "What is the due date for Assignment 3 in the syllabus, and on which dates do final project live demonstrations take place?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 3
+      },
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 4
+      }
+    ],
+    "source_quote": "Assignment 3 is due on December 2, 2026 at 11:59 PM. / Final project live demonstrations will take place December 18 through December 20, 2026.",
+    "expected_answer_contains": [
+      [
+        "December 2, 2026",
+        "December 2",
+        "Dec 2"
+      ],
+      [
+        "December 18",
+        "Dec 18"
+      ]
+    ]
+  },
+  {
+    "id": "m9",
+    "question": "What read and write percentage ratio is used in the Assignment 1 benchmark, and what caused the Assignment 1 due date extension?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "assignment_1.pdf",
+        "page": 2
+      },
+      {
+        "file": "announcement_update.pdf",
+        "page": 1
+      }
+    ],
+    "source_quote": "executing 80 percent reads and 20 percent writes. / Due to scheduled electrical maintenance and network downtime in the Science Center computer laboratories",
+    "expected_answer_contains": [
+      [
+        "80 percent reads",
+        "80% reads"
+      ],
+      "electrical maintenance"
+    ]
+  },
+  {
+    "id": "m10",
+    "question": "Which state variables must be persisted to mock disk in Assignment 2, and what rubric score is assigned to partition recovery and persistence?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "assignment_2.pdf",
+        "page": 3
+      },
+      {
+        "file": "assignment_2.pdf",
+        "page": 4
+      }
+    ],
+    "source_quote": "Persist currentTerm, votedFor, and log entries to the mock disk interface / Partition Recovery and Persistence (30 points).",
+    "expected_answer_contains": [
+      "currentTerm",
+      "votedFor",
+      [
+        "30 points",
+        "30 pts"
+      ]
+    ]
+  },
+  {
+    "id": "c1",
+    "question": "What is the stated deadline date and time for Assignment 1 across course documents?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 3
+      },
+      {
+        "file": "announcement_update.pdf",
+        "page": 1
+      }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "announcement_update.pdf"
+    ],
+    "source_quote": "syllabus.pdf p.3: October 14, 2026 at 11:59 PM vs announcement_update.pdf p.1: October 21, 2026 at 11:59 PM",
+    "conflicting_values": {
+      "syllabus.pdf (p.3)": "October 14, 2026 at 11:59 PM",
+      "announcement_update.pdf (p.1)": "October 21, 2026 at 11:59 PM"
+    },
+    "expected_answer_contains": [
+      [
+        "October 14",
+        "Oct 14"
+      ],
+      [
+        "October 21",
+        "Oct 21"
+      ]
+    ]
+  },
+  {
+    "id": "c2",
+    "question": "What is the daily penalty rate and maximum allowable late days for assignment submissions?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      },
+      {
+        "file": "announcement_update.pdf",
+        "page": 2
+      }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "announcement_update.pdf"
+    ],
+    "source_quote": "syllabus.pdf p.2: 10 percent per day up to a maximum of 3 days vs announcement_update.pdf p.2: 5 percent per day up to a maximum of 2 days",
+    "conflicting_values": {
+      "syllabus.pdf (p.2)": "10 percent per day up to 3 days",
+      "announcement_update.pdf (p.2)": "5 percent per day up to 2 days"
+    },
+    "expected_answer_contains": [
+      [
+        "10 percent",
+        "10%"
+      ],
+      [
+        "5 percent",
+        "5%"
+      ],
+      [
+        "3 days",
+        "three days"
+      ],
+      [
+        "2 days",
+        "two days"
+      ]
+    ]
+  },
+  {
+    "id": "c3",
+    "question": "On what date is the midterm examination scheduled to be held in Hall B?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      },
+      {
+        "file": "announcement_update.pdf",
+        "page": 2
+      }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "announcement_update.pdf"
+    ],
+    "source_quote": "syllabus.pdf p.2: November 5, 2026 in Hall B vs announcement_update.pdf p.2: November 12, 2026 in Hall B",
+    "conflicting_values": {
+      "syllabus.pdf (p.2)": "November 5, 2026",
+      "announcement_update.pdf (p.2)": "November 12, 2026"
+    },
+    "expected_answer_contains": [
+      [
+        "November 5",
+        "Nov 5"
+      ],
+      [
+        "November 12",
+        "Nov 12"
+      ]
+    ]
+  },
+  {
+    "id": "c4",
+    "question": "What is the official submission due date for Assignment 2?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 3
+      },
+      {
+        "file": "assignment_2.pdf",
+        "page": 1
+      }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "assignment_2.pdf"
+    ],
+    "source_quote": "syllabus.pdf p.3: November 18, 2026 at 11:59 PM vs assignment_2.pdf p.1: November 25, 2026 at 11:59 PM",
+    "conflicting_values": {
+      "syllabus.pdf (p.3)": "November 18, 2026",
+      "assignment_2.pdf (p.1)": "November 25, 2026"
+    },
+    "expected_answer_contains": [
+      [
+        "November 18",
+        "Nov 18"
+      ],
+      [
+        "November 25",
+        "Nov 25"
+      ]
+    ]
+  },
+  {
+    "id": "c5",
+    "question": "In which building and room does Dr. Alex Mercer hold instructor office hours?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      },
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 1
+      }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "lecture_schedule.pdf"
+    ],
+    "source_quote": "syllabus.pdf p.1: Science Center Room 405 vs lecture_schedule.pdf p.1: Turing Hall Room 310",
+    "conflicting_values": {
+      "syllabus.pdf (p.1)": "Science Center Room 405",
+      "lecture_schedule.pdf (p.1)": "Turing Hall Room 310"
+    },
+    "expected_answer_contains": [
+      [
+        "Science Center Room 405",
+        "Room 405",
+        "405"
+      ],
+      [
+        "Turing Hall Room 310",
+        "Room 310",
+        "310"
+      ]
+    ]
+  },
+  {
+    "id": "c6",
+    "question": "What percentage of the overall course grade is allocated to the final term project?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      },
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 4
+      }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "lecture_schedule.pdf"
+    ],
+    "source_quote": "syllabus.pdf p.2: 25 percent of total grade vs lecture_schedule.pdf p.4: 30 percent of the total course grade",
+    "conflicting_values": {
+      "syllabus.pdf (p.2)": "25 percent",
+      "lecture_schedule.pdf (p.4)": "30 percent"
+    },
+    "expected_answer_contains": [
+      [
+        "25 percent",
+        "25%"
+      ],
+      [
+        "30 percent",
+        "30%"
+      ]
+    ]
+  },
+  {
+    "id": "c7",
+    "question": "What is the minimum number of lock shards required for bucket-level locking in Assignment 1?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "assignment_1.pdf",
+        "page": 2
+      },
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 2
+      }
+    ],
+    "expected_conflict_files": [
+      "assignment_1.pdf",
+      "lecture_schedule.pdf"
+    ],
+    "source_quote": "assignment_1.pdf p.2: at least 64 distinct lock shards vs lecture_schedule.pdf p.2: at least 32 distinct lock shards",
+    "conflicting_values": {
+      "assignment_1.pdf (p.2)": "64 distinct lock shards",
+      "lecture_schedule.pdf (p.2)": "32 distinct lock shards"
+    },
+    "expected_answer_contains": [
+      "64",
+      "32"
+    ]
+  },
+  {
+    "id": "c8",
+    "question": "In which room location is Teaching Assistant walk-in tutoring conducted?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "announcement_update.pdf",
+        "page": 3
+      },
+      {
+        "file": "exam_guide.pdf",
+        "page": 4
+      }
+    ],
+    "expected_conflict_files": [
+      "announcement_update.pdf",
+      "exam_guide.pdf"
+    ],
+    "source_quote": "announcement_update.pdf p.3: Turing Hall Room 204 vs exam_guide.pdf p.4: Science Center Room 215",
+    "conflicting_values": {
+      "announcement_update.pdf (p.3)": "Turing Hall Room 204",
+      "exam_guide.pdf (p.4)": "Science Center Room 215"
+    },
+    "expected_answer_contains": [
+      [
+        "Turing Hall Room 204",
+        "Room 204",
+        "204"
+      ],
+      [
+        "Science Center Room 215",
+        "Room 215",
+        "215"
+      ]
+    ]
+  },
+  {
+    "id": "c9",
+    "question": "How many cluster node instances are evaluated in the automated test harness for Assignment 2?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "assignment_2.pdf",
+        "page": 2
+      },
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 3
+      }
+    ],
+    "expected_conflict_files": [
+      "assignment_2.pdf",
+      "lecture_schedule.pdf"
+    ],
+    "source_quote": "assignment_2.pdf p.2: 2, 4, and 8 cluster node instances vs lecture_schedule.pdf p.3: 3, 5, and 7 cluster node instances",
+    "conflicting_values": {
+      "assignment_2.pdf (p.2)": "2, 4, and 8 cluster node instances",
+      "lecture_schedule.pdf (p.3)": "3, 5, and 7 cluster node instances"
+    },
+    "expected_answer_contains": [
+      [
+        "2, 4, and 8",
+        "2, 4, 8"
+      ],
+      [
+        "3, 5, and 7",
+        "3, 5, 7"
+      ]
+    ]
+  },
+  {
+    "id": "c10",
+    "question": "Which C++ programming standard version is specified for course examples and exam implementations?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "exam_guide.pdf",
+        "page": 2
+      },
+      {
+        "file": "lecture_schedule.pdf",
+        "page": 1
+      }
+    ],
+    "expected_conflict_files": [
+      "exam_guide.pdf",
+      "lecture_schedule.pdf"
+    ],
+    "source_quote": "exam_guide.pdf p.2: modern C++20 standard vs lecture_schedule.pdf p.1: standardized on C++17",
+    "conflicting_values": {
+      "exam_guide.pdf (p.2)": "C++20",
+      "lecture_schedule.pdf (p.1)": "C++17"
+    },
+    "expected_answer_contains": [
+      [
+        "C++20",
+        "C++ 20"
+      ],
+      [
+        "C++17",
+        "C++ 17"
+      ]
+    ]
+  },
+  {
+    "id": "n1",
+    "question": "What is the required ISBN for the course textbook?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n2",
+    "question": "What is the cost of the optional course hardware kit for lab experiments?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n3",
+    "question": "How much cloud provider credit is allocated to each student team for project hosting?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n4",
+    "question": "What is the email address of the lead graduate teaching assistant?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n5",
+    "question": "On which calendar dates does the university fall reading week take place?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n6",
+    "question": "What is the policy and application deadline for requesting an incomplete grade (grade of I) in the course?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n7",
+    "question": "In which campus auditorium will the final examination take place in December?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": [],
+    "note": "false premise: the course has a final term project, not a final exam"
+  },
+  {
+    "id": "n8",
+    "question": "How many penalty-free grace days can students utilize across programming projects?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n9",
+    "question": "What is the server hostname and manufacturer of the campus supercomputing cluster?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n10",
+    "question": "What minimum grade is required to convert the course enrollment to pass-fail status?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n11",
+    "question": "What are the eligibility requirements and application process for serving as a paid undergraduate peer tutor for CS 401?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n12",
+    "question": "What is the URL of the online discussion forum or Discord server for the course?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n13",
+    "question": "Which municipal bus route provides direct service to Turing Hall?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n14",
+    "question": "What is the departmental telephone number for the Computer Science main office?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  },
+  {
+    "id": "n15",
+    "question": "Which specific Linux kernel version is installed on the Science Center lab workstations?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "source_quote": null,
+    "expected_answer_contains": []
+  }
+]
