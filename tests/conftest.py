@@ -13,3 +13,12 @@ def pytest_sessionfinish(session, exitstatus):
         if is_ci and skipped_count > 0:
             reporter.write_sep("=", f"FAILING CI: {skipped_count} test(s) were skipped", red=True)
             session.exitstatus = 1
+
+
+@pytest.fixture(autouse=True)
+def isolate_test_llm_cache(tmp_path_factory, monkeypatch):
+    """Ensure all tests write LLM cache files to a temporary directory rather than .cache/llm."""
+    temp_cache = tmp_path_factory.mktemp("test_llm_cache")
+    monkeypatch.setenv("LLM_CACHE_DIR", str(temp_cache))
+    yield temp_cache
+
