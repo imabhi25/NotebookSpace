@@ -134,6 +134,10 @@ class AskResponse(BaseModel):
     retrieved: List[dict[str, Any]]
     tokens: TokenUsage
     latency: float
+    model: str | None = Field(
+        default=None,
+        description="Configured client model identifier used for generation, or null if abstained before model invocation.",
+    )
 
 
 class UploadResponse(BaseModel):
