@@ -16,7 +16,7 @@ from ingestion.pipeline import ingest_pdf
 logger = logging.getLogger("course_assistant.api")
 
 app = FastAPI(
-    title="Course-Document Assistant",
+    title="NotebookSpace API",
     description="Vector search retrieval and answering service for course documents.",
     version="2.0.0",
 )

@@ -1,4 +1,6 @@
-# Course-Document Assistant
+# NotebookSpace
+
+_An independent student project, not affiliated with Google or NotebookLM._
 
 A retrieval-augmented assistant for querying course documents (syllabi, lecture notes, assignments, and announcements) with verified page-level citations, explicit abstention for unsupported questions, and automated conflict detection between documents.
 
