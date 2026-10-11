@@ -142,7 +142,7 @@ def test_gemini_503_backoff_retry_bounded(tmp_path: Path):
     from unittest.mock import patch
     import httpx
 
-    client = GeminiLLMClient(api_key="test_key", cache_dir=tmp_path)
+    client = GeminiLLMClient(model="gemini-3.5-flash-lite", api_key="test_key", cache_dir=tmp_path)
 
     resp_503 = httpx.Response(503)
     resp_200 = httpx.Response(
