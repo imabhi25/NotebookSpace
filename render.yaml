@@ -16,3 +16,7 @@ services:
         sync: false
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: DEMO_MODE
+        sync: false
+      - key: DEMO_ASK_PER_MINUTE
+        sync: false

@@ -18,12 +18,14 @@ ENV/
 .pytest_cache/
 .coverage
 htmlcov/
+tests/screenshots/
 
 # Node
 node_modules/
 dist/
 frontend/node_modules/
 frontend/dist/
+.netlify/
 
 # Uploads & temporary data
 uploads/

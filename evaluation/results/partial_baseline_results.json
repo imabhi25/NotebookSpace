@@ -1,0 +1,3768 @@
+{
+  "metadata": {
+    "model_configured": "gemini-3.5-flash",
+    "corpus_documents": 6,
+    "corpus_pages": 22,
+    "total_questions": 60,
+    "status_counts": {
+      "completed": 14,
+      "attempted_failed_429": 1,
+      "unattempted": 45
+    },
+    "citation_precision": {
+      "total_emitted": 16,
+      "total_supported": 16,
+      "precision_rate": 1.0
+    }
+  },
+  "questions": [
+    {
+      "id": "s1",
+      "question": "How many credit hours is CS 401 worth?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        "4.0",
+        [
+          "credit",
+          "credits"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.3928
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.2426
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2398
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.2334
+        },
+        {
+          "rank": 5,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.225
+        }
+      ],
+      "cache_key": "d97ba131f1bd7474c94df15fea262cfaaeaab4e3d7e077b0528057080f798d0b",
+      "response": "CS 401 is worth 4.0 credits [syllabus.pdf p.1].",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 2.985298415995203,
+      "tokens": {
+        "input": 1317,
+        "output": 81
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly states 4.0 credits matching syllabus page 1.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 1,
+            "supports_claim": true,
+            "rationale": "Syllabus page 1 explicitly states \"Credits: 4.0\"."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s2",
+      "question": "What is the official university email address for Dr. Alex Mercer?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        "amercer@example.edu"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3038
+        },
+        {
+          "rank": 2,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.2237
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.2081
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 4,
+          "score": 0.1931
+        },
+        {
+          "rank": 5,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.1776
+        }
+      ],
+      "cache_key": "40144dcaee210080e78bc93767ddfa9c81374e500c96f20475a4de460b50a465",
+      "response": "Dr. Alex Mercer's official email address is amercer@example.edu [syllabus.pdf p.1].",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 3.7685222500003874,
+      "tokens": {
+        "input": 1236,
+        "output": 81
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly states amercer@example.edu matching syllabus page 1.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 1,
+            "supports_claim": true,
+            "rationale": "Syllabus page 1 lists instructor email as amercer@example.edu."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s3",
+      "question": "What is the minimum percentage required to earn a grade of A according to the grading scale?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        "93"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.4724
+        },
+        {
+          "rank": 2,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.3282
+        },
+        {
+          "rank": 3,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.2933
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2405
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.229
+        }
+      ],
+      "cache_key": "e95a4feeab5ee135b883531c3899d9d42e8bc8abf1e2c44ed027d14fb707ecf9",
+      "response": "According to the course grading scale, the minimum percentage required to earn a grade of A is 93 percent [syllabus.pdf p.2].",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 2.8785021670046262,
+      "tokens": {
+        "input": 1230,
+        "output": 91
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly states 93 percent matching grading scale table.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 2,
+            "supports_claim": true,
+            "rationale": "Syllabus page 2 grading table defines grade A as 93 - 100%."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s4",
+      "question": "What percentage of the total grade is assigned to class participation and quizzes?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "10 percent",
+          "10%"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.5513
+        },
+        {
+          "rank": 2,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.39
+        },
+        {
+          "rank": 3,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.3862
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3704
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.3632
+        }
+      ],
+      "cache_key": "ccf724c7fb4d7d322bc25d99607185b80ce24abb13be0f81ba43ff231fe717d9",
+      "response": "Class participation and quizzes account for 10 percent of the total grade [syllabus.pdf p.2].",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 3.0010497920011403,
+      "tokens": {
+        "input": 1226,
+        "output": 78
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly states 10 percent matching syllabus breakdown table.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 2,
+            "supports_claim": true,
+            "rationale": "Syllabus page 2 breakdown table allocates 10% to Class Participation & Quizzes."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s5",
+      "question": "What is the title and due date for Assignment 4?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 3
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "Asynchronous Network RPC",
+          "Network RPC"
+        ],
+        [
+          "December 16",
+          "Dec 16",
+          "Dec. 16"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.6117
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.5881
+        },
+        {
+          "rank": 3,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.4421
+        },
+        {
+          "rank": 4,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.4269
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.4136
+        }
+      ],
+      "cache_key": "fb07296614327b4e5eb28e6827a6eb1461e67945e26b42c6b1fc2e9b7f69f808",
+      "response": "Assignment 4 is titled \"Asynchronous Network RPC Framework\" and is due on December 16, 2026 at 11:59 PM [syllabus.pdf p.3].",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 3.172936666989699,
+      "tokens": {
+        "input": 1217,
+        "output": 103
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly gives Assignment 4 title and Dec 16 due date.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 3,
+            "supports_claim": true,
+            "rationale": "Syllabus page 3 schedule table lists Assignment 4 title and Dec 16, 2026 deadline."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s6",
+      "question": "What system topic is implemented in Assignment 3 according to the syllabus schedule?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 3
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "Write-Ahead Logging",
+          "WAL"
+        ],
+        "Crash Recovery"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.5824
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.5508
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.4549
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.4416
+        },
+        {
+          "rank": 5,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.4405
+        }
+      ],
+      "cache_key": "07f8bb269e751753b13167b538557cb6d34b60b96c2297b0376b107596a50860",
+      "response": "According to the syllabus schedule, Assignment 3 covers a Write-Ahead Logging and Crash Recovery Engine [syllabus.pdf p.3].",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 2.850704250013223,
+      "tokens": {
+        "input": 1285,
+        "output": 88
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly identifies Write-Ahead Logging and Crash Recovery Engine.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 3,
+            "supports_claim": true,
+            "rationale": "Syllabus page 3 schedule table lists Assignment 3 topic as Write-Ahead Logging and Crash Recovery Engine."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s7",
+      "question": "To which university body are academic integrity violations reported?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        "Academic Conduct Board"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 4,
+          "score": 0.5416
+        },
+        {
+          "rank": 2,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.294
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2831
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.2785
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.2491
+        }
+      ],
+      "cache_key": "878f4f5ca1ab8340940f3a16756c892020bf621025d9851e5d76b84ed528e221",
+      "response": "Academic integrity violations are reported directly to the Academic Conduct Board [syllabus.pdf p.4].",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 4
+        }
+      ],
+      "latency_seconds": 16.050354792008875,
+      "tokens": {
+        "input": 1238,
+        "output": 75
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly identifies Academic Conduct Board.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 4,
+            "supports_claim": true,
+            "rationale": "Syllabus page 4 policy states violations are submitted directly to the Academic Conduct Board."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s8",
+      "question": "Which campus office should students contact to coordinate documented accessibility needs?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        "Student Support Office"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 4,
+          "score": 0.4445
+        },
+        {
+          "rank": 2,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.3589
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3519
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.3312
+        },
+        {
+          "rank": 5,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.3241
+        }
+      ],
+      "cache_key": "be82ed79ae11e24fd1b8c4369033dc904e7ecf9e8883364231e6e5bdce337660",
+      "response": "Students with documented accessibility needs should contact the Student Support Office to coordinate approved accommodations [syllabus.pdf p.4]. For approved testing accommodations, students must schedule room reservations with the Accessibility Center [exam_guide.pdf p.4].",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 4
+        },
+        {
+          "file": "exam_guide.pdf",
+          "page": 4
+        }
+      ],
+      "latency_seconds": 16.49968695800635,
+      "tokens": {
+        "input": 1151,
+        "output": 128
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly identifies Student Support Office and Accessibility Center.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 4,
+            "supports_claim": true,
+            "rationale": "Syllabus page 4 instructs contacting Student Support Office for academic accommodations."
+          },
+          {
+            "file": "exam_guide.pdf",
+            "page": 4,
+            "supports_claim": true,
+            "rationale": "Exam guide page 4 instructs scheduling room reservations with the Accessibility Center."
+          }
+        ],
+        "total_citations_emitted": 2
+      }
+    },
+    {
+      "id": "s9",
+      "question": "Which type of locking mechanism is explicitly prohibited in Assignment 1?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "Coarse-grained global locks",
+          "global locks"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 3,
+          "score": 0.5174
+        },
+        {
+          "rank": 2,
+          "file": "exam_guide.pdf",
+          "page": 2,
+          "score": 0.4813
+        },
+        {
+          "rank": 3,
+          "file": "assignment_1.pdf",
+          "page": 1,
+          "score": 0.4423
+        },
+        {
+          "rank": 4,
+          "file": "lecture_schedule.pdf",
+          "page": 2,
+          "score": 0.436
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.3911
+        }
+      ],
+      "cache_key": "757a19727b51a596aced9ddfd771627f3217c8e4a064af6e7b91d4a534708b44",
+      "response": "In Assignment 1, coarse-grained global locks are explicitly prohibited [assignment_1.pdf p.1].",
+      "citations": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 20.52932529199461,
+      "tokens": {
+        "input": 1192,
+        "output": 86
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly identifies prohibited coarse-grained global locks.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "assignment_1.pdf",
+            "page": 1,
+            "supports_claim": true,
+            "rationale": "Assignment 1 page 1 states coarse-grained global locks covering the entire map are strictly prohibited."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s10",
+      "question": "What data structure are students required to design and implement for Assignment 1?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "concurrent hash map",
+          "hash map",
+          "hash table"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.5065
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.4632
+        },
+        {
+          "rank": 3,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.4253
+        },
+        {
+          "rank": 4,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.4124
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.3984
+        }
+      ],
+      "cache_key": "555ec90c226c487c97fc350e6b87ae145c933fc3fcf9300e71591bd0cd7179d6",
+      "response": "For Assignment 1, students are required to design and implement a High-Performance Concurrent Key-Value Store [syllabus.pdf p.3] [announcement_update.pdf p.1].",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 3
+        },
+        {
+          "file": "announcement_update.pdf",
+          "page": 1
+        }
+      ],
+      "latency_seconds": 10.86907866699039,
+      "tokens": {
+        "input": 1271,
+        "output": 126
+      },
+      "evaluation": {
+        "any_expected_page_cited": false,
+        "fact_match": false,
+        "missing_terms": [
+          [
+            "concurrent hash map",
+            "hash map",
+            "hash table"
+          ]
+        ],
+        "answers_question": false,
+        "answer_rationale": "Answers with the project title (\"High-Performance Concurrent Key-Value Store\") rather than identifying the required underlying data structure (\"concurrent hash map\"). Retrieval at k=5 missed assignment_1.pdf page 1.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 3,
+            "supports_claim": true,
+            "rationale": "Syllabus page 3 schedule describes Assignment 1 as \"High-Performance Concurrent Key-Value Store\", supporting the claim that this is what the project entails."
+          },
+          {
+            "file": "announcement_update.pdf",
+            "page": 1,
+            "supports_claim": true,
+            "rationale": "Announcement update page 1 also describes Assignment 1 as \"High-Performance Concurrent Key-Value Store\", supporting the emitted sentence."
+          }
+        ],
+        "total_citations_emitted": 2
+      }
+    },
+    {
+      "id": "s11",
+      "question": "What table load factor threshold triggers dynamic rehashing in Assignment 1?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        "0.75",
+        [
+          "load factor",
+          "load-factor"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.327
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3075
+        },
+        {
+          "rank": 3,
+          "file": "assignment_1.pdf",
+          "page": 2,
+          "score": 0.3006
+        },
+        {
+          "rank": 4,
+          "file": "exam_guide.pdf",
+          "page": 3,
+          "score": 0.2934
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.2626
+        }
+      ],
+      "cache_key": "de1e08aa3e4befa9f9e917d9438a41dd8364c41d1444ec38069f2f96b2dd7428",
+      "response": "In Assignment 1, dynamic rehashing is triggered when the table load factor exceeds 0.75 [assignment_1.pdf p.2].",
+      "citations": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 3.514717832993483,
+      "tokens": {
+        "input": 1227,
+        "output": 94
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly identifies 0.75 load factor threshold.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "assignment_1.pdf",
+            "page": 2,
+            "supports_claim": true,
+            "rationale": "Assignment 1 page 2 states dynamic rehashing must be triggered when table load factor exceeds 0.75."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s12",
+      "question": "Which sanitizer tools must detect zero memory leaks or undefined behavior in Assignment 1?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "AddressSanitizer",
+          "ASan"
+        ],
+        [
+          "ThreadSanitizer",
+          "TSan"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "lecture_schedule.pdf",
+          "page": 2,
+          "score": 0.4017
+        },
+        {
+          "rank": 2,
+          "file": "exam_guide.pdf",
+          "page": 2,
+          "score": 0.3878
+        },
+        {
+          "rank": 3,
+          "file": "exam_guide.pdf",
+          "page": 3,
+          "score": 0.386
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.3499
+        },
+        {
+          "rank": 5,
+          "file": "assignment_1.pdf",
+          "page": 2,
+          "score": 0.344
+        }
+      ],
+      "cache_key": "6b909595886631f5a6cc724a6142c63a2de5f40e3bf0019e294af8fd5351bdf7",
+      "response": "In Assignment 1, AddressSanitizer and ThreadSanitizer must detect zero memory leaks or undefined behavior [assignment_1.pdf p.2].",
+      "citations": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 3.631425208004657,
+      "tokens": {
+        "input": 1193,
+        "output": 90
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly identifies AddressSanitizer and ThreadSanitizer.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "assignment_1.pdf",
+            "page": 2,
+            "supports_claim": true,
+            "rationale": "Assignment 1 page 2 requires zero memory leaks or undefined behavior detected by AddressSanitizer and ThreadSanitizer."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s13",
+      "question": "How many points are allocated to the design document and code style in the Assignment 1 rubric?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 3
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "15 points",
+          "15 pts"
+        ],
+        "Design Document"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.5345
+        },
+        {
+          "rank": 2,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.4905
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.4685
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3933
+        },
+        {
+          "rank": 5,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.3902
+        }
+      ],
+      "cache_key": "98e2d46a9931cded423e759011522672d0aaa962c349bd59779222ca77695ee9",
+      "response": "In the Assignment 1 rubric, 15 points are allocated to the design document and code style [assignment_1.pdf p.3].",
+      "citations": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 3
+        }
+      ],
+      "latency_seconds": 3.851789958003792,
+      "tokens": {
+        "input": 1206,
+        "output": 93
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly identifies 15 points allocated in rubric.",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "assignment_1.pdf",
+            "page": 3,
+            "supports_claim": true,
+            "rationale": "Assignment 1 page 3 rubric table allocates 15 points for Design Document and Code Style."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s14",
+      "question": "What is the course grading breakdown across assignments, exams, projects, and participation according to the syllabus?",
+      "type": "single_page",
+      "execution_status": "completed",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "40 percent",
+          "40%"
+        ],
+        [
+          "25 percent",
+          "25%"
+        ],
+        [
+          "10 percent",
+          "10%"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.5904
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.5619
+        },
+        {
+          "rank": 3,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.5008
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.433
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.4284
+        }
+      ],
+      "cache_key": "754b21daf0cfb9fc5c93ec978327a0aa8fce2b62e6e0f45854e48b07a0458c1c",
+      "response": "According to the syllabus, the course grading breakdown is as follows:\n- Programming Assignments (4 projects): 40 percent of total grade (10 percent each) [syllabus.pdf p.2]\n- Midterm Examination: 25 percent of total grade [syllabus.pdf p.2]\n- Final Term Project: 25 percent of total grade [syllabus.pdf p.2]\n- Class Participation and Quizzes: 10 percent of total grade [syllabus.pdf p.2]",
+      "citations": [
+        {
+          "file": "syllabus.pdf",
+          "page": 2
+        }
+      ],
+      "latency_seconds": 4.978501542005688,
+      "tokens": {
+        "input": 1275,
+        "output": 167
+      },
+      "evaluation": {
+        "any_expected_page_cited": true,
+        "fact_match": true,
+        "missing_terms": [],
+        "answers_question": true,
+        "answer_rationale": "Correctly details full grading breakdown across 4 projects (40%), midterm (25%), final project (25%), and participation (10%).",
+        "all_citations_support_claims": true,
+        "citations_audited": [
+          {
+            "file": "syllabus.pdf",
+            "page": 2,
+            "supports_claim": true,
+            "rationale": "Syllabus page 2 breakdown table allocates 40% assignments, 25% midterm, 25% final project, and 10% participation."
+          }
+        ],
+        "total_citations_emitted": 1
+      }
+    },
+    {
+      "id": "s15",
+      "question": "On what date will the practice midterm review session take place during lecture?",
+      "type": "single_page",
+      "execution_status": "attempted_failed_429",
+      "expected_sources": [
+        {
+          "file": "announcement_update.pdf",
+          "page": 3
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "November 9, 2026",
+          "November 9",
+          "Nov 9",
+          "Nov. 9"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.6843
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.606
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.5311
+        },
+        {
+          "rank": 4,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.4641
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.4293
+        }
+      ],
+      "cache_key": "68001d43ec212e98155c7646b79dc704d9e07baa5bb90045ee44ff587d048c58",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s16",
+      "question": "When and where are the instructor office hours held according to the syllabus?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "Tuesday",
+          "Tuesdays"
+        ],
+        [
+          "Thursday",
+          "Thursdays"
+        ],
+        [
+          "Room 405",
+          "405"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.588
+        },
+        {
+          "rank": 2,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.4573
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.4258
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.3919
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.3905
+        }
+      ],
+      "cache_key": "c5764dc3f5fe473f1e108ddf3732dc678a61c27e45aa6f439a4416555f68e00d",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s17",
+      "question": "What protocol specification serves as the foundation for the consensus service in Assignment 2?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_2.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "Raft protocol",
+          "Raft"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_2.pdf",
+          "page": 1,
+          "score": 0.6227
+        },
+        {
+          "rank": 2,
+          "file": "lecture_schedule.pdf",
+          "page": 3,
+          "score": 0.5133
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.4672
+        },
+        {
+          "rank": 4,
+          "file": "exam_guide.pdf",
+          "page": 2,
+          "score": 0.4614
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3634
+        }
+      ],
+      "cache_key": "a0ea6cc76356922e8cf22c1713cf8a5fc3fae70e160f34519dd64cb97c9a9b0e",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s18",
+      "question": "What is the randomized millisecond range required for election timeouts in Assignment 2?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_2.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        "150",
+        "300",
+        [
+          "milliseconds",
+          "ms"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_2.pdf",
+          "page": 2,
+          "score": 0.4471
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.3447
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.3323
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.33
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.3135
+        }
+      ],
+      "cache_key": "cc4dcb9e8470ecacb360a103d8ce44e1d33b3db73b11786956f09141df7f850f",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s19",
+      "question": "How must minority sub-clusters handle client write operations during a network partition in Assignment 2?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_2.pdf",
+          "page": 3
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "reject client write operations",
+          "reject write operations"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "lecture_schedule.pdf",
+          "page": 3,
+          "score": 0.3734
+        },
+        {
+          "rank": 2,
+          "file": "assignment_2.pdf",
+          "page": 1,
+          "score": 0.352
+        },
+        {
+          "rank": 3,
+          "file": "assignment_2.pdf",
+          "page": 3,
+          "score": 0.3362
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.3072
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 3,
+          "score": 0.2803
+        }
+      ],
+      "cache_key": "e0890b4e3c1983f593666eb35720a667b702dabeb7b2de3ce96cf03466ab3860",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s20",
+      "question": "How many rubric points are awarded for log replication in Assignment 2?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_2.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "40 points",
+          "40 pts",
+          "40 marks"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.4606
+        },
+        {
+          "rank": 2,
+          "file": "lecture_schedule.pdf",
+          "page": 3,
+          "score": 0.4368
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.4345
+        },
+        {
+          "rank": 4,
+          "file": "assignment_2.pdf",
+          "page": 1,
+          "score": 0.3841
+        },
+        {
+          "rank": 5,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.3814
+        }
+      ],
+      "cache_key": "2131ec90de6edf9955846e53976dab87089586dd438b4cae8f75e5a5f2e0da1d",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s21",
+      "question": "How many multiple-choice questions are included on the midterm examination?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "exam_guide.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        "20",
+        [
+          "multiple-choice",
+          "multiple choice"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.5181
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.4928
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.4802
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.4209
+        },
+        {
+          "rank": 5,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.3518
+        }
+      ],
+      "cache_key": "463a04bbedb6254fee11339a737555174865adc66f137888b35c5eb08ed35a17",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s22",
+      "question": "What are the three main technical topics evaluated on the midterm examination?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "exam_guide.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        "Concurrency Primitives",
+        "Lock-Free Programming",
+        "Distributed Consensus"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.5665
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.518
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.4834
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.435
+        },
+        {
+          "rank": 5,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.4306
+        }
+      ],
+      "cache_key": "d6180777b89a3890f85ae36406b6823f3e28825cb725b937476984d1a5aa4d95",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s23",
+      "question": "What loop construct must enclose condition variable wait operations to guard against spurious wakeups?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "exam_guide.pdf",
+          "page": 3
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "while predicate loop",
+          "while loop"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 3,
+          "score": 0.4157
+        },
+        {
+          "rank": 2,
+          "file": "exam_guide.pdf",
+          "page": 2,
+          "score": 0.2809
+        },
+        {
+          "rank": 3,
+          "file": "assignment_2.pdf",
+          "page": 2,
+          "score": 0.2613
+        },
+        {
+          "rank": 4,
+          "file": "lecture_schedule.pdf",
+          "page": 2,
+          "score": 0.258
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.2008
+        }
+      ],
+      "cache_key": "480c2d5308d21875785ca03dffb6ed2fa6bb817c88eb415cb3eeef00cf47f6e2",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s24",
+      "question": "How many days in advance must students with approved testing accommodations schedule rooms with Accessibility Services?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "exam_guide.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "7 days in advance",
+          "7 days"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.5061
+        },
+        {
+          "rank": 2,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.4714
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.4476
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.4093
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.3991
+        }
+      ],
+      "cache_key": "82db5348a816be5f002ff931c29b1fb16fbc376b4f2ec5a41fa338fe33c8c893",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "s25",
+      "question": "Which synchronization primitives are covered in Week 3 of the lecture schedule?",
+      "type": "single_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "reader-writer locks",
+          "RW locks"
+        ],
+        [
+          "semaphore",
+          "semaphores"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.5354
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.5335
+        },
+        {
+          "rank": 3,
+          "file": "exam_guide.pdf",
+          "page": 3,
+          "score": 0.5142
+        },
+        {
+          "rank": 4,
+          "file": "lecture_schedule.pdf",
+          "page": 2,
+          "score": 0.5089
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.506
+        }
+      ],
+      "cache_key": "269dc525b9ca9b31ef0b39eb9fad8379dcb829d17315a0edcb5d4931b6b9b6de",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m1",
+      "question": "What are the prerequisite courses for CS 401, and what programming language standard is required for exam code snippets?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 1
+        },
+        {
+          "file": "exam_guide.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        "CS 201",
+        "CS 202",
+        [
+          "C++20",
+          "C++ 20"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.6318
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.6033
+        },
+        {
+          "rank": 3,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.5735
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.4563
+        },
+        {
+          "rank": 5,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.4442
+        }
+      ],
+      "cache_key": "f920f41f21e872eeda4aebb9eb50ea678be6507a1d9a08f94db114985ddeac02",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m2",
+      "question": "Which operations must be supported by the Assignment 1 data store, and how many rubric points are allocated to correctness and thread safety?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 1
+        },
+        {
+          "file": "assignment_1.pdf",
+          "page": 3
+        }
+      ],
+      "expected_answer_contains": [
+        "Put",
+        "Get",
+        "Delete",
+        [
+          "60 points",
+          "60 pts"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_1.pdf",
+          "page": 1,
+          "score": 0.5431
+        },
+        {
+          "rank": 2,
+          "file": "lecture_schedule.pdf",
+          "page": 2,
+          "score": 0.5159
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.5018
+        },
+        {
+          "rank": 4,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.4869
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 2,
+          "score": 0.475
+        }
+      ],
+      "cache_key": "13ef085bb8e6447c61bc0ea5520d2ae9feb4492e7d1b8f580a7dd910bd3f3203",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m3",
+      "question": "Which two RPC interfaces must be implemented for Raft in Assignment 2, and what is the required heartbeat timer interval?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_2.pdf",
+          "page": 1
+        },
+        {
+          "file": "assignment_2.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        "RequestVote",
+        "AppendEntries",
+        [
+          "50 milliseconds",
+          "50 ms"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_2.pdf",
+          "page": 1,
+          "score": 0.5258
+        },
+        {
+          "rank": 2,
+          "file": "assignment_2.pdf",
+          "page": 2,
+          "score": 0.4465
+        },
+        {
+          "rank": 3,
+          "file": "lecture_schedule.pdf",
+          "page": 3,
+          "score": 0.3956
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.386
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2796
+        }
+      ],
+      "cache_key": "ccf7cc6a481ab5020cde1b36aff5e66288ec87e438b20223f174c2bce7766717",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m4",
+      "question": "Which RPC is implemented for log compaction in Assignment 2, and what archive name is required for submission?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_2.pdf",
+          "page": 3
+        },
+        {
+          "file": "assignment_2.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        "Snapshot",
+        "assignment2.tar.gz"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_2.pdf",
+          "page": 3,
+          "score": 0.4978
+        },
+        {
+          "rank": 2,
+          "file": "assignment_2.pdf",
+          "page": 1,
+          "score": 0.4907
+        },
+        {
+          "rank": 3,
+          "file": "lecture_schedule.pdf",
+          "page": 3,
+          "score": 0.4532
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.4506
+        },
+        {
+          "rank": 5,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.4153
+        }
+      ],
+      "cache_key": "ac2da081c49db9571fe7e1fa17b106bb85e1b6c107d65bc18d4ba2362c718ad8",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m5",
+      "question": "What is the total duration of the midterm exam in minutes, and within how many business days must regrade requests be submitted?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "exam_guide.pdf",
+          "page": 1
+        },
+        {
+          "file": "exam_guide.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "120 minutes",
+          "120 min"
+        ],
+        [
+          "5 business days",
+          "5 days"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.6437
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.6237
+        },
+        {
+          "rank": 3,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.6237
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.6095
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.4606
+        }
+      ],
+      "cache_key": "26da7583798e5122d8b3ac035b849d99b80f5d1dd3f091e3bc9e5efe94a71edc",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m6",
+      "question": "Which hardware topics are discussed in Week 1, and which recovery algorithm is covered in Week 11 of the lecture schedule?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 2
+        },
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        "cache coherence",
+        "ARIES"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.5316
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.5119
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.5103
+        },
+        {
+          "rank": 4,
+          "file": "lecture_schedule.pdf",
+          "page": 2,
+          "score": 0.4936
+        },
+        {
+          "rank": 5,
+          "file": "lecture_schedule.pdf",
+          "page": 3,
+          "score": 0.4588
+        }
+      ],
+      "cache_key": "4541ce7f54425830881f0e6bd759bd779fd193b832c78d8c22d7a79be9abcdfa",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m7",
+      "question": "In which room does CS 401 meet, and what are the scheduled weekly lecture meeting times?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 1
+        },
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "Turing Hall Room 101",
+          "Room 101"
+        ],
+        [
+          "10:00 AM",
+          "10:00"
+        ],
+        [
+          "11:30 AM",
+          "11:30"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.5191
+        },
+        {
+          "rank": 2,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.4602
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.4543
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.4511
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.3956
+        }
+      ],
+      "cache_key": "f8c13f95f94cda5b6f244586d7a817ead757c18dd2278fa857143c90909b516d",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m8",
+      "question": "What is the due date for Assignment 3 in the syllabus, and on which dates do final project live demonstrations take place?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 3
+        },
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "December 2, 2026",
+          "December 2",
+          "Dec 2"
+        ],
+        [
+          "December 18",
+          "Dec 18"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.6038
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.5668
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.5646
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.5131
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.4983
+        }
+      ],
+      "cache_key": "9e9227a4e0e7a00259b237675300634913043e7079b2a9f678e7475b306b2e7f",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m9",
+      "question": "What read and write percentage ratio is used in the Assignment 1 benchmark, and what caused the Assignment 1 due date extension?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 2
+        },
+        {
+          "file": "announcement_update.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "80 percent reads",
+          "80% reads"
+        ],
+        "electrical maintenance"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.5188
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.4963
+        },
+        {
+          "rank": 3,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.4654
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.4351
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 3,
+          "score": 0.4312
+        }
+      ],
+      "cache_key": "4b22f4e65516abe5367b84f80405bebf6ec65f6d8dfd52d2a66492d4d560b937",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "m10",
+      "question": "Which state variables must be persisted to mock disk in Assignment 2, and what rubric score is assigned to partition recovery and persistence?",
+      "type": "multi_page",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_2.pdf",
+          "page": 3
+        },
+        {
+          "file": "assignment_2.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        "currentTerm",
+        "votedFor",
+        [
+          "30 points",
+          "30 pts"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_2.pdf",
+          "page": 3,
+          "score": 0.5711
+        },
+        {
+          "rank": 2,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.3798
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.3442
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.3437
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 3,
+          "score": 0.3356
+        }
+      ],
+      "cache_key": "6abc44998a9122793c9ba6bf638d0b5dd767e17105af64d5e1947fec82dda117",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c1",
+      "question": "What is the stated deadline date and time for Assignment 1 across course documents?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 3
+        },
+        {
+          "file": "announcement_update.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "October 14",
+          "Oct 14"
+        ],
+        [
+          "October 21",
+          "Oct 21"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.7261
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.6429
+        },
+        {
+          "rank": 3,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.5081
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.5044
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.5035
+        }
+      ],
+      "cache_key": "48934e52139d813c60cbd24b7ed6a51e7d65a48df352517f38934c29f3a272b3",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c2",
+      "question": "What is the daily penalty rate and maximum allowable late days for assignment submissions?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 2
+        },
+        {
+          "file": "announcement_update.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "10 percent",
+          "10%"
+        ],
+        [
+          "5 percent",
+          "5%"
+        ],
+        [
+          "3 days",
+          "three days"
+        ],
+        [
+          "2 days",
+          "two days"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.5266
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.4757
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.4301
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.428
+        },
+        {
+          "rank": 5,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.4273
+        }
+      ],
+      "cache_key": "8a7fd0f39f21f7345345eb27976c718dae1cff9d2d897727425b3e7bcb000e4f",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c3",
+      "question": "On what date is the midterm examination scheduled to be held in Hall B?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 2
+        },
+        {
+          "file": "announcement_update.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "November 5",
+          "Nov 5"
+        ],
+        [
+          "November 12",
+          "Nov 12"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.6398
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.63
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.5516
+        },
+        {
+          "rank": 4,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.464
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3818
+        }
+      ],
+      "cache_key": "28eb63fd6b952584d29b0bd6d00a0d0ac332de78b22227c6fe0ad7907c54dae8",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c4",
+      "question": "What is the official submission due date for Assignment 2?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 3
+        },
+        {
+          "file": "assignment_2.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "November 18",
+          "Nov 18"
+        ],
+        [
+          "November 25",
+          "Nov 25"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.6695
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.6513
+        },
+        {
+          "rank": 3,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.5312
+        },
+        {
+          "rank": 4,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.5038
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.4878
+        }
+      ],
+      "cache_key": "7f285342a650a39877917b08f0e1ddab1db6fdb8f9d203d366b3ad0911f731d9",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c5",
+      "question": "In which building and room does Dr. Alex Mercer hold instructor office hours?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 1
+        },
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "Science Center Room 405",
+          "Room 405",
+          "405"
+        ],
+        [
+          "Turing Hall Room 310",
+          "Room 310",
+          "310"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.4531
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3912
+        },
+        {
+          "rank": 3,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.3831
+        },
+        {
+          "rank": 4,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.3191
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.2841
+        }
+      ],
+      "cache_key": "66fc10df9bf2bb2c64877e290ce7ed06f801beebf11382871cc4f904c802d936",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c6",
+      "question": "What percentage of the overall course grade is allocated to the final term project?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "syllabus.pdf",
+          "page": 2
+        },
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "25 percent",
+          "25%"
+        ],
+        [
+          "30 percent",
+          "30%"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.6692
+        },
+        {
+          "rank": 2,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.4707
+        },
+        {
+          "rank": 3,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.4543
+        },
+        {
+          "rank": 4,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.4422
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.4384
+        }
+      ],
+      "cache_key": "d2fd1cbb64d724f10ee6df8e84ad72916dc13ec9dc46ef46dc7061f31db2b839",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c7",
+      "question": "What is the minimum number of lock shards required for bucket-level locking in Assignment 1?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_1.pdf",
+          "page": 2
+        },
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 2
+        }
+      ],
+      "expected_answer_contains": [
+        "64",
+        "32"
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_1.pdf",
+          "page": 1,
+          "score": 0.4706
+        },
+        {
+          "rank": 2,
+          "file": "lecture_schedule.pdf",
+          "page": 2,
+          "score": 0.4538
+        },
+        {
+          "rank": 3,
+          "file": "assignment_1.pdf",
+          "page": 2,
+          "score": 0.4387
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.3434
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 3,
+          "score": 0.3204
+        }
+      ],
+      "cache_key": "7440aedc6d3ffab35f9d07cf27ba69dcba40bffac44a7e35808fc47135a54a04",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c8",
+      "question": "In which room location is Teaching Assistant walk-in tutoring conducted?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "announcement_update.pdf",
+          "page": 3
+        },
+        {
+          "file": "exam_guide.pdf",
+          "page": 4
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "Turing Hall Room 204",
+          "Room 204",
+          "204"
+        ],
+        [
+          "Science Center Room 215",
+          "Room 215",
+          "215"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.5453
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.4112
+        },
+        {
+          "rank": 3,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.2565
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2488
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.2308
+        }
+      ],
+      "cache_key": "c470b8050f1386b704e630c283b5c4efd4e4d4463d3e66a290e5ab52f0bb76d2",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c9",
+      "question": "How many cluster node instances are evaluated in the automated test harness for Assignment 2?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "assignment_2.pdf",
+          "page": 2
+        },
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 3
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "2, 4, and 8",
+          "2, 4, 8"
+        ],
+        [
+          "3, 5, and 7",
+          "3, 5, 7"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_2.pdf",
+          "page": 2,
+          "score": 0.454
+        },
+        {
+          "rank": 2,
+          "file": "lecture_schedule.pdf",
+          "page": 3,
+          "score": 0.4089
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.383
+        },
+        {
+          "rank": 4,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.357
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3508
+        }
+      ],
+      "cache_key": "04538f030811e60a615a9e6b6db21b8a7fa4a1c863f6b033caa0df8c61338f98",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "c10",
+      "question": "Which C++ programming standard version is specified for course examples and exam implementations?",
+      "type": "conflicting",
+      "execution_status": "unattempted",
+      "expected_sources": [
+        {
+          "file": "exam_guide.pdf",
+          "page": 2
+        },
+        {
+          "file": "lecture_schedule.pdf",
+          "page": 1
+        }
+      ],
+      "expected_answer_contains": [
+        [
+          "C++20",
+          "C++ 20"
+        ],
+        [
+          "C++17",
+          "C++ 17"
+        ]
+      ],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.6137
+        },
+        {
+          "rank": 2,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.5161
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.5152
+        },
+        {
+          "rank": 4,
+          "file": "exam_guide.pdf",
+          "page": 2,
+          "score": 0.4991
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.4501
+        }
+      ],
+      "cache_key": "c5979fc4b2071f507643aea691795b78b302008aed90e7ec316294b5788a176d",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n1",
+      "question": "What is the required ISBN for the course textbook?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.3987
+        },
+        {
+          "rank": 2,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.3732
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3595
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.3503
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.3502
+        }
+      ],
+      "cache_key": "148eec8c04d859a3f9cbaec4c2a195b5230208c50dd919ae4e634657954a601e",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n2",
+      "question": "What is the cost of the optional course hardware kit for lab experiments?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.4042
+        },
+        {
+          "rank": 2,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.3663
+        },
+        {
+          "rank": 3,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.3584
+        },
+        {
+          "rank": 4,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.3583
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.3582
+        }
+      ],
+      "cache_key": "3de998599cf25fa60b65079d7a10633b739333ec8bd3050c79a94d3fb8425dd6",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n3",
+      "question": "How much cloud provider credit is allocated to each student team for project hosting?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.271
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.2616
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2439
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.2304
+        },
+        {
+          "rank": 5,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.2265
+        }
+      ],
+      "cache_key": "60e5ed47d751738df6f970f9bfce789b5a90f55285372b85b680acd8e4e822d1",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n4",
+      "question": "What is the email address of the lead graduate teaching assistant?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.3523
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2909
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.2529
+        },
+        {
+          "rank": 4,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.2324
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.2197
+        }
+      ],
+      "cache_key": "8bd27d29b7588de48590a20c920d7e578e15047234a25d4d2934b365437e03cb",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n5",
+      "question": "On which calendar dates does the university fall reading week take place?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.3626
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3539
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.351
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.342
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.3102
+        }
+      ],
+      "cache_key": "db7e70be357a58c20dc8e7a8951db36e7a803c398334f027f2da809e1a49c580",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n6",
+      "question": "What is the policy and application deadline for requesting an incomplete grade (grade of I) in the course?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.6055
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.5678
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.5223
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.515
+        },
+        {
+          "rank": 5,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.4763
+        }
+      ],
+      "cache_key": "09670a353a9da175d945e1813df7f7efa174cf9b9094d2968fd456dd130e7450",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n7",
+      "question": "In which campus auditorium will the final examination take place in December?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.4233
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.4215
+        },
+        {
+          "rank": 3,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.4178
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.4046
+        },
+        {
+          "rank": 5,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.3618
+        }
+      ],
+      "cache_key": "1b609ca15dc05d188dc263f96677d7fce877d330cd13ceeb4ba9547858fbc3c1",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n8",
+      "question": "How many penalty-free grace days can students utilize across programming projects?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.4126
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.3995
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.3922
+        },
+        {
+          "rank": 4,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.377
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3738
+        }
+      ],
+      "cache_key": "98a669fbda53413538cbef1152ce1e68cecd9d8253ad84513fbb643d6d4a3cf9",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n9",
+      "question": "What is the server hostname and manufacturer of the campus supercomputing cluster?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "lecture_schedule.pdf",
+          "page": 3,
+          "score": 0.358
+        },
+        {
+          "rank": 2,
+          "file": "assignment_2.pdf",
+          "page": 1,
+          "score": 0.3113
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.2819
+        },
+        {
+          "rank": 4,
+          "file": "assignment_2.pdf",
+          "page": 3,
+          "score": 0.275
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2611
+        }
+      ],
+      "cache_key": "fe9c33122d8108e59060205ca5e7b2373dbd1a5063800608c9a0faeaf63d73dc",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n10",
+      "question": "What minimum grade is required to convert the course enrollment to pass-fail status?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.5799
+        },
+        {
+          "rank": 2,
+          "file": "assignment_2.pdf",
+          "page": 4,
+          "score": 0.4123
+        },
+        {
+          "rank": 3,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.4059
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 2,
+          "score": 0.3839
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3696
+        }
+      ],
+      "cache_key": "8017fb59fe2d6caefaa4e8a5ab46a5488b9e6036ce3244e038581e8e17ce989d",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n11",
+      "question": "What are the eligibility requirements and application process for serving as a paid undergraduate peer tutor for CS 401?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.4847
+        },
+        {
+          "rank": 2,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.4443
+        },
+        {
+          "rank": 3,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3921
+        },
+        {
+          "rank": 4,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.3913
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 2,
+          "score": 0.3857
+        }
+      ],
+      "cache_key": "5dd88910f0e1091030463d227d0ef7186151b4e787f5369126af51e4aed93ff9",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n12",
+      "question": "What is the URL of the online discussion forum or Discord server for the course?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "exam_guide.pdf",
+          "page": 4,
+          "score": 0.319
+        },
+        {
+          "rank": 2,
+          "file": "assignment_2.pdf",
+          "page": 1,
+          "score": 0.3125
+        },
+        {
+          "rank": 3,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.2863
+        },
+        {
+          "rank": 4,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.2614
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.2535
+        }
+      ],
+      "cache_key": "c355046318271a258b91251ec140d5c851b48cde0d801ea0623a2792a5c866c9",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n13",
+      "question": "Which municipal bus route provides direct service to Turing Hall?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.2094
+        },
+        {
+          "rank": 2,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2
+        },
+        {
+          "rank": 3,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.1947
+        },
+        {
+          "rank": 4,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.1705
+        },
+        {
+          "rank": 5,
+          "file": "announcement_update.pdf",
+          "page": 3,
+          "score": 0.1659
+        }
+      ],
+      "cache_key": "3614221b1086d5dd8ed02baf2e74de77c6b451983cdd6ad837227abffe622c4f",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n14",
+      "question": "What is the departmental telephone number for the Computer Science main office?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.3862
+        },
+        {
+          "rank": 2,
+          "file": "lecture_schedule.pdf",
+          "page": 1,
+          "score": 0.3768
+        },
+        {
+          "rank": 3,
+          "file": "syllabus.pdf",
+          "page": 1,
+          "score": 0.3299
+        },
+        {
+          "rank": 4,
+          "file": "exam_guide.pdf",
+          "page": 1,
+          "score": 0.3176
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.2802
+        }
+      ],
+      "cache_key": "0fb69d2d057eaf5f33b73d722d20f26fa000210fa24554f3d36e07c854b05fda",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    },
+    {
+      "id": "n15",
+      "question": "Which specific Linux kernel version is installed on the Science Center lab workstations?",
+      "type": "not_in_documents",
+      "execution_status": "unattempted",
+      "expected_sources": [],
+      "expected_answer_contains": [],
+      "retrieved_sources": [
+        {
+          "rank": 1,
+          "file": "announcement_update.pdf",
+          "page": 1,
+          "score": 0.2973
+        },
+        {
+          "rank": 2,
+          "file": "assignment_1.pdf",
+          "page": 3,
+          "score": 0.2598
+        },
+        {
+          "rank": 3,
+          "file": "assignment_1.pdf",
+          "page": 2,
+          "score": 0.2569
+        },
+        {
+          "rank": 4,
+          "file": "lecture_schedule.pdf",
+          "page": 4,
+          "score": 0.2532
+        },
+        {
+          "rank": 5,
+          "file": "syllabus.pdf",
+          "page": 3,
+          "score": 0.2377
+        }
+      ],
+      "cache_key": "651981c855b2a3cfe2f18fe0cd72d6830426aa9c2ec250c1650cab4c0f73a0ed",
+      "response": null,
+      "citations": null,
+      "latency_seconds": null,
+      "tokens": null,
+      "evaluation": null
+    }
+  ]
+}

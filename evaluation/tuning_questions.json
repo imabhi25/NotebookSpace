@@ -1,0 +1,79 @@
+[
+  {
+    "id": "t1",
+    "question": "When is the midterm examination scheduled according to the syllabus?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      }
+    ],
+    "expected_answer_contains": [
+      "midterm",
+      "november"
+    ]
+  },
+  {
+    "id": "t2",
+    "question": "What are the prerequisites for the course?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      }
+    ],
+    "expected_answer_contains": [
+      "prerequisites"
+    ]
+  },
+  {
+    "id": "t3",
+    "question": "What is the weight of assignments in the final grade and what is the schedule for Assignment 2?",
+    "type": "multi_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      },
+      {
+        "file": "syllabus.pdf",
+        "page": 3
+      }
+    ],
+    "expected_answer_contains": [
+      "assignment",
+      "percent"
+    ]
+  },
+  {
+    "id": "t4",
+    "question": "When is the midterm examination scheduled across the syllabus and announcements?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      },
+      {
+        "file": "announcement_update.pdf",
+        "page": 2
+      }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "announcement_update.pdf"
+    ],
+    "expected_answer_contains": [
+      "november"
+    ]
+  },
+  {
+    "id": "t5",
+    "question": "What is the required textbook for the course?",
+    "type": "not_in_documents",
+    "expected_sources": [],
+    "expected_answer_contains": []
+  }
+]

@@ -5,6 +5,7 @@ interface ComposerProps {
   setQuestion: (val: string) => void;
   onSubmit: (e: React.FormEvent) => void;
   loading: boolean;
+  onStop?: () => void;
 }
 
 export const Composer: React.FC<ComposerProps> = ({
@@ -12,6 +13,7 @@ export const Composer: React.FC<ComposerProps> = ({
   setQuestion,
   onSubmit,
   loading,
+  onStop,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -51,39 +53,54 @@ export const Composer: React.FC<ComposerProps> = ({
             disabled={loading}
             aria-label="Ask a question about your course materials"
           />
-          <button
-            type="submit"
-            className="composer-send-btn"
-            disabled={loading || !question.trim()}
-            aria-label="Ask Question"
-          >
-            <span className="send-btn-icon" aria-hidden="true">
-              {loading ? (
-                <span className="composer-spinner" />
-              ) : (
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <line x1="12" y1="19" x2="12" y2="5" />
-                  <polyline points="5 12 12 5 19 12" />
-                </svg>
-              )}
-            </span>
-            <span className="send-btn-text">
-              {loading ? 'Searching & Answering...' : 'Ask Question'}
-            </span>
-          </button>
+          {loading && onStop ? (
+            <button
+              type="button"
+              className="composer-stop-btn"
+              onClick={onStop}
+              aria-label="Stop generation"
+            >
+              <span className="stop-btn-icon" aria-hidden="true">■</span>
+              <span className="send-btn-text">Stop generation</span>
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="composer-send-btn"
+              disabled={loading || !question.trim()}
+              aria-label="Ask Question"
+            >
+              <span className="send-btn-icon" aria-hidden="true">
+                {loading ? (
+                  <span className="composer-spinner" />
+                ) : (
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <line x1="12" y1="19" x2="12" y2="5" />
+                    <polyline points="5 12 12 5 19 12" />
+                  </svg>
+                )}
+              </span>
+              <span className="send-btn-text">
+                {loading ? 'Searching & Answering...' : 'Ask Question'}
+              </span>
+            </button>
+          )}
         </div>
       </form>
       <div className="composer-footer-note">
-        Course-Document Assistant answers questions with verified citations from uploaded materials.
+        NotebookSpace answers questions with verified citations from uploaded materials.
+      </div>
+      <div className="composer-disclaimer-note">
+        Independent student project, not affiliated with Google.
       </div>
     </div>
   );
