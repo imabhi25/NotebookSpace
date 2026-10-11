@@ -38,7 +38,7 @@ def search(
                     1 - (c.embedding <=> %s::vector) AS similarity_score,
                     d.upload_date
                 FROM chunks c
-                LEFT JOIN documents d ON c.document_id = d.id
+                JOIN documents d ON c.document_id = d.id
                 ORDER BY c.embedding <=> %s::vector
                 LIMIT %s;
                 """,

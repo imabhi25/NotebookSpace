@@ -1,8 +1,15 @@
 import React from 'react';
-import { Citation, PassageItem, normalizeFileName } from '../types';
+import { Citation, PassageItem, Source, normalizeFileName } from '../types';
 
 interface SourcePanelProps {
-  selectedCitation: { file: string; page: number; messageId?: string } | null;
+  selectedCitation: {
+    file: string;
+    page: number;
+    messageId?: string;
+    source_id?: string | null;
+    source_version?: number;
+    excerpt?: string | null;
+  } | null;
   citations: Citation[];
   passages: PassageItem[];
   passageLoading: boolean;
@@ -12,9 +19,11 @@ interface SourcePanelProps {
     page_number?: number;
     page?: number;
     text?: string;
+    chunk_text?: string;
     score?: number;
     chunk_index?: number;
   }>;
+  sources?: Source[];
   onSelectCitation: (cit: Citation) => void;
   onClose: () => void;
   isOpen: boolean;
@@ -26,6 +35,7 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
   passages,
   passageLoading,
   retrieved = [],
+  sources,
   onSelectCitation,
   onClose,
   isOpen,
@@ -61,12 +71,18 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
   // Find matching chunks in the retrieved array for this file and page
   const retrievedMatchingChunks = selectedCitation
     ? retrieved.filter(
-        (r) =>
-          ((r.file && normalizeFileName(r.file) === normalizeFileName(selectedCitation.file)) ||
-            (r.file_name && normalizeFileName(r.file_name) === normalizeFileName(selectedCitation.file))) &&
-          (r.page === selectedCitation.page || r.page_number === selectedCitation.page) &&
-          typeof r.text === 'string' &&
-          r.text.trim().length > 0
+        (r) => {
+          const rFile = r.file || r.file_name;
+          const rPage = r.page !== undefined ? r.page : r.page_number;
+          const rText = r.text || r.chunk_text;
+          return (
+            rFile &&
+            normalizeFileName(rFile) === normalizeFileName(selectedCitation.file) &&
+            rPage === selectedCitation.page &&
+            typeof rText === 'string' &&
+            rText.trim().length > 0
+          );
+        }
       )
     : [];
 
@@ -76,8 +92,8 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
   const isChunkHighlighted = (chunkText: string, chunkIndex?: number): boolean => {
     if (!hasRetrievedChunkText) return false;
     return retrievedMatchingChunks.some((r) => {
-      if (!r.text) return false;
-      const rText = r.text.trim();
+      const rText = (r.text || r.chunk_text || '').trim();
+      if (!rText) return false;
       const cText = chunkText.trim();
       return (
         cText.includes(rText) ||
@@ -88,6 +104,19 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
       );
     });
   };
+
+  // Detect historical citations for removed or replaced sources
+  const matchedSource = selectedCitation?.source_id && sources
+    ? sources.find((s) => s.id === selectedCitation.source_id)
+    : undefined;
+  const isSourceDeleted = Boolean(selectedCitation?.source_id && sources && !matchedSource);
+  const isSourceReplaced = Boolean(
+    selectedCitation?.source_id &&
+    matchedSource &&
+    typeof selectedCitation.source_version === 'number' &&
+    matchedSource.version !== selectedCitation.source_version
+  );
+  const isHistoricalOnly = isSourceDeleted || isSourceReplaced;
 
   return (
     <aside
@@ -151,6 +180,24 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
       </div>
 
       <div className="source-panel-body">
+        {isHistoricalOnly && (
+          <div className="historical-citation-alert" role="alert" data-testid="historical-citation-alert">
+            <div className="alert-badge">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="10" />
+                <line x1="12" y1="8" x2="12" y2="12" />
+                <line x1="12" y1="16" x2="12.01" y2="16" />
+              </svg>
+              <span>{isSourceDeleted ? 'Original Source Removed' : `Source Replaced (v${selectedCitation?.source_version ?? 1})`}</span>
+            </div>
+            <p className="historical-notice-desc">
+              {isSourceDeleted
+                ? `The source "${selectedCitation?.file}" has been deleted from this subject. Historical citation evidence is preserved below and is not attached to any active document.`
+                : `The source "${selectedCitation?.file}" was replaced with a newer version (currently v${matchedSource?.version}). Displaying verified historical excerpt captured at answer time:`}
+            </p>
+          </div>
+        )}
+
         {passageLoading ? (
           <div className="passage-loading-state">
             <div className="step-spinner" aria-hidden="true" />
@@ -197,9 +244,22 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
                       </svg>
                       <span>Cited Passage Match</span>
                     </div>
-                    <p className="passage-chunk-text">{r.text}</p>
+                    <p className="passage-chunk-text">{r.text || r.chunk_text}</p>
                   </div>
                 ))}
+              </div>
+            ) : selectedCitation.excerpt ? (
+              /* Verified historical excerpt captured at answer time */
+              <div className="passage-chunks-list">
+                <div className="passage-chunk passage-chunk-highlighted">
+                  <div className="chunk-highlight-badge">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                    </svg>
+                    <span>Historical Verified Excerpt</span>
+                  </div>
+                  <p className="passage-chunk-text">{selectedCitation.excerpt}</p>
+                </div>
               </div>
             ) : (
               <p className="empty-state">No text chunks found for this page.</p>

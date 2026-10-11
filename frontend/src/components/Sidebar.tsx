@@ -31,23 +31,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="sidebar-header">
         <div className="app-brand">
           <span className="brand-mark-wrapper" aria-hidden="true">
-            <svg
-              className="brand-mark-svg"
-              width="24"
-              height="24"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-            </svg>
+            <span className="brand-logo-letter">N</span>
           </span>
           <div className="brand-text">
-            <h1 className="brand-title">Course-Document Assistant</h1>
+            <h1 className="brand-title">NotebookSpace</h1>
             <span className="brand-subtitle">Verified Citations and Conflicts</span>
           </div>
         </div>

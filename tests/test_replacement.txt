@@ -1,0 +1,1 @@
+Pointers in C (Updated Edition v2): Pointers hold addresses of memory cells. Dereferencing accesses the value.

@@ -151,7 +151,10 @@ class GeminiLLMClient(BaseCachedLLMClient):
         if not self.api_key:
             raise ValueError("LLM_API_KEY environment variable is not set for Gemini provider.")
 
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+        models_to_try = [self.model]
+        if self.model != "gemini-3.5-flash-lite":
+            models_to_try.append("gemini-3.5-flash-lite")
+
         headers = {"x-goog-api-key": self.api_key}
         payload = {
             "systemInstruction": {"parts": [{"text": system}]},
@@ -161,42 +164,51 @@ class GeminiLLMClient(BaseCachedLLMClient):
 
         data = None
         with httpx.Client(timeout=60.0) as client:
-            for attempt in range(4):
-                resp = client.post(url, json=payload, headers=headers)
-                if resp.status_code == 200:
-                    data = resp.json()
+            for current_model in models_to_try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent"
+                for attempt in range(3):
+                    resp = client.post(url, json=payload, headers=headers)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        break
+
+                    delay_sec, err_status = parse_retry_delay(resp)
+
+                    # For exhausted quota requiring a long wait (> 60s), preserve progress and exit immediately
+                    if resp.status_code == 429 and (err_status == "RESOURCE_EXHAUSTED" or (delay_sec is not None and delay_sec > 60.0)):
+                        if delay_sec is not None and delay_sec > 60.0:
+                            reset_dt = datetime.now(timezone.utc) + timedelta(seconds=delay_sec)
+                            reset_iso = reset_dt.isoformat()
+                            raise RuntimeError(
+                                f"LLM quota exhausted (status 429 {err_status or ''}). "
+                                f"Retry after {delay_sec:.1f}s (estimated reset: {reset_iso})."
+                            )
+                        elif err_status == "RESOURCE_EXHAUSTED":
+                            raise RuntimeError(
+                                f"LLM quota exhausted (status 429 {err_status}). "
+                                "Quota window exceeded. Please wait for provider quota reset."
+                            )
+
+                    # If model is unavailable (503) or not found (404) and we have a fallback model, break to next model
+                    if resp.status_code in (404, 503) and current_model != models_to_try[-1]:
+                        break
+
+                    # Short transient failures: bounded retries up to 3 times (attempts 0, 1)
+                    if resp.status_code in (429, 500, 502, 503, 504) and attempt < 2:
+                        if delay_sec is not None and 0.0 < delay_sec <= 60.0:
+                            sleep_time = delay_sec
+                        else:
+                            sleep_time = float(2 ** (attempt + 1))
+                        time.sleep(sleep_time)
+                        continue
+
+                    if resp.status_code >= 400 and current_model == models_to_try[-1]:
+                        # Non-transient or exhausted retries
+                        status_detail = f" {err_status}" if err_status else ""
+                        raise RuntimeError(f"LLM request failed with status {resp.status_code}{status_detail}")
+
+                if data is not None:
                     break
-
-                delay_sec, err_status = parse_retry_delay(resp)
-
-                # For exhausted quota requiring a long wait (> 60s), preserve progress and exit immediately
-                if resp.status_code == 429 and (err_status == "RESOURCE_EXHAUSTED" or (delay_sec is not None and delay_sec > 60.0)):
-                    if delay_sec is not None and delay_sec > 60.0:
-                        reset_dt = datetime.now(timezone.utc) + timedelta(seconds=delay_sec)
-                        reset_iso = reset_dt.isoformat()
-                        raise RuntimeError(
-                            f"LLM quota exhausted (status 429 {err_status or ''}). "
-                            f"Retry after {delay_sec:.1f}s (estimated reset: {reset_iso})."
-                        )
-                    elif err_status == "RESOURCE_EXHAUSTED":
-                        raise RuntimeError(
-                            f"LLM quota exhausted (status 429 {err_status}). "
-                            "Quota window exceeded. Please wait for provider quota reset."
-                        )
-
-                # Short transient failures: bounded retries up to 3 times (attempts 0, 1, 2)
-                if resp.status_code in (429, 500, 502, 503, 504) and attempt < 3:
-                    if delay_sec is not None and 0.0 < delay_sec <= 60.0:
-                        sleep_time = delay_sec
-                    else:
-                        sleep_time = float(2 ** (attempt + 1))
-                    time.sleep(sleep_time)
-                    continue
-
-                if resp.status_code >= 400:
-                    # Non-transient or exhausted retries
-                    status_detail = f" {err_status}" if err_status else ""
-                    raise RuntimeError(f"LLM request failed with status {resp.status_code}{status_detail}")
 
         candidates = data.get("candidates", [])
         if not candidates:
