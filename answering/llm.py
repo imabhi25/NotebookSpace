@@ -145,11 +145,11 @@ class GeminiLLMClient(BaseCachedLLMClient):
     ):
         model_name = model or os.getenv("LLM_MODEL", "gemini-3.5-flash")
         super().__init__(model=model_name, cache_dir=cache_dir)
-        self.api_key = api_key or os.getenv("LLM_API_KEY", "")
+        self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
 
     def _raw_generate(self, system: str, user: str) -> tuple[str, int, int]:
         if not self.api_key:
-            raise ValueError("LLM_API_KEY environment variable is not set for Gemini provider.")
+            raise ValueError("LLM_API_KEY or GEMINI_API_KEY environment variable is not set for Gemini provider.")
 
         models_to_try = [self.model]
         if self.model != "gemini-3.5-flash-lite":
