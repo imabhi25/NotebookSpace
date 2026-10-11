@@ -223,7 +223,13 @@ def test_source_management_and_formats(auth_headers):
     assert len(detail["passages"]) > 0
 
 
-def test_conversational_chat_and_isolation(auth_headers, other_user_headers):
+def test_conversational_chat_and_isolation(auth_headers, other_user_headers, monkeypatch):
+    import os
+    if not os.getenv("LLM_API_KEY"):
+        from answering.llm import FakeLLMClient
+        fake_response = '{"supported": true, "answer": "The secret code for Subject A is ALPHA-42 [doc_a.pdf p.1].", "citations": [{"file": "doc_a.pdf", "page": 1}]}'
+        monkeypatch.setattr("answering.notebook_answer.get_llm_client", lambda *args, **kwargs: FakeLLMClient(default_response=fake_response))
+
     # Subject A
     subj_a = client.post("/subjects", json={"name": "Subject A"}, headers=auth_headers).json()
     pdf_a = make_pdf(["Subject A secret code is ALPHA-42. Grading is 40 percent exam."])
