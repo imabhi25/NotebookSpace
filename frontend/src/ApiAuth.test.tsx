@@ -65,7 +65,8 @@ describe('Notebook settings save', () => {
       .mockRejectedValue(new Error('Invalid settings: response_length must be one of concise, default, detailed.'));
     renderWorkspace(onUpdateSettings);
 
-    fireEvent.click(screen.getAllByRole('button', { name: /Notebook settings/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Notebook settings/i }));
     fireEvent.change(screen.getByLabelText('Response Length'), { target: { value: 'detailed' } });
 
     const alert = await screen.findByRole('alert');
@@ -77,7 +78,8 @@ describe('Notebook settings save', () => {
     const onUpdateSettings = vi.fn().mockRejectedValueOnce(new Error('Request failed (500)')).mockResolvedValue(undefined);
     renderWorkspace(onUpdateSettings);
 
-    fireEvent.click(screen.getAllByRole('button', { name: /Notebook settings/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Notebook settings/i }));
     fireEvent.change(screen.getByLabelText('Response Length'), { target: { value: 'detailed' } });
     await screen.findByRole('alert');
 
@@ -93,7 +95,8 @@ describe('Notebook settings save', () => {
     };
     renderWorkspace(onUpdateSettings, stale);
 
-    fireEvent.click(screen.getAllByRole('button', { name: /Notebook settings/i })[0]);
+    fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Notebook settings/i }));
     fireEvent.change(screen.getByLabelText('Response Style'), { target: { value: 'learning-guide' } });
 
     await waitFor(() => expect(onUpdateSettings).toHaveBeenCalledTimes(1));

@@ -1,0 +1,118 @@
+/* Workspace architecture only. Materials, typography, and motion stay in components.css. */
+.dashboard-shell-layout.workspace-shell { width: 100%; height: 100dvh; }
+.workspace-shell .dashboard-main-content,
+.workspace-shell .dashboard-children-wrapper { min-width: 0; min-height: 0; overflow: hidden; }
+.workspace-shell .workspace-layout { width: 100%; height: 100%; min-height: 0; }
+
+.workspace-layout .workspace-control-bar {
+  height: auto; min-height: var(--size-52); flex: 0 0 auto;
+  display: flex; flex-wrap: nowrap; align-items: center;
+  gap: var(--space-3); padding: var(--space-2) var(--space-4);
+  white-space: nowrap; overflow: visible; z-index: 50;
+}
+.workspace-control-bar > .workspace-back-btn,
+.workspace-control-bar > .workspace-essential-actions { flex-shrink: 0; }
+.workspace-control-bar > .workspace-notebook-identity { flex: 1; }
+.workspace-layout .workspace-essential-actions { margin-left: auto; gap: var(--space-2); flex-wrap: nowrap; }
+.workspace-essential-actions > button,
+.workspace-actions-menu > button { min-width: var(--target-mobile); min-height: var(--target-mobile); }
+.workspace-layout .workspace-notebook-identity { min-width: 0; max-width: none; }
+.workspace-layout .workspace-notebook-identity .workspace-subject-pill-name {
+  max-width: none; overflow: visible; text-overflow: clip;
+  white-space: inherit; overflow-wrap: anywhere;
+}
+.workspace-layout .workspace-notebook-identity .workspace-subject-pill-code { display: inline-block; flex-shrink: 0; }
+.workspace-layout .workspace-title-measure {
+  position: fixed; right: 100%; visibility: hidden; pointer-events: none;
+  width: max-content; max-width: none; white-space: nowrap;
+}
+.workspace-title-measure::before { content: attr(data-title); }
+.workspace-notebook-heading { flex: 0 0 auto; padding: 0 var(--space-4) var(--space-2); }
+.workspace-notebook-heading .workspace-notebook-identity { white-space: normal; flex-wrap: wrap; }
+.workspace-actions-menu { position: relative; }
+.workspace-layout .workspace-overflow-menu {
+  top: calc(100% + var(--space-2)); right: 0; left: auto;
+  max-width: calc(100vw - var(--space-8));
+}
+.workspace-overflow-menu .notebook-menu-item { white-space: normal; overflow-wrap: anywhere; }
+
+.workspace-layout .workspace-body {
+  flex: 1; min-height: 0; min-width: 0; width: 100%; position: relative;
+  display: flex; align-items: stretch; gap: var(--space-3);
+  padding: var(--space-3); overflow: hidden;
+}
+.workspace-layout aside.workspace-sidebar,
+.workspace-layout aside.workspace-right-panel {
+  position: static; height: auto; min-height: 0; min-width: 0 !important;
+  max-width: 100%; transform: none; visibility: visible;
+  opacity: 1; pointer-events: auto; margin: 0; z-index: auto;
+}
+.workspace-layout aside.workspace-sidebar {
+  width: var(--size-280) !important; flex: 0 0 var(--size-280);
+}
+.workspace-layout aside.workspace-right-panel {
+  width: var(--size-350) !important; flex: 0 0 var(--size-350);
+}
+.workspace-layout [hidden] { display: none !important; }
+.workspace-layout .workspace-main-area {
+  flex: 1; min-width: 0; min-height: 0; width: auto; height: auto;
+}
+.workspace-layout .thread-scroll-container,
+.workspace-layout .sidebar-tab-content,
+.workspace-layout .right-panel-body { min-height: 0; min-width: 0; }
+.workspace-layout .thread-content-max { width: 100%; min-width: 0; max-width: var(--reading-measure); }
+.workspace-chat-context {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-6);
+  flex-shrink: 0; min-width: 0;
+}
+.workspace-layout .workspace-chat-context .workspace-active-chat-title {
+  display: block; max-width: none; min-width: 0; white-space: normal;
+  overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+}
+.workspace-chat-context .selected-sources-pill { margin-left: auto; white-space: nowrap; }
+.workspace-sources-rail {
+  width: var(--target-mobile); flex: 0 0 var(--target-mobile);
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+}
+.workspace-layout .right-panel-header { flex-wrap: wrap; }
+.workspace-layout .right-header-actions { margin-left: auto; }
+
+@media (max-width: 960px) {
+  .workspace-layout .workspace-control-bar { gap: var(--space-2); }
+  .workspace-layout .workspace-essential-actions { gap: var(--space-1); }
+  .workspace-layout .workspace-back-btn span { display: inline; }
+  .workspace-layout .workspace-essential-actions .toggle-label { display: none; }
+  .workspace-layout .workspace-sources-rail { display: none; }
+  .workspace-layout .workspace-panels-overlay { position: absolute; inset: 0; z-index: 30; }
+  .workspace-layout aside.workspace-sidebar,
+  .workspace-layout aside.workspace-right-panel {
+    position: absolute; top: var(--space-3); bottom: var(--space-3);
+    width: min(var(--size-350), calc(100% - var(--space-6))) !important;
+    max-width: calc(100% - var(--space-6)); height: auto; flex: none;
+    border-radius: var(--radius-lg) !important; z-index: 40;
+  }
+  .workspace-layout aside.workspace-sidebar { left: var(--space-3); right: auto; }
+  .workspace-layout aside.workspace-right-panel { right: var(--space-3); left: auto; }
+  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-sidebar,
+  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-right-panel {
+    width: calc(50% - var(--space-4)) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .workspace-layout .workspace-control-bar { padding-inline: var(--space-3); }
+  .workspace-layout .workspace-body { padding: var(--space-2); }
+  .workspace-layout .workspace-chat-context { padding-inline: var(--space-4); }
+  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-sidebar,
+  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-right-panel {
+    left: var(--space-3); right: var(--space-3);
+    width: calc(100% - var(--space-6)) !important;
+  }
+  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-sidebar {
+    top: var(--space-3); bottom: calc(50% + var(--space-1));
+  }
+  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-right-panel {
+    top: calc(50% + var(--space-1)); bottom: var(--space-3);
+  }
+}

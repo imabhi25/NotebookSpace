@@ -179,11 +179,6 @@ export function App({
       if (!authed) return;
       const data = await api.getSubjects(true);
       setSubjects(data);
-      if (route.view === 'notebooks' && !route.subjectId && data.length > 0) {
-        const first = data.find((s) => !s.is_archived) || data[0];
-        navigateTo('workspace', first.id);
-        loadSubjectData(first.id);
-      }
     } catch {
       // ignore
     } finally {
@@ -1038,6 +1033,7 @@ export function App({
         /* NotebookLM-Style Unified Shell */
         <DashboardView
           subjects={subjects}
+          workspaceMode={route.view === 'workspace'}
           loading={subjectsLoading}
           activeSubjectId={activeSubject?.id}
           currentUser={currentUser}
@@ -1051,7 +1047,7 @@ export function App({
           isMobileSidebarOpen={isMobileNotebooksOpen}
           onSetMobileSidebarOpen={setIsMobileNotebooksOpen}
         >
-          {activeSubject ? (
+          {route.view === 'workspace' && activeSubject ? (
             /* Selected Notebook Workspace View */
             <SubjectWorkspaceView
               subject={activeSubject}
@@ -1064,7 +1060,6 @@ export function App({
               isDemoMode={isDemoMode}
               currentUser={currentUser}
               onBackToDashboard={() => navigateTo('notebooks')}
-              onToggleNotebooksDrawer={() => setIsMobileNotebooksOpen((prev) => !prev)}
               onSelectSources={setSelectedSourceIds}
               onSelectConversation={handleSelectConversation}
               onCreateConversation={handleCreateConversation}

@@ -1,0 +1,90 @@
+[
+  {
+    "name": "768-right-only.jpg",
+    "controlsWithinBar": true,
+    "headerOverflow": 0,
+    "headerWrap": "nowrap",
+    "leftOpen": "false",
+    "notebookSidebar": false,
+    "pageOverflow": 0,
+    "rightOpen": "true",
+    "viewport": 768
+  },
+  {
+    "name": "768-both-open.jpg",
+    "controlsWithinBar": true,
+    "headerOverflow": 0,
+    "headerWrap": "nowrap",
+    "leftOpen": "true",
+    "notebookSidebar": false,
+    "pageOverflow": 0,
+    "rightOpen": "true",
+    "viewport": 768
+  },
+  {
+    "name": "768-left-only.jpg",
+    "controlsWithinBar": true,
+    "headerOverflow": 0,
+    "headerWrap": "nowrap",
+    "leftOpen": "true",
+    "notebookSidebar": false,
+    "pageOverflow": 0,
+    "rightOpen": "false",
+    "viewport": 768
+  },
+  {
+    "name": "768-both-collapsed.jpg",
+    "controlsWithinBar": true,
+    "headerOverflow": 0,
+    "headerWrap": "nowrap",
+    "leftOpen": "false",
+    "notebookSidebar": false,
+    "pageOverflow": 0,
+    "rightOpen": "false",
+    "viewport": 768
+  },
+  {
+    "name": "390-both-collapsed.jpg",
+    "controlsWithinBar": true,
+    "headerOverflow": 0,
+    "headerWrap": "nowrap",
+    "leftOpen": "false",
+    "notebookSidebar": false,
+    "pageOverflow": 0,
+    "rightOpen": "false",
+    "viewport": 390
+  },
+  {
+    "name": "390-right-only.jpg",
+    "controlsWithinBar": true,
+    "headerOverflow": 0,
+    "headerWrap": "nowrap",
+    "leftOpen": "false",
+    "notebookSidebar": false,
+    "pageOverflow": 0,
+    "rightOpen": "true",
+    "viewport": 390
+  },
+  {
+    "name": "390-both-open.jpg",
+    "controlsWithinBar": true,
+    "headerOverflow": 0,
+    "headerWrap": "nowrap",
+    "leftOpen": "true",
+    "notebookSidebar": false,
+    "pageOverflow": 0,
+    "rightOpen": "true",
+    "viewport": 390
+  },
+  {
+    "name": "390-left-only.jpg",
+    "controlsWithinBar": true,
+    "headerOverflow": 0,
+    "headerWrap": "nowrap",
+    "leftOpen": "true",
+    "notebookSidebar": false,
+    "pageOverflow": 0,
+    "rightOpen": "false",
+    "viewport": 390
+  }
+]
