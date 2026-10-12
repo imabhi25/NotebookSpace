@@ -79,6 +79,22 @@ def get_current_user(request: Request) -> dict[str, Any]:
     }
 
 
+def get_current_user_or_404(request: Request) -> dict[str, Any]:
+    """Owner check for routes that expose user data.
+
+    Missing, invalid and expired credentials all answer 404, exactly like a resource that
+    does not exist or belongs to someone else, so a caller cannot probe which resources
+    exist. Session routes (/auth/me, /auth/logout) keep get_current_user and its 401, which
+    the web client uses to tell an expired session apart from a missing resource.
+    """
+    try:
+        return get_current_user(request)
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            raise HTTPException(status_code=404, detail="Not found.") from None
+        raise
+
+
 def get_optional_current_user(request: Request) -> dict[str, Any] | None:
     auth_header = request.headers.get("authorization", "")
     if not auth_header.startswith("Bearer "):

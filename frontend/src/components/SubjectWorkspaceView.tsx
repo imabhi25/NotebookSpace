@@ -113,6 +113,30 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [renamingSource, setRenamingSource] = useState<Source | null>(null);
   const [newSourceTitle, setNewSourceTitle] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [settingsError, setSettingsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isSettingsOpen) setSettingsError(null);
+  }, [isSettingsOpen]);
+
+  // Saves one response setting. Only the two known settings are sent, since the server
+  // rejects anything else, and a failed save is shown instead of silently snapping back.
+  const saveSettings = async (patch: Partial<SubjectSettings>) => {
+    const lengths: SubjectSettings['response_length'][] = ['concise', 'default', 'detailed'];
+    const styles: SubjectSettings['response_style'][] = ['general', 'learning-guide'];
+    const current = subject.settings;
+    const next: SubjectSettings = {
+      response_length: current && lengths.includes(current.response_length) ? current.response_length : 'default',
+      response_style: current && styles.includes(current.response_style) ? current.response_style : 'general',
+      ...patch,
+    };
+    setSettingsError(null);
+    try {
+      await onUpdateSettings(next);
+    } catch (err: any) {
+      setSettingsError(`Settings were not saved. ${err?.message || 'Please try again.'}`);
+    }
+  };
 
   // Notes Modal
   const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
@@ -1896,16 +1920,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               </button>
             </div>
             <div className="modal-form">
+              {settingsError && (
+                <div className="form-error-banner" role="alert">
+                  {settingsError}
+                </div>
+              )}
               <div className="form-group">
                 <label htmlFor="settings-resp-length">Response Length</label>
                 <select
                   id="settings-resp-length"
                   value={subject.settings?.response_length || 'default'}
                   onChange={(e) =>
-                    onUpdateSettings({
-                      ...subject.settings,
-                      response_length: e.target.value as any,
-                    })
+                    saveSettings({ response_length: e.target.value as SubjectSettings['response_length'] })
                   }
                 >
                   <option value="concise">Concise (brief, direct facts)</option>
@@ -1920,10 +1946,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   id="settings-resp-style"
                   value={subject.settings?.response_style || 'general'}
                   onChange={(e) =>
-                    onUpdateSettings({
-                      ...subject.settings,
-                      response_style: e.target.value as any,
-                    })
+                    saveSettings({ response_style: e.target.value as SubjectSettings['response_style'] })
                   }
                 >
                   <option value="general">General (objective academic assistant)</option>

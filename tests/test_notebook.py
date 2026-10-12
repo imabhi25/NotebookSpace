@@ -51,9 +51,11 @@ def other_user_headers():
 
 
 def test_auth_flow(monkeypatch):
-    # 1. Unauthenticated requests receive 401
+    # 1. Unauthenticated requests to user data receive 404, the same answer as a resource
+    #    that does not exist. Only the session probe says 401.
     resp = client.get("/subjects")
-    assert resp.status_code == 401
+    assert resp.status_code == 404
+    assert client.get("/auth/me").status_code == 401
 
     # 2. Demo login is disabled by default in production (returns 403)
     monkeypatch.delenv("ALLOW_DEMO_LOGIN", raising=False)
