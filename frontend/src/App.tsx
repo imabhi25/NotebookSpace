@@ -16,7 +16,8 @@ import {
   normalizeFileName,
 } from './types';
 import { DashboardView } from './components/DashboardView';
-import { SubjectWorkspaceView } from './components/SubjectWorkspaceView';
+import { WorkspaceSkeleton } from './components/WorkspaceSkeleton';
+import { lazyView, preloadWhenIdle } from './lazyView';
 import { Sidebar } from './components/Sidebar';
 import { Composer } from './components/Composer';
 import { AssistantMessage } from './components/AssistantMessage';
@@ -45,10 +46,21 @@ const isDemoFromQuery =
   typeof window !== 'undefined' &&
   new URLSearchParams(window.location.search).get('demo') === 'true';
 
+// The workspace (chat, sources, inspector, math rendering) is the largest view; load it on demand.
+const SubjectWorkspaceView = lazyView(
+  () => import('./components/SubjectWorkspaceView').then((m) => m.SubjectWorkspaceView),
+  <WorkspaceSkeleton />
+);
+
 export function App({
   isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || isDemoFromQuery,
   defaultView,
 }: AppProps = {}) {
+  // Fetch the workspace code in the background so opening a notebook does not wait on it.
+  useEffect(() => {
+    preloadWhenIdle(SubjectWorkspaceView);
+  }, []);
+
   // --------------------------------------------------------------------------
   // NAVIGATION ROUTING STATE
   // --------------------------------------------------------------------------
@@ -1077,12 +1089,7 @@ export function App({
               onResetWorkspace={handleResetWorkspace}
             />
           ) : subjectsLoading ? (
-            <div
-              className="workspace-loading-state"
-            >
-              <div className="step-spinner spinner-large" />
-              <p className="loading-caption">Loading notebook...</p>
-            </div>
+            <WorkspaceSkeleton />
           ) : null}
         </DashboardView>
       )}

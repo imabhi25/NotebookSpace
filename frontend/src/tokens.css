@@ -7,18 +7,18 @@
   color-scheme: light;
 
   /* 1. Palette: one warm paper-and-ink family (hue 85), one accent (lapis, hue 262). */
-  --color-desk: oklch(0.928 0.011 85);
+  --color-desk: oklch(0.93 0.018 84);
   --color-background: var(--color-desk);
-  --color-surface: oklch(0.994 0.003 85);
-  --color-surface-raised: oklch(0.962 0.008 85);
-  --color-surface-hover: oklch(0.935 0.01 85);
-  --color-surface-active: oklch(0.905 0.012 85);
-  --color-border: oklch(0.885 0.011 85);
-  --color-border-strong: oklch(0.8 0.014 85);
+  --color-surface: oklch(0.991 0.007 86);
+  --color-surface-raised: oklch(0.963 0.012 85);
+  --color-surface-hover: oklch(0.936 0.015 85);
+  --color-surface-active: oklch(0.906 0.017 85);
+  --color-border: oklch(0.884 0.016 85);
+  --color-border-strong: oklch(0.79 0.019 85);
   --color-border-sheet: oklch(0.3 0.03 70 / 0.1);
-  --color-text-primary: oklch(0.235 0.012 75);
-  --color-text-secondary: oklch(0.42 0.012 75);
-  --color-text-muted: oklch(0.49 0.012 75);
+  --color-text-primary: oklch(0.24 0.018 65);
+  --color-text-secondary: oklch(0.41 0.017 68);
+  --color-text-muted: oklch(0.47 0.017 68);
   --color-on-accent: oklch(0.99 0.004 262);
   --color-accent: oklch(0.45 0.125 262);
   --color-accent-hover: oklch(0.39 0.125 262);
@@ -54,6 +54,8 @@
   --type-title: 1.375rem;
   --type-heading: 1.0625rem;
   --type-reading: 1.0625rem;
+  --type-reading-sm: 1rem;
+  --type-code: 0.84em;
   --type-body: 0.9375rem;
   --type-small: 0.8125rem;
   --type-caption: 0.75rem;
@@ -159,6 +161,8 @@
   --motion-panel: 260ms;
   --motion-content: 200ms;
   --motion-thumb: 220ms;
+  --motion-shimmer: 1400ms;
+  --motion-pulse: 1200ms;
   --motion-modal: 220ms;
   --motion-reduced: 0.01ms;
   --motion-progress: 700ms;
@@ -173,6 +177,11 @@
   --layout-loading-offset: 80px;
   --empty-icon-size: 32px;
   --empty-mark-size: 64px;
+  --skeleton-line-height: 12px;
+  --skeleton-gap: 14px;
+  --progress-bar-height: 2px;
+  --stepper-button: 30px;
+  --shimmer-gradient: linear-gradient(90deg, transparent, color-mix(in oklab, var(--color-surface) 80%, transparent), transparent);
   --control-height-md: 36px;
   --empty-measure: 42ch;
   --menu-min-width: 148px;
