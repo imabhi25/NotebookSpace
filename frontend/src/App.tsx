@@ -1079,17 +1079,9 @@ export function App({
           ) : subjectsLoading ? (
             <div
               className="workspace-loading-state"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                height: 'calc(100vh - 80px)',
-                gap: '1rem',
-              }}
             >
-              <div className="step-spinner" style={{ width: 28, height: 28 }} />
-              <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Loading notebook...</p>
+              <div className="step-spinner spinner-large" />
+              <p className="loading-caption">Loading notebook...</p>
             </div>
           ) : null}
         </DashboardView>
