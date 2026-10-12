@@ -600,6 +600,33 @@ def update_source_status(
                 cur.execute(query, tuple(params))
 
 
+def fail_stale_processing_sources(
+    user_id: str | UUID,
+    subject_id: str | UUID,
+    max_age_minutes: int,
+    db_url: str | None = None,
+) -> int:
+    """
+    Ingestion runs inside the request that started it, so a source still marked
+    "processing" long after that request must have been interrupted (for example by
+    an API restart). Mark those as failed so the user can retry or remove them.
+    """
+    with get_connection(db_url) as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE sources
+                    SET status = 'failed',
+                        error_message = 'Processing was interrupted before it finished. Retry to process this source again.'
+                    WHERE subject_id = %s AND user_id = %s AND status = 'processing'
+                      AND updated_at < CURRENT_TIMESTAMP - make_interval(mins => %s);
+                    """,
+                    (str(subject_id), str(user_id), max_age_minutes),
+                )
+                return cur.rowcount
+
+
 def delete_source(
     user_id: str | UUID,
     source_id: str | UUID,

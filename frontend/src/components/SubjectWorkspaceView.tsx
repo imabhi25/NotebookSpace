@@ -773,7 +773,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
                                   </svg>
                                 </button>
-                                {s.status === 'failed' && s.source_type === 'url' ? (
+                                {s.status === 'failed' && (s.source_type === 'url' || s.source_type === 'pasted') ? (
                                   <button
                                     type="button"
                                     className="source-item-btn"

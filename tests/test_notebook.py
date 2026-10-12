@@ -201,9 +201,8 @@ def test_source_management_and_formats(auth_headers):
         json={"url": "http://127.0.0.1:8000/documents"},
         headers=auth_headers,
     )
-    assert ssrf_resp.status_code == 200
-    assert ssrf_resp.json()["status"] == "failed"
-    assert "blocked" in ssrf_resp.json()["error_message"].lower()
+    assert ssrf_resp.status_code == 400
+    assert "blocked" in ssrf_resp.json()["detail"].lower()
 
     # 7. Rename source
     rename_resp = client.put(

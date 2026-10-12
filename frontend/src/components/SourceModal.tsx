@@ -48,6 +48,9 @@ export const SourceModal: React.FC<SourceModalProps> = ({
       setUploadResults(null);
       setSelectedFiles([]);
       setError(null);
+      // A link is never a draft worth keeping: stale values once saved a page under another page's title.
+      setUrlInput('');
+      setUrlTitle('');
       return;
     }
 
@@ -183,10 +186,14 @@ export const SourceModal: React.FC<SourceModalProps> = ({
         if (!pasteTitle.trim()) throw new Error('Please enter a title for the pasted content.');
         if (!pasteText.trim()) throw new Error('Please enter or paste the text content.');
         await onPasteText(pasteTitle.trim(), pasteText.trim());
+        setPasteTitle('');
+        setPasteText('');
         onClose();
       } else if (tab === 'url') {
         if (!urlInput.trim()) throw new Error('Please enter a webpage URL.');
         await onAddUrl(urlInput.trim(), urlTitle.trim() || undefined);
+        setUrlInput('');
+        setUrlTitle('');
         onClose();
       }
     } catch (err: any) {
