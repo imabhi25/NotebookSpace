@@ -1,4 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+
+export interface FileUploadResult {
+  filename: string;
+  status: 'added' | 'failed' | 'skipped';
+  reason?: string;
+}
 
 interface SourceModalProps {
   isOpen: boolean;
@@ -20,7 +26,9 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   // Upload tab state
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [uploadResults, setUploadResults] = useState<FileUploadResult[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const modalRef = useRef<HTMLDivElement>(null);
 
   // Paste tab state
   const [pasteTitle, setPasteTitle] = useState('');
@@ -33,6 +41,56 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   // Submission state
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Focus trap and Escape key handling
+  useEffect(() => {
+    if (!isOpen) {
+      setUploadResults(null);
+      setSelectedFiles([]);
+      setError(null);
+      return;
+    }
+
+    // Auto-focus dialog container on open
+    const focusTimer = setTimeout(() => {
+      modalRef.current?.focus();
+    }, 50);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (e.key === 'Tab' && modalRef.current) {
+        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      clearTimeout(focusTimer);
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
@@ -50,12 +108,14 @@ export const SourceModal: React.FC<SourceModalProps> = ({
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       setSelectedFiles(Array.from(e.dataTransfer.files));
+      setUploadResults(null);
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       setSelectedFiles(Array.from(e.target.files));
+      setUploadResults(null);
     }
   };
 
@@ -69,22 +129,66 @@ export const SourceModal: React.FC<SourceModalProps> = ({
         if (selectedFiles.length === 0) {
           throw new Error('Please select at least one file to upload.');
         }
+
         const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
+        const results: FileUploadResult[] = [];
+
         for (const file of selectedFiles) {
           if (file.size > MAX_UPLOAD_SIZE) {
-            throw new Error(`"${file.name}" exceeds the 50 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`);
+            results.push({
+              filename: file.name,
+              status: 'failed',
+              reason: `File exceeds 50 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`,
+            });
+            continue;
+          }
+
+          const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+          if (!['.pdf', '.txt', '.md', '.markdown'].includes(ext)) {
+            results.push({
+              filename: file.name,
+              status: 'failed',
+              reason: 'Unsupported format. Only PDF, TXT, and Markdown (.md) files are supported.',
+            });
+            continue;
+          }
+
+          try {
+            await onUploadFiles([file]);
+            results.push({
+              filename: file.name,
+              status: 'added',
+            });
+          } catch (err: any) {
+            const errMsg = err.message || 'Upload failed.';
+            if (errMsg.toLowerCase().includes('already exists')) {
+              results.push({
+                filename: file.name,
+                status: 'skipped',
+                reason: errMsg,
+              });
+            } else {
+              results.push({
+                filename: file.name,
+                status: 'failed',
+                reason: errMsg,
+              });
+            }
           }
         }
-        await onUploadFiles(selectedFiles);
+
+        setUploadResults(results);
+        return; // Keep dialog open so user sees per-file result rows
       } else if (tab === 'paste') {
         if (!pasteTitle.trim()) throw new Error('Please enter a title for the pasted content.');
         if (!pasteText.trim()) throw new Error('Please enter or paste the text content.');
         await onPasteText(pasteTitle.trim(), pasteText.trim());
+        onClose();
       } else if (tab === 'url') {
         if (!urlInput.trim()) throw new Error('Please enter a webpage URL.');
         await onAddUrl(urlInput.trim(), urlTitle.trim() || undefined);
+        onClose();
       }
-      onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to add source.');
     } finally {
@@ -92,12 +196,31 @@ export const SourceModal: React.FC<SourceModalProps> = ({
     }
   };
 
+  const handleDismissDialog = () => {
+    setUploadResults(null);
+    setSelectedFiles([]);
+    onClose();
+  };
+
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
+    <div className="modal-backdrop" onClick={handleDismissDialog}>
+      <div
+        ref={modalRef}
+        tabIndex={-1}
+        className="modal-content modal-content-md"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="modal-title"
+      >
         <div className="modal-header">
-          <h2>Add sources to notebook</h2>
-          <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
+          <h2 id="modal-title">Add sources to notebook</h2>
+          <button
+            type="button"
+            className="modal-close-btn"
+            onClick={handleDismissDialog}
+            aria-label="Close"
+          >
             &times;
           </button>
         </div>
@@ -107,21 +230,30 @@ export const SourceModal: React.FC<SourceModalProps> = ({
           <button
             type="button"
             className={`modal-tab-btn ${tab === 'upload' ? 'active' : ''}`}
-            onClick={() => setTab('upload')}
+            onClick={() => {
+              setTab('upload');
+              setError(null);
+            }}
           >
             File Uploads
           </button>
           <button
             type="button"
             className={`modal-tab-btn ${tab === 'paste' ? 'active' : ''}`}
-            onClick={() => setTab('paste')}
+            onClick={() => {
+              setTab('paste');
+              setError(null);
+            }}
           >
             Paste Text
           </button>
           <button
             type="button"
             className={`modal-tab-btn ${tab === 'url' ? 'active' : ''}`}
-            onClick={() => setTab('url')}
+            onClick={() => {
+              setTab('url');
+              setError(null);
+            }}
           >
             Webpage URL
           </button>
@@ -133,50 +265,89 @@ export const SourceModal: React.FC<SourceModalProps> = ({
           {/* 1. UPLOAD TAB */}
           {tab === 'upload' && (
             <div>
-              <div
-                className={`drop-zone ${isDragging ? 'drop-zone-active' : ''}`}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                role="button"
-                tabIndex={0}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  accept=".pdf,.txt,.md,.markdown"
-                  style={{ display: 'none' }}
-                  onChange={handleFileChange}
-                />
-                <div className="drop-zone-icon" aria-hidden="true">
-                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
-                  </svg>
-                </div>
-                <p className="drop-zone-text">
-                  Drag and drop files here, or <span className="drop-zone-link">browse</span>
-                </p>
-                <p className="drop-zone-hint">
-                  Supports PDF, Plain Text (.txt), and Markdown (.md). Max 50 MB per file.
-                </p>
-              </div>
-
-              {selectedFiles.length > 0 && (
-                <div className="selected-files-list">
-                  <h4 className="selected-files-title">Selected files ({selectedFiles.length}):</h4>
-                  <ul>
-                    {selectedFiles.map((file, idx) => (
-                      <li key={idx} className="selected-file-row">
-                        <span className="file-name">{file.name}</span>
-                        <span className="file-size">{(file.size / 1024).toFixed(0)} KB</span>
-                      </li>
+              {uploadResults ? (
+                /* Per-file results view after batch upload */
+                <div className="upload-results-panel" data-testid="upload-results-panel">
+                  <div className="upload-results-header">
+                    <h4>Upload Results</h4>
+                    <span className="upload-results-summary">
+                      {uploadResults.filter((r) => r.status === 'added').length} of {uploadResults.length} files added
+                    </span>
+                  </div>
+                  <div className="upload-results-list" data-testid="upload-results-list">
+                    {uploadResults.map((res, rIdx) => (
+                      <div
+                        key={rIdx}
+                        className={`upload-result-item status-${res.status}`}
+                        data-testid={`upload-result-${rIdx}`}
+                      >
+                        <div className="upload-result-info">
+                          <span className="upload-result-name">{res.filename}</span>
+                          {res.reason && (
+                            <span className="upload-result-reason" title={res.reason}>
+                              {res.reason}
+                            </span>
+                          )}
+                        </div>
+                        <span className={`upload-status-badge badge-${res.status}`}>
+                          {res.status === 'added'
+                            ? '✓ Added'
+                            : res.status === 'skipped'
+                            ? '⊘ Skipped'
+                            : '✕ Failed'}
+                        </span>
+                      </div>
                     ))}
-                  </ul>
+                  </div>
                 </div>
+              ) : (
+                <>
+                  <div
+                    className={`drop-zone ${isDragging ? 'drop-zone-active' : ''}`}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      multiple
+                      accept=".pdf,.txt,.md,.markdown"
+                      style={{ display: 'none' }}
+                      onChange={handleFileChange}
+                    />
+                    <div className="drop-zone-icon" aria-hidden="true">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                      </svg>
+                    </div>
+                    <p className="drop-zone-text">
+                      Drag and drop files here, or <span className="drop-zone-link">browse</span>
+                    </p>
+                    <p className="drop-zone-hint">
+                      Supports PDF, Plain Text (.txt), and Markdown (.md). Max 50 MB per file.
+                    </p>
+                  </div>
+
+                  {selectedFiles.length > 0 && (
+                    <div className="selected-files-list">
+                      <h4 className="selected-files-title">Selected files ({selectedFiles.length}):</h4>
+                      <ul>
+                        {selectedFiles.map((file, idx) => (
+                          <li key={idx} className="selected-file-row">
+                            <span className="file-name">{file.name}</span>
+                            <span className="file-size">{(file.size / 1024).toFixed(0)} KB</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -244,22 +415,35 @@ export const SourceModal: React.FC<SourceModalProps> = ({
           )}
 
           <div className="modal-actions">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              onClick={onClose}
-              disabled={loading}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="btn btn-primary"
-              disabled={loading}
-              data-testid="submit-add-source-btn"
-            >
-              {loading ? 'Processing & Ingesting...' : 'Add Source'}
-            </button>
+            {uploadResults ? (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={handleDismissDialog}
+                data-testid="upload-results-done-btn"
+              >
+                Done
+              </button>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleDismissDialog}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={loading || (tab === 'upload' && selectedFiles.length === 0)}
+                  data-testid="submit-add-source-btn"
+                >
+                  {loading ? 'Processing & Ingesting...' : 'Add Source'}
+                </button>
+              </>
+            )}
           </div>
         </form>
       </div>

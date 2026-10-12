@@ -7,6 +7,17 @@ interface SourceViewerModalProps {
 }
 
 export const SourceViewerModal: React.FC<SourceViewerModalProps> = ({ source, onClose }) => {
+  React.useEffect(() => {
+    if (!source) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [source, onClose]);
+
   if (!source) return null;
 
   return (

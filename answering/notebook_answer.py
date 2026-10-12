@@ -356,21 +356,35 @@ def answer_notebook_question(
         )
 
     # 6. Validate Citations Server-Side
-    # Must map to actual retrieved sources
-    retrieved_sources = {
-        (
-            Path(r.get("file_name", r.get("file", ""))).name.lower(),
-            int(r.get("page_number", r.get("page", 0))),
-        )
-        for r in retrieved
-    }
+    # Helper to match citations/claims against retrieved passages flexibly (by ID, title, filename)
+    def match_retrieved_passage(file_str: str, page_num: int) -> dict[str, Any] | None:
+        target_name = Path(str(file_str).strip()).name.lower()
+        target_raw = str(file_str).strip().lower()
 
-    # Also build map of title/filename to source metadata
-    retrieved_by_file_page: dict[tuple[str, int], dict[str, Any]] = {}
-    for r in retrieved:
-        f_name = Path(r.get("file_name", r.get("file", ""))).name.lower()
-        p_num = int(r.get("page_number", r.get("page", 0)))
-        retrieved_by_file_page[(f_name, p_num)] = r
+        for r in retrieved:
+            r_page = int(r.get("page_number", r.get("page", 0)))
+            if r_page != page_num:
+                continue
+
+            # 1. Match by stable source_id directly
+            r_src_id = str(r.get("source_id", "")).lower()
+            if r_src_id and (r_src_id == target_raw or r_src_id == target_name):
+                return r
+
+            # 2. Match by file_name, title, or alias
+            r_file = Path(str(r.get("file_name", ""))).name.lower()
+            r_title = Path(str(r.get("title", ""))).name.lower()
+            r_alias = Path(str(r.get("file", ""))).name.lower()
+            r_title_raw = str(r.get("title", "")).strip().lower()
+
+            if target_name in (r_file, r_title, r_alias) or target_raw in (r_file, r_title, r_alias, r_title_raw):
+                return r
+
+            # 3. Match by file stem (without extension)
+            if Path(target_name).stem in (Path(r_file).stem, Path(r_title).stem, Path(r_alias).stem):
+                return r
+
+        return None
 
     validated_citations: list[dict[str, Any]] = []
     if isinstance(raw_citations, list):
@@ -378,17 +392,16 @@ def answer_notebook_question(
             if not isinstance(cit, dict) or "file" not in cit or "page" not in cit:
                 continue
             try:
-                cit_file = Path(str(cit["file"])).name.lower()
                 cit_page = int(cit["page"])
             except (ValueError, TypeError):
                 continue
 
-            if (cit_file, cit_page) in retrieved_sources:
-                match_r = retrieved_by_file_page.get((cit_file, cit_page), {})
+            match_r = match_retrieved_passage(str(cit["file"]), cit_page)
+            if match_r is not None:
                 validated_citations.append({
-                    "file": cit["file"],
+                    "file": match_r.get("title") or match_r.get("file_name") or cit["file"],
                     "page": cit_page,
-                    "source_id": match_r.get("source_id"),
+                    "source_id": str(match_r.get("source_id")) if match_r.get("source_id") else None,
                     "source_version": match_r.get("source_version", 1),
                     "title": match_r.get("title", cit["file"]),
                     "excerpt": match_r.get("text", "")[:250],
@@ -412,7 +425,7 @@ def answer_notebook_question(
             db_url=db_url,
         )
 
-    # 7. Validate Conflicts
+    # 7. Validate Conflicts - Keyed strictly off stable source IDs
     raw_conflicts = parsed.get("conflicts", [])
     validated_conflicts: list[dict[str, Any]] = []
 
@@ -426,35 +439,38 @@ def answer_notebook_question(
                 continue
 
             valid_claims = []
-            distinct_files = set()
+            distinct_source_ids = set()
             distinct_values = set()
 
             for claim in claims:
                 if not isinstance(claim, dict) or "file" not in claim or "page" not in claim or "value" not in claim:
                     continue
                 try:
-                    c_file_clean = Path(str(claim["file"])).name.lower()
                     c_page = int(claim["page"])
                     c_val = str(claim["value"]).strip()
                 except (ValueError, TypeError):
                     continue
 
-                if (c_file_clean, c_page) not in retrieved_sources or not c_val:
+                if not c_val:
                     continue
 
-                distinct_files.add(c_file_clean)
+                match_r = match_retrieved_passage(str(claim["file"]), c_page)
+                if match_r is None:
+                    continue
+
+                stable_source_id = str(match_r.get("source_id") or match_r.get("file_name") or claim["file"])
+                distinct_source_ids.add(stable_source_id)
                 distinct_values.add(" ".join(c_val.lower().split()))
-                match_r = retrieved_by_file_page.get((c_file_clean, c_page), {})
                 valid_claims.append({
-                    "file": str(claim["file"]),
+                    "file": match_r.get("title") or match_r.get("file_name") or str(claim["file"]),
                     "page": c_page,
                     "value": c_val,
-                    "source_id": match_r.get("source_id"),
+                    "source_id": str(match_r.get("source_id")) if match_r.get("source_id") else None,
                     "source_version": match_r.get("source_version", 1),
                     "upload_date": match_r.get("upload_date"),
                 })
 
-            if len(distinct_files) >= 2 and len(distinct_values) >= 2 and len(valid_claims) >= 2:
+            if len(distinct_source_ids) >= 2 and len(distinct_values) >= 2 and len(valid_claims) >= 2:
                 validated_conflicts.append({
                     "topic": topic,
                     "claims": valid_claims,
