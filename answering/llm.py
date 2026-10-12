@@ -145,7 +145,7 @@ class GeminiLLMClient(BaseCachedLLMClient):
         api_key: str | None = None,
         cache_dir: Path | str | None = None,
     ):
-        model_name = model or os.getenv("LLM_MODEL", "gemini-2.5-flash")
+        model_name = model or os.getenv("LLM_MODEL", "gemini-3.5-flash")
         super().__init__(model=model_name, cache_dir=cache_dir)
         self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
 
@@ -154,8 +154,8 @@ class GeminiLLMClient(BaseCachedLLMClient):
             raise ValueError("LLM_API_KEY or GEMINI_API_KEY environment variable is not set for Gemini provider.")
 
         models_to_try = [self.model]
-        if self.model != "gemini-1.5-flash" and "gemini-1.5-flash" not in models_to_try:
-            models_to_try.append("gemini-1.5-flash")
+        if self.model != "gemini-3.5-flash-lite" and "gemini-3.5-flash-lite" not in models_to_try:
+            models_to_try.append("gemini-3.5-flash-lite")
 
         headers = {"x-goog-api-key": self.api_key}
         payload = {
@@ -199,6 +199,11 @@ class GeminiLLMClient(BaseCachedLLMClient):
                         err_status or "NONE",
                         last_sanitized_err,
                     )
+
+                    # If this model has exhausted quota or is unavailable/not found, try fallback model if available
+                    if current_model != models_to_try[-1] and (resp.status_code in (404, 503) or (resp.status_code == 429 and err_status == "RESOURCE_EXHAUSTED")):
+                        logger.info("Falling back from %s to next model due to status %s (%s)", current_model, resp.status_code, err_status or "")
+                        break
 
                     # For exhausted quota requiring a long wait (> 60s), preserve progress and exit immediately
                     if resp.status_code == 429 and (err_status == "RESOURCE_EXHAUSTED" or (delay_sec is not None and delay_sec > 60.0)):
