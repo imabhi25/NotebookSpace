@@ -145,7 +145,7 @@ class GeminiLLMClient(BaseCachedLLMClient):
         api_key: str | None = None,
         cache_dir: Path | str | None = None,
     ):
-        model_name = model or os.getenv("LLM_MODEL", "gemini-3.5-flash")
+        model_name = model or os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
         super().__init__(model=model_name, cache_dir=cache_dir)
         self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
 
@@ -154,8 +154,8 @@ class GeminiLLMClient(BaseCachedLLMClient):
             raise ValueError("LLM_API_KEY or GEMINI_API_KEY environment variable is not set for Gemini provider.")
 
         models_to_try = [self.model]
-        if self.model != "gemini-3.5-flash-lite" and "gemini-3.5-flash-lite" not in models_to_try:
-            models_to_try.append("gemini-3.5-flash-lite")
+        if self.model != "gemini-3.5-flash" and "gemini-3.5-flash" not in models_to_try:
+            models_to_try.append("gemini-3.5-flash")
 
         headers = {"x-goog-api-key": self.api_key}
         payload = {
