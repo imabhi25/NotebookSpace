@@ -41,3 +41,13 @@ Browser checks used an isolated local guest and a clearly labelled synthetic lec
 The pre-existing full-width workspace can clip when the outer notebook sidebar and all inner panels are open. Narrow source drawers can also extend their footer below the viewport. These layout rules remain unchanged because layout changes were explicitly excluded. Collapsing the outer sidebar restores the normal desktop reading workspace. A separate layout correction should address these issues.
 
 No dark mode, new dependency, new provider, paid service, copy rewrite, main-branch merge, or production deployment was added.
+
+## Skill-guided refinement
+
+A second pass used Impeccable's Operate/Read and polish guidance plus Emil Kowalski's design-engineering rules. The Impeccable engine could not create its global cache in this restricted session; its written references and the existing code/style inventory supplied the context instead. No PRODUCT.md or DESIGN.md existed.
+
+The incumbent palette, layout structure, wording, and behavior remain intact. Source and chat lists now use quiet rows; selection remains visible through tone, checkbox, and active text/icon. The answer's metadata and action toolbar lose unnecessary boxes and dividers. Inline citations sit more naturally in prose, and the reading measure is capped at 72ch. Modal header/body spacing is tighter, and modals use one shadow rather than competing border and shadow elevation. Muted and secondary text tokens were darkened for contrast on the warm surfaces.
+
+Motion uses explicit properties instead of `transition: all`. Desktop panel collapse avoids width interpolation; mobile drawers keep a 200ms authored ease-out. Primary/secondary action buttons receive brief 0.98-scale pointer press feedback; keyboard focus has no transition and reduced motion removes the press transform. Closed desktop panels and offscreen mobile drawers are hidden from the tab order through visibility styles. Selection and caret colors use existing palette tokens.
+
+Verification: existing 34 tests and build pass with the same pre-existing warning categories. Token audit passes (169 variables). Notebook reading and citation inspection were checked at 1440px, 768px, and 390px; the source modal was checked on desktop and 390px; keyboard focus and no console errors were checked. The original workspace clipping limitation remains outside this refinement's scope.

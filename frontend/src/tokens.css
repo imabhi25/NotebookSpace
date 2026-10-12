@@ -8,8 +8,8 @@
   --color-border: #e5e2db;
   --color-border-strong: #cbc6bb;
   --color-text-primary: #292824;
-  --color-text-secondary: #68655d;
-  --color-text-muted: #77736a;
+  --color-text-secondary: #615d55;
+  --color-text-muted: #676259;
   --color-accent: #426590;
   --color-accent-hover: color-mix(in srgb, var(--color-accent), var(--color-text-primary) 20%);
   --color-accent-soft: color-mix(in srgb, var(--color-accent) 8%, var(--color-surface));
@@ -70,6 +70,9 @@
   --motion-panel: 200ms;
   --motion-reduced: 0.01ms;
   --motion-ease: ease;
+  --motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --press-scale: 0.98;
+  --reading-measure: 72ch;
   --motion-progress: 800ms;
   --opacity-disabled: 0.45;
   --bg-app: var(--color-background);

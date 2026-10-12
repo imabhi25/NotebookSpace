@@ -499,7 +499,7 @@ button, input[type="file"], .btn {
   font-size: var(--type-body);
   font-weight: var(--weight-medium);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -509,7 +509,6 @@ button, input[type="file"], .btn {
 .starter-chip-btn:hover {
   background-color: var(--color-surface-raised);
   border-color: var(--color-border-strong);
-  transform: translateY(var(--dimension-negative-1-px));
 }
 
 .starter-chip-btn:active {
@@ -736,7 +735,7 @@ button, input[type="file"], .btn {
   font-size: var(--type-caption);
   font-weight: var(--weight-semibold);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .user-turn-retry-btn:hover {
@@ -845,11 +844,10 @@ button, input[type="file"], .btn {
   padding: var(--space-4);
   box-shadow: var(--shadow-low);
   cursor: pointer;
-  transition: transform var(--motion-panel) var(--motion-ease), box-shadow var(--motion-panel) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .conflict-source-card:hover {
-  transform: translateY(var(--dimension-negative-1-px));
   box-shadow: var(--shadow-low);
 }
 
@@ -903,7 +901,7 @@ button, input[type="file"], .btn {
   border-radius: var(--radius-xs);
   cursor: pointer;
   vertical-align: baseline;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
   line-height: var(--leading-body);
   text-decoration: none;
 }
@@ -951,7 +949,7 @@ button, input[type="file"], .btn {
   color: var(--text-main);
   font-weight: var(--weight-medium);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .chip:hover {
@@ -1007,7 +1005,7 @@ button, input[type="file"], .btn {
   border-radius: var(--radius-sm);
   cursor: pointer;
   text-align: left;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .source-card-btn:hover {
@@ -1163,7 +1161,7 @@ button, input[type="file"], .btn {
   color: var(--color-surface);
   border: none;
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
   flex-shrink: 0;
   margin-bottom: var(--space-1);
 }
@@ -1348,7 +1346,7 @@ button, input[type="file"], .btn {
 .passage-chunk-highlighted {
   background-color: var(--color-surface-raised);
   border-color: var(--color-border-strong);
-  border-left: var(--dimension-3-px) solid var(--ink-primary);
+  border-left: var(--border-width) solid var(--color-accent-border);
   box-shadow: var(--shadow-low);
 }
 
@@ -1396,7 +1394,7 @@ button, input[type="file"], .btn {
     bottom: 0;
     width: var(--dimension-280-px);
     transform: translateX(-100%);
-    transition: transform var(--motion-panel) var(--motion-ease);
+    transition: transform var(--motion-panel) var(--motion-ease-out);
     box-shadow: none;
     z-index: 25;
   }
@@ -1439,7 +1437,7 @@ button, input[type="file"], .btn {
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
     box-shadow: var(--shadow-low);
     transform: translateY(100%);
-    transition: transform var(--motion-panel) var(--motion-ease);
+    transition: transform var(--motion-panel) var(--motion-ease-out);
     z-index: 30;
   }
 
@@ -1517,7 +1515,7 @@ button, input[type="file"], .btn {
   background: var(--color-transparent);
   color: var(--text-muted);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .nav-switcher-btn.active {
@@ -1560,7 +1558,7 @@ button, input[type="file"], .btn {
   background: var(--bg-surface);
   color: var(--text-muted);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .btn-new-workspace:hover {
@@ -1616,7 +1614,7 @@ button, input[type="file"], .btn {
   flex-direction: column;
   flex-shrink: 0;
   z-index: 50;
-  transition: transform var(--motion-panel) var(--motion-ease), width var(--motion-panel) var(--motion-ease);
+  transition: transform var(--motion-panel) var(--motion-ease-out);
 }
 
 .notebooks-sidebar.collapsed-desktop {
@@ -1676,7 +1674,7 @@ button, input[type="file"], .btn {
   border: var(--dimension-1-px) solid var(--border-dark);
   color: var(--text-main);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .btn-sidebar-new-notebook:hover {
@@ -1752,7 +1750,7 @@ button, input[type="file"], .btn {
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-xs);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .sidebar-filter-pill.active {
@@ -1797,7 +1795,7 @@ button, input[type="file"], .btn {
   border-radius: var(--radius-sm);
   cursor: pointer;
   position: relative;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
   border: var(--dimension-1-px) solid var(--color-transparent);
 }
 
@@ -1877,7 +1875,7 @@ button, input[type="file"], .btn {
   justify-content: center;
   cursor: pointer;
   opacity: 0.4;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .sidebar-notebook-item:hover .notebook-menu-btn,
@@ -1986,7 +1984,7 @@ button, input[type="file"], .btn {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .sidebar-settings-btn:hover {
@@ -2065,7 +2063,7 @@ button, input[type="file"], .btn {
   color: var(--text-muted);
   cursor: pointer;
   box-shadow: var(--shadow-low);
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .floating-sidebar-reopen-btn:hover {
@@ -2286,7 +2284,7 @@ button, input[type="file"], .btn {
   padding: 0 var(--space-3);
   height: var(--dimension-32-px);
   border-radius: var(--radius-sm);
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .workspace-back-btn:hover {
@@ -2406,7 +2404,7 @@ button, input[type="file"], .btn {
   font-weight: var(--weight-medium);
   color: var(--text-muted);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .workspace-toggle-btn:hover {
@@ -2445,7 +2443,7 @@ button, input[type="file"], .btn {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .workspace-top-icon-btn:hover {
@@ -2466,7 +2464,7 @@ button, input[type="file"], .btn {
   height: var(--dimension-32-px);
   border-radius: var(--radius-sm);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .guest-workspace-indicator:hover {
@@ -2507,7 +2505,7 @@ button, input[type="file"], .btn {
   flex-direction: column;
   overflow: hidden;
   flex-shrink: 0;
-  transition: width var(--motion-panel) var(--motion-ease), min-width var(--motion-panel) var(--motion-ease), opacity var(--motion-panel) var(--motion-ease);
+  transition: opacity var(--motion-fast) var(--motion-ease);
   z-index: 15;
 }
 
@@ -2549,7 +2547,7 @@ button, input[type="file"], .btn {
   border-radius: var(--radius-xs);
   color: var(--text-muted);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
   white-space: nowrap;
   text-align: center;
 }
@@ -2573,7 +2571,7 @@ button, input[type="file"], .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .panel-collapse-btn:hover {
@@ -2687,7 +2685,7 @@ button, input[type="file"], .btn {
   display: flex;
   align-items: center;
   gap: var(--space-2);
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .workspace-source-item:hover {
@@ -2792,7 +2790,7 @@ button, input[type="file"], .btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .source-item-btn:hover {
@@ -2934,7 +2932,7 @@ button, input[type="file"], .btn {
   align-items: center;
   justify-content: space-between;
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .workspace-conv-item:hover {
@@ -2981,7 +2979,7 @@ button, input[type="file"], .btn {
   cursor: pointer;
   display: flex;
   flex-direction: column;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .workspace-note-item:hover {
@@ -3065,7 +3063,7 @@ button, input[type="file"], .btn {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .note-citation-chip:hover {
@@ -3104,7 +3102,7 @@ button, input[type="file"], .btn {
   font-weight: var(--weight-medium);
   color: var(--text-main);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .floating-reopen-btn:hover {
@@ -3132,7 +3130,7 @@ button, input[type="file"], .btn {
   flex-direction: column;
   overflow: hidden;
   flex-shrink: 0;
-  transition: width var(--motion-panel) var(--motion-ease), min-width var(--motion-panel) var(--motion-ease), opacity var(--motion-panel) var(--motion-ease);
+  transition: opacity var(--motion-fast) var(--motion-ease);
   z-index: 15;
 }
 
@@ -3253,7 +3251,7 @@ button, input[type="file"], .btn {
   font-weight: var(--weight-medium);
   color: var(--text-muted);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .answer-action-btn:hover {
@@ -3289,7 +3287,7 @@ button, input[type="file"], .btn {
   color: var(--color-text-primary);
   padding: var(--space-2) var(--space-4);
   cursor: pointer;
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
   white-space: nowrap;
 }
 
@@ -3545,7 +3543,7 @@ button, input[type="file"], .btn {
   text-align: center;
   cursor: pointer;
   background-color: var(--color-surface-raised);
-  transition: all var(--motion-fast) var(--motion-ease);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .drop-zone:hover,
@@ -3654,16 +3652,16 @@ button, input[type="file"], .btn {
 }
 
 .upload-result-item.status-added {
-  border-left: var(--dimension-3-px) solid var(--color-border-strong);
+  border-left: var(--border-width) solid var(--color-border-strong);
 }
 
 .upload-result-item.status-failed {
-  border-left: var(--dimension-3-px) solid var(--color-border-strong);
+  border-left: var(--border-width) solid var(--color-border-strong);
   background: var(--color-surface);
 }
 
 .upload-result-item.status-skipped {
-  border-left: var(--dimension-3-px) solid var(--color-border-strong);
+  border-left: var(--border-width) solid var(--color-border-strong);
   background: var(--color-surface);
 }
 
@@ -3925,7 +3923,7 @@ button, input[type="file"], .btn {
     border-radius: 0 !important;
     z-index: 40;
     transform: translateX(-100%);
-    transition: transform var(--motion-panel) var(--motion-ease);
+    transition: transform var(--motion-panel) var(--motion-ease-out);
     box-shadow: var(--shadow-low);
   }
 
@@ -3946,7 +3944,7 @@ button, input[type="file"], .btn {
     border-radius: 0 !important;
     z-index: 40;
     transform: translateX(100%);
-    transition: transform var(--motion-panel) var(--motion-ease);
+    transition: transform var(--motion-panel) var(--motion-ease-out);
     box-shadow: var(--shadow-low);
   }
 
