@@ -1,0 +1,270 @@
+/*
+ * NotebookSpace design tokens. Every literal colour, length, shadow and timing lives here.
+ * Layers: 1 palette and type primitives, 2 semantic roles, 3 elevation and materials,
+ * 4 motion, 5 the fixed size scale, 6 aliases kept for the older rule names in index.css.
+ */
+:root {
+  color-scheme: light;
+
+  /* 1. Palette: one warm paper-and-ink family (hue 85), one accent (lapis, hue 262). */
+  --color-desk: oklch(0.928 0.011 85);
+  --color-background: var(--color-desk);
+  --color-surface: oklch(0.994 0.003 85);
+  --color-surface-raised: oklch(0.962 0.008 85);
+  --color-surface-hover: oklch(0.935 0.01 85);
+  --color-surface-active: oklch(0.905 0.012 85);
+  --color-border: oklch(0.885 0.011 85);
+  --color-border-strong: oklch(0.8 0.014 85);
+  --color-border-sheet: oklch(0.3 0.03 70 / 0.1);
+  --color-text-primary: oklch(0.235 0.012 75);
+  --color-text-secondary: oklch(0.42 0.012 75);
+  --color-text-muted: oklch(0.49 0.012 75);
+  --color-on-accent: oklch(0.99 0.004 262);
+  --color-accent: oklch(0.45 0.125 262);
+  --color-accent-hover: oklch(0.39 0.125 262);
+  --color-accent-bright: oklch(0.52 0.13 262);
+  --color-accent-soft: color-mix(in oklab, var(--color-accent) 8%, var(--color-surface));
+  --color-accent-soft-strong: color-mix(in oklab, var(--color-accent) 14%, var(--color-surface));
+  --color-accent-border: color-mix(in oklab, var(--color-accent) 32%, var(--color-surface));
+  --color-accent-ring: color-mix(in oklab, var(--color-accent) 18%, transparent);
+  --color-overlay: oklch(0.24 0.02 75 / 0.38);
+  --color-transparent: transparent;
+  --color-highlight-top: oklch(1 0 0 / 0.75);
+  --color-highlight-soft: oklch(1 0 0 / 0.22);
+
+  /* State colours carry meaning, so they stay distinct from the neutrals. */
+  --color-warning-surface: oklch(0.972 0.028 88);
+  --color-warning-border: oklch(0.86 0.085 82);
+  --color-warning-text: oklch(0.42 0.085 62);
+  --color-danger-surface: oklch(0.968 0.018 28);
+  --color-danger-border: oklch(0.84 0.07 28);
+  --color-danger-text: oklch(0.45 0.15 28);
+  --color-success: oklch(0.56 0.11 152);
+  --color-progress: oklch(0.66 0.13 78);
+  --color-marker: oklch(0.958 0.062 98);
+  --color-marker-edge: oklch(0.82 0.13 92);
+
+  /* Type: Geist for the interface, Newsreader for headings and long-form answers. */
+  --font-family-ui: "Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-display: "Newsreader Variable", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-family-reading: var(--font-family-display);
+  --font-family-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --type-display: 2rem;
+  --type-title: 1.375rem;
+  --type-heading: 1.0625rem;
+  --type-reading: 1.0625rem;
+  --type-body: 0.9375rem;
+  --type-small: 0.8125rem;
+  --type-caption: 0.75rem;
+  --leading-display: 1.15;
+  --leading-title: 1.25;
+  --leading-heading: 1.4;
+  --leading-body: 1.55;
+  --leading-caption: 1.45;
+  --leading-reading: 1.7;
+  --leading-control: 1.4;
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-semibold: 600;
+  --tracking-display: -0.022em;
+  --tracking-tight: -0.014em;
+  --tracking-ui: -0.006em;
+  --tracking-label: 0.05em;
+  --reading-measure: 68ch;
+
+  /* Spacing: 4px base. */
+  --space-0: 0px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 28px;
+  --space-8: 32px;
+  --space-9: 36px;
+  --space-10: 40px;
+  --space-11: 44px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radii: chips, controls, cards, panels, dialogs. Inner radius is always smaller than outer. */
+  --radius-none: 0px;
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-control: 10px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+  --radius-circle: 50%;
+
+  /* 3. Elevation: one light from above, shadows tinted with warm ink rather than black. */
+  --shadow-ink: oklch(0.3 0.035 70);
+  --shadow-accent-ink: oklch(0.36 0.12 262);
+  --shadow-1: 0 1px 1px color-mix(in oklab, var(--shadow-ink) 5%, transparent), 0 1px 3px color-mix(in oklab, var(--shadow-ink) 7%, transparent);
+  --shadow-2: 0 1px 1px color-mix(in oklab, var(--shadow-ink) 5%, transparent), 0 4px 12px -2px color-mix(in oklab, var(--shadow-ink) 10%, transparent);
+  --shadow-3: 0 1px 1px color-mix(in oklab, var(--shadow-ink) 4%, transparent), 0 8px 20px -6px color-mix(in oklab, var(--shadow-ink) 12%, transparent), 0 24px 48px -24px color-mix(in oklab, var(--shadow-ink) 16%, transparent);
+  --shadow-4: 0 2px 4px color-mix(in oklab, var(--shadow-ink) 6%, transparent), 0 18px 40px -10px color-mix(in oklab, var(--shadow-ink) 22%, transparent), 0 48px 96px -32px color-mix(in oklab, var(--shadow-ink) 28%, transparent);
+  --shadow-inset-top: inset 0 1px 0 var(--color-highlight-top);
+  --shadow-well: inset 0 1px 2px color-mix(in oklab, var(--shadow-ink) 9%, transparent);
+  --shadow-accent: inset 0 1px 0 var(--color-highlight-soft), 0 1px 2px color-mix(in oklab, var(--shadow-accent-ink) 30%, transparent), 0 6px 14px -6px color-mix(in oklab, var(--shadow-accent-ink) 45%, transparent);
+  --shadow-accent-pressed: inset 0 1px 2px color-mix(in oklab, var(--shadow-accent-ink) 40%, transparent);
+  --shadow-focus: 0 0 0 4px var(--color-accent-ring);
+  --shadow-low: var(--shadow-1);
+  --shadow-high: var(--shadow-3);
+
+  /* Materials: translucent only where something really sits above scrolling content. */
+  --material-popover: color-mix(in oklab, var(--color-surface) 86%, transparent);
+  --material-blur: 18px;
+  --material-saturate: 1.5;
+  --scrim-blur: 3px;
+  --surface-accent-gradient: linear-gradient(to bottom, var(--color-accent-bright), var(--color-accent));
+  --surface-tray-gradient: linear-gradient(to bottom, color-mix(in oklab, var(--color-surface) 45%, var(--color-surface-raised)), var(--color-surface-raised) 40%);
+  --desk-light: radial-gradient(110% 65% at 22% -18%, oklch(1 0 0 / 0.6), transparent 60%);
+  --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .25 0 0 0 0 .2 0 0 0 0 .12 0 0 0 .055 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --texture-grain-size: 180px;
+  --perspective-accent: 640px;
+  --tilt-x: 28deg;
+  --tilt-z: -10deg;
+  --sheet-offset: 6px;
+  --lift: -1px;
+  --enter-shift: 8px;
+  --enter-scale: 0.97;
+  --menu-scale: 0.96;
+
+  /* Focus, borders, icons, targets. */
+  --focus-ring: 2px solid var(--color-accent);
+  --focus-offset: 2px;
+  --border-width: 1px;
+  --border-width-strong: 2px;
+  --border-width-dash: 1.5px;
+  --icon-size: 18px;
+  --icon-size-sm: 16px;
+  --icon-stroke: 1.75;
+  --target-mobile: 44px;
+  --control-height: 40px;
+  --control-height-sm: 32px;
+  --status-dot: 7px;
+  --scrollbar-size: 10px;
+  --opacity-disabled: 0.45;
+  --opacity-quiet: 0.55;
+
+  /* 4. Motion: strong ease-out for entrances and presses, drawer curve for panels. */
+  --motion-press: 120ms;
+  --motion-fast: 160ms;
+  --motion-exit: 140ms;
+  --motion-panel: 260ms;
+  --motion-modal: 220ms;
+  --motion-reduced: 0.01ms;
+  --motion-progress: 700ms;
+  --motion-ease: ease;
+  --motion-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --motion-ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --motion-ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --press-scale: 0.97;
+
+  /* Layout. */
+  --composer-max-height: 160px;
+  --layout-loading-offset: 80px;
+  --empty-icon-size: 32px;
+  --empty-mark-size: 64px;
+  --brand-mark-size: 30px;
+  --drawer-width-phone: min(88vw, 340px);
+  --line-clamp-title: 2;
+
+  /* 5. Size scale: fixed lengths used by layout rules, named by their pixel value. */
+  --size-neg-2: -2px;
+  --size-neg-1: -1px;
+  --size-1: 1px;
+  --size-1-5: 1.5px;
+  --size-2: 2px;
+  --size-3: 3px;
+  --size-6: 6px;
+  --size-7: 7px;
+  --size-8: 8px;
+  --size-12: 12px;
+  --size-14: 14px;
+  --size-15: 15px;
+  --size-16: 16px;
+  --size-18: 18px;
+  --size-22: 22px;
+  --size-24: 24px;
+  --size-26: 26px;
+  --size-28: 28px;
+  --size-30: 30px;
+  --size-32: 32px;
+  --size-34: 34px;
+  --size-36: 36px;
+  --size-40: 40px;
+  --size-44: 44px;
+  --size-48: 48px;
+  --size-52: 52px;
+  --size-54: 54px;
+  --size-56: 56px;
+  --size-100: 100px;
+  --size-110: 110px;
+  --size-130: 130px;
+  --size-140: 140px;
+  --size-160: 160px;
+  --size-180: 180px;
+  --size-200: 200px;
+  --size-220: 220px;
+  --size-240: 240px;
+  --size-260: 260px;
+  --size-275: 275px;
+  --size-280: 280px;
+  --size-320: 320px;
+  --size-350: 350px;
+  --size-360: 360px;
+  --size-380: 380px;
+  --size-400: 400px;
+  --size-480: 480px;
+  --size-520: 520px;
+  --size-600: 600px;
+  --size-760: 760px;
+  --size-780: 780px;
+  --size-800: 800px;
+
+  /* 6. Aliases for the rule names index.css already uses. */
+  --bg-app: var(--color-transparent);
+  --bg-surface: var(--color-surface);
+  --bg-sidebar: var(--color-surface-raised);
+  --bg-sidebar-hover: var(--color-surface-hover);
+  --bg-sidebar-active: var(--color-surface-active);
+  --bg-user-bubble: var(--color-surface-raised);
+  --border: var(--color-border);
+  --border-color: var(--color-border);
+  --border-subtle: var(--color-border);
+  --border-dark: var(--color-border-strong);
+  --text-main: var(--color-text-primary);
+  --text-primary: var(--color-text-primary);
+  --text-muted: var(--color-text-secondary);
+  --text-light: var(--color-text-muted);
+  --text-on-dark: var(--color-on-accent);
+  --ink-primary: var(--color-accent);
+  --ink-primary-hover: var(--color-accent-hover);
+  --ink-primary-focus: var(--color-accent-hover);
+  --accent-primary: var(--color-accent);
+  --accent: var(--color-accent);
+  --accent-subtle: var(--color-accent-soft);
+  --accent-border: var(--color-accent-border);
+  --accent-focus: var(--color-accent-soft);
+  --surface-secondary: var(--color-surface-raised);
+  --card-bg: var(--color-surface);
+  --font-family: var(--font-family-ui);
+  --amber-bg: var(--color-warning-surface);
+  --amber-border: var(--color-warning-border);
+  --amber-card-border: var(--color-warning-border);
+  --amber-heading: var(--color-warning-text);
+  --amber-topic: var(--color-warning-text);
+  --notfound-bg: var(--color-surface-raised);
+  --notfound-border: var(--color-border-strong);
+  --notfound-label: var(--color-text-secondary);
+  --notfound-text: var(--color-text-primary);
+  --error-bg: var(--color-danger-surface);
+  --error-border: var(--color-danger-border);
+  --error-text: var(--color-danger-text);
+  --highlight-bg: var(--color-marker);
+  --highlight-border: var(--color-marker-edge);
+}
