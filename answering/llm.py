@@ -142,11 +142,13 @@ class GeminiLLMClient(BaseCachedLLMClient):
     def __init__(
         self,
         model: str | None = None,
+        fallback_models: list[str] | None = None,
         api_key: str | None = None,
         cache_dir: Path | str | None = None,
     ):
         model_name = model or os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
         super().__init__(model=model_name, cache_dir=cache_dir)
+        self.fallback_models = fallback_models
         self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
 
     def _raw_generate(self, system: str, user: str) -> tuple[str, int, int]:
@@ -154,8 +156,10 @@ class GeminiLLMClient(BaseCachedLLMClient):
             raise ValueError("LLM_API_KEY or GEMINI_API_KEY environment variable is not set for Gemini provider.")
 
         models_to_try = [self.model]
-        if self.model != "gemini-3.5-flash" and "gemini-3.5-flash" not in models_to_try:
-            models_to_try.append("gemini-3.5-flash")
+        if self.fallback_models is not None:
+            for fb in self.fallback_models:
+                if fb not in models_to_try:
+                    models_to_try.append(fb)
 
         headers = {"x-goog-api-key": self.api_key}
         payload = {
@@ -200,8 +204,14 @@ class GeminiLLMClient(BaseCachedLLMClient):
                         last_sanitized_err,
                     )
 
-                    # For exhausted quota requiring a long wait (> 60s), preserve progress and exit immediately
+                    # For exhausted quota requiring a long wait (> 60s), fall back to next model if available, else exit immediately
                     if resp.status_code == 429 and (err_status == "RESOURCE_EXHAUSTED" or (delay_sec is not None and delay_sec > 60.0)):
+                        if current_model != models_to_try[-1]:
+                            logger.warning(
+                                "Gemini quota exhausted on %s. Trying fallback model.",
+                                current_model,
+                            )
+                            break
                         if delay_sec is not None and delay_sec > 60.0:
                             reset_dt = datetime.now(timezone.utc) + timedelta(seconds=delay_sec)
                             reset_iso = reset_dt.isoformat()
@@ -286,7 +296,8 @@ def get_llm_client(
     mod = model or os.getenv("LLM_MODEL", "gemini-3.5-flash")
 
     if prov in ("gemini", "google"):
-        return GeminiLLMClient(model=mod, api_key=api_key, cache_dir=cache_dir)
+        fallback = ["gemini-3.5-flash-lite"] if mod != "gemini-3.5-flash-lite" else ["gemini-3.5-flash"]
+        return GeminiLLMClient(model=mod, fallback_models=fallback, api_key=api_key, cache_dir=cache_dir)
     elif prov in ("fake", "mock"):
         return FakeLLMClient(model=mod, cache_dir=cache_dir)
     else:
