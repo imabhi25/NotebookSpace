@@ -280,15 +280,25 @@ export function App({
   // Source upload / add handlers
   const handleUploadFiles = async (files: File[]) => {
     if (!activeSubject) return;
+    const errors: string[] = [];
     for (const f of files) {
-      const newSrc = await api.uploadSource(activeSubject.id, f);
-      setSources((prev) => [newSrc, ...prev.filter((s) => s.id !== newSrc.id)]);
-      if (newSrc.status === 'ready') {
-        setSelectedSourceIds((prev) => [...prev, newSrc.id]);
+      try {
+        const newSrc = await api.uploadSource(activeSubject.id, f);
+        setSources((prev) => [newSrc, ...prev.filter((s) => s.id !== newSrc.id)]);
+        if (newSrc.status === 'ready') {
+          setSelectedSourceIds((prev) => [...prev, newSrc.id]);
+        } else if (newSrc.status === 'failed') {
+          errors.push(`${f.name}: ${newSrc.error_message || 'Processing failed'}`);
+        }
+      } catch (err: any) {
+        errors.push(`${f.name}: ${err.message || 'Upload failed'}`);
       }
     }
-    const sqs = await api.getStarterQuestions(activeSubject.id);
+    const sqs = await api.getStarterQuestions(activeSubject.id).catch(() => []);
     setStarterQuestions(sqs);
+    if (errors.length > 0) {
+      alert(`Some files could not be ingested:\n\n${errors.join('\n')}`);
+    }
   };
 
   const handlePasteText = async (title: string, text: string) => {
@@ -350,31 +360,35 @@ export function App({
   };
 
   // Send grounded chat message
-  const handleSendMessage = async (queryText: string) => {
+  const handleSendMessage = async (
+    queryText: string,
+    options?: { is_retry?: boolean; retry_message_id?: string }
+  ) => {
     if (!activeSubject || !activeConversationId || chatLoading) return;
     const trimmed = queryText.trim();
     if (!trimmed) return;
 
-    // Optimistic user turn
-    const tempUserMsg: MessageItem = {
-      id: `temp-${Date.now()}`,
-      conversation_id: activeConversationId,
-      user_id: currentUser?.id || '',
-      role: 'user',
-      content: trimmed,
-      citations: [],
-      conflicts: [],
-      conflict_detected: false,
-      abstained: false,
-      retrieved: [],
-      selected_source_ids: selectedSourceIds,
-      source_versions: {},
-      tokens: { input: 0, output: 0, total: 0 },
-      latency: 0,
-      created_at: new Date().toISOString(),
-    };
-
-    setMessages((prev) => [...prev, tempUserMsg]);
+    if (!options?.is_retry) {
+      // Optimistic user turn only if not retrying
+      const tempUserMsg: MessageItem = {
+        id: `temp-${Date.now()}`,
+        conversation_id: activeConversationId,
+        user_id: currentUser?.id || '',
+        role: 'user',
+        content: trimmed,
+        citations: [],
+        conflicts: [],
+        conflict_detected: false,
+        abstained: false,
+        retrieved: [],
+        selected_source_ids: selectedSourceIds,
+        source_versions: {},
+        tokens: { input: 0, output: 0, total: 0 },
+        latency: 0,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, tempUserMsg]);
+    }
     setChatLoading(true);
 
     const controller = new AbortController();
@@ -386,13 +400,20 @@ export function App({
         activeConversationId,
         trimmed,
         selectedSourceIds,
-        controller.signal
+        controller.signal,
+        options
       );
-      // Reload actual persisted messages
-      const msgs = await api.getMessages(activeSubject.id, activeConversationId);
+      // Reload actual persisted messages AND conversations so auto-renamed title updates immediately
+      const [msgs, convs] = await Promise.all([
+        api.getMessages(activeSubject.id, activeConversationId),
+        api.getConversations(activeSubject.id),
+      ]);
       setMessages(msgs);
+      setConversations(convs);
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+        const msgs = await api.getMessages(activeSubject.id, activeConversationId).catch(() => []);
+        if (msgs.length > 0) setMessages(msgs);
         return;
       }
       alert(err.message || 'Failed to send message.');
@@ -942,40 +963,47 @@ export function App({
             isOpen={isDemoSourceOpen}
           />
         </div>
-      ) : route.view === 'workspace' && activeSubject ? (
-        /* Subject Workspace View */
-        <SubjectWorkspaceView
-          subject={activeSubject}
-          sources={sources}
-          conversations={conversations}
-          notes={notes}
-          activeConversationId={activeConversationId}
-          selectedSourceIds={selectedSourceIds}
-          starterQuestions={starterQuestions}
-          isDemoMode={isDemoMode}
-          onBackToDashboard={() => navigateTo('notebooks')}
-          onSelectSources={setSelectedSourceIds}
-          onSelectConversation={handleSelectConversation}
-          onCreateConversation={handleCreateConversation}
-          onRenameConversation={handleRenameConversation}
-          onDeleteConversation={handleDeleteConversation}
-          onUploadFiles={handleUploadFiles}
-          onPasteText={handlePasteText}
-          onAddUrl={handleAddUrl}
-          onRenameSource={handleRenameSource}
-          onDeleteSource={handleDeleteSource}
-          onRetrySource={handleRetrySource}
-          onReplaceSource={handleReplaceSource}
-          onSendMessage={handleSendMessage}
-          onUpdateSettings={handleUpdateSettings}
-          onCreateNote={handleCreateNote}
-          onSaveAnswerAsNote={handleSaveAnswerAsNote}
-          onUpdateNote={handleUpdateNote}
-          onDeleteNote={handleDeleteNote}
-          messages={messages}
-          chatLoading={chatLoading}
-          onStopGeneration={handleStopGeneration}
-        />
+      ) : route.view === 'workspace' ? (
+        activeSubject ? (
+          /* Subject Workspace View */
+          <SubjectWorkspaceView
+            subject={activeSubject}
+            sources={sources}
+            conversations={conversations}
+            notes={notes}
+            activeConversationId={activeConversationId}
+            selectedSourceIds={selectedSourceIds}
+            starterQuestions={starterQuestions}
+            isDemoMode={isDemoMode}
+            onBackToDashboard={() => navigateTo('notebooks')}
+            onSelectSources={setSelectedSourceIds}
+            onSelectConversation={handleSelectConversation}
+            onCreateConversation={handleCreateConversation}
+            onRenameConversation={handleRenameConversation}
+            onDeleteConversation={handleDeleteConversation}
+            onUploadFiles={handleUploadFiles}
+            onPasteText={handlePasteText}
+            onAddUrl={handleAddUrl}
+            onRenameSource={handleRenameSource}
+            onDeleteSource={handleDeleteSource}
+            onRetrySource={handleRetrySource}
+            onReplaceSource={handleReplaceSource}
+            onSendMessage={handleSendMessage}
+            onUpdateSettings={handleUpdateSettings}
+            onCreateNote={handleCreateNote}
+            onSaveAnswerAsNote={handleSaveAnswerAsNote}
+            onUpdateNote={handleUpdateNote}
+            onDeleteNote={handleDeleteNote}
+            messages={messages}
+            chatLoading={chatLoading}
+            onStopGeneration={handleStopGeneration}
+          />
+        ) : (
+          <div className="workspace-loading-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 80px)', gap: '1rem' }}>
+            <div className="step-spinner" style={{ width: 28, height: 28 }} />
+            <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Loading subject notebook...</p>
+          </div>
+        )
       ) : (
         /* Subject Dashboard View */
         <DashboardView

@@ -740,12 +740,21 @@ button, input[type="file"], .btn {
   gap: 10px;
 }
 
+.card-generation-failed {
+  background-color: #fff1f2;
+  border: 2px dashed #f87171;
+}
+
 .not-found-badge {
   font-size: 0.775rem;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--notfound-label);
+}
+
+.badge-failed {
+  color: #e11d48;
 }
 
 .abstain-reason {

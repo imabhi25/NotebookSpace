@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone, timedelta
 import hashlib
 import json
+import logging
 import os
 from pathlib import Path
 import re
@@ -11,6 +12,7 @@ import httpx
 from dotenv import load_dotenv
 
 load_dotenv()
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -143,7 +145,7 @@ class GeminiLLMClient(BaseCachedLLMClient):
         api_key: str | None = None,
         cache_dir: Path | str | None = None,
     ):
-        model_name = model or os.getenv("LLM_MODEL", "gemini-3.5-flash")
+        model_name = model or os.getenv("LLM_MODEL", "gemini-2.5-flash")
         super().__init__(model=model_name, cache_dir=cache_dir)
         self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
 
@@ -152,8 +154,8 @@ class GeminiLLMClient(BaseCachedLLMClient):
             raise ValueError("LLM_API_KEY or GEMINI_API_KEY environment variable is not set for Gemini provider.")
 
         models_to_try = [self.model]
-        if self.model != "gemini-3.5-flash-lite":
-            models_to_try.append("gemini-3.5-flash-lite")
+        if self.model != "gemini-1.5-flash" and "gemini-1.5-flash" not in models_to_try:
+            models_to_try.append("gemini-1.5-flash")
 
         headers = {"x-goog-api-key": self.api_key}
         payload = {
@@ -162,7 +164,16 @@ class GeminiLLMClient(BaseCachedLLMClient):
             "generationConfig": {"temperature": 0.0},
         }
 
+        def _sanitize_message(raw_msg: str) -> str:
+            if not raw_msg:
+                return "Unknown error"
+            # Strip potential API keys or token substrings
+            sanitized = re.sub(r'(?:AIza|AQ\.)[A-Za-z0-9_-]{15,}', '[REDACTED_KEY]', str(raw_msg))
+            sanitized = re.sub(r'key=[A-Za-z0-9_-]+', 'key=[REDACTED]', sanitized)
+            return sanitized.strip()
+
         data = None
+        last_sanitized_err = ""
         with httpx.Client(timeout=60.0) as client:
             for current_model in models_to_try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent"
@@ -173,6 +184,21 @@ class GeminiLLMClient(BaseCachedLLMClient):
                         break
 
                     delay_sec, err_status = parse_retry_delay(resp)
+                    err_msg = ""
+                    try:
+                        err_json = resp.json()
+                        if isinstance(err_json, dict) and "error" in err_json:
+                            err_msg = err_json["error"].get("message", "")
+                    except Exception:
+                        err_msg = resp.text[:200]
+                    last_sanitized_err = _sanitize_message(err_msg)
+                    logger.error(
+                        "Gemini API error [model=%s, status=%s, code=%s]: %s",
+                        current_model,
+                        resp.status_code,
+                        err_status or "NONE",
+                        last_sanitized_err,
+                    )
 
                     # For exhausted quota requiring a long wait (> 60s), preserve progress and exit immediately
                     if resp.status_code == 429 and (err_status == "RESOURCE_EXHAUSTED" or (delay_sec is not None and delay_sec > 60.0)):
@@ -189,8 +215,8 @@ class GeminiLLMClient(BaseCachedLLMClient):
                                 "Quota window exceeded. Please wait for provider quota reset."
                             )
 
-                    # If model is unavailable (503) or not found (404) and we have a fallback model, break to next model
-                    if resp.status_code in (404, 503) and current_model != models_to_try[-1]:
+                    # If model is not found (404) and we have a fallback model, break to next model
+                    if resp.status_code == 404 and current_model != models_to_try[-1]:
                         break
 
                     # Short transient failures: bounded retries up to 3 times (attempts 0, 1)
@@ -203,9 +229,9 @@ class GeminiLLMClient(BaseCachedLLMClient):
                         continue
 
                     if resp.status_code >= 400 and current_model == models_to_try[-1]:
-                        # Non-transient or exhausted retries
                         status_detail = f" {err_status}" if err_status else ""
-                        raise RuntimeError(f"LLM request failed with status {resp.status_code}{status_detail}")
+                        detail_msg = f": {last_sanitized_err}" if last_sanitized_err else ""
+                        raise RuntimeError(f"LLM request failed with status {resp.status_code}{status_detail}{detail_msg}")
 
                 if data is not None:
                     break

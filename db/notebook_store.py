@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from typing import Any, Sequence
 from uuid import UUID
 from db.connection import get_connection
@@ -566,6 +567,7 @@ def update_source_status(
     raw_content: str | None = None,
     version: int | None = None,
     file_hash: str | None = None,
+    file_name: str | None = None,
     db_url: str | None = None,
 ) -> None:
     with get_connection(db_url) as conn:
@@ -589,6 +591,9 @@ def update_source_status(
                 if file_hash is not None:
                     updates.append("file_hash = %s")
                     params.append(file_hash)
+                if file_name is not None:
+                    updates.append("file_name = %s")
+                    params.append(file_name)
 
                 params.append(str(source_id))
                 query = f"UPDATE sources SET {', '.join(updates)} WHERE id = %s;"
@@ -712,6 +717,29 @@ def get_source_passages(
 # SCOPED VECTOR RETRIEVAL
 # ============================================================================
 
+def extract_key_terms(query: str) -> list[str]:
+    terms = set()
+    # Match equation patterns: "Eq. 3", "Eq 3", "Equation 3"
+    for m in re.finditer(r'\b(Eq(?:uation)?\.?\s*\d+[a-zA-Z]?)\b', query, re.IGNORECASE):
+        terms.add(m.group(1))
+
+    # Match short terms, acronyms, or specific technical identifiers
+    for word in re.findall(r'\b[A-Za-z0-9_\-\.\^\/]{2,}\b', query):
+        clean_word = word.strip(".,;:?!")
+        stop_words = {
+            "what", "where", "when", "which", "who", "whom", "whose", "why", "how",
+            "is", "are", "was", "were", "be", "been", "being",
+            "have", "has", "had", "do", "does", "did",
+            "the", "a", "an", "and", "or", "but", "if", "then", "else",
+            "for", "of", "to", "in", "on", "at", "by", "from", "with", "about",
+            "tell", "explain", "describe", "find", "give", "show", "summarize",
+            "this", "that", "these", "those", "does", "some", "any",
+        }
+        if clean_word.lower() not in stop_words and len(clean_word) >= 2:
+            terms.add(clean_word)
+    return list(terms)
+
+
 def search_scoped(
     question: str,
     user_id: str | UUID,
@@ -725,17 +753,21 @@ def search_scoped(
     - Current authenticated user
     - Active subject
     - Only user-selected sources that are 'ready'
+    Combines semantic vector similarity with keyword/exact term matching for terms like 'Ksi' and 'Eq. 3'.
     """
     if not question.strip() or k <= 0 or not selected_source_ids:
         return []
 
     from ingestion.embedder import embed_text
     query_vector = embed_text(question)
-
     selected_ids_str = [str(s_id) for s_id in selected_source_ids]
+    key_terms = extract_key_terms(question)
+
+    results_by_id: dict[int, dict[str, Any]] = {}
 
     with get_connection(db_url) as conn:
         with conn.cursor() as cur:
+            # 1. Semantic vector search (fetch up to max(k * 2, 8) candidates)
             cur.execute(
                 """
                 SELECT 
@@ -765,34 +797,99 @@ def search_scoped(
                     str(subject_id),
                     selected_ids_str,
                     query_vector,
-                    k,
+                    max(k * 2, 8),
                 ),
             )
-            rows = cur.fetchall()
+            for row in cur.fetchall():
+                c_id, src_id, file_name, page_num, text, chunk_idx, score, s_title, s_version, s_updated = row
+                results_by_id[c_id] = {
+                    "id": c_id,
+                    "source_id": str(src_id),
+                    "file": s_title or file_name,
+                    "file_name": file_name,
+                    "title": s_title or file_name,
+                    "page": page_num,
+                    "page_number": page_num,
+                    "text": text,
+                    "chunk_text": text,
+                    "chunk_index": chunk_idx,
+                    "score": float(score),
+                    "similarity_score": float(score),
+                    "source_version": s_version,
+                    "upload_date": s_updated.isoformat() if hasattr(s_updated, "isoformat") else str(s_updated),
+                    "matched_terms": [],
+                }
 
-    results: list[dict[str, Any]] = []
-    for row in rows:
-        c_id, src_id, file_name, page_num, text, chunk_idx, score, s_title, s_version, s_updated = row
-        results.append(
-            {
-                "id": c_id,
-                "source_id": str(src_id),
-                "file": s_title or file_name,
-                "file_name": file_name,
-                "title": s_title or file_name,
-                "page": page_num,
-                "page_number": page_num,
-                "text": text,
-                "chunk_text": text,
-                "chunk_index": chunk_idx,
-                "score": float(score),
-                "similarity_score": float(score),
-                "source_version": s_version,
-                "upload_date": s_updated.isoformat() if hasattr(s_updated, "isoformat") else str(s_updated),
-            }
-        )
+            # 2. Exact keyword search for key terms (e.g. "Ksi", "Eq. 3")
+            if key_terms:
+                like_patterns = [f"%{term}%" for term in key_terms]
+                cur.execute(
+                    """
+                    SELECT 
+                        c.id,
+                        c.source_id,
+                        c.file_name,
+                        c.page_number,
+                        c.chunk_text,
+                        c.chunk_index,
+                        1 - (c.embedding <=> %s::vector) AS similarity_score,
+                        s.title,
+                        s.version,
+                        s.updated_at
+                    FROM chunks c
+                    JOIN sources s ON c.source_id = s.id
+                    JOIN subjects sub ON s.subject_id = sub.id
+                    WHERE sub.user_id = %s
+                    AND s.subject_id = %s
+                    AND s.id = ANY(%s::uuid[])
+                    AND s.status = 'ready'
+                    AND (c.chunk_text ILIKE ANY(%s))
+                    LIMIT %s;
+                    """,
+                    (
+                        query_vector,
+                        str(user_id),
+                        str(subject_id),
+                        selected_ids_str,
+                        like_patterns,
+                        k * 2,
+                    ),
+                )
+                for row in cur.fetchall():
+                    c_id, src_id, file_name, page_num, text, chunk_idx, score, s_title, s_version, s_updated = row
+                    if c_id not in results_by_id:
+                        results_by_id[c_id] = {
+                            "id": c_id,
+                            "source_id": str(src_id),
+                            "file": s_title or file_name,
+                            "file_name": file_name,
+                            "title": s_title or file_name,
+                            "page": page_num,
+                            "page_number": page_num,
+                            "text": text,
+                            "chunk_text": text,
+                            "chunk_index": chunk_idx,
+                            "score": float(score),
+                            "similarity_score": float(score),
+                            "source_version": s_version,
+                            "upload_date": s_updated.isoformat() if hasattr(s_updated, "isoformat") else str(s_updated),
+                            "matched_terms": [],
+                        }
 
-    return results
+    # 3. Hybrid scoring: check which chunks contain key terms
+    for res in results_by_id.values():
+        chunk_text_lower = res["text"].lower()
+        matched = [t for t in key_terms if t.lower() in chunk_text_lower]
+        res["matched_terms"] = matched
+        if matched:
+            # Boost score so short terms and equations pass minimum score threshold
+            boosted = max(res["score"] + 0.30, 0.40)
+            res["score"] = min(1.0, boosted)
+            res["similarity_score"] = res["score"]
+
+    # 4. Rank by score descending and take top k
+    ranked = sorted(results_by_id.values(), key=lambda x: x["score"], reverse=True)
+    return ranked[:k]
 
 
 # ============================================================================
@@ -933,6 +1030,21 @@ def delete_conversation(
                 cur.execute(
                     "DELETE FROM conversations WHERE id = %s AND user_id = %s;",
                     (str(conversation_id), str(user_id)),
+                )
+                return cur.rowcount > 0
+
+
+def delete_message(
+    user_id: str | UUID,
+    message_id: str | UUID,
+    db_url: str | None = None,
+) -> bool:
+    with get_connection(db_url) as conn:
+        with conn.transaction():
+            with conn.cursor() as cur:
+                cur.execute(
+                    "DELETE FROM messages WHERE id = %s AND user_id = %s;",
+                    (str(message_id), str(user_id)),
                 )
                 return cur.rowcount > 0
 

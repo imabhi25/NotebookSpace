@@ -100,8 +100,8 @@ def parse_pdf_source(
     total_chars = sum(len(p[2].strip()) for p in pages)
     if total_chars < 15:
         raise ValueError(
-            "Scanned PDF without OCR text layer detected. Text extraction produced no usable content. "
-            "Please provide an OCR-processed PDF."
+            "Scanned PDF without text layer detected. OCR is currently unsupported. "
+            "Please upload a PDF with embedded text or an OCR-processed document."
         )
 
     return pages

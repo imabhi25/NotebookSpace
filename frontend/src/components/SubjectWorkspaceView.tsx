@@ -39,7 +39,7 @@ interface SubjectWorkspaceViewProps {
   onDeleteSource: (sourceId: string) => Promise<void>;
   onRetrySource: (sourceId: string) => Promise<void>;
   onReplaceSource: (sourceId: string, file: File) => Promise<void>;
-  onSendMessage: (question: string) => Promise<void>;
+  onSendMessage: (question: string, options?: { is_retry?: boolean; retry_message_id?: string }) => Promise<void>;
   onUpdateSettings: (settings: SubjectSettings) => Promise<void>;
   onCreateNote: (title: string, content: string) => Promise<void>;
   onSaveAnswerAsNote: (msg: MessageItem) => Promise<void>;
@@ -845,9 +845,36 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                         <div className="assistant-message">
                           {/* 1. Abstention / Not Found view */}
                           {msg.abstained ? (
-                            <div className="card-not-found" data-testid="abstained-view">
-                              <div className="not-found-badge">NOT FOUND IN YOUR DOCUMENTS</div>
+                            <div className={`card-not-found ${msg.abstain_reason === 'generation_failed' ? 'card-generation-failed' : ''}`} data-testid="abstained-view">
+                              <div className={`not-found-badge ${msg.abstain_reason === 'generation_failed' ? 'badge-failed' : ''}`}>
+                                {msg.abstain_reason === 'generation_failed' ? 'GENERATION FAILED' : 'NOT FOUND IN YOUR DOCUMENTS'}
+                              </div>
                               <div className="abstain-reason">{msg.content}</div>
+
+                              {/* Action toolbar with Retry on abstained/failed turns */}
+                              <div className="answer-action-toolbar" style={{ marginTop: '0.75rem' }}>
+                                <button
+                                  type="button"
+                                  className="answer-action-btn"
+                                  onClick={() => {
+                                    const msgIdx = messages.findIndex((m) => m.id === msg.id);
+                                    const prevUser = [...messages.slice(0, msgIdx)].reverse().find((m) => m.role === 'user');
+                                    if (prevUser) {
+                                      onSendMessage(prevUser.content, { is_retry: true, retry_message_id: msg.id });
+                                    }
+                                  }}
+                                  title="Retry question with current sources"
+                                  aria-label="Retry question"
+                                  data-testid={`retry-btn-${msg.id}`}
+                                >
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <polyline points="1 4 1 10 7 10" />
+                                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                  </svg>
+                                  <span>Retry</span>
+                                </button>
+                              </div>
+
                               {msg.retrieved && msg.retrieved.length > 0 && (
                                 <div className="related-passages-section">
                                   <h4 className="related-passages-title">Passages checked</h4>
@@ -868,6 +895,43 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             </div>
                           ) : (
                             <div className="answer-view-container" data-testid="answer-view">
+                              {/* Earlier source version indicator */}
+                              {(() => {
+                                const outdated = sources.filter((s) => {
+                                  const msgVer = msg.source_versions?.[s.id];
+                                  return msgVer !== undefined && s.version > msgVer;
+                                });
+                                if (outdated.length > 0) {
+                                  return (
+                                    <div
+                                      className="outdated-version-badge"
+                                      data-testid="outdated-source-warning"
+                                      style={{
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '6px',
+                                        padding: '4px 8px',
+                                        marginBottom: '8px',
+                                        borderRadius: '4px',
+                                        fontSize: '12px',
+                                        color: '#92400e',
+                                        backgroundColor: '#fef3c7',
+                                        border: '1px solid #fcd34d',
+                                      }}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="12" y1="8" x2="12" y2="12" />
+                                        <line x1="12" y1="16" x2="12.01" y2="16" />
+                                      </svg>
+                                      <span>
+                                        Based on earlier source version ({outdated.map((s) => `${s.title || s.file_name} v${msg.source_versions[s.id]}`).join(', ')} vs current v{outdated.map((s) => s.version).join(', ')})
+                                      </span>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
                               {/* 2. Conflicts view */}
                               {msg.conflict_detected && msg.conflicts && msg.conflicts.length > 0 && (
                                 <div className="conflict-container" data-testid="conflict-view">
@@ -973,7 +1037,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     const msgIdx = messages.findIndex((m) => m.id === msg.id);
                                     const prevUser = [...messages.slice(0, msgIdx)].reverse().find((m) => m.role === 'user');
                                     if (prevUser) {
-                                      onSendMessage(prevUser.content);
+                                      onSendMessage(prevUser.content, { is_retry: true, retry_message_id: msg.id });
                                     }
                                   }}
                                   title="Retry question with current sources"

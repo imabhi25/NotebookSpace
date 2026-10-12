@@ -69,6 +69,12 @@ export const SourceModal: React.FC<SourceModalProps> = ({
         if (selectedFiles.length === 0) {
           throw new Error('Please select at least one file to upload.');
         }
+        const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
+        for (const file of selectedFiles) {
+          if (file.size > MAX_UPLOAD_SIZE) {
+            throw new Error(`"${file.name}" exceeds the 50 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`);
+          }
+        }
         await onUploadFiles(selectedFiles);
       } else if (tab === 'paste') {
         if (!pasteTitle.trim()) throw new Error('Please enter a title for the pasted content.');
@@ -155,7 +161,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                   Drag and drop files here, or <span className="drop-zone-link">browse</span>
                 </p>
                 <p className="drop-zone-hint">
-                  Supports PDF, Plain Text (.txt), and Markdown (.md). Max 10 MB per PDF.
+                  Supports PDF, Plain Text (.txt), and Markdown (.md). Max 50 MB per file.
                 </p>
               </div>
 
