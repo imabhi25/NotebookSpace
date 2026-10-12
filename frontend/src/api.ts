@@ -68,6 +68,19 @@ async function getOrInitToken(): Promise<string | null> {
   return sessionInitPromise;
 }
 
+// True when the session a request was sent with is missing, expired or unknown to the server.
+async function isSessionLost(tokenUsed: string | null): Promise<boolean> {
+  if (!tokenUsed) return true;
+  // Another request already replaced the session: retry with the current one, no probe needed.
+  if (getToken() !== tokenUsed) return true;
+  try {
+    const me = await fetch(`${API_BASE_URL}/auth/me`, { headers: { Authorization: `Bearer ${tokenUsed}` } });
+    return me.status === 401;
+  } catch {
+    return false;
+  }
+}
+
 // Generic fetch wrapper with error parsing and automatic guest session init
 async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
@@ -84,10 +97,20 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     headers['Content-Type'] = 'application/json';
   }
 
+  const tokenUsed = getToken();
   let res = await fetch(url, { ...options, headers });
 
-  if (res.status === 401 && !endpoint.startsWith('/auth/')) {
-    setToken(null);
+  // User-data routes answer 404 for a missing or expired session, exactly as they do for a
+  // resource that does not exist. The session probe (/auth/me) still answers 401, so it is
+  // asked which of the two happened before a fresh guest session replaces the old one.
+  const sessionLost =
+    !endpoint.startsWith('/auth/') &&
+    (res.status === 401 || (res.status === 404 && (await isSessionLost(tokenUsed))));
+
+  if (sessionLost) {
+    // Parallel requests can all notice the lost session. Only the first clears it, so the
+    // rest reuse the replacement instead of each creating another guest account.
+    if (getToken() === tokenUsed) setToken(null);
     try {
       await getOrInitToken();
       headers = getAuthHeaders((options.headers as Record<string, string>) || {});
@@ -395,7 +418,11 @@ export const api = {
 
   // Legacy Passages & Ask
   async getPassages(file: string, page: number): Promise<PassageItem[]> {
-    const res = await fetch(`${API_BASE_URL}/passages?file=${encodeURIComponent(file)}&page=${page}`);
+    // Passages are served only to a signed-in session. A refusal reads as "nothing to show".
+    await getOrInitToken();
+    const res = await fetch(`${API_BASE_URL}/passages?file=${encodeURIComponent(file)}&page=${page}`, {
+      headers: getAuthHeaders(),
+    });
     return res.ok ? await res.json() : [];
   },
 

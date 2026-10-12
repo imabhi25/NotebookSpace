@@ -2,6 +2,7 @@ from collections import defaultdict
 import hashlib
 import io
 import logging
+import math
 import os
 from pathlib import Path
 import time
@@ -19,6 +20,7 @@ from api.auth import (
     create_guest_user_and_session,
     create_user_session,
     get_current_user,
+    get_current_user_or_404,
     get_or_create_demo_user,
     hash_password,
     verify_password,
@@ -86,6 +88,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["Retry-After"],
 )
 
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(50 * 1024 * 1024)))  # 50 MB for PDF
@@ -120,21 +123,60 @@ def get_demo_ask_limit() -> int:
         return 10
 
 
+RATE_LIMIT_WINDOW_SECONDS = 60.0
+
+
+def get_client_ip(request: Request) -> str:
+    """Client address used as the key for per-IP rate limiting.
+
+    1. CF-Connecting-IP, when present. The Render deployment sits behind Cloudflare, which
+       overwrites this header with the real client address, so it cannot be forged through
+       the edge. Set TRUST_CF_CONNECTING_IP=false when the API is not behind Cloudflare.
+    2. Otherwise the last X-Forwarded-For entry, which is the one appended by the nearest
+       proxy. Earlier entries are client-supplied and must not be trusted.
+    3. Otherwise the socket peer.
+
+    Keying on the last X-Forwarded-For entry alone was not enough in production: behind two
+    proxy layers that entry is the edge node, which changes between requests, so one client's
+    requests were spread over several counters and the limit leaked.
+    """
+    if os.getenv("TRUST_CF_CONNECTING_IP", "true").lower() not in ("false", "0", "no"):
+        edge_ip = request.headers.get("cf-connecting-ip", "").strip()
+        if edge_ip:
+            return edge_ip
+    last_hop = request.headers.get("x-forwarded-for", "").split(",")[-1].strip()
+    if last_hop:
+        return last_hop
+    return request.client.host if request.client else "127.0.0.1"
+
+
+def _enforce_rate_limit(history: dict[str, list[float]], key: str, limit: int, detail: str) -> None:
+    """Sliding 60-second window. Raises 429 with a Retry-After header once the limit is reached."""
+    now = time.time()
+    timestamps = [ts for ts in history[key] if now - ts < RATE_LIMIT_WINDOW_SECONDS]
+    if len(timestamps) >= limit:
+        history[key] = timestamps
+        oldest = timestamps[0] if timestamps else now
+        retry_after = max(1, math.ceil(RATE_LIMIT_WINDOW_SECONDS - (now - oldest)))
+        raise HTTPException(
+            status_code=429,
+            detail=detail,
+            headers={"Retry-After": str(retry_after)},
+        )
+    timestamps.append(now)
+    history[key] = timestamps
+
+
 def check_ask_rate_limit(client_ip: str) -> None:
     if not is_demo_mode():
         return
     limit = get_demo_ask_limit()
-    now = time.time()
-    window = 60.0
-    timestamps = [ts for ts in ask_rate_limit_history[client_ip] if now - ts < window]
-    if len(timestamps) >= limit:
-        ask_rate_limit_history[client_ip] = timestamps
-        raise HTTPException(
-            status_code=429,
-            detail=f"Rate limit exceeded. Demo allows up to {limit} questions per minute.",
-        )
-    timestamps.append(now)
-    ask_rate_limit_history[client_ip] = timestamps
+    _enforce_rate_limit(
+        ask_rate_limit_history,
+        client_ip,
+        limit,
+        f"Rate limit exceeded. Demo allows up to {limit} questions per minute.",
+    )
 
 
 user_ask_history: dict[str, list[float]] = defaultdict(list)
@@ -142,23 +184,52 @@ user_ask_history: dict[str, list[float]] = defaultdict(list)
 
 def check_user_ask_rate_limit(user_id: str, limit: int = 15) -> None:
     """Enforce rate limits per guest session to prevent model quota abuse."""
-    now = time.time()
-    window = 60.0
-    timestamps = [ts for ts in user_ask_history[user_id] if now - ts < window]
-    if len(timestamps) >= limit:
-        user_ask_history[user_id] = timestamps
-        raise HTTPException(
-            status_code=429,
-            detail=f"Rate limit exceeded. Portfolio deployment allows up to {limit} questions per minute.",
-        )
-    timestamps.append(now)
-    user_ask_history[user_id] = timestamps
+    _enforce_rate_limit(
+        user_ask_history,
+        user_id,
+        limit,
+        f"Rate limit exceeded. Portfolio deployment allows up to {limit} questions per minute.",
+    )
 
 
 def reset_rate_limits() -> None:
     """Helper for testing to clear in-memory rate limit counts."""
     ask_rate_limit_history.clear()
     user_ask_history.clear()
+
+
+# Response settings a notebook may store. Anything else is rejected.
+ALLOWED_SUBJECT_SETTINGS: dict[str, tuple[str, ...]] = {
+    "response_length": ("concise", "default", "detailed"),
+    "response_style": ("general", "learning-guide"),
+}
+
+
+def validate_subject_settings(settings: Any) -> Optional[dict[str, str]]:
+    """Check response settings against the known schema.
+
+    Returns the settings unchanged when valid, None when none were sent, and raises a
+    400 naming the offending key or value otherwise.
+    """
+    if settings is None:
+        return None
+    if not isinstance(settings, dict):
+        raise HTTPException(status_code=400, detail="Invalid settings: expected an object.")
+    allowed_keys = ", ".join(ALLOWED_SUBJECT_SETTINGS)
+    unknown = sorted(str(key) for key in settings if key not in ALLOWED_SUBJECT_SETTINGS)
+    if unknown:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid settings: unknown setting {', '.join(unknown)}. Allowed settings: {allowed_keys}.",
+        )
+    for key, value in settings.items():
+        allowed_values = ALLOWED_SUBJECT_SETTINGS[key]
+        if not isinstance(value, str) or value not in allowed_values:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid settings: {key} must be one of {', '.join(allowed_values)}.",
+            )
+    return dict(settings)
 
 
 # ============================================================================
@@ -184,7 +255,7 @@ class SubjectCreateRequest(BaseModel):
     name: str = Field(..., max_length=200)
     course_code: Optional[str] = Field(default=None, max_length=50)
     description: Optional[str] = Field(default=None, max_length=2000)
-    settings: Optional[dict[str, Any]] = None
+    settings: Optional[Any] = None
 
     @field_validator("name")
     @classmethod
@@ -207,7 +278,7 @@ class SubjectUpdateRequest(BaseModel):
     course_code: Optional[str] = Field(default=None, max_length=50)
     description: Optional[str] = Field(default=None, max_length=2000)
     is_archived: Optional[bool] = None
-    settings: Optional[dict[str, Any]] = None
+    settings: Optional[Any] = None
 
     @field_validator("name")
     @classmethod
@@ -430,9 +501,17 @@ def get_documents_endpoint():
 def get_passages_endpoint(
     file: str = Query(..., description="Document file name"),
     page: int = Query(..., ge=1, description="Page number"),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
-    """Return chunks for a given file and page number."""
-    return get_passages_for_page(file_name=file, page_number=page)
+    """Return chunks for a file and page that the caller is allowed to read.
+
+    A signed-in caller sees their own sources, or the shared demo documents. No credentials,
+    someone else's source and an unknown name all answer the same 404.
+    """
+    passages = get_passages_for_page(file_name=file, page_number=page, user_id=current_user["id"])
+    if not passages:
+        raise HTTPException(status_code=404, detail="Not found.")
+    return passages
 
 
 @app.post("/search", response_model=SearchResponse)
@@ -460,11 +539,7 @@ def search_endpoint(payload: SearchRequest):
 @app.post("/ask", response_model=AskResponse)
 def ask_endpoint(payload: AskRequest, request: Request):
     """Answer a question using retrieved passages, citations, and support checks."""
-    client_ip = (
-        request.headers.get("x-forwarded-for", "").split(",")[-1].strip()
-        or (request.client.host if request.client else "127.0.0.1")
-    )
-    check_ask_rate_limit(client_ip)
+    check_ask_rate_limit(get_client_ip(request))
     result = answer_question(question=payload.question, k=payload.k)
     return AskResponse(**result)
 
@@ -594,7 +669,7 @@ def get_subjects_endpoint(
     include_archived: bool = Query(False),
     search: Optional[str] = Query(None),
     sort_by: str = Query("updated_at"),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     return get_subjects_for_user(
         user_id=current_user["id"],
@@ -607,8 +682,9 @@ def get_subjects_endpoint(
 @app.post("/subjects")
 def create_subject_endpoint(
     payload: SubjectCreateRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    settings = validate_subject_settings(payload.settings)
     existing = get_subjects_for_user(user_id=current_user["id"], include_archived=True)
     if len(existing) >= 10:
         raise HTTPException(
@@ -620,14 +696,14 @@ def create_subject_endpoint(
         name=payload.name,
         course_code=payload.course_code,
         description=payload.description,
-        settings=payload.settings,
+        settings=settings,
     )
 
 
 @app.get("/subjects/{subject_id}")
 def get_subject_endpoint(
     subject_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -639,8 +715,9 @@ def get_subject_endpoint(
 def update_subject_endpoint(
     subject_id: str,
     payload: SubjectUpdateRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    settings = validate_subject_settings(payload.settings)
     updated = update_subject(
         user_id=current_user["id"],
         subject_id=subject_id,
@@ -648,7 +725,7 @@ def update_subject_endpoint(
         course_code=payload.course_code,
         description=payload.description,
         is_archived=payload.is_archived,
-        settings=payload.settings,
+        settings=settings,
     )
     if not updated:
         raise HTTPException(status_code=404, detail="Subject not found.")
@@ -658,7 +735,7 @@ def update_subject_endpoint(
 @app.delete("/subjects/{subject_id}")
 def delete_subject_endpoint(
     subject_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     deleted = delete_subject(user_id=current_user["id"], subject_id=subject_id)
     if not deleted:
@@ -669,7 +746,7 @@ def delete_subject_endpoint(
 @app.post("/subjects/{subject_id}/archive")
 def archive_subject_endpoint(
     subject_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     updated = update_subject(
         user_id=current_user["id"],
@@ -684,7 +761,7 @@ def archive_subject_endpoint(
 @app.post("/subjects/{subject_id}/restore")
 def restore_subject_endpoint(
     subject_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     updated = update_subject(
         user_id=current_user["id"],
@@ -699,7 +776,7 @@ def restore_subject_endpoint(
 @app.get("/subjects/{subject_id}/starter-questions")
 def get_starter_questions_endpoint(
     subject_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -780,7 +857,7 @@ def _process_and_store_source(
 def get_sources_endpoint(
     subject_id: str,
     search: Optional[str] = Query(None),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -792,7 +869,7 @@ def get_sources_endpoint(
 async def upload_source_endpoint(
     subject_id: str,
     file: UploadFile = File(...),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -874,7 +951,7 @@ async def upload_source_endpoint(
 def paste_source_endpoint(
     subject_id: str,
     payload: SourcePasteRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -934,7 +1011,7 @@ def paste_source_endpoint(
 def url_source_endpoint(
     subject_id: str,
     payload: SourceUrlRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -981,7 +1058,7 @@ def url_source_endpoint(
 def get_source_detail_endpoint(
     subject_id: str,
     source_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     src = get_source_by_id(user_id=current_user["id"], source_id=source_id, include_raw_content=True)
     if not src or src["subject_id"] != subject_id:
@@ -997,7 +1074,7 @@ def rename_source_endpoint(
     subject_id: str,
     source_id: str,
     payload: SourceRenameRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     updated = update_source_title(
         user_id=current_user["id"],
@@ -1013,7 +1090,7 @@ def rename_source_endpoint(
 def delete_source_endpoint(
     subject_id: str,
     source_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     deleted = delete_source(user_id=current_user["id"], source_id=source_id)
     if not deleted:
@@ -1025,7 +1102,7 @@ def delete_source_endpoint(
 def retry_source_endpoint(
     subject_id: str,
     source_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     src = get_source_by_id(user_id=current_user["id"], source_id=source_id, include_raw_content=True)
     if not src or src["subject_id"] != subject_id:
@@ -1058,7 +1135,7 @@ async def replace_source_endpoint(
     subject_id: str,
     source_id: str,
     file: UploadFile = File(...),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     src = get_source_by_id(user_id=current_user["id"], source_id=source_id)
     if not src or src["subject_id"] != subject_id:
@@ -1116,7 +1193,7 @@ async def replace_source_endpoint(
 @app.get("/subjects/{subject_id}/conversations")
 def get_conversations_endpoint(
     subject_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -1128,7 +1205,7 @@ def get_conversations_endpoint(
 def create_conversation_endpoint(
     subject_id: str,
     payload: ConversationCreateRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -1141,7 +1218,7 @@ def create_conversation_endpoint(
 def get_conversation_endpoint(
     subject_id: str,
     conversation_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     conv = get_conversation_by_id(user_id=current_user["id"], conversation_id=conversation_id)
     if not conv or conv["subject_id"] != subject_id:
@@ -1154,7 +1231,7 @@ def rename_conversation_endpoint(
     subject_id: str,
     conversation_id: str,
     payload: ConversationRenameRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     updated = update_conversation_title(
         user_id=current_user["id"],
@@ -1170,7 +1247,7 @@ def rename_conversation_endpoint(
 def delete_conversation_endpoint(
     subject_id: str,
     conversation_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     deleted = delete_conversation(user_id=current_user["id"], conversation_id=conversation_id)
     if not deleted:
@@ -1182,7 +1259,7 @@ def delete_conversation_endpoint(
 def get_messages_endpoint(
     subject_id: str,
     conversation_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     conv = get_conversation_by_id(user_id=current_user["id"], conversation_id=conversation_id)
     if not conv or conv["subject_id"] != subject_id:
@@ -1195,7 +1272,7 @@ def send_message_endpoint(
     subject_id: str,
     conversation_id: str,
     payload: MessageSendRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -1241,7 +1318,7 @@ def send_message_endpoint(
 def get_notes_endpoint(
     subject_id: str,
     search: Optional[str] = Query(None),
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -1253,7 +1330,7 @@ def get_notes_endpoint(
 def create_note_endpoint(
     subject_id: str,
     payload: NoteCreateRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
@@ -1273,7 +1350,7 @@ def create_note_endpoint(
 def get_note_endpoint(
     subject_id: str,
     note_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     note = get_note_by_id(user_id=current_user["id"], note_id=note_id)
     if not note or note["subject_id"] != subject_id:
@@ -1286,7 +1363,7 @@ def update_note_endpoint(
     subject_id: str,
     note_id: str,
     payload: NoteUpdateRequest,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     updated = update_note(
         user_id=current_user["id"],
@@ -1303,7 +1380,7 @@ def update_note_endpoint(
 def delete_note_endpoint(
     subject_id: str,
     note_id: str,
-    current_user: dict[str, Any] = Depends(get_current_user),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     deleted = delete_note(user_id=current_user["id"], note_id=note_id)
     if not deleted:

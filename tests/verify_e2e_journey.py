@@ -12,7 +12,7 @@ Executes the full 12-step verification specified in the prompt:
 9. Save an answer to a note and confirm it persists.
 10. Reload the page and confirm subjects, sources, chats, and notes remain.
 11. Replace/remove a source and confirm citation and history handling.
-12. Verify unauthorized requests return 401.
+12. Verify unauthorized requests return 404 (no existence probing).
 """
 import io
 import json
@@ -369,20 +369,20 @@ def run_verification():
         assert len(list_after_del) == 1
         print("✓ Source deleted cleanly without crashing conversation history")
 
-        # STEP 12: Verify unauthorized requests return 401
+        # STEP 12: Verify unauthorized requests return 404
         print("\n--- STEP 12: Unauthorized request security checks ---")
         unauth_sub = client.get("/subjects")
-        assert unauth_sub.status_code == 401, f"Expected 401, got {unauth_sub.status_code}"
+        assert unauth_sub.status_code == 404, f"Expected 404, got {unauth_sub.status_code}"
 
         unauth_sub_get = client.get(f"/subjects/{sub1_id}")
-        assert unauth_sub_get.status_code == 401
+        assert unauth_sub_get.status_code == 404
 
         unauth_src = client.get(f"/subjects/{sub1_id}/sources")
-        assert unauth_src.status_code == 401
+        assert unauth_src.status_code == 404
 
         unauth_ask = client.post(f"/subjects/{sub1_id}/conversations/{conv1_id}/messages", json={"question": "Hi"})
-        assert unauth_ask.status_code == 401
-        print("✓ All unauthorized endpoints properly return 401 Unauthorized")
+        assert unauth_ask.status_code == 404
+        print("✓ All unauthorized endpoints properly return 404 Not Found")
 
         print("\n==================================================================")
         print("ALL 12 USER JOURNEY VERIFICATION STEPS PASSED SUCCESSFULLY!")

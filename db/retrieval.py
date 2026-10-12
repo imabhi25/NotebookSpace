@@ -9,7 +9,10 @@ def search(
     db_url: str | None = None,
 ) -> list[dict[str, Any]]:
     """
-    Perform plain top-k vector similarity search for a question against stored chunks.
+    Perform plain top-k vector similarity search for a question against the shared demo corpus.
+
+    Only chunks with no owner and no notebook source are searched, so this public search can
+    never return text from a user's private notebook sources.
 
     Args:
         question: The user query string.
@@ -39,6 +42,8 @@ def search(
                     d.upload_date
                 FROM chunks c
                 JOIN documents d ON c.document_id = d.id
+                WHERE c.user_id IS NULL
+                  AND c.source_id IS NULL
                 ORDER BY c.embedding <=> %s::vector
                 LIMIT %s;
                 """,

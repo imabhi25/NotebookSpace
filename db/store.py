@@ -126,23 +126,41 @@ def get_all_documents(db_url: str | None = None) -> list[dict[str, Any]]:
 
 
 def get_passages_for_page(
-    file_name: str, page_number: int, db_url: str | None = None
+    file_name: str,
+    page_number: int,
+    user_id: str | None = None,
+    db_url: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Return chunks for a specific document and page number."""
+    """Return chunks for a document page that the given user may read.
+
+    Chunks of notebook sources carry their owner's user_id and are returned only to that
+    owner. Chunks of the shared demo corpus have no owner and no source, and are the fallback
+    when the user has nothing under that name. Without a user_id only the shared corpus is
+    searched, so this function never returns another user's text.
+    """
     base_name = Path(file_name).name
+    select = """
+        SELECT file_name, page_number, chunk_index, chunk_text
+        FROM chunks
+        WHERE (file_name = %s OR file_name = %s)
+          AND page_number = %s
+    """
+    order = " ORDER BY chunk_index ASC;"
     with get_connection(db_url) as conn:
         with conn.cursor() as cur:
-            cur.execute(
-                """
-                SELECT file_name, page_number, chunk_index, chunk_text
-                FROM chunks
-                WHERE (file_name = %s OR file_name = %s)
-                  AND page_number = %s
-                ORDER BY chunk_index ASC;
-                """,
-                (file_name, base_name, page_number),
-            )
-            rows = cur.fetchall()
+            rows: list[Any] = []
+            if user_id is not None:
+                cur.execute(
+                    select + " AND user_id = %s" + order,
+                    (file_name, base_name, page_number, str(user_id)),
+                )
+                rows = cur.fetchall()
+            if not rows:
+                cur.execute(
+                    select + " AND user_id IS NULL AND source_id IS NULL" + order,
+                    (file_name, base_name, page_number),
+                )
+                rows = cur.fetchall()
             return [
                 {
                     "file_name": row[0],
@@ -153,4 +171,3 @@ def get_passages_for_page(
                 }
                 for row in rows
             ]
-

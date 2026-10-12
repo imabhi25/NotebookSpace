@@ -193,7 +193,13 @@ def test_passages_endpoint():
         files={"file": (file_name, buffer.getvalue(), "application/pdf")},
     )
 
-    response = client.get(f"/passages?file={file_name}&page=1")
+    # Shared demo documents are readable by any signed-in session, never anonymously.
+    assert client.get(f"/passages?file={file_name}&page=1").status_code == 404
+    token = client.post("/auth/guest-session").json()["token"]
+    response = client.get(
+        f"/passages?file={file_name}&page=1",
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert response.status_code == 200
     passages = response.json()
     assert isinstance(passages, list)
