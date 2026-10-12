@@ -15,8 +15,11 @@ import {
   normalizeFileName,
 } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
-import { SourceModal } from './SourceModal';
-import { SourceViewerModal } from './SourceViewerModal';
+import { lazyView, preloadWhenIdle } from '../lazyView';
+
+// Dialogs load when first opened and are fetched in the background once the workspace is idle.
+const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
+const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
 import { Composer } from './Composer';
 
 interface SubjectWorkspaceViewProps {
@@ -111,6 +114,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Modals
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
   const [viewingSource, setViewingSource] = useState<Source | null>(null);
+
+  // The Add sources dialog mounts on first open and then stays mounted, so a pasted draft survives closing it.
+  const hasOpenedAddSource = useRef(false);
+  if (isAddSourceOpen) hasOpenedAddSource.current = true;
+
+  useEffect(() => {
+    preloadWhenIdle(SourceModal);
+    preloadWhenIdle(SourceViewerModal);
+  }, []);
   const [renamingSource, setRenamingSource] = useState<Source | null>(null);
   const [newSourceTitle, setNewSourceTitle] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -1429,6 +1441,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               <span className="step-label">Retrieving evidence from selected sources...</span>
                             </div>
                           </div>
+                          <div className="skeleton-loader" aria-hidden="true">
+                            <span className="skeleton-line line-long" />
+                            <span className="skeleton-line line-long" />
+                            <span className="skeleton-line line-med" />
+                          </div>
                           {onStopGeneration && (
                             <button
                               type="button"
@@ -1586,12 +1603,21 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               )}
 
               {passageLoading ? (
-                <div className="passage-loading-state">
-                  <div className="step-spinner" aria-hidden="true" />
+                <div className="passage-loading-state" role="status">
                   <p className="empty-state">Loading passage text...</p>
+                  <div className="skeleton-loader" aria-hidden="true">
+                    <span className="skeleton-line line-long" />
+                    <span className="skeleton-line line-long" />
+                    <span className="skeleton-line line-long" />
+                    <span className="skeleton-line line-short" />
+                  </div>
                 </div>
               ) : selectedCitation ? (
-                <div className="passage-content" data-testid="passage-content">
+                <div
+                  className="passage-content"
+                  data-testid="passage-content"
+                  key={`${selectedCitation.file}:${selectedCitation.page}`}
+                >
                   <div className="passage-content-banner">
                     Showing content from <strong>{selectedCitation.file}</strong> (Page {selectedCitation.page}):
                   </div>
@@ -1803,18 +1829,22 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {/* ======================================================================
           MODALS: Add Source, View Source, Rename Source, Note, Settings
           ====================================================================== */}
-      <SourceModal
-        isOpen={isAddSourceOpen}
-        onClose={() => setIsAddSourceOpen(false)}
-        onUploadFiles={onUploadFiles}
-        onPasteText={onPasteText}
-        onAddUrl={onAddUrl}
-      />
+      {(isAddSourceOpen || hasOpenedAddSource.current) && (
+        <SourceModal
+          isOpen={isAddSourceOpen}
+          onClose={() => setIsAddSourceOpen(false)}
+          onUploadFiles={onUploadFiles}
+          onPasteText={onPasteText}
+          onAddUrl={onAddUrl}
+        />
+      )}
 
-      <SourceViewerModal
-        source={viewingSource}
-        onClose={() => setViewingSource(null)}
-      />
+      {viewingSource && (
+        <SourceViewerModal
+          source={viewingSource}
+          onClose={() => setViewingSource(null)}
+        />
+      )}
 
       {/* Rename Source Modal */}
       {renamingSource && (
