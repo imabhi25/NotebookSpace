@@ -214,7 +214,7 @@ export function App({
         const firstConvId = convs[0].id;
         setActiveConversationId(firstConvId);
         const msgs = await api.getMessages(subjectId, firstConvId);
-        setMessages(msgs);
+        setMessages(applyStoppedFilter(firstConvId, msgs));
       } else {
         // Auto-create initial conversation
         const newConv = await api.createConversation(subjectId, 'New Conversation');
@@ -228,13 +228,39 @@ export function App({
     }
   };
 
+  const applyStoppedFilter = (convId: string, msgs: MessageItem[]): MessageItem[] => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        const stoppedKey = `notebookspace_stopped_${convId}`;
+        const stoppedVal = window.localStorage.getItem(stoppedKey);
+        if (stoppedVal && msgs.length > 0) {
+          const lastMsg = msgs[msgs.length - 1];
+          if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.abstained) {
+            return msgs.map((m, idx) => {
+              if (idx === msgs.length - 1) {
+                return {
+                  ...m,
+                  content: 'Generation stopped by user.',
+                  abstained: true,
+                  abstain_reason: 'stopped',
+                };
+              }
+              return m;
+            });
+          }
+        }
+      }
+    } catch {}
+    return msgs;
+  };
+
   // Switch conversation
   const handleSelectConversation = async (convId: string) => {
     if (!activeSubject) return;
     setActiveConversationId(convId);
     try {
       const msgs = await api.getMessages(activeSubject.id, convId);
-      setMessages(msgs);
+      setMessages(applyStoppedFilter(convId, msgs));
     } catch {
       setMessages([]);
     }
@@ -286,7 +312,6 @@ export function App({
   // Source upload / add handlers
   const handleUploadFiles = async (files: File[]) => {
     if (!activeSubject) return;
-    const errors: string[] = [];
     for (const f of files) {
       try {
         const newSrc = await api.uploadSource(activeSubject.id, f);
@@ -294,17 +319,14 @@ export function App({
         if (newSrc.status === 'ready') {
           setSelectedSourceIds((prev) => [...prev, newSrc.id]);
         } else if (newSrc.status === 'failed') {
-          errors.push(`${f.name}: ${newSrc.error_message || 'Processing failed'}`);
+          throw new Error(newSrc.error_message || 'Processing failed');
         }
       } catch (err: any) {
-        errors.push(`${f.name}: ${err.message || 'Upload failed'}`);
+        throw err;
       }
     }
     const sqs = await api.getStarterQuestions(activeSubject.id).catch(() => []);
     setStarterQuestions(sqs);
-    if (errors.length > 0) {
-      alert(`Some files could not be ingested:\n\n${errors.join('\n')}`);
-    }
   };
 
   const handlePasteText = async (title: string, text: string) => {
@@ -374,7 +396,15 @@ export function App({
     const trimmed = queryText.trim();
     if (!trimmed) return;
 
-    if (!options?.is_retry) {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      try {
+        window.localStorage.removeItem(`notebookspace_stopped_${activeConversationId}`);
+      } catch {}
+    }
+
+    if (options?.is_retry && options?.retry_message_id) {
+      setMessages((prev) => prev.filter((m) => m.id !== options.retry_message_id));
+    } else if (!options?.is_retry) {
       // Optimistic user turn only if not retrying
       const tempUserMsg: MessageItem = {
         id: `temp-${Date.now()}`,
@@ -414,15 +444,34 @@ export function App({
         api.getMessages(activeSubject.id, activeConversationId),
         api.getConversations(activeSubject.id),
       ]);
-      setMessages(msgs);
+      setMessages(applyStoppedFilter(activeConversationId, msgs));
       setConversations(convs);
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted')) {
-        const msgs = await api.getMessages(activeSubject.id, activeConversationId).catch(() => []);
-        if (msgs.length > 0) setMessages(msgs);
         return;
       }
-      alert(err.message || 'Failed to send message.');
+      // Inline error on failed question with Retry button
+      const errorMsg: MessageItem = {
+        id: `error-${Date.now()}`,
+        conversation_id: activeConversationId,
+        user_id: currentUser?.id || '',
+        role: 'assistant',
+        content: err.message || 'Unable to generate response. Service temporarily unavailable.',
+        abstained: true,
+        abstain_reason: 'generation_failed',
+        citations: [],
+        conflicts: [],
+        conflict_detected: false,
+        retrieved: [],
+        selected_source_ids: selectedSourceIds,
+        source_versions: {},
+        tokens: { input: 0, output: 0, total: 0 },
+        latency: 0,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMsg]);
+      // Re-throw so composer in SubjectWorkspaceView preserves question text
+      throw err;
     } finally {
       setChatLoading(false);
       chatAbortRef.current = null;
@@ -435,6 +484,38 @@ export function App({
       chatAbortRef.current = null;
     }
     setChatLoading(false);
+    if (activeSubject && activeConversationId) {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        try {
+          window.localStorage.setItem(`notebookspace_stopped_${activeConversationId}`, 'true');
+        } catch {}
+      }
+      const stoppedMsg: MessageItem = {
+        id: `stopped-${Date.now()}`,
+        conversation_id: activeConversationId,
+        user_id: currentUser?.id || '',
+        role: 'assistant',
+        content: 'Generation stopped by user.',
+        abstained: true,
+        abstain_reason: 'stopped',
+        citations: [],
+        conflicts: [],
+        conflict_detected: false,
+        retrieved: [],
+        selected_source_ids: selectedSourceIds,
+        source_versions: {},
+        tokens: { input: 0, output: 0, total: 0 },
+        latency: 0,
+        created_at: new Date().toISOString(),
+      };
+      setMessages((prev) => {
+        const last = prev[prev.length - 1];
+        if (last && last.role === 'assistant') {
+          return [...prev.slice(0, -1), stoppedMsg];
+        }
+        return [...prev, stoppedMsg];
+      });
+    }
   };
 
   // Settings
@@ -453,12 +534,22 @@ export function App({
 
   const handleSaveAnswerAsNote = async (msg: MessageItem) => {
     if (!activeSubject) return;
-    const title = msg.citations?.[0]?.file
+    const msgIdx = messages.findIndex((m) => m.id === msg.id);
+    const prevUser = [...messages.slice(0, msgIdx)].reverse().find((m) => m.role === 'user');
+    const questionTitle = prevUser?.content?.trim() || (msg.citations?.[0]?.file
       ? `Answer from ${msg.citations[0].file}`
-      : `Answer: ${msg.content.slice(0, 30)}...`;
+      : `Answer: ${msg.content.slice(0, 30)}...`);
+
+    // Idempotent: prevent duplicate note creation on double-save
+    const alreadySaved = notes.find(
+      (n) => n.is_saved_answer && (n.content === msg.content || n.title === questionTitle)
+    );
+    if (alreadySaved) {
+      return;
+    }
 
     const note = await api.createNote(activeSubject.id, {
-      title,
+      title: questionTitle,
       content: msg.content,
       is_saved_answer: true,
       citations: msg.citations,

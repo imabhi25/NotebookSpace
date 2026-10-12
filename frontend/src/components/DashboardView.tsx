@@ -101,6 +101,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     return () => window.removeEventListener('click', handleDocumentClick);
   }, []);
 
+  // Close modals & popovers on Escape key
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (isCreateOpen) setIsCreateOpen(false);
+        if (editingSubject) setEditingSubject(null);
+        if (deletingSubject) setDeletingSubject(null);
+        if (isResetConfirmOpen) setIsResetConfirmOpen(false);
+        if (isSettingsOpen) setIsSettingsOpen(false);
+        if (menuOpenSubjectId) setMenuOpenSubjectId(null);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isCreateOpen, editingSubject, deletingSubject, isResetConfirmOpen, isSettingsOpen, menuOpenSubjectId]);
+
   const openCreateModal = () => {
     setFormName('');
     setFormCode('');

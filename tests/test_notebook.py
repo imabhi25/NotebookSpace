@@ -418,3 +418,110 @@ def test_guest_session_isolation_and_limits():
             with conn.transaction():
                 with conn.cursor() as cur:
                     cur.execute("DELETE FROM users WHERE id IN (%s, %s);", (user_a["id"], user_b["id"]))
+
+
+def test_conflict_and_citation_stable_source_id_after_rename(auth_headers):
+    # Create test subject
+    subj_res = client.post("/subjects", json={"name": "Rename Conflict Subject"}, headers=auth_headers)
+    assert subj_res.status_code == 200
+    subj_id = subj_res.json()["id"]
+
+    # Ingest Source 1
+    pdf_bytes_1 = make_pdf(["The final exam is worth 40 percent of the grade and is on Dec 10."])
+    src_1 = client.post(
+        f"/subjects/{subj_id}/sources/upload",
+        files={"file": ("syllabus.pdf", pdf_bytes_1, "application/pdf")},
+        headers=auth_headers,
+    )
+    assert src_1.status_code == 200
+    src_1_id = src_1.json()["id"]
+
+    # Ingest Source 2 with conflicting info
+    pdf_bytes_2 = make_pdf(["The final exam is worth 50 percent of the grade and is on Dec 15."])
+    src_2 = client.post(
+        f"/subjects/{subj_id}/sources/upload",
+        files={"file": ("schedule.pdf", pdf_bytes_2, "application/pdf")},
+        headers=auth_headers,
+    )
+    assert src_2.status_code == 200
+    src_2_id = src_2.json()["id"]
+
+    # Rename Source 1
+    rename_1 = client.put(
+        f"/subjects/{subj_id}/sources/{src_1_id}",
+        json={"title": "Official Course Syllabus (Renamed)"},
+        headers=auth_headers,
+    )
+    assert rename_1.status_code == 200
+    assert rename_1.json()["title"] == "Official Course Syllabus (Renamed)"
+
+    # Rename Source 2
+    rename_2 = client.put(
+        f"/subjects/{subj_id}/sources/{src_2_id}",
+        json={"title": "Instructor Schedule Updates (Renamed)"},
+        headers=auth_headers,
+    )
+    assert rename_2.status_code == 200
+    assert rename_2.json()["title"] == "Instructor Schedule Updates (Renamed)"
+
+    # Create conversation and ask question
+    conv_res = client.post(f"/subjects/{subj_id}/conversations", json={"title": "Exam Date Question"}, headers=auth_headers)
+    assert conv_res.status_code == 200
+    conv_id = conv_res.json()["id"]
+
+    # Mock LLM returning citations and conflicts
+    from answering.llm import LLMResponse
+    class MockConflictLLM:
+        def generate(self, system: str, user: str) -> LLMResponse:
+            return LLMResponse(
+                text="""{
+                    "supported": true,
+                    "answer": "The syllabus states the exam is worth 40% [Official Course Syllabus (Renamed) p.1], whereas schedule states 50% [Instructor Schedule Updates (Renamed) p.1].",
+                    "citations": [
+                        {"file": "Official Course Syllabus (Renamed)", "page": 1},
+                        {"file": "Instructor Schedule Updates (Renamed)", "page": 1}
+                    ],
+                    "conflicts": [
+                        {
+                            "topic": "Exam grading percentage",
+                            "claims": [
+                                {"file": "Official Course Syllabus (Renamed)", "page": 1, "value": "40 percent"},
+                                {"file": "Instructor Schedule Updates (Renamed)", "page": 1, "value": "50 percent"}
+                            ]
+                        }
+                    ]
+                }""",
+                input_tokens=100,
+                output_tokens=50,
+                latency_seconds=0.1,
+            )
+
+    from answering.notebook_answer import answer_notebook_question
+    # Get current user id from auth headers
+    user_me = client.get("/auth/me", headers=auth_headers).json()
+    ans = answer_notebook_question(
+        question="What is the exam percentage?",
+        conversation_id=conv_id,
+        user_id=user_me["id"],
+        subject_id=subj_id,
+        selected_source_ids=[src_1_id, src_2_id],
+        llm_client=MockConflictLLM(),
+    )
+
+    # Assertions
+    assert ans["conflict_detected"] is True
+    assert len(ans["conflicts"]) == 1
+    conflict = ans["conflicts"][0]
+    assert conflict["topic"] == "Exam grading percentage"
+    assert len(conflict["claims"]) == 2
+
+    claim_source_ids = {c["source_id"] for c in conflict["claims"]}
+    assert src_1_id in claim_source_ids
+    assert src_2_id in claim_source_ids
+
+    # Assert citations preserved and tied to source_ids
+    assert len(ans["citations"]) == 2
+    cit_source_ids = {c["source_id"] for c in ans["citations"]}
+    assert src_1_id in cit_source_ids
+    assert src_2_id in cit_source_ids
+

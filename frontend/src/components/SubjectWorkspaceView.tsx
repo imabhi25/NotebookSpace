@@ -129,6 +129,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [question, setQuestion] = useState('');
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [savedNoteMsgId, setSavedNoteMsgId] = useState<string | null>(null);
+  const [savingNoteMsgId, setSavingNoteMsgId] = useState<string | null>(null);
 
   // File replacement input ref
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
@@ -142,6 +143,27 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       threadBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, chatLoading]);
+
+  // Escape key handler to close all workspace modals
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (renamingSource) {
+          setRenamingSource(null);
+        } else if (isCreateNoteOpen) {
+          setIsCreateNoteOpen(false);
+        } else if (isSettingsOpen) {
+          setIsSettingsOpen(false);
+        } else if (viewingSource) {
+          setViewingSource(null);
+        } else if (isAddSourceOpen) {
+          setIsAddSourceOpen(false);
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen]);
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
@@ -197,7 +219,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     setSelectedCitation({ ...cit, messageId });
     setRightPanelTab('passage');
     setIsRightCollapsed(false); // Auto-expand right panel
+    setIsRightOpenMobile(true); // Auto-open right panel drawer on mobile/tablet
+    setIsSidebarOpenMobile(false); // Close left drawer if open
     loadPassages(cit);
+    setTimeout(() => {
+      const panel = document.querySelector('.workspace-right-panel');
+      if (panel && typeof panel.scrollIntoView === 'function') {
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }, 50);
   };
 
   const loadPassages = async (cit: Citation) => {
@@ -213,7 +243,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
     setPassageLoading(true);
     try {
-      const data = await api.getPassages(cit.file, cit.page);
+      const lookupFile = matchingSource?.file_name || cit.file;
+      const data = await api.getPassages(lookupFile, cit.page);
       setPassages(data);
     } catch {
       setPassages([]);
@@ -311,11 +342,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   };
 
   const handleSaveToNote = async (msg: MessageItem) => {
-    await onSaveAnswerAsNote(msg);
-    setSavedNoteMsgId(msg.id);
-    setRightPanelTab('notes');
-    setIsRightCollapsed(false); // Auto-expand right panel on save note
-    setTimeout(() => setSavedNoteMsgId(null), 2500);
+    if (savingNoteMsgId === msg.id || savedNoteMsgId === msg.id) return;
+    setSavingNoteMsgId(msg.id);
+    try {
+      await onSaveAnswerAsNote(msg);
+      setSavedNoteMsgId(msg.id);
+      setRightPanelTab('notes');
+      setIsRightCollapsed(false); // Auto-expand right panel on save note
+      setTimeout(() => setSavedNoteMsgId(null), 2500);
+    } finally {
+      setSavingNoteMsgId(null);
+    }
   };
 
   // Filtered sources & notes
@@ -1025,12 +1062,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 <Composer
                   question={question}
                   setQuestion={setQuestion}
-                  onSubmit={(e) => {
+                  onSubmit={async (e) => {
                     e.preventDefault();
-                    if (question.trim()) {
+                    if (question.trim() && !chatLoading) {
                       const q = question.trim();
-                      setQuestion('');
-                      onSendMessage(q);
+                      try {
+                        setQuestion('');
+                        await onSendMessage(q);
+                      } catch {
+                        setQuestion(q);
+                      }
                     }
                   }}
                   loading={chatLoading}
@@ -1047,7 +1088,35 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     {messages.map((msg) => (
                       <div key={msg.id} className={`thread-turn turn-${msg.role}`}>
                         {msg.role === 'user' ? (
-                          <div className="user-message-bubble">{msg.content}</div>
+                          <div className="user-turn-wrapper">
+                            <div className="user-message-bubble">{msg.content}</div>
+                            {(() => {
+                              const msgIdx = messages.findIndex((m) => m.id === msg.id);
+                              const nextMsg = messages[msgIdx + 1];
+                              if (nextMsg && nextMsg.role === 'assistant' && nextMsg.abstained && nextMsg.abstain_reason === 'generation_failed') {
+                                return (
+                                  <div className="user-message-inline-error" data-testid={`inline-error-${msg.id}`}>
+                                    <span className="error-icon" aria-hidden="true">✕</span>
+                                    <span>Failed to generate response.</span>
+                                    <button
+                                      type="button"
+                                      className="user-turn-retry-btn"
+                                      data-testid={`retry-inline-btn-${msg.id}`}
+                                      onClick={() => {
+                                        onSendMessage(msg.content, {
+                                          is_retry: true,
+                                          retry_message_id: nextMsg.id,
+                                        });
+                                      }}
+                                    >
+                                      Retry
+                                    </button>
+                                  </div>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
                         ) : (
                           <div className="assistant-message">
                             {/* 1. Abstention / Not Found view */}
@@ -1055,16 +1124,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               <div
                                 className={`card-not-found ${
                                   msg.abstain_reason === 'generation_failed' ? 'card-generation-failed' : ''
-                                }`}
+                                } ${msg.abstain_reason === 'stopped' ? 'card-generation-stopped' : ''}`}
                                 data-testid="abstained-view"
                               >
                                 <div
                                   className={`not-found-badge ${
                                     msg.abstain_reason === 'generation_failed' ? 'badge-failed' : ''
-                                  }`}
+                                  } ${msg.abstain_reason === 'stopped' ? 'badge-stopped' : ''}`}
                                 >
                                   {msg.abstain_reason === 'generation_failed'
                                     ? 'GENERATION FAILED'
+                                    : msg.abstain_reason === 'stopped'
+                                    ? 'STOPPED'
                                     : 'NOT FOUND IN YOUR DOCUMENTS'}
                                 </div>
                                 <div className="abstain-reason">{msg.content}</div>
@@ -1334,12 +1405,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <Composer
                 question={question}
                 setQuestion={setQuestion}
-                onSubmit={(e) => {
+                onSubmit={async (e) => {
                   e.preventDefault();
                   if (question.trim() && !chatLoading) {
                     const q = question.trim();
-                    setQuestion('');
-                    onSendMessage(q);
+                    try {
+                      setQuestion('');
+                      await onSendMessage(q);
+                    } catch {
+                      setQuestion(q);
+                    }
                   }
                 }}
                 loading={chatLoading}
@@ -1614,6 +1689,29 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                           )}
                         </div>
                         <p className="note-snippet-text">{n.content}</p>
+                        {n.citations && n.citations.length > 0 && (
+                          <div className="note-citations-container" onClick={(e) => e.stopPropagation()}>
+                            <div className="note-citations-chips">
+                              {n.citations.map((c, cIdx) => (
+                                <button
+                                  key={cIdx}
+                                  type="button"
+                                  className="citation-chip note-citation-chip"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSelectCitation(c, n.id);
+                                  }}
+                                  title={`${c.file} (Page ${c.page})`}
+                                  data-testid={`note-citation-chip-${cIdx}`}
+                                >
+                                  <span className="citation-chip-num">{cIdx + 1}</span>
+                                  <span className="citation-chip-name">{c.file}</span>
+                                  <span className="citation-chip-page">p.{c.page}</span>
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                         <div className="note-card-footer" onClick={(e) => e.stopPropagation()}>
                           <span className="note-date">
                             {new Date(n.updated_at).toLocaleDateString()}
@@ -1740,6 +1838,29 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   autoFocus
                 />
               </div>
+              {editingNote?.citations && editingNote.citations.length > 0 && (
+                <div className="form-group">
+                  <label>Referenced Sources</label>
+                  <div className="note-citations-chips">
+                    {editingNote.citations.map((c, cIdx) => (
+                      <button
+                        key={cIdx}
+                        type="button"
+                        className="citation-chip note-citation-chip"
+                        onClick={() => {
+                          setIsCreateNoteOpen(false);
+                          handleSelectCitation(c, editingNote.id);
+                        }}
+                        title={`${c.file} (Page ${c.page})`}
+                      >
+                        <span className="citation-chip-num">{cIdx + 1}</span>
+                        <span className="citation-chip-name">{c.file}</span>
+                        <span className="citation-chip-page">p.{c.page}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="form-group">
                 <label htmlFor="note-content-input">Content *</label>
                 <textarea
