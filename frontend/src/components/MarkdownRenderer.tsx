@@ -11,6 +11,58 @@ interface MarkdownRendererProps {
 }
 
 /**
+ * Safely parse inline markdown formatting (**bold**, *italic*, and `code`).
+ */
+function renderInlineFormatting(text: string): React.ReactNode[] {
+  if (!text) return [];
+  const parts: React.ReactNode[] = [];
+  // Regex to match `code`, **bold**, or *italic*
+  const inlineRegex = /(`[^`]+`|\*\*[^*]+?\*\*|\*[^*]+?\*)/g;
+  let lastIdx = 0;
+  let match: RegExpExecArray | null;
+
+  while ((match = inlineRegex.exec(text)) !== null) {
+    const start = match.index;
+    const end = inlineRegex.lastIndex;
+    const raw = match[0];
+
+    if (start > lastIdx) {
+      parts.push(text.slice(lastIdx, start));
+    }
+
+    if (raw.startsWith('`') && raw.endsWith('`')) {
+      parts.push(
+        <code key={`code-${start}`} className="inline-code">
+          {raw.slice(1, -1)}
+        </code>
+      );
+    } else if (raw.startsWith('**') && raw.endsWith('**')) {
+      parts.push(
+        <strong key={`bold-${start}`} className="md-strong">
+          {raw.slice(2, -2)}
+        </strong>
+      );
+    } else if (raw.startsWith('*') && raw.endsWith('*')) {
+      parts.push(
+        <em key={`em-${start}`} className="md-em">
+          {raw.slice(1, -1)}
+        </em>
+      );
+    } else {
+      parts.push(raw);
+    }
+
+    lastIdx = end;
+  }
+
+  if (lastIdx < text.length) {
+    parts.push(text.slice(lastIdx));
+  }
+
+  return parts;
+}
+
+/**
  * Safely parse and render math expressions ($...$ and $$...$$).
  */
 function renderMath(text: string): React.ReactNode[] {
@@ -26,7 +78,7 @@ function renderMath(text: string): React.ReactNode[] {
     const raw = match[0];
 
     if (start > lastIdx) {
-      parts.push(text.slice(lastIdx, start));
+      parts.push(...renderInlineFormatting(text.slice(lastIdx, start)));
     }
 
     const isDisplay = raw.startsWith('$$');
@@ -52,7 +104,7 @@ function renderMath(text: string): React.ReactNode[] {
   }
 
   if (lastIdx < text.length) {
-    parts.push(text.slice(lastIdx));
+    parts.push(...renderInlineFormatting(text.slice(lastIdx)));
   }
 
   return parts;
