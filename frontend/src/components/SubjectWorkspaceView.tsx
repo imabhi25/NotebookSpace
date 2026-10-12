@@ -51,6 +51,7 @@ interface SubjectWorkspaceViewProps {
   chatLoading: boolean;
   onStopGeneration?: () => void;
   onResetWorkspace?: () => Promise<void>;
+  onToggleNotebooksDrawer?: () => void;
 }
 
 export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
@@ -86,6 +87,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   chatLoading,
   onStopGeneration,
   onResetWorkspace,
+  onToggleNotebooksDrawer,
 }) => {
   // --------------------------------------------------------------------------
   // LAYOUT STATE: Independently Collapsible Side Panels
@@ -361,12 +363,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <button
             type="button"
             className="workspace-back-btn"
-            onClick={onBackToDashboard}
-            title="Back to notebooks dashboard"
-            aria-label="Back to notebooks dashboard"
+            onClick={onToggleNotebooksDrawer || onBackToDashboard}
+            title={onToggleNotebooksDrawer ? "Toggle notebooks list" : "Back to notebooks dashboard"}
+            aria-label="Notebooks"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <polyline points="15 18 9 12 15 6" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="3" y1="12" x2="21" y2="12" />
+              <line x1="3" y1="6" x2="21" y2="6" />
+              <line x1="3" y1="18" x2="21" y2="18" />
             </svg>
             <span>Notebooks</span>
           </button>
@@ -740,7 +744,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   title="Remove source"
                                   onClick={(e) => {
                                     e.stopPropagation();
-                                    if (window.confirm(`Remove source "${s.title}" from this subject?`)) {
+                                    if (window.confirm(`Remove source "${s.title}" from this notebook?`)) {
                                       onDeleteSource(s.id);
                                     }
                                   }}
@@ -935,7 +939,47 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           )}
 
           {/* Conversation Thread */}
-          {messages.length === 0 ? (
+          {sources.length === 0 ? (
+            <div className="empty-state-scroll-container">
+              <div className="empty-state-centered-box workspace-zero-sources-box">
+                <div className="empty-state-brand-mark" aria-hidden="true">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="12" y1="18" x2="12" y2="12" />
+                    <line x1="9" y1="15" x2="15" y2="15" />
+                  </svg>
+                </div>
+                <h1 className="empty-state-heading" data-testid="empty-state-heading">
+                  Add your first source
+                </h1>
+                <p className="empty-state-subtext">
+                  Upload course syllabi, lecture slides, assignments, or web articles to get started. Answers cite exact pages and quotes from your sources.
+                </p>
+                <div className="zero-sources-cta-group">
+                  <button
+                    type="button"
+                    className="btn btn-primary btn-add-first-source"
+                    onClick={() => setIsAddSourceOpen(true)}
+                    data-testid="add-first-source-btn"
+                  >
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                      <line x1="12" y1="5" x2="12" y2="19" />
+                      <line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                    <span>Add course materials</span>
+                  </button>
+                </div>
+                <div className="zero-sources-hints">
+                  <span>PDF documents</span>
+                  <span>&bull;</span>
+                  <span>Web links</span>
+                  <span>&bull;</span>
+                  <span>Pasted text</span>
+                </div>
+              </div>
+            </div>
+          ) : messages.length === 0 ? (
             <div className="empty-state-scroll-container">
               <div className="empty-state-centered-box">
                 <div className="empty-state-brand-mark" aria-hidden="true">
@@ -1414,7 +1458,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </div>
                   <p className="historical-notice-desc">
                     {isSourceDeleted
-                      ? `The source "${selectedCitation?.file}" has been deleted from this subject. Historical citation evidence is preserved below.`
+                      ? `The source "${selectedCitation?.file}" has been deleted from this notebook. Historical citation evidence is preserved below.`
                       : `The source "${selectedCitation?.file}" was replaced with a newer version (currently v${matchedSource?.version}). Displaying verified historical excerpt captured at answer time:`}
                   </p>
                 </div>

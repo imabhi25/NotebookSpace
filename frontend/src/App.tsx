@@ -150,11 +150,12 @@ export function App({
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [isMobileNotebooksOpen, setIsMobileNotebooksOpen] = useState(false);
   const chatAbortRef = useRef<AbortController | null>(null);
 
-  // Fetch subjects when on dashboard or mount
+  // Fetch subjects whenever not in demo mode
   useEffect(() => {
-    if (route.view === 'notebooks') {
+    if (route.view !== 'demo') {
       fetchSubjects();
     }
   }, [route.view, currentUser]);
@@ -166,6 +167,11 @@ export function App({
       if (!authed) return;
       const data = await api.getSubjects(true);
       setSubjects(data);
+      if (route.view === 'notebooks' && !route.subjectId && data.length > 0) {
+        const first = data.find((s) => !s.is_archived) || data[0];
+        navigateTo('workspace', first.id);
+        loadSubjectData(first.id);
+      }
     } catch {
       // ignore
     } finally {
@@ -499,7 +505,39 @@ export function App({
 
   const handleDeleteSubject = async (subjId: string) => {
     await api.deleteSubject(subjId);
-    setSubjects((prev) => prev.filter((s) => s.id !== subjId));
+    setSubjects((prev) => {
+      const next = prev.filter((s) => s.id !== subjId);
+      if (activeSubject?.id === subjId) {
+        if (next.length > 0) {
+          const first = next.find((s) => !s.is_archived) || next[0];
+          navigateTo('workspace', first.id);
+          loadSubjectData(first.id);
+        } else {
+          setActiveSubject(null);
+          setSources([]);
+          setConversations([]);
+          setMessages([]);
+          navigateTo('notebooks');
+        }
+      }
+      return next;
+    });
+  };
+
+  const handleResetWorkspace = async () => {
+    try {
+      await api.logout();
+    } catch {
+      // ignore
+    }
+    const res = await api.createGuestSession();
+    setCurrentUser(res.user);
+    setActiveSubject(null);
+    setSources([]);
+    setConversations([]);
+    setMessages([]);
+    navigateTo('notebooks');
+    fetchSubjects();
   };
 
   // --------------------------------------------------------------------------
@@ -716,78 +754,6 @@ export function App({
 
   return (
     <div className="app-shell">
-      {/* GLOBAL TOP NAVIGATION (Dashboard & Demo) */}
-      {route.view !== 'workspace' && (
-        <header className="app-top-nav">
-          <div className="top-nav-left">
-            <button
-              type="button"
-              className="brand-clickable"
-              onClick={() => navigateTo('notebooks')}
-              title="NotebookSpace Home"
-            >
-              <span className="brand-mark-wrapper" aria-hidden="true">
-                <span className="brand-logo-letter">N</span>
-              </span>
-              <div className="brand-text">
-                <span className="top-brand-title">NotebookSpace</span>
-              </div>
-            </button>
-
-            {/* Mode Switcher */}
-            <div className="top-nav-switcher">
-              <button
-                type="button"
-                className={`nav-switcher-btn ${route.view !== 'demo' ? 'active' : ''}`}
-                onClick={() => navigateTo('notebooks')}
-              >
-                Study Notebooks
-              </button>
-              <button
-                type="button"
-                className={`nav-switcher-btn ${route.view === 'demo' ? 'active' : ''}`}
-                onClick={() => navigateTo('demo')}
-              >
-                Public Demo
-              </button>
-            </div>
-          </div>
-
-          <div className="top-nav-right">
-            <div
-              className="guest-workspace-indicator"
-              data-testid="guest-workspace-badge"
-              title="Your notebook workspace is private to this browser."
-            >
-              <span className="guest-status-indicator-dot" />
-              <span className="guest-status-label">
-                {currentUser?.email || 'Guest Workspace'}
-              </span>
-            </div>
-            <button
-              type="button"
-              className="btn-new-workspace"
-              title="Reset to a fresh, empty workspace in this browser"
-              onClick={async () => {
-                if (window.confirm('Start a new guest workspace? This will create a fresh workspace for this browser.')) {
-                  try {
-                    await api.logout();
-                  } catch {
-                    // ignore
-                  }
-                  const res = await api.createGuestSession();
-                  setCurrentUser(res.user);
-                  navigateTo('notebooks');
-                  fetchSubjects();
-                }
-              }}
-            >
-              Reset Workspace
-            </button>
-          </div>
-        </header>
-      )}
-
       {/* RENDER ACTIVE ROUTE VIEW */}
       {route.view === 'demo' ? (
         /* Standalone Public Demo View */
@@ -965,60 +931,77 @@ export function App({
             isOpen={isDemoSourceOpen}
           />
         </div>
-      ) : route.view === 'workspace' ? (
-        activeSubject ? (
-          /* Subject Workspace View */
-          <SubjectWorkspaceView
-            subject={activeSubject}
-            sources={sources}
-            conversations={conversations}
-            notes={notes}
-            activeConversationId={activeConversationId}
-            selectedSourceIds={selectedSourceIds}
-            starterQuestions={starterQuestions}
-            isDemoMode={isDemoMode}
-            currentUser={currentUser}
-            onBackToDashboard={() => navigateTo('notebooks')}
-            onSelectSources={setSelectedSourceIds}
-            onSelectConversation={handleSelectConversation}
-            onCreateConversation={handleCreateConversation}
-            onRenameConversation={handleRenameConversation}
-            onDeleteConversation={handleDeleteConversation}
-            onUploadFiles={handleUploadFiles}
-            onPasteText={handlePasteText}
-            onAddUrl={handleAddUrl}
-            onRenameSource={handleRenameSource}
-            onDeleteSource={handleDeleteSource}
-            onRetrySource={handleRetrySource}
-            onReplaceSource={handleReplaceSource}
-            onSendMessage={handleSendMessage}
-            onUpdateSettings={handleUpdateSettings}
-            onCreateNote={handleCreateNote}
-            onSaveAnswerAsNote={handleSaveAnswerAsNote}
-            onUpdateNote={handleUpdateNote}
-            onDeleteNote={handleDeleteNote}
-            messages={messages}
-            chatLoading={chatLoading}
-            onStopGeneration={handleStopGeneration}
-          />
-        ) : (
-          <div className="workspace-loading-state" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: 'calc(100vh - 80px)', gap: '1rem' }}>
-            <div className="step-spinner" style={{ width: 28, height: 28 }} />
-            <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Loading subject notebook...</p>
-          </div>
-        )
       ) : (
-        /* Subject Dashboard View */
+        /* NotebookLM-Style Unified Shell */
         <DashboardView
           subjects={subjects}
           loading={subjectsLoading}
+          activeSubjectId={activeSubject?.id}
+          currentUser={currentUser}
           onOpenSubject={(id) => navigateTo('workspace', id)}
           onCreateSubject={handleCreateSubject}
           onUpdateSubject={handleUpdateSubject}
           onArchiveSubject={handleArchiveSubject}
           onRestoreSubject={handleRestoreSubject}
           onDeleteSubject={handleDeleteSubject}
-        />
+          onResetWorkspace={handleResetWorkspace}
+          isMobileSidebarOpen={isMobileNotebooksOpen}
+          onSetMobileSidebarOpen={setIsMobileNotebooksOpen}
+        >
+          {activeSubject ? (
+            /* Selected Notebook Workspace View */
+            <SubjectWorkspaceView
+              subject={activeSubject}
+              sources={sources}
+              conversations={conversations}
+              notes={notes}
+              activeConversationId={activeConversationId}
+              selectedSourceIds={selectedSourceIds}
+              starterQuestions={starterQuestions}
+              isDemoMode={isDemoMode}
+              currentUser={currentUser}
+              onBackToDashboard={() => navigateTo('notebooks')}
+              onToggleNotebooksDrawer={() => setIsMobileNotebooksOpen((prev) => !prev)}
+              onSelectSources={setSelectedSourceIds}
+              onSelectConversation={handleSelectConversation}
+              onCreateConversation={handleCreateConversation}
+              onRenameConversation={handleRenameConversation}
+              onDeleteConversation={handleDeleteConversation}
+              onUploadFiles={handleUploadFiles}
+              onPasteText={handlePasteText}
+              onAddUrl={handleAddUrl}
+              onRenameSource={handleRenameSource}
+              onDeleteSource={handleDeleteSource}
+              onRetrySource={handleRetrySource}
+              onReplaceSource={handleReplaceSource}
+              onSendMessage={handleSendMessage}
+              onUpdateSettings={handleUpdateSettings}
+              onCreateNote={handleCreateNote}
+              onSaveAnswerAsNote={handleSaveAnswerAsNote}
+              onUpdateNote={handleUpdateNote}
+              onDeleteNote={handleDeleteNote}
+              messages={messages}
+              chatLoading={chatLoading}
+              onStopGeneration={handleStopGeneration}
+              onResetWorkspace={handleResetWorkspace}
+            />
+          ) : subjectsLoading ? (
+            <div
+              className="workspace-loading-state"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                height: 'calc(100vh - 80px)',
+                gap: '1rem',
+              }}
+            >
+              <div className="step-spinner" style={{ width: 28, height: 28 }} />
+              <p style={{ color: '#64748b', fontSize: '14px', margin: 0 }}>Loading notebook...</p>
+            </div>
+          ) : null}
+        </DashboardView>
       )}
     </div>
   );

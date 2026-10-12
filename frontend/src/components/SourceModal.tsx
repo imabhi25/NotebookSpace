@@ -96,7 +96,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2>Add Sources to Subject</h2>
+          <h2>Add sources to notebook</h2>
           <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
             &times;
           </button>
