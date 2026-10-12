@@ -160,3 +160,40 @@ def test_gemini_503_backoff_retry_bounded(tmp_path: Path):
             assert mock_post.call_count == 2
             mock_sleep.assert_called_once_with(2.0)
 
+
+def test_gemini_quota_exhausted_falls_back_to_fallback_model(tmp_path: Path):
+    from unittest.mock import patch
+    import httpx
+
+    client = GeminiLLMClient(
+        model="gemini-3.5-flash",
+        fallback_models=["gemini-3.5-flash-lite"],
+        api_key="test_key",
+        cache_dir=tmp_path,
+    )
+
+    err_body = {
+        "error": {
+            "code": 429,
+            "message": "Quota exceeded. Please retry in 3h17m45s.",
+            "status": "RESOURCE_EXHAUSTED",
+        }
+    }
+    resp_429 = httpx.Response(429, json=err_body)
+    resp_200 = httpx.Response(
+        200,
+        json={
+            "candidates": [{"content": {"parts": [{"text": "Lite model answer"}]}}],
+            "usageMetadata": {"promptTokenCount": 5, "candidatesTokenCount": 3},
+        },
+    )
+
+    with patch("httpx.Client.post", side_effect=[resp_429, resp_200]) as mock_post:
+        text, in_tok, out_tok = client._raw_generate(system="sys", user="usr")
+        assert text == "Lite model answer"
+        assert mock_post.call_count == 2
+        # First call was to gemini-3.5-flash, second call was to gemini-3.5-flash-lite
+        assert "gemini-3.5-flash:" in mock_post.call_args_list[0][0][0]
+        assert "gemini-3.5-flash-lite:" in mock_post.call_args_list[1][0][0]
+
+
