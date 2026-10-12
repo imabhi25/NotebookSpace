@@ -25,7 +25,7 @@ export const Composer: React.FC<ComposerProps> = ({
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       const scrollHeight = textareaRef.current.scrollHeight;
-      textareaRef.current.style.height = `${Math.min(scrollHeight, 160)}px`;
+      textareaRef.current.style.height = `${Math.min(scrollHeight, parseFloat(getComputedStyle(textareaRef.current).getPropertyValue('--composer-max-height')))}px`;
     }
   }, [question]);
 

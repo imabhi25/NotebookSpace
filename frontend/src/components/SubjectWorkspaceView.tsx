@@ -1,3 +1,4 @@
+import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
 import {
@@ -647,12 +648,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
               <div className="sources-list-scroll">
                 {sources.length === 0 ? (
-                  <div className="sidebar-empty-box">
+                  <div className="sidebar-empty-box"><EmptyStateIcon />
                     <p>No materials added yet.</p>
                     <p className="subtext">Upload PDFs, notes, or web articles.</p>
                   </div>
                 ) : filteredSources.length === 0 ? (
-                  <p className="sidebar-empty-box">No sources matching search.</p>
+                  <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
                 ) : (
                   <ul className="workspace-sources-ul">
                     {filteredSources.map((s) => {
@@ -689,6 +690,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                           <div
                             className="source-info-col"
                             onClick={() => isReady && handleToggleSource(s.id)}
+                            onKeyDown={(e) => {
+                              if (e.target === e.currentTarget && isReady && (e.key === 'Enter' || e.key === ' ')) {
+                                e.preventDefault();
+                                handleToggleSource(s.id);
+                              }
+                            }}
                             role="button"
                             tabIndex={0}
                           >
@@ -835,6 +842,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                           key={c.id}
                           className={`shelf-conv-item ${isActive ? 'active' : ''}`}
                           onClick={() => onSelectConversation(c.id)}
+                          tabIndex={0}
+                          role="button"
+                          onKeyDown={(e) => {
+                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault();
+                              onSelectConversation(c.id);
+                            }
+                          }}
                           title={c.title}
                         >
                           <span className="shelf-conv-title">{c.title}</span>
@@ -866,6 +881,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 <span>New conversation</span>
               </button>
 
+              {conversations.length === 0 && (
+                <div className="sidebar-empty-box"><EmptyStateIcon /><p>Empty chat</p></div>
+              )}
               <ul className="workspace-conv-ul">
                 {conversations.map((c) => {
                   const isActive = c.id === activeConversationId;
@@ -874,6 +892,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       key={c.id}
                       className={`workspace-conv-item ${isActive ? 'active' : ''}`}
                       onClick={() => onSelectConversation(c.id)}
+                          tabIndex={0}
+                          role="button"
+                          onKeyDown={(e) => {
+                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault();
+                              onSelectConversation(c.id);
+                            }
+                          }}
                     >
                       <div className="conv-title-col" title={c.title}>
                         <span className="conv-title-text">{c.title}</span>
@@ -1020,7 +1046,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <div className="empty-state-scroll-container">
               <div className="empty-state-centered-box">
                 <div className="empty-state-brand-mark" aria-hidden="true">
-                  <span className="brand-logo-letter empty-state-logo-letter">N</span>
+                  <EmptyStateIcon />
                 </div>
                 <h1 className="empty-state-heading" data-testid="empty-state-heading">
                   What would you like to understand?
@@ -1141,7 +1167,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 <div className="abstain-reason">{msg.content}</div>
 
                                 {/* Retry Action Toolbar */}
-                                <div className="answer-action-toolbar" style={{ marginTop: '0.75rem' }}>
+                                <div className="answer-action-toolbar">
                                   <button
                                     type="button"
                                     className="answer-action-btn"
@@ -1223,7 +1249,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 {msg.conflict_detected && msg.conflicts && msg.conflicts.length > 0 && (
                                   <div className="conflict-container" data-testid="conflict-view">
                                     <div className="conflict-header">
-                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="2.5">
+                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                                         <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
                                         <line x1="12" y1="9" x2="12" y2="13" />
                                         <line x1="12" y1="17" x2="12.01" y2="17" />
@@ -1659,20 +1685,31 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
               <div className="notes-list-scroll">
                 {notes.length === 0 ? (
-                  <div className="sidebar-empty-box">
+                  <div className="sidebar-empty-box"><EmptyStateIcon />
                     <p>No saved notes yet.</p>
                     <p className="subtext">
                       Create personal notes or click &quot;Save to note&quot; on answers.
                     </p>
                   </div>
                 ) : filteredNotes.length === 0 ? (
-                  <p className="sidebar-empty-box">No notes matching search.</p>
+                  <p className="sidebar-empty-box"><EmptyStateIcon />No notes matching search.</p>
                 ) : (
                   <ul className="workspace-notes-ul">
                     {filteredNotes.map((n) => (
                       <li
                         key={n.id}
                         className="workspace-note-item"
+                        tabIndex={0}
+                        role="button"
+                        onKeyDown={(e) => {
+                          if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                            e.preventDefault();
+                            setEditingNote(n);
+                            setNoteFormTitle(n.title);
+                            setNoteFormContent(n.content);
+                            setIsCreateNoteOpen(true);
+                          }
+                        }}
                         onClick={() => {
                           setEditingNote(n);
                           setNoteFormTitle(n.title);
@@ -1681,7 +1718,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                         }}
                       >
                         <div className="note-card-top">
-                          <span className="note-title-text">{n.title}</span>
+                          <span className="note-title-text" title={n.title}>{n.title}</span>
                           {n.is_saved_answer ? (
                             <span className="saved-answer-tag">Saved Answer</span>
                           ) : (
