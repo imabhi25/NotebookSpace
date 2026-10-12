@@ -1,3 +1,4 @@
+import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect } from 'react';
 import { Subject, User } from '../types';
 
@@ -370,11 +371,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="sidebar-notebooks-scroll">
           {loading ? (
             <div className="sidebar-loading-box">
-              <div className="step-spinner" style={{ width: 18, height: 18 }} />
+              <div className="step-spinner spinner-inline" />
               <span>Loading notebooks...</span>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="sidebar-empty-box">
+            <div className="sidebar-empty-box"><EmptyStateIcon />
               <p>{tab === 'archived' ? 'No archived notebooks.' : search ? 'No matching notebooks.' : 'No notebooks yet.'}</p>
             </div>
           ) : (
@@ -656,13 +657,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         ) : loading ? (
           <div className="dashboard-loading-state">
-            <div className="step-spinner" style={{ width: 28, height: 28 }} />
+            <div className="step-spinner spinner-large" />
             <p>Loading notebooks...</p>
           </div>
         ) : filtered.length === 0 ? (
           <div className="dashboard-empty-state" data-testid="dashboard-empty-state">
             <div className="empty-state-brand-mark" aria-hidden="true">
-              <span className="brand-logo-letter">N</span>
+              <EmptyStateIcon />
             </div>
             <h2 className="empty-heading">
               {tab === 'archived'
@@ -691,7 +692,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         ) : (
           <div className="dashboard-select-prompt-state">
             <div className="empty-state-brand-mark" aria-hidden="true">
-              <span className="brand-logo-letter">N</span>
+              <EmptyStateIcon />
             </div>
             <h2 className="empty-heading">Select a notebook to start studying</h2>
             <p className="empty-subtext">
