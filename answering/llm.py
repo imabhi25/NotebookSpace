@@ -200,11 +200,6 @@ class GeminiLLMClient(BaseCachedLLMClient):
                         last_sanitized_err,
                     )
 
-                    # If this model has exhausted quota or is unavailable/not found, try fallback model if available
-                    if current_model != models_to_try[-1] and (resp.status_code in (404, 503) or (resp.status_code == 429 and err_status == "RESOURCE_EXHAUSTED")):
-                        logger.info("Falling back from %s to next model due to status %s (%s)", current_model, resp.status_code, err_status or "")
-                        break
-
                     # For exhausted quota requiring a long wait (> 60s), preserve progress and exit immediately
                     if resp.status_code == 429 and (err_status == "RESOURCE_EXHAUSTED" or (delay_sec is not None and delay_sec > 60.0)):
                         if delay_sec is not None and delay_sec > 60.0:
