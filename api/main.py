@@ -4,6 +4,7 @@ import io
 import logging
 import math
 import os
+import re
 from pathlib import Path
 import time
 from typing import Any, List, Optional
@@ -36,6 +37,7 @@ from db.notebook_store import (
     delete_note,
     delete_session,
     delete_source,
+    fail_stale_processing_sources,
     delete_subject,
     get_conversation_by_id,
     get_conversations_for_subject,
@@ -853,6 +855,30 @@ def _process_and_store_source(
     )
 
 
+def _stale_processing_minutes() -> int:
+    try:
+        return max(1, int(os.getenv("STALE_PROCESSING_MINUTES", "10")))
+    except ValueError:
+        return 10
+
+
+_PAGE_MARKER = re.compile(r"^--- Page (\d+) ---\n", re.MULTILINE)
+
+
+def _pages_from_saved_content(raw: str, file_name: str) -> list[tuple[str, int, str]]:
+    """Rebuild pages from a source's saved text: either stored page blocks or the original pasted text."""
+    parts = _PAGE_MARKER.split(raw)
+    if len(parts) >= 3 and not parts[0].strip():
+        pages = [
+            (file_name, int(parts[i]), parts[i + 1].strip())
+            for i in range(1, len(parts) - 1, 2)
+            if parts[i + 1].strip()
+        ]
+        if pages:
+            return pages
+    return parse_text_source(content=raw, file_name=file_name)
+
+
 @app.get("/subjects/{subject_id}/sources")
 def get_sources_endpoint(
     subject_id: str,
@@ -862,6 +888,9 @@ def get_sources_endpoint(
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
     if not subj:
         raise HTTPException(status_code=404, detail="Subject not found.")
+    fail_stale_processing_sources(
+        user_id=current_user["id"], subject_id=subject_id, max_age_minutes=_stale_processing_minutes()
+    )
     return get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id, search=search)
 
 
@@ -988,6 +1017,7 @@ def paste_source_endpoint(
         file_name=file_name,
         source_type="pasted",
         file_hash=file_hash,
+        raw_content=text,
         status="processing",
     )
 
@@ -1050,8 +1080,11 @@ def url_source_endpoint(
         return get_source_by_id(user_id=current_user["id"], source_id=src["id"])
     except Exception as e:
         logger.error(f"Failed to fetch webpage source {raw_url}: {e}", exc_info=True)
-        update_source_status(source_id=src["id"], status="failed", error_message=str(e))
-        return get_source_by_id(user_id=current_user["id"], source_id=src["id"])
+        failure = str(e) or "Failed to fetch webpage."
+
+    # A link that could not be added leaves nothing behind: no dead row, no slot used.
+    delete_source(user_id=current_user["id"], source_id=src["id"])
+    raise HTTPException(status_code=400, detail=failure)
 
 
 @app.get("/subjects/{subject_id}/sources/{source_id}")
@@ -1104,9 +1137,29 @@ def retry_source_endpoint(
     source_id: str,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    fail_stale_processing_sources(
+        user_id=current_user["id"], subject_id=subject_id, max_age_minutes=_stale_processing_minutes()
+    )
     src = get_source_by_id(user_id=current_user["id"], source_id=source_id, include_raw_content=True)
     if not src or src["subject_id"] != subject_id:
         raise HTTPException(status_code=404, detail="Source not found.")
+
+    # A source whose text was already saved can be processed again without the original file.
+    if src["source_type"] != "url" and src["status"] == "failed" and (src.get("raw_content") or "").strip():
+        try:
+            update_source_status(source_id=source_id, status="processing", error_message=None)
+            page_name = src["title"] if src["source_type"] == "pasted" else src["file_name"]
+            pages = _pages_from_saved_content(src["raw_content"], page_name)
+            _process_and_store_source(
+                user_id=current_user["id"],
+                subject_id=subject_id,
+                source_id=source_id,
+                version=src["version"],
+                pages=pages,
+            )
+        except Exception as e:
+            update_source_status(source_id=source_id, status="failed", error_message=str(e))
+        return get_source_by_id(user_id=current_user["id"], source_id=source_id)
 
     if src["source_type"] == "url" and src.get("source_url"):
         try:
@@ -1126,7 +1179,7 @@ def retry_source_endpoint(
 
     raise HTTPException(
         status_code=400,
-        detail="Retry is only applicable for web sources. For uploaded files, use Replace.",
+        detail="This source has no saved text to retry from. For uploaded files, use Replace.",
     )
 
 

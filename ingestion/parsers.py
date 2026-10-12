@@ -150,7 +150,7 @@ def fetch_and_parse_url(
     max_bytes = 5 * 1024 * 1024  # 5 MB
     headers = {
         "User-Agent": "NotebookSpace/2.0 (Study Document Assistant; +https://notebookspace.netlify.app)",
-        "Accept": "text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.8",
+        "Accept": "text/html,application/xhtml+xml,application/pdf;q=0.9,text/plain;q=0.9,*/*;q=0.8",
     }
 
     current_url = url
@@ -181,13 +181,36 @@ def fetch_and_parse_url(
             if len(content_bytes) > max_bytes:
                 raise ValueError("Webpage content exceeds maximum allowed size limit (5 MB).")
 
+            content_type = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
             html_text = resp.text
     except httpx.TimeoutException:
         raise ValueError("Request timed out while fetching the webpage (10s limit).")
     except httpx.RequestError as e:
         raise ValueError(f"Network error while fetching URL: {e}")
 
-    # 3. Extract text and title
+    # 3. A link to a PDF is parsed as a PDF. Servers mislabel downloads, so the bytes decide.
+    if content_type == "application/pdf" or content_bytes[:1024].lstrip().startswith(b"%PDF-"):
+        path_name = Path(urlparse(current_url).path).name
+        doc_title = (title or path_name or urlparse(url).netloc or "PDF Source").strip()
+        try:
+            pages = parse_pdf_source(io.BytesIO(content_bytes), file_name=doc_title)
+        except Exception:
+            raise ValueError(
+                "Couldn't fetch this PDF: the file could not be read as text. "
+                "It may be scanned, password-protected, or damaged. Download it and upload the file instead."
+            )
+        return doc_title, pages
+
+    # Anything else that is not text cannot be read as a web page.
+    is_text_type = (
+        not content_type
+        or content_type.startswith("text/")
+        or content_type in ("application/xhtml+xml", "application/xml", "application/json")
+    )
+    if not is_text_type or b"\x00" in content_bytes[:2048]:
+        raise ValueError("This link is not a web page or a PDF, so it cannot be added as a source.")
+
+    # 4. Extract text and title
     extractor = _HTMLContentExtractor()
     extractor.feed(html_text)
 
@@ -200,6 +223,6 @@ def fetch_and_parse_url(
     if len(full_text.split()) < 15:
         raise ValueError("No readable text content could be extracted from the specified webpage.")
 
-    # 4. Partition into pages
+    # 5. Partition into pages
     pages = parse_text_source(full_text, file_name=doc_title, words_per_page=words_per_page)
     return doc_title, pages
