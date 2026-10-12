@@ -6,6 +6,8 @@ interface ComposerProps {
   onSubmit: (e: React.FormEvent) => void;
   loading: boolean;
   onStop?: () => void;
+  selectedSourceCount?: number;
+  placeholder?: string;
 }
 
 export const Composer: React.FC<ComposerProps> = ({
@@ -14,6 +16,8 @@ export const Composer: React.FC<ComposerProps> = ({
   onSubmit,
   loading,
   onStop,
+  selectedSourceCount,
+  placeholder = "Start typing, or ask a question (e.g., When is the final exam?)...",
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -41,12 +45,18 @@ export const Composer: React.FC<ComposerProps> = ({
           Ask a question about your course materials:
         </label>
         <div className="composer-box">
+          {selectedSourceCount !== undefined && (
+            <div className="composer-sources-badge" title={`${selectedSourceCount} sources referenced`}>
+              <span className="badge-count-num">{selectedSourceCount}</span>
+              <span className="badge-count-label">{selectedSourceCount === 1 ? 'source' : 'sources'}</span>
+            </div>
+          )}
           <textarea
             ref={textareaRef}
             id="question-input"
             className="composer-input"
             rows={1}
-            placeholder="e.g., When is the final exam and what is the grading breakdown?"
+            placeholder={placeholder}
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -89,7 +99,7 @@ export const Composer: React.FC<ComposerProps> = ({
                   </svg>
                 )}
               </span>
-              <span className="send-btn-text">
+              <span className="send-btn-text sr-only">
                 {loading ? 'Searching & Answering...' : 'Ask Question'}
               </span>
             </button>
