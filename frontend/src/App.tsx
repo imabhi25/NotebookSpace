@@ -716,75 +716,77 @@ export function App({
 
   return (
     <div className="app-shell">
-      {/* GLOBAL TOP NAVIGATION */}
-      <header className="app-top-nav">
-        <div className="top-nav-left">
-          <button
-            type="button"
-            className="brand-clickable"
-            onClick={() => navigateTo('notebooks')}
-            title="NotebookSpace Home"
-          >
-            <span className="brand-mark-wrapper" aria-hidden="true">
-              <span className="brand-logo-letter">N</span>
-            </span>
-            <div className="brand-text">
-              <span className="top-brand-title">NotebookSpace</span>
-            </div>
-          </button>
-
-          {/* Mode Switcher */}
-          <div className="top-nav-switcher">
+      {/* GLOBAL TOP NAVIGATION (Dashboard & Demo) */}
+      {route.view !== 'workspace' && (
+        <header className="app-top-nav">
+          <div className="top-nav-left">
             <button
               type="button"
-              className={`nav-switcher-btn ${route.view !== 'demo' ? 'active' : ''}`}
+              className="brand-clickable"
               onClick={() => navigateTo('notebooks')}
+              title="NotebookSpace Home"
             >
-              Study Notebooks
+              <span className="brand-mark-wrapper" aria-hidden="true">
+                <span className="brand-logo-letter">N</span>
+              </span>
+              <div className="brand-text">
+                <span className="top-brand-title">NotebookSpace</span>
+              </div>
             </button>
+
+            {/* Mode Switcher */}
+            <div className="top-nav-switcher">
+              <button
+                type="button"
+                className={`nav-switcher-btn ${route.view !== 'demo' ? 'active' : ''}`}
+                onClick={() => navigateTo('notebooks')}
+              >
+                Study Notebooks
+              </button>
+              <button
+                type="button"
+                className={`nav-switcher-btn ${route.view === 'demo' ? 'active' : ''}`}
+                onClick={() => navigateTo('demo')}
+              >
+                Public Demo
+              </button>
+            </div>
+          </div>
+
+          <div className="top-nav-right">
+            <div
+              className="guest-workspace-indicator"
+              data-testid="guest-workspace-badge"
+              title="Your notebook workspace is private to this browser."
+            >
+              <span className="guest-status-indicator-dot" />
+              <span className="guest-status-label">
+                {currentUser?.email || 'Guest Workspace'}
+              </span>
+            </div>
             <button
               type="button"
-              className={`nav-switcher-btn ${route.view === 'demo' ? 'active' : ''}`}
-              onClick={() => navigateTo('demo')}
+              className="btn-new-workspace"
+              title="Reset to a fresh, empty workspace in this browser"
+              onClick={async () => {
+                if (window.confirm('Start a new guest workspace? This will create a fresh workspace for this browser.')) {
+                  try {
+                    await api.logout();
+                  } catch {
+                    // ignore
+                  }
+                  const res = await api.createGuestSession();
+                  setCurrentUser(res.user);
+                  navigateTo('notebooks');
+                  fetchSubjects();
+                }
+              }}
             >
-              Public Demo
+              Reset Workspace
             </button>
           </div>
-        </div>
-
-        <div className="top-nav-right">
-          <div
-            className="guest-workspace-indicator"
-            data-testid="guest-workspace-badge"
-            title="Your notebook workspace is private to this browser."
-          >
-            <span className="guest-status-indicator-dot" />
-            <span className="guest-status-label">
-              {currentUser?.email || 'Guest Workspace'}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="btn-new-workspace"
-            title="Reset to a fresh, empty workspace in this browser"
-            onClick={async () => {
-              if (window.confirm('Start a new guest workspace? This will create a fresh workspace for this browser.')) {
-                try {
-                  await api.logout();
-                } catch {
-                  // ignore
-                }
-                const res = await api.createGuestSession();
-                setCurrentUser(res.user);
-                navigateTo('notebooks');
-                fetchSubjects();
-              }
-            }}
-          >
-            Reset Workspace
-          </button>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* RENDER ACTIVE ROUTE VIEW */}
       {route.view === 'demo' ? (
@@ -975,6 +977,7 @@ export function App({
             selectedSourceIds={selectedSourceIds}
             starterQuestions={starterQuestions}
             isDemoMode={isDemoMode}
+            currentUser={currentUser}
             onBackToDashboard={() => navigateTo('notebooks')}
             onSelectSources={setSelectedSourceIds}
             onSelectConversation={handleSelectConversation}
