@@ -342,7 +342,8 @@ export const api = {
     conversationId: string,
     question: string,
     selectedSourceIds: string[],
-    signal?: AbortSignal
+    signal?: AbortSignal,
+    options?: { is_retry?: boolean; retry_message_id?: string }
   ): Promise<MessageItem> {
     return apiFetch<MessageItem>(`/subjects/${subjectId}/conversations/${conversationId}/messages`, {
       method: 'POST',
@@ -350,6 +351,8 @@ export const api = {
       body: JSON.stringify({
         question,
         selected_source_ids: selectedSourceIds,
+        is_retry: options?.is_retry || false,
+        retry_message_id: options?.retry_message_id || null,
       }),
     });
   },

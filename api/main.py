@@ -10,7 +10,7 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from answering.answer import answer_question
 from answering.notebook_answer import answer_notebook_question
@@ -88,15 +88,19 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-MAX_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024  # 10 MB for PDF
-MAX_TEXT_SIZE_BYTES = 5 * 1024 * 1024     # 5 MB for TXT/MD
+MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(50 * 1024 * 1024)))  # 50 MB for PDF
+MAX_TEXT_SIZE_BYTES = int(os.getenv("MAX_TEXT_SIZE_BYTES", str(10 * 1024 * 1024)))      # 10 MB for TXT/MD
 
 # Demo mode in-memory rate limiter tracking timestamps per IP
 ask_rate_limit_history: dict[str, list[float]] = defaultdict(list)
 
 
 def is_demo_mode() -> bool:
-    return os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
+    if os.getenv("DEMO_MODE", "").lower() in ("true", "1", "yes"):
+        return True
+    if os.getenv("ENVIRONMENT", "").lower() == "production" and os.getenv("ALLOW_DEMO_UPLOADS", "").lower() not in ("true", "1"):
+        return True
+    return False
 
 
 def is_demo_login_allowed() -> bool:
@@ -177,57 +181,149 @@ class AuthResponse(BaseModel):
 
 
 class SubjectCreateRequest(BaseModel):
-    name: str = Field(..., min_length=1)
-    course_code: Optional[str] = None
-    description: Optional[str] = None
+    name: str = Field(..., max_length=200)
+    course_code: Optional[str] = Field(default=None, max_length=50)
+    description: Optional[str] = Field(default=None, max_length=2000)
     settings: Optional[dict[str, Any]] = None
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Subject name cannot be empty or whitespace.")
+        return s
+
+    @field_validator("course_code", "description")
+    @classmethod
+    def validate_optional_text(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        return v.strip() or None
 
 
 class SubjectUpdateRequest(BaseModel):
-    name: Optional[str] = None
-    course_code: Optional[str] = None
-    description: Optional[str] = None
+    name: Optional[str] = Field(default=None, max_length=200)
+    course_code: Optional[str] = Field(default=None, max_length=50)
+    description: Optional[str] = Field(default=None, max_length=2000)
     is_archived: Optional[bool] = None
     settings: Optional[dict[str, Any]] = None
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        s = v.strip()
+        if not s:
+            raise ValueError("Subject name cannot be empty or whitespace.")
+        return s
+
 
 class SourcePasteRequest(BaseModel):
-    title: str = Field(..., min_length=1)
-    text: str = Field(..., min_length=1)
+    title: str = Field(..., max_length=200)
+    text: str = Field(..., max_length=500000)
+
+    @field_validator("title", "text")
+    @classmethod
+    def validate_trimmed(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Field cannot be empty or whitespace.")
+        return s
 
 
 class SourceUrlRequest(BaseModel):
-    url: str = Field(..., min_length=5)
-    title: Optional[str] = None
+    url: str = Field(..., max_length=2048)
+    title: Optional[str] = Field(default=None, max_length=200)
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        s = v.strip()
+        if len(s) < 5:
+            raise ValueError("Invalid URL length.")
+        return s
 
 
 class SourceRenameRequest(BaseModel):
-    title: str = Field(..., min_length=1)
+    title: str = Field(..., max_length=200)
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Title cannot be empty or whitespace.")
+        return s
 
 
 class ConversationCreateRequest(BaseModel):
-    title: Optional[str] = "New Conversation"
+    title: Optional[str] = Field(default="New Conversation", max_length=200)
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: Optional[str]) -> str:
+        if not v or not v.strip():
+            return "New Conversation"
+        return v.strip()
 
 
 class ConversationRenameRequest(BaseModel):
-    title: str = Field(..., min_length=1)
+    title: str = Field(..., max_length=200)
+
+    @field_validator("title")
+    @classmethod
+    def validate_title(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Title cannot be empty or whitespace.")
+        return s
 
 
 class MessageSendRequest(BaseModel):
-    question: str = Field(..., min_length=1)
+    question: str = Field(..., max_length=4000)
     selected_source_ids: list[str] = Field(default_factory=list)
+    is_retry: bool = False
+    retry_message_id: Optional[str] = None
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Question cannot be empty or whitespace.")
+        return s
 
 
 class NoteCreateRequest(BaseModel):
-    title: str = Field(..., min_length=1)
-    content: str = Field(..., min_length=1)
+    title: str = Field(..., max_length=200)
+    content: str = Field(..., max_length=100000)
     is_saved_answer: bool = False
     citations: list[dict[str, Any]] = Field(default_factory=list)
 
+    @field_validator("title", "content")
+    @classmethod
+    def validate_text(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Field cannot be empty or whitespace.")
+        return s
+
 
 class NoteUpdateRequest(BaseModel):
-    title: Optional[str] = None
-    content: Optional[str] = None
+    title: Optional[str] = Field(default=None, max_length=200)
+    content: Optional[str] = Field(default=None, max_length=100000)
+
+    @field_validator("title", "content")
+    @classmethod
+    def validate_optional_text(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return None
+        s = v.strip()
+        if not s:
+            raise ValueError("Field cannot be empty or whitespace.")
+        return s
 
 
 # Legacy Models
@@ -374,8 +470,10 @@ def ask_endpoint(payload: AskRequest, request: Request):
 
 
 @app.post("/upload", response_model=UploadResponse)
-async def upload_endpoint(file: UploadFile = File(...)):
-    """Upload and ingest a course PDF document (capped at 10 MB)."""
+async def upload_endpoint(
+    file: UploadFile = File(...),
+):
+    """Upload and ingest a course PDF document (capped at configurable 50 MB; disabled in demo mode)."""
     if is_demo_mode():
         raise HTTPException(
             status_code=403,
@@ -388,9 +486,10 @@ async def upload_endpoint(file: UploadFile = File(...)):
     try:
         content = await file.read()
         if len(content) > MAX_UPLOAD_SIZE_BYTES:
+            limit_mb = MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)
             raise HTTPException(
                 status_code=413,
-                detail="File size exceeds the 10 MB limit.",
+                detail=f"File size exceeds the {limit_mb} MB limit.",
             )
 
         stream = io.BytesIO(content)
@@ -971,6 +1070,11 @@ async def replace_source_endpoint(
         raise HTTPException(status_code=400, detail="Only PDF, TXT, and Markdown files are supported.")
 
     content = await file.read()
+    max_size = MAX_UPLOAD_SIZE_BYTES if ext == ".pdf" else MAX_TEXT_SIZE_BYTES
+    if len(content) > max_size:
+        limit_mb = max_size // (1024 * 1024)
+        raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size ({limit_mb} MB).")
+
     file_hash = hashlib.sha256(content).hexdigest()
     new_version = src["version"] + 1
 
@@ -991,7 +1095,13 @@ async def replace_source_endpoint(
             version=new_version,
             pages=pages,
         )
-        update_source_status(source_id=source_id, status="ready", file_hash=file_hash)
+        update_source_status(
+            source_id=source_id,
+            status="ready",
+            file_hash=file_hash,
+            version=new_version,
+            file_name=filename,
+        )
         return get_source_by_id(user_id=current_user["id"], source_id=source_id)
     except Exception as e:
         logger.error(f"Failed to replace source {source_id}: {e}", exc_info=True)
@@ -1100,7 +1210,7 @@ def send_message_endpoint(
     settings = subj.get("settings", {})
 
     # Auto-rename "New Conversation" on first question
-    if conv["title"] == "New Conversation":
+    if not payload.is_retry and conv["title"] == "New Conversation":
         new_title = payload.question.strip()[:40]
         if len(payload.question.strip()) > 40:
             new_title += "..."
@@ -1117,6 +1227,8 @@ def send_message_endpoint(
         subject_id=subject_id,
         selected_source_ids=payload.selected_source_ids,
         settings=settings,
+        is_retry=payload.is_retry,
+        retry_message_id=payload.retry_message_id,
     )
     return asst_msg
 

@@ -130,21 +130,31 @@ def answer_notebook_question(
     k: int = 6,
     llm_client: LLMClient | None = None,
     db_url: str | None = None,
+    is_retry: bool = False,
+    retry_message_id: str | None = None,
 ) -> dict[str, Any]:
     start_time = time.perf_counter()
     settings = settings or {}
     support_min_score = float(os.getenv("SUPPORT_MIN_SCORE", "0.20"))
 
+    # If this is a retry of a previous failed assistant turn, remove the old failed turn
+    if is_retry and retry_message_id:
+        try:
+            from db.notebook_store import delete_message
+            delete_message(user_id=user_id, message_id=retry_message_id, db_url=db_url)
+        except Exception as e:
+            logger.warning(f"Could not delete message on retry: {e}")
+
     # 1. Check if sources are selected
     if not selected_source_ids:
-        # Save user message
-        save_message(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            role="user",
-            content=question,
-            db_url=db_url,
-        )
+        if not is_retry:
+            save_message(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                role="user",
+                content=question,
+                db_url=db_url,
+            )
         latency = time.perf_counter() - start_time
         asst_msg = save_message(
             user_id=user_id,
@@ -170,14 +180,15 @@ def answer_notebook_question(
         if last_user_questions:
             search_query = f"{question} {last_user_questions[-1]}"
 
-    # Save current user message to conversation history
-    save_message(
-        user_id=user_id,
-        conversation_id=conversation_id,
-        role="user",
-        content=question,
-        db_url=db_url,
-    )
+    # Save current user message to conversation history (if not retrying an existing question)
+    if not is_retry:
+        save_message(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            role="user",
+            content=question,
+            db_url=db_url,
+        )
 
     # 3. Scoped retrieval strictly constrained to user, subject, and selected sources
     retrieved = search_scoped(
@@ -189,11 +200,13 @@ def answer_notebook_question(
         db_url=db_url,
     )
 
-    # Record source versions
-    source_versions = {}
+    # Record source versions for all selected sources and retrieved sources
+    all_sources = get_sources_for_subject(user_id=user_id, subject_id=subject_id, db_url=db_url)
+    sources_map = {s["id"]: s["version"] for s in all_sources}
+    source_versions = {str(sid): sources_map.get(str(sid), 1) for sid in selected_source_ids}
     for r in retrieved:
         if "source_id" in r and "source_version" in r:
-            source_versions[r["source_id"]] = r["source_version"]
+            source_versions[str(r["source_id"])] = r["source_version"]
 
     top_score = (
         max((r.get("similarity_score", r.get("score", 0.0)) for r in retrieved), default=0.0)
@@ -239,11 +252,32 @@ def answer_notebook_question(
     # 5. Call LLM Client
     client = llm_client or get_llm_client()
     model_name = getattr(client, "model", "gemini")
-    resp = client.generate(system=system_prompt, user=user_prompt)
 
-    llm_latency = resp.latency_seconds
-    total_in_tok = resp.input_tokens
-    total_out_tok = resp.output_tokens
+    try:
+        resp = client.generate(system=system_prompt, user=user_prompt)
+        llm_latency = resp.latency_seconds
+        total_in_tok = resp.input_tokens
+        total_out_tok = resp.output_tokens
+    except Exception as e:
+        logger.error(f"Failed to generate answer from LLM: {e}", exc_info=True)
+        raw_err = str(e)
+        sanitized_err = re.sub(r'(?:AIza|AQ\.)[A-Za-z0-9_-]{15,}', '[REDACTED_KEY]', raw_err)
+        sanitized_err = re.sub(r'key=[A-Za-z0-9_-]+', 'key=[REDACTED]', sanitized_err)
+        latency = time.perf_counter() - start_time
+        return save_message(
+            user_id=user_id,
+            conversation_id=conversation_id,
+            role="assistant",
+            content=f"Unable to generate response: {sanitized_err}",
+            model=model_name,
+            abstained=True,
+            abstain_reason="generation_failed",
+            retrieved=retrieved,
+            selected_source_ids=[str(s) for s in selected_source_ids],
+            source_versions=source_versions,
+            latency=latency,
+            db_url=db_url,
+        )
 
     def try_parse_json(text: str) -> dict[str, Any] | None:
         content = text.strip()
@@ -267,11 +301,14 @@ def answer_notebook_question(
             f"{user_prompt}\n\n"
             "Error: Previous response was not valid JSON. Respond ONLY with the requested JSON schema."
         )
-        retry_resp = client.generate(system=system_prompt, user=retry_prompt)
-        llm_latency += retry_resp.latency_seconds
-        total_in_tok += retry_resp.input_tokens
-        total_out_tok += retry_resp.output_tokens
-        parsed = try_parse_json(retry_resp.text)
+        try:
+            retry_resp = client.generate(system=system_prompt, user=retry_prompt)
+            llm_latency += retry_resp.latency_seconds
+            total_in_tok += retry_resp.input_tokens
+            total_out_tok += retry_resp.output_tokens
+            parsed = try_parse_json(retry_resp.text)
+        except Exception:
+            pass
 
     token_stats = {
         "input": total_in_tok,

@@ -109,14 +109,15 @@ def test_upload_invalid_extension():
 
 
 def test_upload_exceeds_size_limit():
-    """Test that uploading a file larger than 10MB returns 413."""
-    oversized_content = b"0" * (10 * 1024 * 1024 + 100)  # > 10MB
+    """Test that uploading a file larger than MAX_UPLOAD_SIZE_BYTES returns 413."""
+    from api.main import MAX_UPLOAD_SIZE_BYTES
+    oversized_content = b"0" * (MAX_UPLOAD_SIZE_BYTES + 100)
     response = client.post(
         "/upload",
         files={"file": ("huge_doc.pdf", oversized_content, "application/pdf")},
     )
     assert response.status_code == 413
-    assert "10 MB" in response.json()["detail"]
+    assert "limit" in response.json()["detail"].lower()
 
 
 def test_upload_corrupted_pdf_generic_error():
