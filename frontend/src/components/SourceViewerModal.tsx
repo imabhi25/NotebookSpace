@@ -55,7 +55,7 @@ export const SourceViewerModal: React.FC<SourceViewerModalProps> = ({ source, on
               ))}
             </div>
           ) : (
-            <div className="dashboard-loading-state" style={{ padding: '2rem 1rem' }}>
+            <div className="dashboard-loading-state source-loading-state">
               <div className="step-spinner" />
               <p>Loading source content...</p>
             </div>
