@@ -1,10 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DashboardView } from './components/DashboardView';
 import { SubjectWorkspaceView } from './components/SubjectWorkspaceView';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
 import { Subject, Source, Conversation, MessageItem } from './types';
+import { api } from './api';
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('MarkdownRenderer component', () => {
   it('renders markdown text with inline citation chips and handles citation click', () => {
@@ -310,6 +313,7 @@ describe('SubjectWorkspaceView component', () => {
 
   it('renders chat message with citation and handles inline citation chip click', async () => {
     const handleSaveNote = vi.fn();
+    vi.spyOn(api, 'getPassages').mockResolvedValue([]);
 
     render(
       <SubjectWorkspaceView
@@ -358,7 +362,7 @@ describe('SubjectWorkspaceView component', () => {
 
     // Test Save as Note
     const saveNoteBtn = screen.getByRole('button', { name: /save to note/i });
-    fireEvent.click(saveNoteBtn);
+    await act(async () => { fireEvent.click(saveNoteBtn); });
     expect(handleSaveNote).toHaveBeenCalledWith(mockMessages[1]);
   });
 });

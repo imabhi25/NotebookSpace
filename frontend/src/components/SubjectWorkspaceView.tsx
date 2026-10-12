@@ -1,5 +1,5 @@
 import { EmptyStateIcon } from './EmptyStateIcon';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { api } from '../api';
 import {
   Subject,
@@ -55,7 +55,6 @@ interface SubjectWorkspaceViewProps {
   chatLoading: boolean;
   onStopGeneration?: () => void;
   onResetWorkspace?: () => Promise<void>;
-  onToggleNotebooksDrawer?: () => void;
 }
 
 export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
@@ -91,15 +90,102 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   chatLoading,
   onStopGeneration,
   onResetWorkspace,
-  onToggleNotebooksDrawer,
 }) => {
   // --------------------------------------------------------------------------
   // LAYOUT STATE: Independently Collapsible Side Panels
   // --------------------------------------------------------------------------
-  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
-  const [isRightCollapsed, setIsRightCollapsed] = useState(false);
-  const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
-  const [isRightOpenMobile, setIsRightOpenMobile] = useState(false);
+  const compactViewport = () => typeof window !== 'undefined' && window.innerWidth <= 960;
+  const [isCompact, setIsCompact] = useState(compactViewport);
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(compactViewport);
+  const [isRightCollapsed, setIsRightCollapsed] = useState(true);
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
+  const [titleBelowBar, setTitleBelowBar] = useState(compactViewport);
+  const headerRef = useRef<HTMLElement>(null);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const titleMeasureRef = useRef<HTMLDivElement>(null);
+  const leftToggleRef = useRef<HTMLButtonElement>(null);
+  const rightToggleRef = useRef<HTMLButtonElement>(null);
+  const menuRootRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const chatAreaRef = useRef<HTMLElement>(null);
+  const leftPanelRef = useRef<HTMLElement>(null);
+  const rightPanelRef = useRef<HTMLElement>(null);
+  const closeLeftPanel = () => { setIsLeftCollapsed(true); leftToggleRef.current?.focus(); };
+  const closeRightPanel = () => { setIsRightCollapsed(true); rightToggleRef.current?.focus(); };
+
+  useEffect(() => {
+    let wasCompact = compactViewport();
+    const onResize = () => {
+      const next = compactViewport();
+      if (next === wasCompact) return;
+      wasCompact = next;
+      setIsCompact(next);
+      setIsLeftCollapsed(next);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // An unusually long title moves below the controls instead of wrapping the bar or losing text.
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (isCompact) { setTitleBelowBar(true); return; }
+      const header = headerRef.current;
+      if (!header || !titleMeasureRef.current || header.clientWidth === 0) return;
+      const style = getComputedStyle(header);
+      const gap = parseFloat(style.columnGap) || 0;
+      const available = header.clientWidth - (parseFloat(style.paddingLeft) || 0)
+        - (parseFloat(style.paddingRight) || 0) - (backButtonRef.current?.offsetWidth || 0)
+        - (actionsRef.current?.offsetWidth || 0) - gap * 2;
+      setTitleBelowBar(titleMeasureRef.current.offsetWidth > available);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    if (headerRef.current) observer.observe(headerRef.current);
+    if (titleMeasureRef.current) observer.observe(titleMeasureRef.current);
+    if (actionsRef.current) observer.observe(actionsRef.current);
+    return () => observer.disconnect();
+  }, [isCompact, subject.name, subject.course_code]);
+
+  useEffect(() => {
+    if (chatAreaRef.current) chatAreaRef.current.inert = isCompact && (!isLeftCollapsed || !isRightCollapsed);
+  }, [isCompact, isLeftCollapsed, isRightCollapsed]);
+
+  useEffect(() => {
+    if (isCompact && !isLeftCollapsed) leftPanelRef.current?.focus();
+  }, [isCompact, isLeftCollapsed]);
+
+  useEffect(() => {
+    if (isCompact && !isRightCollapsed) rightPanelRef.current?.focus();
+  }, [isCompact, isRightCollapsed]);
+
+  useEffect(() => {
+    if (!isActionsOpen) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    const closeOutside = (event: PointerEvent) => {
+      if (!menuRootRef.current?.contains(event.target as Node)) setIsActionsOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [isActionsOpen]);
+
+  const closeActions = () => { setIsActionsOpen(false); menuButtonRef.current?.focus(); };
+  const handleMenuKeys = (event: React.KeyboardEvent) => {
+    const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') || [])];
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === 'Escape' || event.key === 'Tab') {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
+      closeActions();
+    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+        : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[next]?.focus();
+    }
+  };
 
   // Left sidebar active tab: 'sources' | 'conversations'
   const [sidebarTab, setSidebarTab] = useState<'sources' | 'conversations'>('sources');
@@ -195,12 +281,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           setViewingSource(null);
         } else if (isAddSourceOpen) {
           setIsAddSourceOpen(false);
+        } else if (isActionsOpen) {
+          closeActions();
+        } else if (isCompact && !isRightCollapsed) {
+          closeRightPanel();
+        } else if (isCompact && !isLeftCollapsed) {
+          closeLeftPanel();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen]);
+  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, isCompact, isLeftCollapsed, isRightCollapsed]);
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
@@ -255,16 +347,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const handleSelectCitation = (cit: Citation, messageId: string) => {
     setSelectedCitation({ ...cit, messageId });
     setRightPanelTab('passage');
-    setIsRightCollapsed(false); // Auto-expand right panel
-    setIsRightOpenMobile(true); // Auto-open right panel drawer on mobile/tablet
-    setIsSidebarOpenMobile(false); // Close left drawer if open
+    setIsRightCollapsed(false); // One open state for desktop, tablet, and phone.
+    if (isCompact) setIsLeftCollapsed(true); // Preserve citation focus on small screens.
     loadPassages(cit);
-    setTimeout(() => {
-      const panel = document.querySelector('.workspace-right-panel');
-      if (panel && typeof panel.scrollIntoView === 'function') {
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 50);
+
   };
 
   const loadPassages = async (cit: Citation) => {
@@ -385,7 +471,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       await onSaveAnswerAsNote(msg);
       setSavedNoteMsgId(msg.id);
       setRightPanelTab('notes');
-      setIsRightCollapsed(false); // Auto-expand right panel on save note
+      setIsRightCollapsed(false); // Auto-expand right panel on save note at every viewport.
+      if (isCompact) setIsLeftCollapsed(true);
       setTimeout(() => setSavedNoteMsgId(null), 2500);
     } finally {
       setSavingNoteMsgId(null);
@@ -408,7 +495,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const activeConversation = conversations.find((c) => c.id === activeConversationId);
 
   return (
-    <div className="workspace-root">
+    <div className="workspace-root workspace-layout" data-left-open={!isLeftCollapsed} data-right-open={!isRightCollapsed}>
       <input
         ref={replaceFileInputRef}
         type="file"
@@ -417,181 +504,113 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         onChange={handleReplaceFileChange}
       />
 
-      {/* Mobile Drawer Overlay */}
-      {(isSidebarOpenMobile || isRightOpenMobile) && (
-        <div
-          className="sidebar-overlay"
-          onClick={() => {
-            setIsSidebarOpenMobile(false);
-            setIsRightOpenMobile(false);
-          }}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* ======================================================================
-          COMPACT TOP BAR: NotebookSpace, back to subjects, current subject
-          ====================================================================== */}
-      <header className="workspace-top-bar">
-        <div className="workspace-top-left">
-          <button
-            type="button"
-            className="workspace-back-btn"
-            onClick={onToggleNotebooksDrawer || onBackToDashboard}
-            title={onToggleNotebooksDrawer ? "Toggle notebooks list" : "Back to notebooks dashboard"}
-            aria-label="Notebooks"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
+      <div className="workspace-subject-pill workspace-subject-pill-name workspace-title-measure"
+        ref={titleMeasureRef} aria-hidden="true" data-title={`${subject.name} ${subject.course_code || ''}`} />
+      <header className="workspace-top-bar workspace-control-bar" ref={headerRef}>
+        <button type="button" className="workspace-back-btn" ref={backButtonRef}
+          onClick={onBackToDashboard} title="Back to notebooks dashboard" aria-label="Back to notebooks dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          <span>Notebooks</span>
+        </button>
+        {!titleBelowBar && (
+          <div className="workspace-subject-pill workspace-notebook-identity">
+            <h1 className="workspace-subject-pill-name">{subject.name}</h1>
+            {subject.course_code && <span className="workspace-subject-pill-code">{subject.course_code}</span>}
+          </div>
+        )}
+        <div className="workspace-top-right workspace-essential-actions" ref={actionsRef}>
+          <button type="button" ref={leftToggleRef}
+            className={`workspace-toggle-btn ${!isLeftCollapsed ? 'active' : ''}`}
+            onClick={() => setIsLeftCollapsed(!isLeftCollapsed)}
+            title={isLeftCollapsed ? 'Show sources panel' : 'Hide sources panel'}
+            aria-label="Toggle sources panel" aria-expanded={!isLeftCollapsed} aria-controls="workspace-sources-panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" />
             </svg>
-            <span>Notebooks</span>
+            <span className="toggle-label">Sources</span>
           </button>
-
-          <span className="workspace-header-divider" aria-hidden="true" />
-
-          <button
-            type="button"
-            className="workspace-brand-link"
-            onClick={onBackToDashboard}
-            title="NotebookSpace Home"
-          >
-            <span className="brand-logo-letter-small" aria-hidden="true">N</span>
-            <span className="workspace-brand-name">NotebookSpace</span>
+          <button type="button" ref={rightToggleRef}
+            className={`workspace-toggle-btn ${!isRightCollapsed ? 'active' : ''}`}
+            onClick={() => setIsRightCollapsed(!isRightCollapsed)}
+            title={isRightCollapsed ? 'Show notes & passage inspector' : 'Hide notes & passage inspector'}
+            aria-label="Toggle inspector panel" aria-expanded={!isRightCollapsed} aria-controls="workspace-inspector-panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M15 3v18" />
+            </svg>
+            <span className="toggle-label">{rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}</span>
           </button>
-
-          <span className="workspace-header-divider" aria-hidden="true" />
-
-          <div className="workspace-subject-pill" title={subject.name}>
-            <span className="workspace-subject-pill-name">{subject.name}</span>
-            {subject.course_code && (
-              <span className="workspace-subject-pill-code">{subject.course_code}</span>
+          <button type="button" className="btn-icon workspace-top-icon-btn" onClick={onCreateConversation}
+            title="New conversation" aria-label="New conversation" data-testid="top-new-chat-btn">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+          <div className="workspace-actions-menu" ref={menuRootRef}>
+            <button type="button" ref={menuButtonRef} className="btn-icon workspace-top-icon-btn"
+              aria-label="Notebook actions" title="Notebook actions" aria-haspopup="menu" aria-expanded={isActionsOpen}
+              aria-controls="workspace-actions-menu" onClick={() => setIsActionsOpen(!isActionsOpen)}
+              onKeyDown={(event) => { if (event.key === 'ArrowDown') { event.preventDefault(); setIsActionsOpen(true); } }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" />
+              </svg>
+            </button>
+            {isActionsOpen && (
+              <div id="workspace-actions-menu" className="notebook-overflow-menu workspace-overflow-menu"
+                ref={menuRef} role="menu" aria-label="Notebook actions" onKeyDown={handleMenuKeys}>
+                <button type="button" className="notebook-menu-item" role="menuitem"
+                  onClick={() => { closeActions(); setIsSettingsOpen(true); }}>Notebook settings</button>
+                <button type="button" className="notebook-menu-item" role="menuitem" data-testid="guest-workspace-badge"
+                  title="Your notebook workspace is private to this browser."
+                  onClick={() => { closeActions(); onResetWorkspace?.(); }}>{currentUser?.email || 'Guest Workspace'}</button>
+                {isDemoMode && <span className="demo-pill" data-testid="demo-pill">Public demo</span>}
+              </div>
             )}
           </div>
         </div>
-
-        <div className="workspace-top-center">
-          <span className="workspace-active-chat-title">
-            {activeConversation ? activeConversation.title : 'Chat'}
-          </span>
-          <span className="selected-sources-pill" data-testid="selected-sources-pill">
-            {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
-          </span>
-        </div>
-
-        <div className="workspace-top-right">
-          {/* Panel Toggle Buttons */}
-          <button
-            type="button"
-            className={`workspace-toggle-btn ${(!isLeftCollapsed && (typeof window === 'undefined' || window.innerWidth > 960)) || isSidebarOpenMobile ? 'active' : ''}`}
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.innerWidth <= 960) {
-                setIsSidebarOpenMobile(!isSidebarOpenMobile);
-              } else {
-                setIsLeftCollapsed(!isLeftCollapsed);
-              }
-            }}
-            title={isLeftCollapsed ? 'Show sources panel' : 'Hide sources panel'}
-            aria-label="Toggle sources panel"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="9" y1="3" x2="9" y2="21" />
-            </svg>
-            <span className="toggle-label">Sources</span>
-            <span className="toggle-badge">{sources.length}</span>
-          </button>
-
-          <button
-            type="button"
-            className={`workspace-toggle-btn ${(!isRightCollapsed && (typeof window === 'undefined' || window.innerWidth > 960)) || isRightOpenMobile ? 'active' : ''}`}
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.innerWidth <= 960) {
-                setIsRightOpenMobile(!isRightOpenMobile);
-              } else {
-                setIsRightCollapsed(!isRightCollapsed);
-              }
-            }}
-            title={isRightCollapsed ? 'Show notes & passage inspector' : 'Hide notes & passage inspector'}
-            aria-label="Toggle inspector panel"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="15" y1="3" x2="15" y2="21" />
-            </svg>
-            <span className="toggle-label">
-              {rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}
-            </span>
-            {notes.length > 0 && <span className="toggle-badge">{notes.length}</span>}
-          </button>
-
-          {/* New Chat Button */}
-          <button
-            type="button"
-            className="btn-icon workspace-top-icon-btn"
-            onClick={onCreateConversation}
-            title="New conversation"
-            aria-label="New conversation"
-            data-testid="top-new-chat-btn"
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-
-          {/* Settings Trigger */}
-          <button
-            type="button"
-            className="btn-icon workspace-top-icon-btn"
-            onClick={() => setIsSettingsOpen(true)}
-            title="Notebook settings"
-            aria-label="Notebook settings"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-
-          {/* Demo Mode Badge */}
-          {isDemoMode && (
-            <span className="demo-pill" data-testid="demo-pill">
-              Public demo
-            </span>
-          )}
-
-          {/* Guest Workspace Badge */}
-          <div
-            className="guest-workspace-indicator"
-            data-testid="guest-workspace-badge"
-            title="Your notebook workspace is private to this browser."
-            onClick={() => {
-              if (onResetWorkspace) {
-                onResetWorkspace();
-              }
-            }}
-          >
-            <span className="guest-status-indicator-dot" />
-            <span className="guest-status-label">
-              {currentUser?.email || 'Guest Workspace'}
-            </span>
+      </header>
+      {titleBelowBar && (
+        <div className="workspace-notebook-heading">
+          <div className="workspace-subject-pill workspace-notebook-identity">
+            <h1 className="workspace-subject-pill-name">{subject.name}</h1>
+            {subject.course_code && <span className="workspace-subject-pill-code">{subject.course_code}</span>}
           </div>
         </div>
-      </header>
+      )}
 
       {/* ======================================================================
           3-COLUMN WORKSPACE BODY
           ====================================================================== */}
       <div className="workspace-body">
+        {isCompact && (!isLeftCollapsed || !isRightCollapsed) && (
+          <div className="sidebar-overlay workspace-panels-overlay" aria-hidden="true"
+            onClick={() => { setIsLeftCollapsed(true); setIsRightCollapsed(true); leftToggleRef.current?.focus(); }} />
+        )}
+        {isLeftCollapsed && (
+          <nav className="workspace-sources-rail" aria-label="Sources and Chats">
+            <button type="button" className="btn-icon" aria-label="Open sources panel" title="Sources"
+              aria-controls="workspace-sources-panel" aria-expanded={false}
+              onClick={() => { setSidebarTab('sources'); setIsLeftCollapsed(false); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" />
+              </svg>
+            </button>
+            <button type="button" className="btn-icon" aria-label="Open chats panel" title="Chats"
+              aria-controls="workspace-sources-panel" aria-expanded={false}
+              onClick={() => { setSidebarTab('conversations'); setIsLeftCollapsed(false); }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
+              </svg>
+            </button>
+          </nav>
+        )}
         {/* --------------------------------------------------------------------
             1. LEFT PANEL: NotebookLM's Source Workflow & Compact History
             -------------------------------------------------------------------- */}
         <aside
-          className={`workspace-sidebar ${isLeftCollapsed ? 'panel-collapsed' : ''} ${
-            isSidebarOpenMobile ? 'sidebar-open' : ''
-          }`}
+          className={`workspace-sidebar ${!isLeftCollapsed ? 'sidebar-open' : ''}`}
+          id="workspace-sources-panel" hidden={isLeftCollapsed} ref={leftPanelRef} tabIndex={-1}
           aria-label="Course Sources and Chats"
         >
           {/* Sidebar Tab Header */}
@@ -616,10 +635,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <button
               type="button"
               className="panel-collapse-btn"
-              onClick={() => {
-                setIsLeftCollapsed(true);
-                setIsSidebarOpenMobile(false);
-              }}
+              onClick={closeLeftPanel}
               title="Collapse sources panel"
               aria-label="Collapse sources panel"
             >
@@ -980,59 +996,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </div>
           )}
 
-          {/* Left Panel Footer: Subject Settings */}
-          <div className="sidebar-bottom-bar">
-            <button
-              type="button"
-              className="sidebar-settings-link"
-              onClick={() => setIsSettingsOpen(true)}
-              title="Notebook Settings"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1z" />
-              </svg>
-              <span>Notebook Settings</span>
-            </button>
-          </div>
         </aside>
 
         {/* --------------------------------------------------------------------
             2. CENTER CHAT AREA: ChatGPT / Claude Reading Experience
             -------------------------------------------------------------------- */}
-        <main className="workspace-main-area">
-          {/* Floating Reopen Button for Left Panel */}
-          {isLeftCollapsed && (
-            <button
-              type="button"
-              className="floating-reopen-btn left-reopen"
-              onClick={() => setIsLeftCollapsed(false)}
-              title="Open sources panel"
-              aria-label="Open sources panel"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-              <span>Sources ({sources.length})</span>
-            </button>
-          )}
-
-          {/* Floating Reopen Button for Right Panel */}
-          {isRightCollapsed && (
-            <button
-              type="button"
-              className="floating-reopen-btn right-reopen"
-              onClick={() => setIsRightCollapsed(false)}
-              title="Open notes & passage inspector"
-              aria-label="Open notes & passage inspector"
-            >
-              <span>{rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-          )}
-
+        <section className="workspace-main-area" aria-label="Chat" ref={chatAreaRef}>
+          <div className="workspace-chat-context">
+            <span className="workspace-active-chat-title">{activeConversation ? activeConversation.title : 'Chat'}</span>
+            <span className="selected-sources-pill" data-testid="selected-sources-pill">
+              {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
+            </span>
+          </div>
           {/* Conversation Thread */}
           {sources.length === 0 ? (
             <div className="empty-state-scroll-container">
@@ -1486,15 +1461,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               />
             </>
           )}
-        </main>
+        </section>
 
         {/* --------------------------------------------------------------------
             3. RIGHT CONTEXTUAL PANEL: Supporting Passage OR Saved Notes
             -------------------------------------------------------------------- */}
         <aside
-          className={`workspace-right-panel ${isRightCollapsed ? 'panel-collapsed' : ''} ${
-            isRightOpenMobile ? 'right-open' : ''
-          }`}
+          className={`workspace-right-panel ${!isRightCollapsed ? 'right-open' : ''}`}
+          id="workspace-inspector-panel" hidden={isRightCollapsed} ref={rightPanelRef} tabIndex={-1}
           data-testid="passage-pane"
           aria-label="Inspector and Notes Panel"
         >
@@ -1555,10 +1529,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <button
                 type="button"
                 className="panel-collapse-btn"
-                onClick={() => {
-                  setIsRightCollapsed(true);
-                  setIsRightOpenMobile(false);
-                }}
+                onClick={closeRightPanel}
                 title="Collapse inspector panel"
                 aria-label="Close source panel"
               >

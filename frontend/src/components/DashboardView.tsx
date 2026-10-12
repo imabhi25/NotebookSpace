@@ -19,6 +19,7 @@ export interface DashboardViewProps {
   isMobileSidebarOpen?: boolean;
   onSetMobileSidebarOpen?: (open: boolean) => void;
   children?: React.ReactNode;
+  workspaceMode?: boolean;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -36,6 +37,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   isMobileSidebarOpen: controlledMobileOpen,
   onSetMobileSidebarOpen,
   children,
+  workspaceMode = false,
 }) => {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'updated_at' | 'name' | 'created_at'>('updated_at');
@@ -252,7 +254,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div className={`dashboard-shell-layout sidebar-motion-${sidebarMotion}`}>
+    <div className={`dashboard-shell-layout sidebar-motion-${sidebarMotion} ${workspaceMode ? 'workspace-shell' : ''}`}>
+      {!workspaceMode && <>
       {/* Mobile Backdrop Overlay (always mounted so it can fade out as well as in) */}
       <div
         className={`sidebar-mobile-overlay ${isMobileOpen ? 'is-open' : ''}`}
@@ -569,13 +572,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
       </aside>
+      </>}
 
       {/* ======================================================================
           2. MAIN AREA: Selected Notebook Detail View or Calm Empty State
           ====================================================================== */}
       <main className="dashboard-main-content">
         {/* Reopen Floating Tab on Desktop when sidebar is collapsed */}
-        {isCollapsedDesktop && (
+        {!workspaceMode && isCollapsedDesktop && (
           <button
             type="button"
             className="floating-sidebar-reopen-btn"
@@ -592,7 +596,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         )}
 
         {/* Small screens: with no notebook open there is no top bar, so the drawer needs its own opener */}
-        {!children && (
+        {!workspaceMode && !children && (
           <button
             type="button"
             className="floating-sidebar-reopen-btn mobile-sidebar-open-btn"
