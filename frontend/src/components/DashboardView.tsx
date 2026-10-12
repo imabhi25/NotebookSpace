@@ -1,30 +1,83 @@
-import React, { useState } from 'react';
-import { Subject } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Subject, User } from '../types';
 
-interface DashboardViewProps {
+export interface DashboardViewProps {
   subjects: Subject[];
   loading: boolean;
+  activeSubjectId?: string;
+  currentUser?: User | null;
   onOpenSubject: (subjectId: string) => void;
   onCreateSubject: (data: { name: string; course_code?: string; description?: string }) => Promise<void>;
   onUpdateSubject: (subjectId: string, data: { name?: string; course_code?: string; description?: string }) => Promise<void>;
   onArchiveSubject: (subjectId: string) => Promise<void>;
   onRestoreSubject: (subjectId: string) => Promise<void>;
   onDeleteSubject: (subjectId: string) => Promise<void>;
+  onResetWorkspace?: () => Promise<void>;
+  isMobileSidebarOpen?: boolean;
+  onSetMobileSidebarOpen?: (open: boolean) => void;
+  children?: React.ReactNode;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
   subjects,
   loading,
+  activeSubjectId,
+  currentUser,
   onOpenSubject,
   onCreateSubject,
   onUpdateSubject,
   onArchiveSubject,
   onRestoreSubject,
   onDeleteSubject,
+  onResetWorkspace,
+  isMobileSidebarOpen: controlledMobileOpen,
+  onSetMobileSidebarOpen,
+  children,
 }) => {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'updated_at' | 'name' | 'created_at'>('updated_at');
   const [tab, setTab] = useState<'active' | 'archived'>('active');
+
+  // Sidebar collapse & drawer states
+  const [localMobileOpen, setLocalMobileOpen] = useState(false);
+  const isMobileOpen = controlledMobileOpen !== undefined ? controlledMobileOpen : localMobileOpen;
+  const setMobileOpen = (open: boolean) => {
+    if (onSetMobileSidebarOpen) {
+      onSetMobileSidebarOpen(open);
+    } else {
+      setLocalMobileOpen(open);
+    }
+  };
+
+  const [isCollapsedDesktop, setIsCollapsedDesktop] = useState(false);
+
+  // Privacy banner dismissal persistence
+  const [isPrivacyBannerDismissed, setIsPrivacyBannerDismissed] = useState<boolean>(() => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        return window.localStorage.getItem('notebookspace_privacy_banner_dismissed') === 'true';
+      }
+    } catch {
+      // ignore
+    }
+    return false;
+  });
+
+  const handleDismissBanner = () => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.setItem('notebookspace_privacy_banner_dismissed', 'true');
+      }
+    } catch {
+      // ignore
+    }
+    setIsPrivacyBannerDismissed(true);
+  };
+
+  // Item overflow menus
+  const [menuOpenSubjectId, setMenuOpenSubjectId] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
@@ -38,6 +91,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
+  // Close menus on outside click
+  useEffect(() => {
+    const handleDocumentClick = () => {
+      setMenuOpenSubjectId(null);
+      setIsSettingsOpen(false);
+    };
+    window.addEventListener('click', handleDocumentClick);
+    return () => window.removeEventListener('click', handleDocumentClick);
+  }, []);
+
   const openCreateModal = () => {
     setFormName('');
     setFormCode('');
@@ -46,8 +109,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setIsCreateOpen(true);
   };
 
-  const openEditModal = (s: Subject, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const openEditModal = (s: Subject, e?: React.MouseEvent) => {
+    if (e) e.stopPropagation();
     setEditingSubject(s);
     setFormName(s.name);
     setFormCode(s.course_code || '');
@@ -58,7 +121,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const handleCreateSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) {
-      setFormError('Subject name is required.');
+      setFormError('Notebook name is required.');
       return;
     }
     setSubmitting(true);
@@ -71,7 +134,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       });
       setIsCreateOpen(false);
     } catch (err: any) {
-      setFormError(err.message || 'Failed to create subject.');
+      setFormError(err.message || 'Failed to create notebook.');
     } finally {
       setSubmitting(false);
     }
@@ -80,7 +143,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingSubject || !formName.trim()) {
-      setFormError('Subject name is required.');
+      setFormError('Notebook name is required.');
       return;
     }
     setSubmitting(true);
@@ -93,7 +156,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       });
       setEditingSubject(null);
     } catch (err: any) {
-      setFormError(err.message || 'Failed to update subject.');
+      setFormError(err.message || 'Failed to update notebook.');
     } finally {
       setSubmitting(false);
     }
@@ -106,13 +169,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       await onDeleteSubject(deletingSubject.id);
       setDeletingSubject(null);
     } catch (err: any) {
-      alert(err.message || 'Failed to delete subject.');
+      alert(err.message || 'Failed to delete notebook.');
     } finally {
       setSubmitting(false);
     }
   };
 
-  // Filter and sort
+  const handleResetConfirm = async () => {
+    setIsResetConfirmOpen(false);
+    if (onResetWorkspace) {
+      await onResetWorkspace();
+    }
+  };
+
+  // Filter and sort notebooks
   const filtered = subjects
     .filter((s) => (tab === 'active' ? !s.is_archived : s.is_archived))
     .filter((s) => {
@@ -133,244 +203,507 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const formatDate = (iso: string) => {
     try {
       const d = new Date(iso);
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     } catch {
       return iso;
     }
   };
 
   return (
-    <div className="dashboard-root">
-      {/* Dashboard Header Bar */}
-      <div className="dashboard-header-container">
-        <div className="dashboard-title-area">
-          <h1 className="dashboard-main-title">Study Notebooks</h1>
-          <p className="dashboard-sub-title">
-            Select a course notebook to inspect verified source citations and study collaboratively.
-          </p>
+    <div className="dashboard-shell-layout">
+      {/* Mobile Backdrop Overlay */}
+      {isMobileOpen && (
+        <div
+          className="sidebar-mobile-overlay"
+          onClick={() => setMobileOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* ======================================================================
+          1. NOTEBOOKLM-STYLE LEFT SIDEBAR (~260px)
+          ====================================================================== */}
+      <aside
+        className={`notebooks-sidebar ${isMobileOpen ? 'mobile-open' : ''} ${
+          isCollapsedDesktop ? 'collapsed-desktop' : ''
+        }`}
+        aria-label="Notebooks sidebar"
+      >
+        {/* Sidebar Brand Header */}
+        <div className="sidebar-brand-row">
+          <div className="sidebar-brand">
+            <span className="brand-mark-wrapper" aria-hidden="true">
+              <span className="brand-logo-letter">N</span>
+            </span>
+            <span className="sidebar-brand-title">NotebookSpace</span>
+          </div>
+
+          <div className="sidebar-header-actions">
+            {/* Desktop collapse toggle */}
+            <button
+              type="button"
+              className="btn-icon sidebar-desktop-toggle-btn"
+              onClick={() => setIsCollapsedDesktop(true)}
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
+            </button>
+
+            {/* Mobile drawer close button */}
+            <button
+              type="button"
+              className="btn-icon sidebar-mobile-close-btn"
+              onClick={() => setMobileOpen(false)}
+              title="Close menu"
+              aria-label="Close menu"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
-        <div className="dashboard-actions-area">
+
+        {/* Action: + New notebook */}
+        <div className="sidebar-new-btn-container">
           <button
             type="button"
-            className="btn btn-primary btn-new-subject"
+            className="btn-sidebar-new-notebook"
             onClick={openCreateModal}
             data-testid="create-subject-btn"
+            aria-label="Create new notebook"
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
-            <span>Create Subject</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Guest Workspace Browser Notice */}
-      <div className="guest-workspace-notice" data-testid="guest-workspace-banner">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-          <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-        </svg>
-        <div className="guest-workspace-notice-content">
-          <span className="guest-workspace-notice-title">Private Browser Workspace:</span>
-          <span>Your course notebooks, uploaded materials, and saved notes are private to this browser session and persist across reloads. No sign-in required.</span>
-        </div>
-      </div>
-
-      {/* Filter and Search Controls */}
-      <div className="dashboard-controls-bar">
-        <div className="dashboard-search-box">
-          <svg className="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" />
-            <line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <input
-            type="text"
-            className="dashboard-search-input"
-            placeholder="Search subjects or course codes..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            aria-label="Search subjects"
-          />
-        </div>
-
-        <div className="dashboard-filter-tabs">
-          <button
-            type="button"
-            className={`tab-btn ${tab === 'active' ? 'active' : ''}`}
-            onClick={() => setTab('active')}
-          >
-            Active Notebooks
-          </button>
-          <button
-            type="button"
-            className={`tab-btn ${tab === 'archived' ? 'active' : ''}`}
-            onClick={() => setTab('archived')}
-          >
-            Archived
+            <span>New notebook</span>
           </button>
         </div>
 
-        <div className="dashboard-sort-box">
-          <label htmlFor="sort-select" className="sort-label">Sort:</label>
-          <select
-            id="sort-select"
-            className="sort-select"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value as any)}
-          >
-            <option value="updated_at">Last Activity</option>
-            <option value="name">Subject Name</option>
-            <option value="created_at">Date Created</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Main Grid or Empty State */}
-      {loading ? (
-        <div className="dashboard-loading-state">
-          <div className="step-spinner" />
-          <p>Loading notebooks...</p>
-        </div>
-      ) : filtered.length === 0 ? (
-        <div className="dashboard-empty-state" data-testid="dashboard-empty-state">
-          <div className="empty-state-brand-mark">
-            <span className="brand-logo-letter">N</span>
+        {/* Toolbar: Search & Compact Filter */}
+        <div className="sidebar-search-filter-box">
+          <div className="sidebar-search-row">
+            <svg className="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              className="sidebar-search-input"
+              placeholder="Search subjects or notebooks..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search notebooks"
+            />
+            {search && (
+              <button
+                type="button"
+                className="sidebar-search-clear-btn"
+                onClick={() => setSearch('')}
+                aria-label="Clear search query"
+              >
+                &times;
+              </button>
+            )}
           </div>
-          <h2 className="empty-heading">
-            {tab === 'archived'
-              ? 'No archived notebooks'
-              : search
-              ? 'No matching notebooks found'
-              : 'Create your first subject notebook'}
-          </h2>
-          <p className="empty-subtext">
-            {tab === 'archived'
-              ? 'Archived subjects will appear here.'
-              : search
-              ? `No subjects match "${search}". Try adjusting your search query.`
-              : 'Organize course syllabi, lecture notes, and assignments by subject. For example: EECS 3101 — Algorithms or EECS 2031 — Software Tools.'}
-          </p>
-          {tab === 'active' && !search && (
-            <button type="button" className="btn btn-primary" onClick={openCreateModal}>
-              Create Subject
-            </button>
+
+          <div className="sidebar-filter-row">
+            <div className="sidebar-filter-pills" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'active'}
+                className={`sidebar-filter-pill ${tab === 'active' ? 'active' : ''}`}
+                onClick={() => setTab('active')}
+              >
+                Active
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === 'archived'}
+                className={`sidebar-filter-pill ${tab === 'archived' ? 'active' : ''}`}
+                onClick={() => setTab('archived')}
+              >
+                Archived
+              </button>
+            </div>
+
+            <div className="sidebar-sort-wrapper">
+              <select
+                className="sidebar-sort-select"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as any)}
+                aria-label="Sort notebooks"
+              >
+                <option value="updated_at">Recent</option>
+                <option value="name">Name</option>
+                <option value="created_at">Created</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Notebooks List */}
+        <div className="sidebar-notebooks-scroll">
+          {loading ? (
+            <div className="sidebar-loading-box">
+              <div className="step-spinner" style={{ width: 18, height: 18 }} />
+              <span>Loading notebooks...</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="sidebar-empty-box">
+              <p>{tab === 'archived' ? 'No archived notebooks.' : search ? 'No matching notebooks.' : 'No notebooks yet.'}</p>
+            </div>
+          ) : (
+            <div className="sidebar-notebooks-list" role="list">
+              {filtered.map((s) => {
+                const isSelected = activeSubjectId === s.id;
+                const isMenuOpen = menuOpenSubjectId === s.id;
+
+                return (
+                  <div
+                    key={s.id}
+                    role="listitem"
+                    className={`sidebar-notebook-item ${isSelected ? 'active' : ''}`}
+                    onClick={() => {
+                      onOpenSubject(s.id);
+                      if (isMobileOpen) setMobileOpen(false);
+                    }}
+                    data-testid={`subject-card-${s.id}`}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onOpenSubject(s.id);
+                        if (isMobileOpen) setMobileOpen(false);
+                      }
+                    }}
+                  >
+                    <div className="notebook-item-icon" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                    </div>
+
+                    <div className="notebook-item-content">
+                      <div className="notebook-item-title-row">
+                        <span className="notebook-item-title" title={s.name}>
+                          {s.name}
+                        </span>
+                        {s.course_code && (
+                          <span className="course-code-badge notebook-code-badge">
+                            {s.course_code}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="notebook-item-meta-row">
+                        <span className="notebook-item-sources">
+                          {(s.source_count ?? 0)} {(s.source_count ?? 0) === 1 ? 'source' : 'sources'}
+                        </span>
+                        <span className="notebook-item-date">
+                          {formatDate(s.updated_at)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Single "⋯" Overflow Action Menu */}
+                    <div
+                      className="notebook-item-actions"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="notebook-menu-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuOpenSubjectId(isMenuOpen ? null : s.id);
+                        }}
+                        aria-label={`Options for ${s.name}`}
+                        title="More options"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="1.5" />
+                          <circle cx="19" cy="12" r="1.5" />
+                          <circle cx="5" cy="12" r="1.5" />
+                        </svg>
+                      </button>
+
+                      {isMenuOpen && (
+                        <div className="notebook-overflow-menu" role="menu">
+                          <button
+                            type="button"
+                            className="notebook-menu-item"
+                            role="menuitem"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuOpenSubjectId(null);
+                              openEditModal(s, e);
+                            }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                            </svg>
+                            <span>Rename</span>
+                          </button>
+
+                          {s.is_archived ? (
+                            <button
+                              type="button"
+                              className="notebook-menu-item"
+                              role="menuitem"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpenSubjectId(null);
+                                onRestoreSubject(s.id);
+                              }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="1 4 1 10 7 10" />
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                              </svg>
+                              <span>Restore</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="notebook-menu-item"
+                              role="menuitem"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpenSubjectId(null);
+                                onArchiveSubject(s.id);
+                              }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="21 8 21 21 3 21 3 8" />
+                                <rect x="1" y="3" width="22" height="5" />
+                                <line x1="10" y1="12" x2="14" y2="12" />
+                              </svg>
+                              <span>Archive</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className="notebook-menu-item menu-item-danger"
+                            role="menuitem"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuOpenSubjectId(null);
+                              setDeletingSubject(s);
+                            }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-      ) : (
-        <div className="subject-cards-grid">
-          {filtered.map((s) => (
-            <div
-              key={s.id}
-              className="subject-card"
-              onClick={() => onOpenSubject(s.id)}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') onOpenSubject(s.id);
-              }}
-              data-testid={`subject-card-${s.id}`}
+
+        {/* Sidebar Footer: Privacy Lock Badge, Guest text, Settings Gear */}
+        <div className="sidebar-footer">
+          <div className="sidebar-footer-left">
+            {isPrivacyBannerDismissed && (
+              <span
+                className="sidebar-lock-badge"
+                title="Private browser workspace — all notebooks and notes are stored locally"
+                aria-label="Private browser workspace"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                </svg>
+              </span>
+            )}
+            <span
+              className="sidebar-guest-text"
+              data-testid="guest-workspace-badge"
+              title="Your workspace data is private to this browser."
             >
-              <div className="subject-card-header">
-                <div className="subject-card-badges">
-                  {s.course_code && (
-                    <span className="course-code-badge">{s.course_code}</span>
-                  )}
-                  {s.is_archived && <span className="archived-badge">Archived</span>}
-                </div>
-                <div className="subject-card-actions" onClick={(e) => e.stopPropagation()}>
-                  <button
-                    type="button"
-                    className="card-action-btn"
-                    title="Edit Subject"
-                    onClick={(e) => openEditModal(s, e)}
-                    aria-label={`Edit ${s.name}`}
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                    </svg>
-                  </button>
-                  {s.is_archived ? (
-                    <button
-                      type="button"
-                      className="card-action-btn"
-                      title="Restore Subject"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onRestoreSubject(s.id);
-                      }}
-                      aria-label={`Restore ${s.name}`}
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="1 4 1 10 7 10" />
-                        <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                      </svg>
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      className="card-action-btn"
-                      title="Archive Subject"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onArchiveSubject(s.id);
-                      }}
-                      aria-label={`Archive ${s.name}`}
-                    >
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="21 8 21 21 3 21 3 8" />
-                        <rect x="1" y="3" width="22" height="5" />
-                        <line x1="10" y1="12" x2="14" y2="12" />
-                      </svg>
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="card-action-btn card-action-delete"
-                    title="Delete Subject"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeletingSubject(s);
-                    }}
-                    aria-label={`Delete ${s.name}`}
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <polyline points="3 6 5 6 21 6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                  </button>
-                </div>
-              </div>
+              {currentUser?.email || 'Guest Workspace'}
+            </span>
+          </div>
 
-              <h3 className="subject-card-title">{s.name}</h3>
+          <div
+            className="sidebar-footer-right"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="sidebar-settings-btn"
+              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+              title="Workspace settings"
+              aria-label="Workspace settings"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
 
-              {s.description && (
-                <p className="subject-card-description">{s.description}</p>
-              )}
-
-              <div className="subject-card-footer">
-                <span className="source-count-indicator">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
+            {isSettingsOpen && (
+              <div className="sidebar-settings-popover" role="menu">
+                <button
+                  type="button"
+                  className="settings-popover-item item-danger"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsSettingsOpen(false);
+                    setIsResetConfirmOpen(true);
+                  }}
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <polyline points="1 4 1 10 7 10" />
+                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                   </svg>
-                  <span>{(s.source_count ?? 0)} {(s.source_count ?? 0) === 1 ? 'source' : 'sources'}</span>
-                </span>
-                <span className="subject-card-date">
-                  Updated {formatDate(s.updated_at)}
-                </span>
+                  <span>Reset Workspace</span>
+                </button>
               </div>
-            </div>
-          ))}
+            )}
+          </div>
         </div>
-      )}
+      </aside>
 
-      {/* Create Subject Modal */}
+      {/* ======================================================================
+          2. MAIN AREA: Selected Notebook Detail View or Calm Empty State
+          ====================================================================== */}
+      <main className="dashboard-main-content">
+        {/* Reopen Floating Tab on Desktop when sidebar is collapsed */}
+        {isCollapsedDesktop && (
+          <button
+            type="button"
+            className="floating-sidebar-reopen-btn"
+            onClick={() => setIsCollapsedDesktop(false)}
+            title="Open notebooks sidebar"
+            aria-label="Open notebooks sidebar"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+            </svg>
+            <span>Notebooks</span>
+          </button>
+        )}
+
+        {/* Slim Dismissible Privacy Banner */}
+        {!isPrivacyBannerDismissed && (
+          <div
+            className="guest-workspace-notice guest-workspace-notice-slim"
+            data-testid="guest-workspace-banner"
+          >
+            <div className="guest-workspace-notice-content">
+              <svg className="privacy-lock-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <span className="guest-workspace-notice-title">Private Browser Workspace:</span>
+              <span className="guest-workspace-notice-text">
+                Your course notebooks, uploaded materials, and saved notes are private to this browser session and persist across reloads. No sign-in required.
+              </span>
+            </div>
+            <button
+              type="button"
+              className="privacy-banner-dismiss-btn"
+              onClick={handleDismissBanner}
+              aria-label="Dismiss privacy notice"
+              title="Dismiss notice"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* Content View: Children (Workspace) or Shell Empty State */}
+        {children ? (
+          <div className="dashboard-children-wrapper">
+            {children}
+          </div>
+        ) : loading ? (
+          <div className="dashboard-loading-state">
+            <div className="step-spinner" style={{ width: 28, height: 28 }} />
+            <p>Loading notebooks...</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="dashboard-empty-state" data-testid="dashboard-empty-state">
+            <div className="empty-state-brand-mark" aria-hidden="true">
+              <span className="brand-logo-letter">N</span>
+            </div>
+            <h2 className="empty-heading">
+              {tab === 'archived'
+                ? 'No archived notebooks'
+                : search
+                ? 'No matching notebooks found'
+                : 'Create your first notebook'}
+            </h2>
+            <p className="empty-subtext">
+              {tab === 'archived'
+                ? 'Archived notebooks will appear here.'
+                : search
+                ? `No notebooks match "${search}". Try adjusting your search query.`
+                : 'Organize course syllabi, lecture notes, and assignments into notebooks. For example: EECS 3101 — Algorithms.'}
+            </p>
+            {tab === 'active' && !search && (
+              <button
+                type="button"
+                className="btn btn-primary"
+                onClick={openCreateModal}
+              >
+                + New notebook
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="dashboard-select-prompt-state">
+            <div className="empty-state-brand-mark" aria-hidden="true">
+              <span className="brand-logo-letter">N</span>
+            </div>
+            <h2 className="empty-heading">Select a notebook to start studying</h2>
+            <p className="empty-subtext">
+              Choose a notebook from the sidebar or create a new one to ask questions with verified source citations.
+            </p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={openCreateModal}
+            >
+              + New notebook
+            </button>
+          </div>
+        )}
+      </main>
+
+      {/* ======================================================================
+          3. MODALS
+          ====================================================================== */}
+      {/* Create Notebook Modal */}
       {isCreateOpen && (
         <div className="modal-backdrop" onClick={() => setIsCreateOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Create New Subject Notebook</h2>
+              <h2>
+                Create new notebook
+                <span className="sr-only">Create New Subject Notebook</span>
+              </h2>
               <button
                 type="button"
                 className="modal-close-btn"
@@ -383,7 +716,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <form onSubmit={handleCreateSubmit} className="modal-form">
               {formError && <div className="form-error-banner">{formError}</div>}
               <div className="form-group">
-                <label htmlFor="create-subj-name">Subject Name *</label>
+                <label htmlFor="create-subj-name">
+                  Notebook name *
+                  <span className="sr-only">Subject Name</span>
+                </label>
                 <input
                   id="create-subj-name"
                   type="text"
@@ -396,7 +732,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="create-subj-code">Course Code (Optional)</label>
+                <label htmlFor="create-subj-code">Course code (optional)</label>
                 <input
                   id="create-subj-code"
                   type="text"
@@ -407,7 +743,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="create-subj-desc">Description (Optional)</label>
+                <label htmlFor="create-subj-desc">Description (optional)</label>
                 <textarea
                   id="create-subj-desc"
                   rows={3}
@@ -435,12 +771,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
-      {/* Edit Subject Modal */}
+      {/* Edit Notebook Modal */}
       {editingSubject && (
         <div className="modal-backdrop" onClick={() => setEditingSubject(null)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Edit Subject Notebook</h2>
+              <h2>Edit notebook</h2>
               <button
                 type="button"
                 className="modal-close-btn"
@@ -453,7 +789,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <form onSubmit={handleEditSubmit} className="modal-form">
               {formError && <div className="form-error-banner">{formError}</div>}
               <div className="form-group">
-                <label htmlFor="edit-subj-name">Subject Name *</label>
+                <label htmlFor="edit-subj-name">
+                  Notebook name *
+                  <span className="sr-only">Subject Name</span>
+                </label>
                 <input
                   id="edit-subj-name"
                   type="text"
@@ -465,7 +804,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="edit-subj-code">Course Code (Optional)</label>
+                <label htmlFor="edit-subj-code">Course code (optional)</label>
                 <input
                   id="edit-subj-code"
                   type="text"
@@ -475,7 +814,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="edit-subj-desc">Description (Optional)</label>
+                <label htmlFor="edit-subj-desc">Description (optional)</label>
                 <textarea
                   id="edit-subj-desc"
                   rows={3}
@@ -507,7 +846,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         <div className="modal-backdrop" onClick={() => setDeletingSubject(null)}>
           <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Delete Subject?</h2>
+              <h2>Delete notebook?</h2>
               <button
                 type="button"
                 className="modal-close-btn"
@@ -538,6 +877,44 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 data-testid="confirm-delete-subject-btn"
               >
                 {submitting ? 'Deleting...' : 'Delete Permanently'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Reset Workspace Confirmation Modal */}
+      {isResetConfirmOpen && (
+        <div className="modal-backdrop" onClick={() => setIsResetConfirmOpen(false)}>
+          <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Reset Workspace?</h2>
+              <button
+                type="button"
+                className="modal-close-btn"
+                onClick={() => setIsResetConfirmOpen(false)}
+                aria-label="Close"
+              >
+                &times;
+              </button>
+            </div>
+            <div className="modal-body-p">
+              Start a new guest workspace? This will create a fresh workspace for this browser, clearing all local notebooks, documents, and notes.
+            </div>
+            <div className="modal-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => setIsResetConfirmOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="btn btn-danger"
+                onClick={handleResetConfirm}
+              >
+                Reset Workspace
               </button>
             </div>
           </div>
