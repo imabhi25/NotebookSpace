@@ -1,5 +1,7 @@
 import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect } from 'react';
+import { SortMenu } from './SortMenu';
+import { SettingsPanel, readDefaultResponseSettings } from './SettingsPanel';
 import { Subject, User } from '../types';
 
 export interface DashboardViewProps {
@@ -8,7 +10,7 @@ export interface DashboardViewProps {
   activeSubjectId?: string;
   currentUser?: User | null;
   onOpenSubject: (subjectId: string) => void;
-  onCreateSubject: (data: { name: string; course_code?: string; description?: string }) => Promise<void>;
+  onCreateSubject: (data: { name: string; course_code?: string; description?: string; settings?: Record<string, any> }) => Promise<void>;
   onUpdateSubject: (subjectId: string, data: { name?: string; course_code?: string; description?: string }) => Promise<void>;
   onArchiveSubject: (subjectId: string) => Promise<void>;
   onRestoreSubject: (subjectId: string) => Promise<void>;
@@ -75,6 +77,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setIsPrivacyBannerDismissed(true);
   };
 
+  const handleShowPrivacyNotice = () => {
+    try {
+      if (typeof window !== 'undefined' && window.localStorage) {
+        window.localStorage.removeItem('notebookspace_privacy_banner_dismissed');
+      }
+    } catch {
+      // ignore
+    }
+    setIsPrivacyBannerDismissed(false);
+  };
+
+  // Direction of the last desktop sidebar toggle, so the main area can glide instead of jumping.
+  const [sidebarMotion, setSidebarMotion] = useState<'idle' | 'collapsing' | 'expanding'>('idle');
+  const collapseSidebar = () => {
+    setSidebarMotion('collapsing');
+    setIsCollapsedDesktop(true);
+  };
+  const expandSidebar = () => {
+    setSidebarMotion('expanding');
+    setIsCollapsedDesktop(false);
+  };
+
   // Item overflow menus
   const [menuOpenSubjectId, setMenuOpenSubjectId] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -96,7 +120,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   useEffect(() => {
     const handleDocumentClick = () => {
       setMenuOpenSubjectId(null);
-      setIsSettingsOpen(false);
     };
     window.addEventListener('click', handleDocumentClick);
     return () => window.removeEventListener('click', handleDocumentClick);
@@ -144,10 +167,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setSubmitting(true);
     setFormError(null);
     try {
+      const defaultSettings = readDefaultResponseSettings();
       await onCreateSubject({
         name: formName.trim(),
         course_code: formCode.trim() || undefined,
         description: formDesc.trim() || undefined,
+        ...(defaultSettings ? { settings: defaultSettings } : {}),
       });
       setIsCreateOpen(false);
     } catch (err: any) {
@@ -227,15 +252,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   };
 
   return (
-    <div className="dashboard-shell-layout">
-      {/* Mobile Backdrop Overlay */}
-      {isMobileOpen && (
-        <div
-          className="sidebar-mobile-overlay"
-          onClick={() => setMobileOpen(false)}
-          aria-hidden="true"
-        />
-      )}
+    <div className={`dashboard-shell-layout sidebar-motion-${sidebarMotion}`}>
+      {/* Mobile Backdrop Overlay (always mounted so it can fade out as well as in) */}
+      <div
+        className={`sidebar-mobile-overlay ${isMobileOpen ? 'is-open' : ''}`}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
 
       {/* ======================================================================
           1. NOTEBOOKLM-STYLE LEFT SIDEBAR (~260px)
@@ -256,11 +279,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="sidebar-header-actions">
+            <button
+              type="button"
+              className="btn-icon sidebar-settings-btn"
+              onClick={() => setIsSettingsOpen(true)}
+              title="Workspace settings"
+              aria-label="Workspace settings"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+
             {/* Desktop collapse toggle */}
             <button
               type="button"
               className="btn-icon sidebar-desktop-toggle-btn"
-              onClick={() => setIsCollapsedDesktop(true)}
+              onClick={collapseSidebar}
               title="Collapse sidebar"
               aria-label="Collapse sidebar"
             >
@@ -352,18 +388,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button>
             </div>
 
-            <div className="sidebar-sort-wrapper">
-              <select
-                className="sidebar-sort-select"
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                aria-label="Sort notebooks"
-              >
-                <option value="updated_at">Recent</option>
-                <option value="name">Name</option>
-                <option value="created_at">Created</option>
-              </select>
-            </div>
+            <SortMenu
+              label="Sort notebooks"
+              value={sortBy}
+              onChange={setSortBy}
+              options={[
+                { value: 'updated_at', label: 'Recent' },
+                { value: 'name', label: 'Name' },
+                { value: 'created_at', label: 'Created' },
+              ]}
+            />
           </div>
         </div>
 
@@ -375,11 +409,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span>Loading notebooks...</span>
             </div>
           ) : filtered.length === 0 ? (
-            <div className="sidebar-empty-box"><EmptyStateIcon />
+            <div className="sidebar-empty-box" key={tab}><EmptyStateIcon />
               <p>{tab === 'archived' ? 'No archived notebooks.' : search ? 'No matching notebooks.' : 'No notebooks yet.'}</p>
             </div>
           ) : (
-            <div className="sidebar-notebooks-list" role="list">
+            <div className="sidebar-notebooks-list" role="list" key={`${tab}-${sortBy}`}>
               {filtered.map((s) => {
                 const isSelected = activeSubjectId === s.id;
                 const isMenuOpen = menuOpenSubjectId === s.id;
@@ -534,68 +568,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           )}
         </div>
 
-        {/* Sidebar Footer: Privacy Lock Badge, Guest text, Settings Gear */}
-        <div className="sidebar-footer">
-          <div className="sidebar-footer-left">
-            {isPrivacyBannerDismissed && (
-              <span
-                className="sidebar-lock-badge"
-                title="Private browser workspace — all notebooks and notes are stored locally"
-                aria-label="Private browser workspace"
-              >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-              </span>
-            )}
-            <span
-              className="sidebar-guest-text"
-              data-testid="guest-workspace-badge"
-              title="Your workspace data is private to this browser."
-            >
-              {currentUser?.email || 'Guest Workspace'}
-            </span>
-          </div>
-
-          <div
-            className="sidebar-footer-right"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              className="sidebar-settings-btn"
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              title="Workspace settings"
-              aria-label="Workspace settings"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-              </svg>
-            </button>
-
-            {isSettingsOpen && (
-              <div className="sidebar-settings-popover" role="menu">
-                <button
-                  type="button"
-                  className="settings-popover-item item-danger"
-                  role="menuitem"
-                  onClick={() => {
-                    setIsSettingsOpen(false);
-                    setIsResetConfirmOpen(true);
-                  }}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <polyline points="1 4 1 10 7 10" />
-                    <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                  </svg>
-                  <span>Reset Workspace</span>
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
       </aside>
 
       {/* ======================================================================
@@ -607,7 +579,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <button
             type="button"
             className="floating-sidebar-reopen-btn"
-            onClick={() => setIsCollapsedDesktop(false)}
+            onClick={expandSidebar}
+            title="Open notebooks sidebar"
+            aria-label="Open notebooks sidebar"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+            </svg>
+            <span>Notebooks</span>
+          </button>
+        )}
+
+        {/* Small screens: with no notebook open there is no top bar, so the drawer needs its own opener */}
+        {!children && (
+          <button
+            type="button"
+            className="floating-sidebar-reopen-btn mobile-sidebar-open-btn"
+            onClick={() => setMobileOpen(true)}
             title="Open notebooks sidebar"
             aria-label="Open notebooks sidebar"
           >
@@ -677,7 +666,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 ? 'Archived notebooks will appear here.'
                 : search
                 ? `No notebooks match "${search}". Try adjusting your search query.`
-                : 'Organize course syllabi, lecture notes, and assignments into notebooks. For example: EECS 3101 — Algorithms.'}
+                : 'Organize course syllabi, lecture notes, and assignments into notebooks.'}
             </p>
             {tab === 'active' && !search && (
               <button
@@ -898,6 +887,20 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Workspace Settings */}
+      {isSettingsOpen && (
+        <SettingsPanel
+          currentUser={currentUser}
+          isPrivacyBannerDismissed={isPrivacyBannerDismissed}
+          onShowPrivacyNotice={handleShowPrivacyNotice}
+          onRequestReset={() => {
+            setIsSettingsOpen(false);
+            setIsResetConfirmOpen(true);
+          }}
+          onClose={() => setIsSettingsOpen(false)}
+        />
       )}
 
       {/* Reset Workspace Confirmation Modal */}

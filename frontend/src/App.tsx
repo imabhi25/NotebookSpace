@@ -570,7 +570,7 @@ export function App({
   };
 
   // Subject CRUD for Dashboard
-  const handleCreateSubject = async (data: { name: string; course_code?: string; description?: string }) => {
+  const handleCreateSubject = async (data: { name: string; course_code?: string; description?: string; settings?: Record<string, any> }) => {
     const subj = await api.createSubject(data);
     setSubjects((prev) => [subj, ...prev]);
     navigateTo('workspace', subj.id);
