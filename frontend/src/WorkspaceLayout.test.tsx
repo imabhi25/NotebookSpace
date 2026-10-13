@@ -80,8 +80,8 @@ describe('Workspace navigation and progressive disclosure', () => {
     fireEvent.click(right());
     expect(screen.getByRole('complementary', { name: 'Inspector and Notes Panel' })).toBeVisible();
     fireEvent.click(left());
-    fireEvent.click(screen.getByRole('button', { name: 'Open chats panel' }));
-    expect(screen.getByRole('button', { name: 'Chats (0)' })).toHaveClass('active');
+    fireEvent.click(screen.getByRole('button', { name: 'Open sources panel' }));
+    expect(screen.getByRole('complementary', { name: 'Sources' })).toBeVisible();
   });
 
   it.each([1440, 768, 390])('opens cited evidence consistently at %ipx', async width => {

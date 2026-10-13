@@ -48,7 +48,7 @@
   opacity: 1; pointer-events: auto; margin: 0; z-index: auto;
 }
 .workspace-layout aside.workspace-sidebar {
-  width: var(--size-280) !important; flex: 0 0 var(--size-280);
+  width: var(--sources-panel-width) !important; flex: 0 0 var(--sources-panel-width);
 }
 .workspace-layout aside.workspace-right-panel {
   width: var(--size-350) !important; flex: 0 0 var(--size-350);
@@ -94,25 +94,18 @@
   }
   .workspace-layout aside.workspace-sidebar { left: var(--space-3); right: auto; }
   .workspace-layout aside.workspace-right-panel { right: var(--space-3); left: auto; }
-  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-sidebar,
-  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-right-panel {
-    width: calc(50% - var(--space-4)) !important;
-  }
+  /* Panels are overlays here, never a split: the one opened last sits on top. */
+  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-right-panel { z-index: 41; }
 }
 
 @media (max-width: 640px) {
   .workspace-layout .workspace-control-bar { padding-inline: var(--space-3); }
   .workspace-layout .workspace-body { padding: var(--space-2); }
   .workspace-layout .workspace-chat-context { padding-inline: var(--space-4); }
-  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-sidebar,
-  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-right-panel {
-    left: var(--space-3); right: var(--space-3);
-    width: calc(100% - var(--space-6)) !important;
-  }
-  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-sidebar {
-    top: var(--space-3); bottom: calc(50% + var(--space-1));
-  }
-  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-right-panel {
-    top: calc(50% + var(--space-1)); bottom: var(--space-3);
+  /* Phone: each panel is a full overlay drawer. */
+  .workspace-layout aside.workspace-sidebar,
+  .workspace-layout aside.workspace-right-panel {
+    left: var(--space-2); right: var(--space-2); top: var(--space-2); bottom: var(--space-2);
+    width: auto !important; max-width: none;
   }
 }

@@ -187,6 +187,8 @@
   --layout-loading-offset: 80px;
   --empty-icon-size: 32px;
   --empty-mark-size: 64px;
+  --sources-panel-width: 308px;
+  --drop-zone-min-height: 168px;
   --home-max-width: 1160px;
   --home-header-height: 60px;
   --home-search-width: 420px;

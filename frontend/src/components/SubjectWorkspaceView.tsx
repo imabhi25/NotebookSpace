@@ -25,19 +25,19 @@ import { Composer } from './Composer';
 interface SubjectWorkspaceViewProps {
   subject: Subject;
   sources: Source[];
-  conversations: Conversation[];
+  conversations?: Conversation[];
   notes: Note[];
-  activeConversationId: string | null;
+  activeConversationId?: string | null;
   selectedSourceIds: string[];
   starterQuestions: string[];
   isDemoMode: boolean;
   currentUser?: User | null;
   onBackToDashboard: () => void;
   onSelectSources: (ids: string[]) => void;
-  onSelectConversation: (convId: string) => void;
-  onCreateConversation: () => Promise<void>;
-  onRenameConversation: (convId: string, title: string) => Promise<void>;
-  onDeleteConversation: (convId: string) => Promise<void>;
+  onSelectConversation?: (convId: string) => void;
+  onCreateConversation?: () => Promise<void>;
+  onRenameConversation?: (convId: string, title: string) => Promise<void>;
+  onDeleteConversation?: (convId: string) => Promise<void>;
   onUploadFiles: (files: File[]) => Promise<void>;
   onPasteText: (title: string, text: string) => Promise<void>;
   onAddUrl: (url: string, title?: string) => Promise<void>;
@@ -60,19 +60,13 @@ interface SubjectWorkspaceViewProps {
 export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   subject,
   sources,
-  conversations,
   notes,
-  activeConversationId,
   selectedSourceIds,
   starterQuestions,
   isDemoMode,
   currentUser,
   onBackToDashboard,
   onSelectSources,
-  onSelectConversation,
-  onCreateConversation,
-  onRenameConversation,
-  onDeleteConversation,
   onUploadFiles,
   onPasteText,
   onAddUrl,
@@ -188,7 +182,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   };
 
   // Left sidebar active tab: 'sources' | 'conversations'
-  const [sidebarTab, setSidebarTab] = useState<'sources' | 'conversations'>('sources');
+  const [isPanelDragOver, setIsPanelDragOver] = useState(false);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
 
   // Right contextual panel tab: 'passage' | 'notes'
   const [rightPanelTab, setRightPanelTab] = useState<'passage' | 'notes'>('passage');
@@ -492,7 +487,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     return n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q);
   });
 
-  const activeConversation = conversations.find((c) => c.id === activeConversationId);
 
   return (
     <div className="workspace-root workspace-layout" data-left-open={!isLeftCollapsed} data-right-open={!isRightCollapsed}>
@@ -541,12 +535,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </svg>
             <span className="toggle-label">{rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}</span>
           </button>
-          <button type="button" className="btn-icon workspace-top-icon-btn" onClick={onCreateConversation}
-            title="New conversation" aria-label="New conversation" data-testid="top-new-chat-btn">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
-          </button>
           <div className="workspace-actions-menu" ref={menuRootRef}>
             <button type="button" ref={menuButtonRef} className="btn-icon workspace-top-icon-btn"
               aria-label="Notebook actions" title="Notebook actions" aria-haspopup="menu" aria-expanded={isActionsOpen}
@@ -588,19 +576,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             onClick={() => { setIsLeftCollapsed(true); setIsRightCollapsed(true); leftToggleRef.current?.focus(); }} />
         )}
         {isLeftCollapsed && (
-          <nav className="workspace-sources-rail" aria-label="Sources and Chats">
+          <nav className="workspace-sources-rail" aria-label="Sources">
             <button type="button" className="btn-icon" aria-label="Open sources panel" title="Sources"
               aria-controls="workspace-sources-panel" aria-expanded={false}
-              onClick={() => { setSidebarTab('sources'); setIsLeftCollapsed(false); }}>
+              onClick={() => setIsLeftCollapsed(false)}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                 <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z" /><path d="M14 2v6h6" />
-              </svg>
-            </button>
-            <button type="button" className="btn-icon" aria-label="Open chats panel" title="Chats"
-              aria-controls="workspace-sources-panel" aria-expanded={false}
-              onClick={() => { setSidebarTab('conversations'); setIsLeftCollapsed(false); }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2Z" />
               </svg>
             </button>
           </nav>
@@ -611,26 +592,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <aside
           className={`workspace-sidebar ${!isLeftCollapsed ? 'sidebar-open' : ''}`}
           id="workspace-sources-panel" hidden={isLeftCollapsed} ref={leftPanelRef} tabIndex={-1}
-          aria-label="Course Sources and Chats"
+          aria-label="Sources"
         >
           {/* Sidebar Tab Header */}
           <div className="workspace-sidebar-header">
-            <div className="sidebar-segment-switcher">
-              <button
-                type="button"
-                className={`segment-btn ${sidebarTab === 'sources' ? 'active' : ''}`}
-                onClick={() => setSidebarTab('sources')}
-              >
-                Sources ({sources.length})
-              </button>
-              <button
-                type="button"
-                className={`segment-btn ${sidebarTab === 'conversations' ? 'active' : ''}`}
-                onClick={() => setSidebarTab('conversations')}
-              >
-                Chats ({conversations.length})
-              </button>
-            </div>
+            <h2 className="sources-panel-title">
+              Sources
+              <span className="sources-count-badge" aria-label={`${sources.length} ${sources.length === 1 ? 'source' : 'sources'}`}>
+                {sources.length}
+              </span>
+            </h2>
 
             <button
               type="button"
@@ -645,46 +616,85 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </button>
           </div>
 
-          {/* TAB 1: SOURCES (NotebookLM Workflow) */}
-          {sidebarTab === 'sources' && (
-            <div className="sidebar-tab-content">
-              <div className="sources-header-bar">
-                <span className="selection-badge">
-                  {selectedSourceIds.length} of {readySources.length} selected
-                </span>
-                <div className="selection-controls">
+          {/* SOURCES: one drop zone that is both the empty state and the add control */}
+          {(
+            <div
+              className={`sidebar-tab-content sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
+              onDragOver={(e) => {
+                if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+                e.preventDefault();
+                setIsPanelDragOver(true);
+              }}
+              onDragLeave={(e) => {
+                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsPanelDragOver(false);
+              }}
+              onDrop={(e) => {
+                e.preventDefault();
+                setIsPanelDragOver(false);
+                const files = Array.from(e.dataTransfer?.files || []);
+                if (files.length > 0) {
+                  setDroppedFiles(files);
+                  setIsAddSourceOpen(true);
+                }
+              }}
+            >
+              {sources.length === 0 ? (
+                <button
+                  type="button"
+                  className="sources-drop-zone"
+                  onClick={() => setIsAddSourceOpen(true)}
+                  data-testid="add-source-btn"
+                >
+                  <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                  <span className="sources-drop-title">Drop PDFs here or click to browse</span>
+                  <span className="sources-drop-hint">PDFs, links, pasted text</span>
+                </button>
+              ) : (
+                <>
                   <button
                     type="button"
-                    className="btn-link"
-                    onClick={handleSelectAllSources}
-                    disabled={readySources.length === 0}
+                    className="sources-add-row"
+                    onClick={() => setIsAddSourceOpen(true)}
+                    data-testid="add-source-btn"
+                    aria-label="Add sources"
                   >
-                    Select all
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                    <span>Add</span>
                   </button>
-                  <span>&bull;</span>
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={handleClearSources}
-                    disabled={selectedSourceIds.length === 0}
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
 
-              <button
-                type="button"
-                className="btn btn-primary btn-full btn-add-sources"
-                onClick={() => setIsAddSourceOpen(true)}
-                data-testid="add-source-btn"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Add sources</span>
-              </button>
+                  <div className="sources-header-bar">
+                    <span className="selection-badge">
+                      {selectedSourceIds.length} of {readySources.length} selected
+                    </span>
+                    <div className="selection-controls">
+                      <button
+                        type="button"
+                        className="btn-link"
+                        onClick={handleSelectAllSources}
+                        disabled={readySources.length === 0}
+                      >
+                        Select all
+                      </button>
+                      <span aria-hidden="true">&middot;</span>
+                      <button
+                        type="button"
+                        className="btn-link"
+                        onClick={handleClearSources}
+                        disabled={selectedSourceIds.length === 0}
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
 
               {sources.length > 2 && (
                 <div className="source-search-container">
@@ -699,12 +709,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               )}
 
               <div className="sources-list-scroll">
-                {sources.length === 0 ? (
-                  <div className="sidebar-empty-box"><EmptyStateIcon />
-                    <p>No materials added yet.</p>
-                    <p className="subtext">Upload PDFs, notes, or web articles.</p>
-                  </div>
-                ) : filteredSources.length === 0 ? (
+                {sources.length === 0 ? null : filteredSources.length === 0 ? (
                   <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
                 ) : (
                   <ul className="workspace-sources-ul">
@@ -872,130 +877,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 )}
               </div>
 
-              {/* Compact Conversation History Underneath Sources */}
-              {conversations.length > 0 && (
-                <div className="compact-conversations-shelf">
-                  <div className="shelf-header">
-                    <span className="shelf-title">Recent Chats</span>
-                    <button
-                      type="button"
-                      className="shelf-new-btn"
-                      onClick={onCreateConversation}
-                      title="New chat"
-                    >
-                      + New
-                    </button>
-                  </div>
-                  <ul className="shelf-conv-list">
-                    {conversations.slice(0, 4).map((c) => {
-                      const isActive = c.id === activeConversationId;
-                      return (
-                        <li
-                          key={c.id}
-                          className={`shelf-conv-item ${isActive ? 'active' : ''}`}
-                          onClick={() => onSelectConversation(c.id)}
-                          tabIndex={0}
-                          role="button"
-                          onKeyDown={(e) => {
-                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                              e.preventDefault();
-                              onSelectConversation(c.id);
-                            }
-                          }}
-                          title={c.title}
-                        >
-                          <span className="shelf-conv-title">{c.title}</span>
-                          <span className="shelf-conv-count">
-                            {c.message_count ? `${c.message_count} msgs` : 'Empty'}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
             </div>
           )}
-
-          {/* TAB 2: CONVERSATIONS (Full Chat History) */}
-          {sidebarTab === 'conversations' && (
-            <div className="sidebar-tab-content">
-              <button
-                type="button"
-                className="btn btn-secondary btn-full btn-new-conv"
-                onClick={onCreateConversation}
-                data-testid="new-conversation-btn"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>New conversation</span>
-              </button>
-              <ul className="workspace-conv-ul">
-                {conversations.map((c) => {
-                  const isActive = c.id === activeConversationId;
-                  return (
-                    <li
-                      key={c.id}
-                      className={`workspace-conv-item ${isActive ? 'active' : ''}`}
-                      onClick={() => onSelectConversation(c.id)}
-                          tabIndex={0}
-                          role="button"
-                          onKeyDown={(e) => {
-                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                              e.preventDefault();
-                              onSelectConversation(c.id);
-                            }
-                          }}
-                    >
-                      <div className="conv-title-col" title={c.title}>
-                        <span className="conv-title-text">{c.title}</span>
-                        <span className="conv-meta-text">
-                          {c.message_count ? `${c.message_count} messages` : 'Empty chat'}
-                        </span>
-                      </div>
-                      <div className="conv-actions-col" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          className="source-item-btn"
-                          title="Rename conversation"
-                          onClick={() => {
-                            const newName = window.prompt('Rename conversation:', c.title);
-                            if (newName && newName.trim()) {
-                              onRenameConversation(c.id, newName.trim());
-                            }
-                          }}
-                          aria-label="Rename conversation"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="source-item-btn source-delete-btn"
-                          title="Delete conversation"
-                          onClick={() => {
-                            if (window.confirm('Delete this conversation thread?')) {
-                              onDeleteConversation(c.id);
-                            }
-                          }}
-                          aria-label="Delete conversation"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                          </svg>
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-            </div>
-          )}
-
         </aside>
 
         {/* --------------------------------------------------------------------
@@ -1003,7 +886,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             -------------------------------------------------------------------- */}
         <section className="workspace-main-area" aria-label="Chat" ref={chatAreaRef}>
           <div className="workspace-chat-context">
-            <span className="workspace-active-chat-title">{activeConversation ? activeConversation.title : 'Chat'}</span>
             <span className="selected-sources-pill" data-testid="selected-sources-pill">
               {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
             </span>
@@ -1803,7 +1685,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {(isAddSourceOpen || hasOpenedAddSource.current) && (
         <SourceModal
           isOpen={isAddSourceOpen}
-          onClose={() => setIsAddSourceOpen(false)}
+          initialFiles={droppedFiles}
+          onClose={() => { setIsAddSourceOpen(false); setDroppedFiles([]); }}
           onUploadFiles={onUploadFiles}
           onPasteText={onPasteText}
           onAddUrl={onAddUrl}
