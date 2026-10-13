@@ -899,6 +899,22 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
   .notebook-card { min-height: 0; }
 }
 
+/* A disabled primary button reads as unavailable through a neutral fill, not through faded (low-contrast) text. */
+:is(.btn-primary, .btn-add-sources, .btn-new-chat, .btn-new-workspace):disabled {
+  opacity: 1; background: var(--color-surface-hover); color: var(--color-text-muted); border-color: var(--color-transparent); box-shadow: none; filter: none;
+}
+
+/* Theme setting and the quiet first-source line on empty notebooks */
+.theme-control { min-height: var(--control-height-md); }
+.theme-control .sidebar-filter-pill { min-width: 0; }
+.notebook-card-meta-empty { color: var(--color-text-secondary); transition: color var(--motion-fast) var(--motion-ease); }
+.notebook-card-meta-empty span { display: inline-block; transition: transform var(--motion-fast) var(--motion-ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .notebook-card:hover .notebook-card-meta-empty { color: var(--color-accent); }
+  .notebook-card:hover .notebook-card-meta-empty span { transform: translateX(var(--space-1)); }
+}
+:root[data-theme="dark"] .notebook-card, :root[data-theme="dark"] .workspace-main-area { box-shadow: var(--shadow-1); }
+
 /* ---------- Preferences ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: var(--motion-reduced) !important; animation-duration: var(--motion-reduced) !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
