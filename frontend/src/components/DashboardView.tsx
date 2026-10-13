@@ -734,7 +734,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   id="create-subj-name"
                   type="text"
                   required
-                  placeholder="e.g. EECS 3101 — Algorithms"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   disabled={submitting}
@@ -746,7 +745,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <input
                   id="create-subj-code"
                   type="text"
-                  placeholder="e.g. EECS 3101"
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value)}
                   disabled={submitting}
@@ -757,21 +755,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <textarea
                   id="create-subj-desc"
                   rows={3}
-                  placeholder="e.g. Design and analysis of efficient algorithms, graphs, and dynamic programming."
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
                   disabled={submitting}
                 />
               </div>
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsCreateOpen(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Creating...' : 'Create Notebook'}
                 </button>
@@ -834,14 +823,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
               </div>
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setEditingSubject(null)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -871,14 +852,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               All associated documents, conversations, and notes will be permanently removed.
             </div>
             <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setDeletingSubject(null)}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
               <button
                 type="button"
                 className="btn btn-danger"
@@ -926,13 +899,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Start a new guest workspace? This will create a fresh workspace for this browser, clearing all local notebooks, documents, and notes.
             </div>
             <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setIsResetConfirmOpen(false)}
-              >
-                Cancel
-              </button>
               <button
                 type="button"
                 className="btn btn-danger"

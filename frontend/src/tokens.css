@@ -44,11 +44,11 @@
   --color-marker: oklch(0.958 0.062 98);
   --color-marker-edge: oklch(0.82 0.13 92);
 
-  /* Type: Geist for the interface, Newsreader for headings and long-form answers. */
-  --font-family-ui: "Geist Variable", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-family-display: "Newsreader Variable", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  /* Type: locally available SF Pro, with platform system sans-serif fallbacks. */
+  --font-family-ui: "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-display: "SF Pro Display", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-family-reading: var(--font-family-display);
-  --font-family-code: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-family-code: var(--font-family-ui);
   --type-display: 2rem;
   --type-display-fluid: clamp(1.625rem, 1.25rem + 1.6vw, 2.125rem);
   --type-title: 1.375rem;
