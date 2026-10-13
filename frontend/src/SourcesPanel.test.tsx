@@ -1,3 +1,4 @@
+import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SubjectWorkspaceView } from './components/SubjectWorkspaceView';
@@ -30,6 +31,13 @@ const workspace = (sources: Source[], selected: string[], onSelectSources = vi.f
     onUpdateNote={done} onDeleteNote={done} messages={[]} chatLoading={false} />
 );
 const panel = () => screen.getByRole('complementary', { name: 'Sources' });
+// jsdom has no PointerEvent; a MouseEvent carries the fields the resize handle reads.
+if (!(window as any).PointerEvent) {
+  (window as any).PointerEvent = class extends MouseEvent {
+    pointerId: number;
+    constructor(type: string, init: any = {}) { super(type, init); this.pointerId = init.pointerId ?? 0; }
+  };
+}
 const originalWidth = window.innerWidth;
 beforeEach(() => { window.innerWidth = 1440; });
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
@@ -81,6 +89,72 @@ describe('Sources panel', () => {
     expect(screen.queryByRole('button', { name: /chats panel/i })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sources panel' }));
     expect(screen.getAllByRole('button', { name: /Open .* panel/ })).toHaveLength(1);
+  });
+
+  it('rows have one always-present menu button and checkbox, and no separate action icons', () => {
+    const onDeleteSource = vi.fn(done);
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    const view = workspace([src('a', 'Syllabus.pdf'), src('b', 'Notes', { source_type: 'pasted', status: 'failed' })], ['a']);
+    render(React.cloneElement(view, { onDeleteSource }));
+    const row = within(panel()).getByText('Syllabus.pdf').closest('li')!;
+    expect(within(row).getAllByRole('button')).toHaveLength(2);
+    expect(within(row).queryByRole('button', { name: /^(View|Rename|Delete|Replace|Retry) / })).toBeNull();
+    expect(within(row).getByRole('checkbox', { name: 'Select Syllabus.pdf' })).toBeInTheDocument();
+    expect(row).toHaveTextContent('PDF');
+    expect(row).toHaveTextContent('3 pages');
+
+    fireEvent.click(within(row).getByRole('button', { name: 'Options for Syllabus.pdf' }));
+    const menu = screen.getByRole('menu', { name: 'Options for Syllabus.pdf' });
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['View', 'Rename', 'Replace', 'Remove']);
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Remove' }));
+    expect(onDeleteSource).toHaveBeenCalledWith('a');
+    expect(screen.queryByRole('menu')).toBeNull();
+
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Options for Notes' }));
+    expect(within(screen.getByRole('menu')).getByRole('menuitem', { name: 'Retry' })).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+  });
+
+  it('resizes between limits, remembers the width, and resets on double-click', () => {
+    window.localStorage.removeItem('notebookspace_sources_panel_width');
+    const { unmount } = render(workspace([src('a', 'Syllabus.pdf')], ['a']));
+    const slot = () => document.querySelector('.sources-slot') as HTMLElement;
+    const handle = () => screen.getByRole('separator', { name: 'Resize sources panel' });
+    expect(handle()).not.toHaveAttribute('tabindex');
+    vi.spyOn(panel(), 'getBoundingClientRect').mockReturnValue({ width: 360 } as DOMRect);
+
+    fireEvent.pointerDown(handle(), { button: 0, clientX: 360, pointerId: 1 });
+    fireEvent.pointerMove(handle(), { clientX: 420, pointerId: 1 });
+    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('420px');
+    expect(slot()).toHaveClass('is-resizing');
+    fireEvent.pointerMove(handle(), { clientX: 900, pointerId: 1 });
+    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('480px');
+    fireEvent.pointerMove(handle(), { clientX: 100, pointerId: 1 });
+    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('280px');
+    fireEvent.pointerUp(handle(), { clientX: 400, pointerId: 1 });
+    expect(slot()).not.toHaveClass('is-resizing');
+    expect(window.localStorage.getItem('notebookspace_sources_panel_width')).toBe('400');
+
+    unmount();
+    render(workspace([src('a', 'Syllabus.pdf')], ['a']));
+    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('400px');
+    fireEvent.doubleClick(handle());
+    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('');
+    expect(window.localStorage.getItem('notebookspace_sources_panel_width')).toBeNull();
+  });
+
+  it('collapses to a rail with a single toggle, and takes the hidden side out of reach', () => {
+    render(workspace([src('a', 'Syllabus.pdf')], ['a']));
+    expect(screen.queryByRole('button', { name: 'Open sources panel' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sources panel' }));
+    expect(screen.queryByRole('complementary', { name: 'Sources' })).toBeNull();
+    expect(screen.queryByRole('checkbox', { name: 'Select Syllabus.pdf' })).toBeNull();
+    const rail = screen.getByRole('navigation', { name: 'Sources' });
+    expect(within(rail).getAllByRole('button')).toHaveLength(1);
+    fireEvent.click(within(rail).getByRole('button', { name: 'Open sources panel' }));
+    expect(panel()).toBeInTheDocument();
+    expect(screen.queryByRole('navigation', { name: 'Sources' })).toBeNull();
   });
 
   it('opening a notebook lands straight in its conversation', async () => {

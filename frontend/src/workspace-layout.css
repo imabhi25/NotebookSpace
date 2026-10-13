@@ -47,9 +47,35 @@
   max-width: 100%; transform: none; visibility: visible;
   opacity: 1; pointer-events: auto; margin: 0; z-index: auto;
 }
-.workspace-layout aside.workspace-sidebar {
-  width: var(--sources-panel-width) !important; flex: 0 0 var(--sources-panel-width);
+/* The sources slot animates its width; the panel inside keeps its full width so its content never reflows mid-animation. */
+.workspace-layout .sources-slot {
+  position: relative; display: flex; flex: 0 0 auto; min-width: 0; min-height: 0; overflow: clip;
+  width: var(--sources-panel-user-width);
+  transition: width var(--motion-panel-resize) var(--motion-ease-out-cubic);
 }
+.workspace-layout .sources-slot.is-collapsed { width: var(--target-mobile); }
+.workspace-layout .sources-slot.is-resizing { transition: none; }
+.workspace-layout .sources-slot aside.workspace-sidebar {
+  width: var(--sources-panel-user-width) !important; flex: 0 0 var(--sources-panel-user-width);
+  transition: opacity var(--motion-fast) var(--motion-ease), visibility 0s linear 0s;
+}
+.workspace-layout .sources-slot.is-collapsed aside.workspace-sidebar {
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity var(--motion-exit) var(--motion-ease), visibility 0s linear var(--motion-panel-resize);
+}
+.workspace-layout .sources-slot .workspace-sources-rail {
+  position: absolute; top: 0; left: 0; bottom: 0; opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity var(--motion-exit) var(--motion-ease), visibility 0s linear var(--motion-exit);
+}
+.workspace-layout .sources-slot.is-collapsed .workspace-sources-rail {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  transition: opacity var(--motion-panel-resize) var(--motion-ease-out-cubic) var(--motion-press), visibility 0s linear 0s;
+}
+.sources-resize-handle {
+  position: absolute; top: 0; bottom: 0; right: 0; width: var(--resize-handle-width); z-index: 20;
+  cursor: col-resize; touch-action: none;
+}
+.sources-slot.is-collapsed .sources-resize-handle { display: none; }
 .workspace-layout aside.workspace-right-panel {
   width: var(--size-350) !important; flex: 0 0 var(--size-350);
 }
@@ -83,7 +109,9 @@
   .workspace-layout .workspace-essential-actions { gap: var(--space-1); }
   .workspace-layout .workspace-back-btn span { display: inline; }
   .workspace-layout .workspace-essential-actions .toggle-label { display: none; }
-  .workspace-layout .workspace-sources-rail { display: none; }
+  .workspace-layout .sources-slot { display: contents; }
+  .workspace-layout .sources-slot .workspace-sources-rail, .workspace-layout .sources-resize-handle { display: none; }
+  .workspace-layout .sources-slot.is-collapsed aside.workspace-sidebar { display: none; }
   .workspace-layout .workspace-panels-overlay { position: absolute; inset: 0; z-index: 30; }
   .workspace-layout aside.workspace-sidebar,
   .workspace-layout aside.workspace-right-panel {
