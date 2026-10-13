@@ -302,3 +302,41 @@
   --highlight-bg: var(--color-marker);
   --highlight-border: var(--color-marker-edge);
 }
+
+/* Signature workspace dark palette. Derived exclusively from semantic tokens. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-desk: oklch(0.14 0.008 72);
+  --color-background: var(--color-desk);
+  --color-surface: oklch(0.19 0.009 72);
+  --color-surface-raised: oklch(0.23 0.009 72);
+  --color-surface-hover: oklch(0.285 0.011 72);
+  --color-surface-active: oklch(0.34 0.012 72);
+  --color-border: oklch(0.34 0.012 72);
+  --color-border-strong: oklch(0.48 0.014 72);
+  --color-border-sheet: oklch(0.7 0.015 72 / 0.16);
+  --color-text-primary: oklch(0.94 0.008 82);
+  --color-text-secondary: oklch(0.77 0.01 78);
+  --color-text-muted: oklch(0.69 0.01 78);
+  --color-on-accent: oklch(0.14 0.01 262);
+  --color-accent: oklch(0.79 0.092 262);
+  --color-accent-hover: oklch(0.84 0.082 262);
+  --color-accent-bright: oklch(0.83 0.094 262);
+  --color-overlay: oklch(0.06 0.008 72 / 0.72);
+  --color-highlight-top: oklch(0.9 0.01 82 / 0.1);
+  --color-highlight-soft: oklch(0.9 0.01 82 / 0.05);
+  --color-warning-surface: oklch(0.27 0.032 83);
+  --color-warning-border: oklch(0.55 0.08 83);
+  --color-warning-text: oklch(0.86 0.08 83);
+  --color-danger-surface: oklch(0.26 0.029 28);
+  --color-danger-border: oklch(0.59 0.08 28);
+  --color-danger-text: oklch(0.86 0.09 28);
+  --color-success: oklch(0.76 0.10 152);
+  --color-progress: oklch(0.76 0.09 78);
+  --color-marker: oklch(0.34 0.052 92);
+  --color-marker-edge: oklch(0.67 0.09 92);
+  --shadow-ink: oklch(0.045 0.008 72);
+  --shadow-accent-ink: oklch(0.19 0.05 262);
+  --desk-light: radial-gradient(110% 65% at 22% -18%, oklch(0.5 0.02 82 / 0.1), transparent 60%);
+  --surface-tray-gradient: linear-gradient(to bottom, var(--color-surface-raised), var(--color-surface));
+}
