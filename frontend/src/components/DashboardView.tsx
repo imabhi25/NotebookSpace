@@ -821,9 +821,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         )}
                         {s.is_archived && <span className="notebook-code-badge notebook-archived-tag">Archived</span>}
                       </div>
-                      <p className="notebook-card-meta">
-                        {formatDate(s.updated_at)} · {(s.source_count ?? 0)} {(s.source_count ?? 0) === 1 ? 'source' : 'sources'}
-                      </p>
+                      {(s.source_count ?? 0) === 0 ? (
+                        <p className="notebook-card-meta notebook-card-meta-empty">
+                          Add your first source <span aria-hidden="true">→</span>
+                        </p>
+                      ) : (
+                        <p className="notebook-card-meta">
+                          {formatDate(s.updated_at)} · {s.source_count} {s.source_count === 1 ? 'source' : 'sources'}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
