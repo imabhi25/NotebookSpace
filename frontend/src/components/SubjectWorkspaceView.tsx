@@ -100,6 +100,26 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
   const [isRightOpenMobile, setIsRightOpenMobile] = useState(false);
+  const [isWorkspaceMenuOpen, setIsWorkspaceMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() =>
+    typeof window !== 'undefined' && window.localStorage.getItem('notebookspace-theme') === 'dark' ? 'dark' : 'light'
+  );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem('notebookspace-theme', theme);
+  }, [theme]);
+
+  useEffect(() => {
+    if (!isWorkspaceMenuOpen) return;
+    const dismiss = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest('.workspace-overflow-wrap')) {
+        setIsWorkspaceMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', dismiss);
+    return () => document.removeEventListener('pointerdown', dismiss);
+  }, [isWorkspaceMenuOpen]);
 
   // Left sidebar active tab: 'sources' | 'conversations'
   const [sidebarTab, setSidebarTab] = useState<'sources' | 'conversations'>('sources');
@@ -195,12 +215,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           setViewingSource(null);
         } else if (isAddSourceOpen) {
           setIsAddSourceOpen(false);
+        } else if (isWorkspaceMenuOpen) {
+          setIsWorkspaceMenuOpen(false);
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen]);
+  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isWorkspaceMenuOpen]);
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
@@ -340,6 +362,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   const hasRetrievedChunkText = retrievedMatchingChunks.length > 0;
 
+  const renderMarkedPassage = (text: string): React.ReactNode => {
+    const excerpts = [selectedCitation?.excerpt, ...retrievedMatchingChunks.map((r) => r.text || r.chunk_text || '')]
+      .filter((item): item is string => Boolean(item && item.trim()));
+    for (const excerpt of excerpts) {
+      const needle = excerpt.trim();
+      const index = text.toLocaleLowerCase().indexOf(needle.toLocaleLowerCase());
+      if (index >= 0) return <>{text.slice(0, index)}<mark className="passage-inline-mark">{text.slice(index, index + needle.length)}</mark>{text.slice(index + needle.length)}</>;
+    }
+    return text;
+  };
+
   const isChunkHighlighted = (chunkText: string, chunkIndex?: number): boolean => {
     if (!hasRetrievedChunkText) return false;
     return retrievedMatchingChunks.some((r) => {
@@ -434,149 +467,73 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           ====================================================================== */}
       <header className="workspace-top-bar">
         <div className="workspace-top-left">
-          <button
-            type="button"
-            className="workspace-back-btn"
-            onClick={onToggleNotebooksDrawer || onBackToDashboard}
-            title={onToggleNotebooksDrawer ? "Toggle notebooks list" : "Back to notebooks dashboard"}
-            aria-label="Notebooks"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
+          <button type="button" className="workspace-back-btn" onClick={onBackToDashboard}
+            aria-label="Back to notebooks" title="Back to notebooks">
+            <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <path d="M15 18l-6-6 6-6" />
             </svg>
-            <span>Notebooks</span>
           </button>
-
-          <span className="workspace-header-divider" aria-hidden="true" />
-
-          <button
-            type="button"
-            className="workspace-brand-link"
-            onClick={onBackToDashboard}
-            title="NotebookSpace Home"
-          >
-            <span className="brand-logo-letter-small" aria-hidden="true">N</span>
-            <span className="workspace-brand-name">NotebookSpace</span>
-          </button>
-
-          <span className="workspace-header-divider" aria-hidden="true" />
-
-          <div className="workspace-subject-pill" title={subject.name}>
-            <span className="workspace-subject-pill-name">{subject.name}</span>
-            {subject.course_code && (
-              <span className="workspace-subject-pill-code">{subject.course_code}</span>
-            )}
+          <div className="workspace-heading">
+            <span className="workspace-eyebrow">{subject.course_code || 'Notebook'}</span>
+            <h1 className="workspace-notebook-title" title={subject.name}>{subject.name}</h1>
           </div>
         </div>
-
-        <div className="workspace-top-center">
-          <span className="workspace-active-chat-title">
-            {activeConversation ? activeConversation.title : 'Chat'}
-          </span>
-          <span className="selected-sources-pill" data-testid="selected-sources-pill">
-            {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
-          </span>
-        </div>
-
         <div className="workspace-top-right">
-          {/* Panel Toggle Buttons */}
-          <button
-            type="button"
-            className={`workspace-toggle-btn ${(!isLeftCollapsed && (typeof window === 'undefined' || window.innerWidth > 960)) || isSidebarOpenMobile ? 'active' : ''}`}
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.innerWidth <= 960) {
-                setIsSidebarOpenMobile(!isSidebarOpenMobile);
-              } else {
-                setIsLeftCollapsed(!isLeftCollapsed);
-              }
-            }}
-            title={isLeftCollapsed ? 'Show sources panel' : 'Hide sources panel'}
-            aria-label="Toggle sources panel"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="9" y1="3" x2="9" y2="21" />
-            </svg>
-            <span className="toggle-label">Sources</span>
-            <span className="toggle-badge">{sources.length}</span>
-          </button>
-
-          <button
-            type="button"
-            className={`workspace-toggle-btn ${(!isRightCollapsed && (typeof window === 'undefined' || window.innerWidth > 960)) || isRightOpenMobile ? 'active' : ''}`}
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.innerWidth <= 960) {
-                setIsRightOpenMobile(!isRightOpenMobile);
-              } else {
-                setIsRightCollapsed(!isRightCollapsed);
-              }
-            }}
-            title={isRightCollapsed ? 'Show notes & passage inspector' : 'Hide notes & passage inspector'}
-            aria-label="Toggle inspector panel"
-          >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="15" y1="3" x2="15" y2="21" />
-            </svg>
-            <span className="toggle-label">
-              {rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}
-            </span>
-            {notes.length > 0 && <span className="toggle-badge">{notes.length}</span>}
-          </button>
-
-          {/* New Chat Button */}
-          <button
-            type="button"
-            className="btn-icon workspace-top-icon-btn"
-            onClick={onCreateConversation}
-            title="New conversation"
-            aria-label="New conversation"
-            data-testid="top-new-chat-btn"
-          >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-
-          {/* Settings Trigger */}
-          <button
-            type="button"
-            className="btn-icon workspace-top-icon-btn"
-            onClick={() => setIsSettingsOpen(true)}
-            title="Notebook settings"
-            aria-label="Notebook settings"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-
-          {/* Demo Mode Badge */}
-          {isDemoMode && (
-            <span className="demo-pill" data-testid="demo-pill">
-              Public demo
-            </span>
-          )}
-
-          {/* Guest Workspace Badge */}
-          <div
-            className="guest-workspace-indicator"
-            data-testid="guest-workspace-badge"
-            title="Your notebook workspace is private to this browser."
-            onClick={() => {
-              if (onResetWorkspace) {
-                onResetWorkspace();
-              }
-            }}
-          >
-            <span className="guest-status-indicator-dot" />
-            <span className="guest-status-label">
-              {currentUser?.email || 'Guest Workspace'}
-            </span>
+          <div className="workspace-overflow-wrap">
+            <button type="button" className="workspace-menu-trigger"
+              aria-label="Notebook actions" aria-haspopup="true" aria-expanded={isWorkspaceMenuOpen}
+              aria-controls="workspace-action-menu" title="Notebook actions"
+              onClick={() => setIsWorkspaceMenuOpen((open) => !open)}>
+              <svg width="21" height="21" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <circle cx="5" cy="12" r="1.75" /><circle cx="12" cy="12" r="1.75" /><circle cx="19" cy="12" r="1.75" />
+              </svg>
+            </button>
+            {isWorkspaceMenuOpen && (
+              <div id="workspace-action-menu" className="workspace-action-menu" aria-label="Notebook actions">
+                <div className="workspace-menu-caption">{selectedSourceIds.length} of {readySources.length} sources selected</div>
+                <button type="button" onClick={() => {
+                  if (window.innerWidth <= 960) {
+                    setIsSidebarOpenMobile(true);
+                    setIsRightOpenMobile(false);
+                  } else { setIsLeftCollapsed((collapsed) => !collapsed); }
+                  setIsWorkspaceMenuOpen(false);
+                }}>Sources <span aria-hidden="true">↗</span></button>
+                <button type="button" onClick={() => {
+                  if (window.innerWidth <= 960) {
+                    setIsRightOpenMobile(true);
+                    setIsSidebarOpenMobile(false);
+                  } else { setIsRightCollapsed((collapsed) => !collapsed); }
+                  setIsWorkspaceMenuOpen(false);
+                }}>Passage &amp; notes <span aria-hidden="true">↗</span></button>
+                {onToggleNotebooksDrawer && (
+                  <button type="button" onClick={() => {
+                    onToggleNotebooksDrawer();
+                    setIsWorkspaceMenuOpen(false);
+                  }}>Notebook list</button>
+                )}
+                <span className="workspace-menu-separator" aria-hidden="true" />
+                <button type="button" onClick={() => {
+                  void onCreateConversation();
+                  setIsWorkspaceMenuOpen(false);
+                }}>New conversation</button>
+                <button type="button" onClick={() => {
+                  setIsSettingsOpen(true);
+                  setIsWorkspaceMenuOpen(false);
+                }}>Notebook settings</button>
+                <button type="button" onClick={() => {
+                  setTheme((current) => current === 'light' ? 'dark' : 'light');
+                  setIsWorkspaceMenuOpen(false);
+                }}>{theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}</button>
+                {isDemoMode && <span className="workspace-menu-caption" data-testid="demo-pill">Public demo</span>}
+                <span className="workspace-menu-caption" data-testid="guest-workspace-badge">{currentUser?.email || 'Guest Workspace'}</span>
+                {onResetWorkspace && (
+                  <button type="button" onClick={() => {
+                    void onResetWorkspace();
+                    setIsWorkspaceMenuOpen(false);
+                  }}>Reset guest workspace</button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -593,7 +550,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             isSidebarOpenMobile ? 'sidebar-open' : ''
           }`}
           aria-label="Course Sources and Chats"
+          id="workspace-sources-panel"
         >
+          {isLeftCollapsed && (
+            <button type="button" className="workspace-rail-control" onClick={() => setIsLeftCollapsed(false)}
+              title="Open sources panel" aria-label="Open sources panel" aria-controls="workspace-sources-panel">
+              <span aria-hidden="true">↗</span><span>Sources</span>
+            </button>
+          )}
           {/* Sidebar Tab Header */}
           <div className="workspace-sidebar-header">
             <div className="sidebar-segment-switcher">
@@ -685,7 +649,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <div className="sources-list-scroll">
                 {sources.length === 0 ? (
                   <div className="sidebar-empty-box"><EmptyStateIcon />
-                    <p>No materials added yet.</p>
+                    <p>Add your first source</p>
                     <p className="subtext">Upload PDFs, notes, or web articles.</p>
                   </div>
                 ) : filteredSources.length === 0 ? (
@@ -1001,38 +965,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             2. CENTER CHAT AREA: ChatGPT / Claude Reading Experience
             -------------------------------------------------------------------- */}
         <main className="workspace-main-area">
-          {/* Floating Reopen Button for Left Panel */}
-          {isLeftCollapsed && (
-            <button
-              type="button"
-              className="floating-reopen-btn left-reopen"
-              onClick={() => setIsLeftCollapsed(false)}
-              title="Open sources panel"
-              aria-label="Open sources panel"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-              <span>Sources ({sources.length})</span>
-            </button>
-          )}
-
-          {/* Floating Reopen Button for Right Panel */}
-          {isRightCollapsed && (
-            <button
-              type="button"
-              className="floating-reopen-btn right-reopen"
-              onClick={() => setIsRightCollapsed(false)}
-              title="Open notes & passage inspector"
-              aria-label="Open notes & passage inspector"
-            >
-              <span>{rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-          )}
-
           {/* Conversation Thread */}
           {sources.length === 0 ? (
             <div className="empty-state-scroll-container">
@@ -1497,7 +1429,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           }`}
           data-testid="passage-pane"
           aria-label="Inspector and Notes Panel"
+          id="workspace-inspector-panel"
         >
+          {isRightCollapsed && (
+            <button type="button" className="workspace-rail-control" onClick={() => setIsRightCollapsed(false)}
+              title="Open passage inspector" aria-label="Open passage inspector" aria-controls="workspace-inspector-panel">
+              <span aria-hidden="true">↖</span><span>Evidence</span>
+            </button>
+          )}
           {/* Right Panel Header with Dual Mode Switcher */}
           <div className="right-panel-header">
             <div className="sidebar-segment-switcher">
@@ -1560,7 +1499,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   setIsRightOpenMobile(false);
                 }}
                 title="Collapse inspector panel"
-                aria-label="Close source panel"
+                aria-label="Collapse inspector panel"
               >
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="18" y1="6" x2="6" y2="18" />
@@ -1615,11 +1554,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               ) : selectedCitation ? (
                 <div
                   className="passage-content"
+                  aria-live="polite"
                   data-testid="passage-content"
                   key={`${selectedCitation.file}:${selectedCitation.page}`}
                 >
                   <div className="passage-content-banner">
-                    Showing content from <strong>{selectedCitation.file}</strong> (Page {selectedCitation.page}):
+                    <span className="passage-reader-label">Source evidence</span><span>Highlighted text is from the cited page.</span>
                   </div>
 
                   {passages.length > 0 ? (
@@ -1641,7 +1581,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 <span>Cited Passage Match</span>
                               </div>
                             )}
-                            <p className="passage-chunk-text">{text}</p>
+                            <p className="passage-chunk-text">{renderMarkedPassage(text)}</p>
                           </div>
                         );
                       })}
@@ -1656,7 +1596,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             </svg>
                             <span>Cited Passage Match</span>
                           </div>
-                          <p className="passage-chunk-text">{r.text || r.chunk_text}</p>
+                          <p className="passage-chunk-text">{renderMarkedPassage(r.text || r.chunk_text || '')}</p>
                         </div>
                       ))}
                     </div>
@@ -1669,7 +1609,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                           </svg>
                           <span>Historical Verified Excerpt</span>
                         </div>
-                        <p className="passage-chunk-text">{selectedCitation.excerpt}</p>
+                        <p className="passage-chunk-text"><mark className="passage-inline-mark">{selectedCitation.excerpt}</mark></p>
                       </div>
                     </div>
                   ) : (
