@@ -187,7 +187,15 @@
   --layout-loading-offset: 80px;
   --empty-icon-size: 32px;
   --empty-mark-size: 64px;
-  --sources-panel-width: 308px;
+  --sources-panel-width: 360px;
+  --sources-panel-user-width: var(--sources-panel-width);
+  --resize-handle-width: 10px;
+  --resize-handle-line: 2px;
+  --source-badge-size: 30px;
+  --source-menu-width: 168px;
+  --type-micro: 0.6875rem;
+  --motion-panel-resize: 250ms;
+  --motion-ease-out-cubic: cubic-bezier(0.215, 0.61, 0.355, 1);
   --drop-zone-min-height: 168px;
   --home-max-width: 1160px;
   --home-header-height: 60px;
