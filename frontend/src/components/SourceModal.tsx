@@ -368,7 +368,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                   id="paste-source-title"
                   type="text"
                   required
-                  placeholder="e.g. Lecture 3 Notes or Assignment Guidelines"
                   value={pasteTitle}
                   onChange={(e) => setPasteTitle(e.target.value)}
                   disabled={loading}
@@ -380,7 +379,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                   id="paste-source-text"
                   rows={8}
                   required
-                  placeholder="Paste lecture text, syllabus policies, or notes here..."
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
                   disabled={loading}
@@ -398,7 +396,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                   id="url-source-input"
                   type="url"
                   required
-                  placeholder="https://example.com/course-reading"
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
                   disabled={loading}
@@ -409,7 +406,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                 <input
                   id="url-source-title"
                   type="text"
-                  placeholder="e.g. Official Course Webpage"
                   value={urlTitle}
                   onChange={(e) => setUrlTitle(e.target.value)}
                   disabled={loading}
@@ -433,14 +429,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               </button>
             ) : (
               <>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleDismissDialog}
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
                 <button
                   type="submit"
                   className="btn btn-primary"

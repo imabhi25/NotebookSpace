@@ -1823,7 +1823,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Rename Source</h2>
-              <button type="button" className="modal-close-btn" onClick={() => setRenamingSource(null)}>
+              <button type="button" className="modal-close-btn" onClick={() => setRenamingSource(null)} aria-label="Close">
                 &times;
               </button>
             </div>
@@ -1849,9 +1849,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setRenamingSource(null)}>
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary">
                   Save
                 </button>
@@ -1867,7 +1864,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <div className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingNote ? 'Edit Note' : 'Create Note'}</h2>
-              <button type="button" className="modal-close-btn" onClick={() => setIsCreateNoteOpen(false)}>
+              <button type="button" className="modal-close-btn" onClick={() => setIsCreateNoteOpen(false)} aria-label="Close">
                 &times;
               </button>
             </div>
@@ -1890,7 +1887,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   id="note-title-input"
                   type="text"
                   required
-                  placeholder="e.g. Dijkstra vs Bellman-Ford Summary"
                   value={noteFormTitle}
                   onChange={(e) => setNoteFormTitle(e.target.value)}
                   autoFocus
@@ -1925,15 +1921,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   id="note-content-input"
                   rows={8}
                   required
-                  placeholder="Write your study notes, formulas, or reminders here..."
                   value={noteFormContent}
                   onChange={(e) => setNoteFormContent(e.target.value)}
                 />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsCreateNoteOpen(false)}>
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary">
                   {editingNote ? 'Save Changes' : 'Create Note'}
                 </button>
@@ -1949,7 +1941,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Notebook Settings</h2>
-              <button type="button" className="modal-close-btn" onClick={() => setIsSettingsOpen(false)}>
+              <button type="button" className="modal-close-btn" onClick={() => setIsSettingsOpen(false)} aria-label="Close">
                 &times;
               </button>
             </div>
