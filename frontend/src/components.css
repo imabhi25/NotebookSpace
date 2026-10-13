@@ -914,6 +914,44 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
 }
 :root[data-theme="dark"] .notebook-card, :root[data-theme="dark"] .workspace-main-area { box-shadow: var(--shadow-1); }
 
+/* ==========================================================================
+   Sources panel: materials only. One drop zone is the empty state and the add control.
+   ========================================================================== */
+.sources-panel-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--type-body); font-weight: var(--weight-semibold); color: var(--color-text-primary); }
+.sources-count-badge {
+  min-width: var(--size-22); padding: 0 var(--space-2); text-align: center; font-size: var(--type-caption); font-weight: var(--weight-medium);
+  line-height: var(--size-22); border-radius: var(--radius-pill); background: var(--color-surface-hover); color: var(--color-text-secondary); font-variant-numeric: tabular-nums;
+}
+.sources-panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-3); gap: var(--space-3); }
+.sources-panel-body .sources-header-bar, .sources-panel-body .source-search-container { margin: 0; }
+.sources-panel-body .sources-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
+.sources-drop-zone {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--space-2);
+  width: 100%; min-height: var(--drop-zone-min-height); padding: var(--space-6) var(--space-4); text-align: center; cursor: pointer;
+  color: var(--color-text-primary); background: var(--color-surface); border: var(--border-width-dash) dashed var(--color-border-strong); border-radius: var(--radius-lg);
+  transition: background-color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease), transform var(--motion-press) var(--motion-ease-out);
+}
+.sources-drop-zone:active { transform: scale(0.99); }
+.sources-drop-icon { width: var(--size-22); height: var(--size-22); color: var(--color-accent); margin-bottom: var(--space-1); }
+.sources-drop-title { font-size: var(--type-body); font-weight: var(--weight-medium); line-height: var(--leading-control); text-wrap: balance; }
+.sources-drop-hint { font-size: var(--type-small); font-weight: var(--weight-regular); color: var(--color-text-secondary); }
+.sources-add-row {
+  display: flex; align-items: center; justify-content: center; gap: var(--space-2); width: 100%; min-height: var(--control-height-md);
+  font-size: var(--type-small); font-weight: var(--weight-medium); color: var(--color-text-primary); cursor: pointer;
+  background: var(--color-transparent); border: var(--border-width-dash) dashed var(--color-border-strong); border-radius: var(--radius-control);
+  transition: background-color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease);
+}
+.sources-add-row svg { width: var(--icon-size-sm); height: var(--icon-size-sm); color: var(--color-accent); }
+.sources-panel-body.is-drag-over :is(.sources-drop-zone, .sources-add-row) { border-color: var(--color-accent); background: var(--color-accent-soft); }
+.sources-panel-body .workspace-source-item:focus-within { border-color: var(--color-accent-border); }
+.sources-panel-body .source-checkbox-col input[type="checkbox"]:focus-visible { outline-offset: var(--focus-offset) !important; }
+@media (hover: hover) and (pointer: fine) {
+  :is(.sources-drop-zone, .sources-add-row):hover { border-color: var(--color-accent); background: var(--color-accent-soft); }
+}
+@media (max-width: 768px) {
+  .sources-add-row { min-height: var(--target-mobile); }
+}
+
 /* ---------- Preferences ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition-duration: var(--motion-reduced) !important; animation-duration: var(--motion-reduced) !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }

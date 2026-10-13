@@ -12,6 +12,8 @@ interface SourceModalProps {
   onUploadFiles: (files: File[]) => Promise<void>;
   onPasteText: (title: string, text: string) => Promise<void>;
   onAddUrl: (url: string, title?: string) => Promise<void>;
+  /** Files dropped on the sources panel; queued on the upload tab when the dialog opens. */
+  initialFiles?: File[];
 }
 
 export const SourceModal: React.FC<SourceModalProps> = ({
@@ -20,6 +22,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   onUploadFiles,
   onPasteText,
   onAddUrl,
+  initialFiles,
 }) => {
   const [tab, setTab] = useState<'upload' | 'paste' | 'url'>('upload');
 
@@ -52,6 +55,11 @@ export const SourceModal: React.FC<SourceModalProps> = ({
       setUrlInput('');
       setUrlTitle('');
       return;
+    }
+
+    if (initialFiles && initialFiles.length > 0) {
+      setTab('upload');
+      setSelectedFiles(initialFiles);
     }
 
     // Auto-focus dialog container on open
