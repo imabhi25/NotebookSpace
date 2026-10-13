@@ -362,6 +362,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   const hasRetrievedChunkText = retrievedMatchingChunks.length > 0;
 
+  const renderMarkedPassage = (text: string): React.ReactNode => {
+    const excerpts = [selectedCitation?.excerpt, ...retrievedMatchingChunks.map((r) => r.text || r.chunk_text || '')]
+      .filter((item): item is string => Boolean(item && item.trim()));
+    for (const excerpt of excerpts) {
+      const needle = excerpt.trim();
+      const index = text.toLocaleLowerCase().indexOf(needle.toLocaleLowerCase());
+      if (index >= 0) return <>{text.slice(0, index)}<mark className="passage-inline-mark">{text.slice(index, index + needle.length)}</mark>{text.slice(index + needle.length)}</>;
+    }
+    return text;
+  };
+
   const isChunkHighlighted = (chunkText: string, chunkIndex?: number): boolean => {
     if (!hasRetrievedChunkText) return false;
     return retrievedMatchingChunks.some((r) => {
@@ -1543,11 +1554,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               ) : selectedCitation ? (
                 <div
                   className="passage-content"
+                  aria-live="polite"
                   data-testid="passage-content"
                   key={`${selectedCitation.file}:${selectedCitation.page}`}
                 >
                   <div className="passage-content-banner">
-                    Showing content from <strong>{selectedCitation.file}</strong> (Page {selectedCitation.page}):
+                    <span className="passage-reader-label">Source evidence</span><span>Highlighted text is from the cited page.</span>
                   </div>
 
                   {passages.length > 0 ? (
@@ -1569,7 +1581,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 <span>Cited Passage Match</span>
                               </div>
                             )}
-                            <p className="passage-chunk-text">{text}</p>
+                            <p className="passage-chunk-text">{renderMarkedPassage(text)}</p>
                           </div>
                         );
                       })}
@@ -1584,7 +1596,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             </svg>
                             <span>Cited Passage Match</span>
                           </div>
-                          <p className="passage-chunk-text">{r.text || r.chunk_text}</p>
+                          <p className="passage-chunk-text">{renderMarkedPassage(r.text || r.chunk_text || '')}</p>
                         </div>
                       ))}
                     </div>
@@ -1597,7 +1609,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                           </svg>
                           <span>Historical Verified Excerpt</span>
                         </div>
-                        <p className="passage-chunk-text">{selectedCitation.excerpt}</p>
+                        <p className="passage-chunk-text"><mark className="passage-inline-mark">{selectedCitation.excerpt}</mark></p>
                       </div>
                     </div>
                   ) : (
