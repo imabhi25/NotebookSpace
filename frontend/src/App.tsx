@@ -1083,7 +1083,7 @@ export function App({
               onStopGeneration={handleStopGeneration}
               onResetWorkspace={handleResetWorkspace}
             />
-          ) : subjectsLoading ? (
+          ) : route.view === 'workspace' && subjectsLoading ? (
             <WorkspaceSkeleton />
           ) : null}
         </DashboardView>
