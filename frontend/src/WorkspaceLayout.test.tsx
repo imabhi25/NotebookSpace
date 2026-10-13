@@ -66,7 +66,8 @@ describe('Workspace navigation and progressive disclosure', () => {
     vi.spyOn(api, 'getStarterQuestions').mockResolvedValue([]);
     render(<App />);
     fireEvent.click(await screen.findByRole('button', { name: 'Back to notebooks dashboard' }));
-    await waitFor(() => expect(screen.getByRole('complementary', { name: 'Notebooks sidebar' })).toBeVisible());
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'My notebooks' })).toBeVisible());
+    expect(screen.getByTestId('subject-card-' + subject.id)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Back to notebooks dashboard' })).not.toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
   });
