@@ -179,11 +179,6 @@ export function App({
       if (!authed) return;
       const data = await api.getSubjects(true);
       setSubjects(data);
-      if (route.view === 'notebooks' && !route.subjectId && data.length > 0) {
-        const first = data.find((s) => !s.is_archived) || data[0];
-        navigateTo('workspace', first.id);
-        loadSubjectData(first.id);
-      }
     } catch {
       // ignore
     } finally {
