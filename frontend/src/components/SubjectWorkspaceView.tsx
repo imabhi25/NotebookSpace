@@ -187,9 +187,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Sources panel width: a fixed default the user can drag between limits; the choice is remembered.
   const SOURCES_WIDTH_KEY = 'notebookspace_sources_panel_width';
-  const SOURCES_WIDTH_MIN = 280;
-  const SOURCES_WIDTH_MAX = 480;
-  const clampSourcesWidth = (value: number) => Math.round(Math.min(SOURCES_WIDTH_MAX, Math.max(SOURCES_WIDTH_MIN, value)));
+  const SOURCES_WIDTH_MIN = 300;
+  const SOURCES_WIDTH_MAX = 560;
+  // The chat keeps at least this much room (plus the body padding and gap), so the panel can never cover it.
+  const CHAT_MIN_WIDTH = 420;
+  const workspaceBodyRef = useRef<HTMLDivElement>(null);
+  const sourcesWidthLimit = () => {
+    const bodyWidth = workspaceBodyRef.current?.clientWidth || 0;
+    if (!bodyWidth) return SOURCES_WIDTH_MAX;
+    return Math.max(SOURCES_WIDTH_MIN, Math.min(SOURCES_WIDTH_MAX, bodyWidth - CHAT_MIN_WIDTH - 36));
+  };
+  const clampSourcesWidth = (value: number) => Math.round(Math.min(sourcesWidthLimit(), Math.max(SOURCES_WIDTH_MIN, value)));
   const [sourcesWidth, setSourcesWidth] = useState<number | null>(() => {
     try {
       const stored = Number(window.localStorage.getItem(SOURCES_WIDTH_KEY));
@@ -244,6 +252,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Search queries
   const [sourceSearch, setSourceSearch] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [webQuery, setWebQuery] = useState('');
+  const [webHint, setWebHint] = useState('');
+  const [initialUrl, setInitialUrl] = useState('');
+  const selectAllRef = useRef<HTMLInputElement>(null);
   const [noteSearch, setNoteSearch] = useState('');
 
   // Modals
@@ -345,6 +358,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
+  const readySelectedCount = readySources.filter((s) => selectedSourceIds.includes(s.id)).length;
+  const allReadySelected = readySources.length > 0 && readySelectedCount === readySources.length;
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = readySelectedCount > 0 && !allReadySelected;
+  }, [readySelectedCount, allReadySelected, sources.length]);
 
   // Source selection handlers
   const handleToggleSource = (sourceId: string) => {
@@ -357,6 +375,30 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   const handleSelectAllSources = () => {
     onSelectSources(readySources.map((s) => s.id));
+  };
+
+  // The link bar adds a page as a source: a link opens the Add sources dialog on its link tab, ready to confirm.
+  const handleWebSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = webQuery.trim();
+    if (!query) {
+      setWebHint('Paste a link to a page to add it as a source.');
+      return;
+    }
+    const candidate = /^https?:\/\//i.test(query) ? query : /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(query) ? `https://${query}` : '';
+    try {
+      if (candidate) {
+        new URL(candidate);
+        setInitialUrl(candidate);
+        setWebQuery('');
+        setWebHint('');
+        setIsAddSourceOpen(true);
+        return;
+      }
+    } catch {
+      // fall through to the hint
+    }
+    setWebHint('Web search is not available yet. Paste a link and it is added as a source.');
   };
 
   const handleClearSources = () => {
@@ -624,7 +666,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {/* ======================================================================
           3-COLUMN WORKSPACE BODY
           ====================================================================== */}
-      <div className="workspace-body">
+      <div className="workspace-body" ref={workspaceBodyRef}>
         {isCompact && (!isLeftCollapsed || !isRightCollapsed) && (
           <div className="sidebar-overlay workspace-panels-overlay" aria-hidden="true"
             onClick={() => { setIsLeftCollapsed(true); setIsRightCollapsed(true); leftToggleRef.current?.focus(); }} />
@@ -637,8 +679,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <button type="button" className="panel-toggle-btn" aria-label="Open sources panel" title="Open sources panel"
               aria-controls="workspace-sources-panel" aria-expanded={false}
               onClick={() => setIsLeftCollapsed(false)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" aria-hidden="true">
-                <polyline points="9 18 15 12 9 6" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="3.5" />
+                <line x1="9" y1="9" x2="9" y2="15" />
               </svg>
             </button>
           </nav>
@@ -652,12 +695,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         >
           {/* Sidebar Tab Header */}
           <div className="workspace-sidebar-header">
-            <h2 className="sources-panel-title">
-              Sources
-              <span className="sources-count-badge" aria-label={`${sources.length} ${sources.length === 1 ? 'source' : 'sources'}`}>
-                {sources.length}
-              </span>
-            </h2>
+            <h2 className="sources-panel-title">Sources</h2>
 
             <button
               type="button"
@@ -666,135 +704,178 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               title="Collapse sources panel"
               aria-label="Collapse sources panel"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="3.5" />
+                <line x1="9" y1="9" x2="9" y2="15" />
               </svg>
             </button>
           </div>
 
-          {/* SOURCES: one drop zone that is both the empty state and the add control */}
-          {(
-            <div
-              className={`sidebar-tab-content sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
-              onDragOver={(e) => {
-                if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
-                e.preventDefault();
-                setIsPanelDragOver(true);
-              }}
-              onDragLeave={(e) => {
-                if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsPanelDragOver(false);
-              }}
-              onDrop={(e) => {
-                e.preventDefault();
-                setIsPanelDragOver(false);
-                const files = Array.from(e.dataTransfer?.files || []);
-                if (files.length > 0) {
-                  setDroppedFiles(files);
-                  setIsAddSourceOpen(true);
-                }
-              }}
-            >
-              {sources.length === 0 ? (
-                <button
-                  type="button"
-                  className="sources-drop-zone"
-                  onClick={() => setIsAddSourceOpen(true)}
-                  data-testid="add-source-btn"
-                >
-                  <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
+          {/* SOURCES: add / note actions, link search, selection row, then the list (or the drop zone when empty) */}
+          <div
+            className={`sidebar-tab-content sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
+            onDragOver={(e) => {
+              if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+              e.preventDefault();
+              setIsPanelDragOver(true);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsPanelDragOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsPanelDragOver(false);
+              const files = Array.from(e.dataTransfer?.files || []);
+              if (files.length > 0) {
+                setDroppedFiles(files);
+                setIsAddSourceOpen(true);
+              }
+            }}
+          >
+            <div className="sources-action-row">
+              <button type="button" className="sources-pill-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Add sources</span>
+              </button>
+              <button type="button" className="sources-pill-btn" onClick={() => setIsCreateNoteOpen(true)} data-testid="create-note-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Create note</span>
+              </button>
+            </div>
+
+            <form className="sources-web-search" role="search" aria-label="Add a web page as a source" onSubmit={handleWebSearch}>
+              <input
+                type="search"
+                className="sources-web-input"
+                placeholder="Search the web for new sources"
+                aria-label="Search the web for new sources"
+                value={webQuery}
+                onChange={(e) => { setWebQuery(e.target.value); if (webHint) setWebHint(''); }}
+              />
+              <div className="sources-web-controls">
+                <label className="sources-select">
+                  <span className="sr-only">Where to search</span>
+                  <select defaultValue="web" aria-label="Where to search">
+                    <option value="web">Web</option>
+                  </select>
+                </label>
+                <label className="sources-select">
+                  <span className="sr-only">Research depth</span>
+                  <select defaultValue="fast" aria-label="Research depth">
+                    <option value="fast">Fast Research</option>
+                    <option value="deep" disabled>Deep Research (soon)</option>
+                  </select>
+                </label>
+                <button type="submit" className="sources-web-go" aria-label="Add this link as a source" title="Add this link as a source">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="13 6 19 12 13 18" />
                   </svg>
-                  <span className="sources-drop-title">Drop PDFs here or click to browse</span>
-                  <span className="sources-drop-hint">PDFs, links, pasted text</span>
                 </button>
-              ) : (
-                <>
+              </div>
+              {webHint && <p className="sources-web-hint" role="status">{webHint}</p>}
+            </form>
+
+            {sources.length === 0 ? (
+              <button
+                type="button"
+                className="sources-drop-zone"
+                onClick={() => setIsAddSourceOpen(true)}
+                data-testid="sources-drop-zone"
+              >
+                <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <span className="sources-drop-title">Drop PDFs here or click to browse</span>
+                <span className="sources-drop-hint">PDFs, links, pasted text</span>
+              </button>
+            ) : (
+              <>
+                <div className="sources-select-row">
                   <button
                     type="button"
-                    className="sources-add-row"
-                    onClick={() => setIsAddSourceOpen(true)}
-                    data-testid="add-source-btn"
-                    aria-label="Add sources"
+                    className={`sources-filter-btn ${isFilterOpen ? 'active' : ''}`}
+                    aria-label="Filter sources by name"
+                    aria-pressed={isFilterOpen}
+                    title="Filter sources by name"
+                    onClick={() => { setIsFilterOpen((open) => !open); setSourceSearch(''); }}
                   >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                    <span>Add</span>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <line x1="4" y1="7" x2="20" y2="7" />
+                      <line x1="7" y1="12" x2="17" y2="12" />
+                      <line x1="10" y1="17" x2="14" y2="17" />
+                    </svg>
                   </button>
-
-                  <div className="sources-header-bar">
-                    <span className="selection-badge">
-                      {selectedSourceIds.length} of {readySources.length} selected
-                    </span>
-                    <div className="selection-controls">
-                      <button
-                        type="button"
-                        className="btn-link"
-                        onClick={handleSelectAllSources}
-                        disabled={readySources.length === 0}
-                      >
-                        Select all
-                      </button>
-                      <span aria-hidden="true">&middot;</span>
-                      <button
-                        type="button"
-                        className="btn-link"
-                        onClick={handleClearSources}
-                        disabled={selectedSourceIds.length === 0}
-                      >
-                        Clear
-                      </button>
-                    </div>
-                  </div>
-                </>
-              )}
-
-              {sources.length > 2 && (
-                <div className="source-search-container">
-                  <input
-                    type="text"
-                    placeholder="Search sources..."
-                    value={sourceSearch}
-                    onChange={(e) => setSourceSearch(e.target.value)}
-                    className="source-search-input"
-                  />
+                  <label className="sources-select-all">
+                    <span>Select all</span>
+                    <input
+                      type="checkbox"
+                      ref={selectAllRef}
+                      className="source-row-checkbox"
+                      checked={allReadySelected}
+                      disabled={readySources.length === 0}
+                      onChange={() => (allReadySelected ? handleClearSources() : handleSelectAllSources())}
+                      aria-label="Select all sources"
+                    />
+                  </label>
                 </div>
-              )}
+                <p className="sr-only" aria-live="polite">
+                  {selectedSourceIds.length} of {readySources.length} selected
+                </p>
 
-              <div className="sources-list-scroll">
-                {sources.length === 0 ? null : filteredSources.length === 0 ? (
-                  <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
-                ) : (
-                  <ul className="workspace-sources-ul">
-                    {filteredSources.map((s) => (
-                      <SourceRow
-                        key={s.id}
-                        source={s}
-                        isSelected={selectedSourceIds.includes(s.id)}
-                        onToggle={() => handleToggleSource(s.id)}
-                        onView={() => handleOpenSourceViewer(s)}
-                        onRename={() => {
-                          setRenamingSource(s);
-                          setNewSourceTitle(s.title);
-                        }}
-                        onRetry={() => onRetrySource(s.id)}
-                        onReplace={() => handleTriggerReplace(s.id)}
-                        onRemove={() => {
-                          if (window.confirm(`Remove source "${s.title}" from this notebook?`)) {
-                            onDeleteSource(s.id);
-                          }
-                        }}
-                      />
-                    ))}
-                  </ul>
+                {isFilterOpen && (
+                  <div className="source-search-container">
+                    <input
+                      type="text"
+                      placeholder="Filter sources..."
+                      aria-label="Filter sources by name"
+                      value={sourceSearch}
+                      onChange={(e) => setSourceSearch(e.target.value)}
+                      className="source-search-input"
+                      autoFocus
+                    />
+                  </div>
                 )}
-              </div>
 
-            </div>
-          )}
+                <div className="sources-list-scroll">
+                  {filteredSources.length === 0 ? (
+                    <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
+                  ) : (
+                    <ul className="workspace-sources-ul">
+                      {filteredSources.map((s) => (
+                        <SourceRow
+                          key={s.id}
+                          source={s}
+                          isSelected={selectedSourceIds.includes(s.id)}
+                          onToggle={() => handleToggleSource(s.id)}
+                          onView={() => handleOpenSourceViewer(s)}
+                          onRename={() => {
+                            setRenamingSource(s);
+                            setNewSourceTitle(s.title);
+                          }}
+                          onRetry={() => onRetrySource(s.id)}
+                          onReplace={() => handleTriggerReplace(s.id)}
+                          onRemove={() => {
+                            if (window.confirm(`Remove source "${s.title}" from this notebook?`)) {
+                              onDeleteSource(s.id);
+                            }
+                          }}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </aside>
           <div
             className="sources-resize-handle"
@@ -1615,7 +1696,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <SourceModal
           isOpen={isAddSourceOpen}
           initialFiles={droppedFiles}
-          onClose={() => { setIsAddSourceOpen(false); setDroppedFiles([]); }}
+          initialUrl={initialUrl}
+          onClose={() => { setIsAddSourceOpen(false); setDroppedFiles([]); setInitialUrl(''); }}
           onUploadFiles={onUploadFiles}
           onPasteText={onPasteText}
           onAddUrl={onAddUrl}

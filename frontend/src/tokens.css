@@ -187,7 +187,9 @@
   --layout-loading-offset: 80px;
   --empty-icon-size: 32px;
   --empty-mark-size: 64px;
-  --sources-panel-width: 360px;
+  --sources-panel-width: 400px;
+  --sources-panel-min: 300px;
+  --sources-chat-min: 420px;
   --sources-panel-user-width: var(--sources-panel-width);
   --resize-handle-width: 10px;
   --resize-handle-line: 2px;

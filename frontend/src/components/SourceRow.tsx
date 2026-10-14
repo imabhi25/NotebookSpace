@@ -130,26 +130,18 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         role="button"
         tabIndex={0}
       >
-        <span className="source-row-title" title={s.title}>
+        <span className="source-row-title" title={`${s.title} · ${info.label}${isReady ? ` · ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}` : ''}`}>
           {s.title}
         </span>
-        <span className="source-row-meta">
-          <span>{info.label}</span>
-          {isReady && (
-            <span>
-              {s.page_count} {s.page_count === 1 ? 'page' : 'pages'}
-            </span>
-          )}
-          {isReady ? (
-            <span>Ready</span>
-          ) : s.status === 'processing' ? (
-            <span className="status-processing">Processing...</span>
-          ) : (
-            <span className="status-failed" title={s.error_message || ''}>
-              Failed
-            </span>
-          )}
+        <span className="sr-only">
+          {info.label}{isReady ? `, ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}, ready` : ''}
         </span>
+        {s.status === 'processing' && <span className="source-row-status status-processing">Processing...</span>}
+        {s.status === 'failed' && (
+          <span className="source-row-status status-failed" title={s.error_message || ''}>
+            Failed
+          </span>
+        )}
       </div>
 
       <button
