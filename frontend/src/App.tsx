@@ -1033,6 +1033,7 @@ export function App({
         /* NotebookLM-Style Unified Shell */
         <DashboardView
           subjects={subjects}
+          workspaceMode={route.view === 'workspace'}
           loading={subjectsLoading}
           activeSubjectId={activeSubject?.id}
           currentUser={currentUser}
@@ -1046,7 +1047,7 @@ export function App({
           isMobileSidebarOpen={isMobileNotebooksOpen}
           onSetMobileSidebarOpen={setIsMobileNotebooksOpen}
         >
-          {activeSubject ? (
+          {route.view === 'workspace' && activeSubject ? (
             /* Selected Notebook Workspace View */
             <SubjectWorkspaceView
               subject={activeSubject}
@@ -1059,7 +1060,6 @@ export function App({
               isDemoMode={isDemoMode}
               currentUser={currentUser}
               onBackToDashboard={() => navigateTo('notebooks')}
-              onToggleNotebooksDrawer={() => setIsMobileNotebooksOpen((prev) => !prev)}
               onSelectSources={setSelectedSourceIds}
               onSelectConversation={handleSelectConversation}
               onCreateConversation={handleCreateConversation}
@@ -1083,7 +1083,7 @@ export function App({
               onStopGeneration={handleStopGeneration}
               onResetWorkspace={handleResetWorkspace}
             />
-          ) : subjectsLoading ? (
+          ) : route.view === 'workspace' && subjectsLoading ? (
             <WorkspaceSkeleton />
           ) : null}
         </DashboardView>

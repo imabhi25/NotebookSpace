@@ -101,7 +101,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 id="auth-email"
                 type="email"
                 required
-                placeholder="student@example.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 disabled={loading}
@@ -115,7 +114,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 id="auth-password"
                 type="password"
                 required
-                placeholder="••••••••"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 disabled={loading}

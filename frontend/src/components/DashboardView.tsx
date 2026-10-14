@@ -19,6 +19,7 @@ export interface DashboardViewProps {
   isMobileSidebarOpen?: boolean;
   onSetMobileSidebarOpen?: (open: boolean) => void;
   children?: React.ReactNode;
+  workspaceMode?: boolean;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -36,6 +37,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   isMobileSidebarOpen: controlledMobileOpen,
   onSetMobileSidebarOpen,
   children,
+  workspaceMode = false,
 }) => {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'updated_at' | 'name' | 'created_at'>('updated_at');
@@ -393,9 +395,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         );
 
   return (
-    <div className={`dashboard-shell-layout sidebar-motion-${sidebarMotion}`}>
-      {children ? (
+    <div className={`dashboard-shell-layout sidebar-motion-${sidebarMotion} ${workspaceMode ? 'workspace-shell' : ''}`}>
+      {children || workspaceMode ? (
         <>
+      {!workspaceMode && <>
       {/* Mobile Backdrop Overlay (always mounted so it can fade out as well as in) */}
       <div
         className={`sidebar-mobile-overlay ${isMobileOpen ? 'is-open' : ''}`}
@@ -616,13 +619,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
       </aside>
+      </>}
 
       {/* ======================================================================
           2. MAIN AREA: Selected Notebook Detail View or Calm Empty State
           ====================================================================== */}
       <main className="dashboard-main-content">
         {/* Reopen Floating Tab on Desktop when sidebar is collapsed */}
-        {isCollapsedDesktop && (
+        {!workspaceMode && isCollapsedDesktop && (
           <button
             type="button"
             className="floating-sidebar-reopen-btn"
@@ -817,9 +821,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         )}
                         {s.is_archived && <span className="notebook-code-badge notebook-archived-tag">Archived</span>}
                       </div>
-                      <p className="notebook-card-meta">
-                        {formatDate(s.updated_at)} · {(s.source_count ?? 0)} {(s.source_count ?? 0) === 1 ? 'source' : 'sources'}
-                      </p>
+                      {(s.source_count ?? 0) === 0 ? (
+                        <p className="notebook-card-meta notebook-card-meta-empty">
+                          Add your first source <span aria-hidden="true">→</span>
+                        </p>
+                      ) : (
+                        <p className="notebook-card-meta">
+                          {formatDate(s.updated_at)} · {s.source_count} {s.source_count === 1 ? 'source' : 'sources'}
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -861,7 +871,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   id="create-subj-name"
                   type="text"
                   required
-                  placeholder="e.g. EECS 3101 — Algorithms"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   disabled={submitting}
@@ -873,7 +882,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <input
                   id="create-subj-code"
                   type="text"
-                  placeholder="e.g. EECS 3101"
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value)}
                   disabled={submitting}
@@ -884,21 +892,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <textarea
                   id="create-subj-desc"
                   rows={3}
-                  placeholder="e.g. Design and analysis of efficient algorithms, graphs, and dynamic programming."
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
                   disabled={submitting}
                 />
               </div>
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsCreateOpen(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Creating...' : 'Create Notebook'}
                 </button>
@@ -961,14 +960,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
               </div>
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setEditingSubject(null)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -998,14 +989,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               All associated documents, conversations, and notes will be permanently removed.
             </div>
             <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setDeletingSubject(null)}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
               <button
                 type="button"
                 className="btn btn-danger"
@@ -1053,13 +1036,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Start a new guest workspace? This will create a fresh workspace for this browser, clearing all local notebooks, documents, and notes.
             </div>
             <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setIsResetConfirmOpen(false)}
-              >
-                Cancel
-              </button>
               <button
                 type="button"
                 className="btn btn-danger"
