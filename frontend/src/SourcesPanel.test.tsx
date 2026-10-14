@@ -43,15 +43,19 @@ beforeEach(() => { window.innerWidth = 1440; });
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 
 describe('Sources panel', () => {
-  it('with no sources shows only the drop zone: no selection row, no old empty text, no big add button', () => {
+  it('with no sources shows the actions, the link bar and the drop zone, with no count and no selection row', () => {
     render(workspace([], []));
     const zone = within(panel()).getByRole('button', { name: /Drop PDFs here or click to browse/ });
     expect(zone).toHaveTextContent('PDFs, links, pasted text');
-    expect(within(panel()).getByRole('heading', { name: /Sources/ })).toHaveTextContent('0');
+    expect(within(panel()).getByRole('heading', { name: 'Sources' })).toHaveTextContent(/^Sources$/);
     expect(within(panel()).queryByText(/of \d+ selected/)).toBeNull();
     expect(within(panel()).queryByText('Select all')).toBeNull();
     expect(screen.queryByText('No materials added yet.')).toBeNull();
-    expect(within(panel()).queryByRole('button', { name: 'Add sources' })).toBeNull();
+    expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
+    expect(within(panel()).getByRole('button', { name: 'Create note' })).toBeInTheDocument();
+    expect(within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' })).toBeInTheDocument();
+    expect(within(panel()).getByRole('combobox', { name: 'Where to search' })).toHaveDisplayValue('Web');
+    expect(within(panel()).getByRole('combobox', { name: 'Research depth' })).toHaveDisplayValue('Fast Research');
   });
 
   it('opens the add dialog from the drop zone, and queues dropped files in it', async () => {
@@ -65,18 +69,55 @@ describe('Sources panel', () => {
     expect(await screen.findByText('handout.pdf')).toBeInTheDocument();
   });
 
-  it('with sources collapses to a compact Add row and shows the selection row', () => {
+  it('with sources drops the drop zone, shows a select-all row, and has no number beside the title', () => {
     const onSelectSources = vi.fn();
-    render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a'], onSelectSources));
+    const { rerender } = render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a'], onSelectSources));
     expect(within(panel()).queryByRole('button', { name: /Drop PDFs here/ })).toBeNull();
-    expect(within(panel()).getByRole('button', { name: 'Add sources' })).toHaveTextContent('Add');
-    expect(within(panel()).getByText('1 of 2 selected')).toBeInTheDocument();
-    expect(within(panel()).getByRole('heading', { name: /Sources/ })).toHaveTextContent('2');
+    expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
+    expect(within(panel()).getByRole('heading', { name: 'Sources' })).toHaveTextContent(/^Sources$/);
+    const selectAll = within(panel()).getByRole('checkbox', { name: 'Select all sources' }) as HTMLInputElement;
+    expect(within(panel()).getByText('Select all')).toBeInTheDocument();
+    expect(selectAll.checked).toBe(false);
+    expect(selectAll.indeterminate).toBe(true);
 
     fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Select Lecture 7.pdf' }));
     expect(onSelectSources).toHaveBeenCalledWith(['a', 'b']);
-    fireEvent.click(within(panel()).getByRole('button', { name: 'Clear' }));
-    expect(onSelectSources).toHaveBeenCalledWith([]);
+    fireEvent.click(selectAll);
+    expect(onSelectSources).toHaveBeenLastCalledWith(['a', 'b']);
+
+    rerender(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a', 'b'], onSelectSources));
+    const all = within(panel()).getByRole('checkbox', { name: 'Select all sources' }) as HTMLInputElement;
+    expect(all.checked).toBe(true);
+    fireEvent.click(all);
+    expect(onSelectSources).toHaveBeenLastCalledWith([]);
+  });
+
+  it('the link bar opens the add dialog on the link tab with the link filled in, and explains anything else', async () => {
+    render(workspace([], []));
+    const bar = within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' });
+    fireEvent.change(bar, { target: { value: 'how do heaps work' } });
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Add this link as a source' }));
+    expect(within(panel()).getByRole('status')).toHaveTextContent('Web search is not available yet');
+    expect(screen.queryByText('Add sources to notebook')).toBeNull();
+
+    fireEvent.change(bar, { target: { value: 'example.com/notes' } });
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Add this link as a source' }));
+    expect(await screen.findByText('Add sources to notebook')).toBeInTheDocument();
+    expect(await screen.findByLabelText(/Public Webpage URL/)).toHaveValue('https://example.com/notes');
+    expect(bar).toHaveValue('');
+  });
+
+  it('Create note opens the note dialog, and the filter button reveals a name filter', () => {
+    render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a']));
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Create note' }));
+    expect(screen.getByRole('heading', { name: 'Create Note' })).toBeInTheDocument();
+    fireEvent.keyDown(window, { key: 'Escape' });
+
+    expect(within(panel()).queryByRole('textbox', { name: 'Filter sources by name' })).toBeNull();
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Filter sources by name' }));
+    fireEvent.change(within(panel()).getByRole('textbox', { name: 'Filter sources by name' }), { target: { value: 'lect' } });
+    expect(within(panel()).queryByText('Syllabus.pdf')).toBeNull();
+    expect(within(panel()).getByText('Lecture 7.pdf')).toBeInTheDocument();
   });
 
   it('has no chat-switching UI anywhere, even when the notebook has several stored conversations', () => {
@@ -98,6 +139,7 @@ describe('Sources panel', () => {
     render(React.cloneElement(view, { onDeleteSource }));
     const row = within(panel()).getByText('Syllabus.pdf').closest('li')!;
     expect(within(row).getAllByRole('button')).toHaveLength(2);
+    expect(row.querySelector('.source-row-meta')).toBeNull();
     expect(within(row).queryByRole('button', { name: /^(View|Rename|Delete|Replace|Retry) / })).toBeNull();
     expect(within(row).getByRole('checkbox', { name: 'Select Syllabus.pdf' })).toBeInTheDocument();
     expect(row).toHaveTextContent('PDF');
@@ -129,9 +171,9 @@ describe('Sources panel', () => {
     expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('420px');
     expect(slot()).toHaveClass('is-resizing');
     fireEvent.pointerMove(handle(), { clientX: 900, pointerId: 1 });
-    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('480px');
+    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('560px');
     fireEvent.pointerMove(handle(), { clientX: 100, pointerId: 1 });
-    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('280px');
+    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('300px');
     fireEvent.pointerUp(handle(), { clientX: 400, pointerId: 1 });
     expect(slot()).not.toHaveClass('is-resizing');
     expect(window.localStorage.getItem('notebookspace_sources_panel_width')).toBe('400');

@@ -37,6 +37,7 @@
 .workspace-overflow-menu .notebook-menu-item { white-space: normal; overflow-wrap: anywhere; }
 
 .workspace-layout .workspace-body {
+  container-type: inline-size;
   flex: 1; min-height: 0; min-width: 0; width: 100%; position: relative;
   display: flex; align-items: stretch; gap: var(--space-3);
   padding: var(--space-3); overflow: hidden;
@@ -49,14 +50,16 @@
 }
 /* The sources slot animates its width; the panel inside keeps its full width so its content never reflows mid-animation. */
 .workspace-layout .sources-slot {
+  /* The chosen width, held between the floor and whatever leaves the chat its minimum room. */
+  --sources-panel-shown: min(var(--sources-panel-user-width), max(var(--sources-panel-min), calc(100cqw - var(--sources-chat-min) - var(--space-6))));
   position: relative; display: flex; flex: 0 0 auto; min-width: 0; min-height: 0; overflow: clip;
-  width: var(--sources-panel-user-width);
+  width: var(--sources-panel-shown);
   transition: width var(--motion-panel-resize) var(--motion-ease-out-cubic);
 }
 .workspace-layout .sources-slot.is-collapsed { width: var(--target-mobile); }
 .workspace-layout .sources-slot.is-resizing { transition: none; }
 .workspace-layout .sources-slot aside.workspace-sidebar {
-  width: var(--sources-panel-user-width) !important; flex: 0 0 var(--sources-panel-user-width);
+  width: var(--sources-panel-shown) !important; flex: 0 0 var(--sources-panel-shown);
   transition: opacity var(--motion-fast) var(--motion-ease), visibility 0s linear 0s;
 }
 .workspace-layout .sources-slot.is-collapsed aside.workspace-sidebar {

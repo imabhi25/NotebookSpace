@@ -14,6 +14,8 @@ interface SourceModalProps {
   onAddUrl: (url: string, title?: string) => Promise<void>;
   /** Files dropped on the sources panel; queued on the upload tab when the dialog opens. */
   initialFiles?: File[];
+  /** A link typed into the sources panel; opens the dialog on the link tab with it filled in. */
+  initialUrl?: string;
 }
 
 export const SourceModal: React.FC<SourceModalProps> = ({
@@ -23,6 +25,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   onPasteText,
   onAddUrl,
   initialFiles,
+  initialUrl,
 }) => {
   const [tab, setTab] = useState<'upload' | 'paste' | 'url'>('upload');
 
@@ -40,6 +43,8 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   // URL tab state
   const [urlInput, setUrlInput] = useState('');
   const [urlTitle, setUrlTitle] = useState('');
+  // The panel's link is applied once per opening; the effect below re-runs on every parent render.
+  const appliedUrl = useRef('');
 
   // Submission state
   const [loading, setLoading] = useState(false);
@@ -54,12 +59,17 @@ export const SourceModal: React.FC<SourceModalProps> = ({
       // A link is never a draft worth keeping: stale values once saved a page under another page's title.
       setUrlInput('');
       setUrlTitle('');
+      appliedUrl.current = '';
       return;
     }
 
     if (initialFiles && initialFiles.length > 0) {
       setTab('upload');
       setSelectedFiles(initialFiles);
+    } else if (initialUrl && appliedUrl.current !== initialUrl) {
+      appliedUrl.current = initialUrl;
+      setTab('url');
+      setUrlInput(initialUrl);
     }
 
     // Auto-focus dialog container on open

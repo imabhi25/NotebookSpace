@@ -918,10 +918,6 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
    Sources panel: materials only. One drop zone is the empty state and the add control.
    ========================================================================== */
 .sources-panel-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--type-body); font-weight: var(--weight-semibold); color: var(--color-text-primary); }
-.sources-count-badge {
-  min-width: var(--size-22); padding: 0 var(--space-2); text-align: center; font-size: var(--type-caption); font-weight: var(--weight-medium);
-  line-height: var(--size-22); border-radius: var(--radius-pill); background: var(--color-surface-hover); color: var(--color-text-secondary); font-variant-numeric: tabular-nums;
-}
 .sources-panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-3); gap: var(--space-3); }
 .sources-panel-body .sources-header-bar, .sources-panel-body .source-search-container { margin: 0; }
 .sources-panel-body .sources-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
@@ -1048,4 +1044,83 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
 }
 @media (prefers-contrast: more) {
   :is(.workspace-main-area, .workspace-sidebar, .workspace-right-panel, .modal-content, .composer-box, .workspace-source-item.selected, .sidebar-notebook-item.active) { border-color: var(--color-text-primary); }
+}
+
+/* ==========================================================================
+   Sources panel v3: header + slide toggle, pill actions, link bar, select-all row, one-line rows.
+   The panel body has equal side padding, so the drop zone (full width of it) stays centered at every panel width.
+   ========================================================================== */
+.workspace-sidebar-header { min-height: var(--size-52); padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4); }
+.sources-panel-body { gap: var(--space-3); padding: var(--space-3) var(--space-3) var(--space-2); }
+.sources-panel-body > * { min-width: 0; }
+.sources-action-row { display: flex; gap: var(--space-2); }
+.sources-pill-btn {
+  flex: 1 1 0; min-width: 0; display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+  min-height: var(--target-mobile); padding: 0 var(--space-3); cursor: pointer; white-space: nowrap;
+  font-size: var(--type-small); font-weight: var(--weight-medium); color: var(--color-text-primary);
+  background: var(--color-surface); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-pill);
+  transition: background-color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease), transform var(--motion-press) var(--motion-ease-out);
+}
+.sources-pill-btn svg { flex: 0 0 auto; }
+.sources-pill-btn span { overflow: hidden; text-overflow: ellipsis; }
+.sources-pill-btn:active { transform: scale(var(--press-scale)); }
+
+.sources-web-search {
+  display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3);
+  background: var(--color-surface); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-lg);
+  transition: border-color var(--motion-fast) var(--motion-ease);
+}
+.sources-web-search:focus-within { border-color: var(--color-accent-border); }
+.sources-web-input {
+  width: 100%; min-width: 0; padding: var(--space-1) 0; border: none; outline: none; background: var(--color-transparent);
+  font: inherit; font-size: var(--type-body); color: var(--color-text-primary);
+}
+.sources-web-input::placeholder { color: var(--color-text-muted); }
+.sources-web-input:focus-visible { outline: none !important; box-shadow: none !important; }
+.sources-web-controls { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.sources-select { position: relative; display: block; min-width: 0; flex: 0 0 auto; }
+.sources-select + .sources-select { flex: 0 1 auto; }
+.sources-select select {
+  appearance: none; width: auto; max-width: 100%; min-width: 0; height: var(--control-height-md); padding: 0 var(--space-5) 0 var(--space-3);
+  font: inherit; font-size: var(--type-small); font-weight: var(--weight-medium); color: var(--color-text-primary); cursor: pointer;
+  background: var(--color-surface-raised); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-pill);
+  text-overflow: ellipsis;
+}
+.sources-select::after {
+  content: ''; position: absolute; right: var(--space-2); top: 50%; width: 6px; height: 6px; pointer-events: none;
+  border-right: 1.75px solid var(--color-text-secondary); border-bottom: 1.75px solid var(--color-text-secondary);
+  transform: translateY(-70%) rotate(45deg);
+}
+.sources-web-go {
+  display: grid; place-items: center; margin-left: auto; flex: 0 0 auto; width: var(--control-height-md); height: var(--control-height-md); padding: 0;
+  cursor: pointer; color: var(--color-text-secondary); background: var(--color-transparent); border: none; border-radius: var(--radius-pill);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease);
+}
+.sources-web-hint { margin: 0; font-size: var(--type-caption); line-height: var(--leading-caption); color: var(--color-text-secondary); }
+
+.sources-select-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); padding: 0 var(--space-1) 0 var(--space-1); }
+.sources-filter-btn {
+  display: grid; place-items: center; width: var(--control-height-sm); height: var(--control-height-sm); padding: 0; cursor: pointer;
+  color: var(--color-text-secondary); background: var(--color-transparent); border: none; border-radius: var(--radius-sm);
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease);
+}
+.sources-filter-btn.active { background: var(--color-surface-active); color: var(--color-text-primary); }
+.sources-select-all {
+  display: flex; align-items: center; gap: var(--space-3); cursor: pointer;
+  font-size: var(--type-small); font-weight: var(--weight-medium); color: var(--color-text-secondary);
+}
+.sources-select-all .source-row-checkbox { margin: 0 var(--space-1); }
+
+.source-row-main { flex-direction: row; align-items: center; gap: var(--space-2); }
+.source-row-title { flex: 1 1 auto; min-width: 0; }
+.source-row-status { flex: 0 0 auto; font-size: var(--type-caption); font-weight: var(--weight-medium); }
+.source-row-status::before { display: none !important; }
+.source-row { padding-block: var(--space-2); }
+
+@media (hover: hover) and (pointer: fine) {
+  .sources-pill-btn:hover { background: var(--color-surface-hover); border-color: var(--color-border-strong); }
+  .sources-web-go:hover, .sources-filter-btn:hover { background: var(--color-surface-active); color: var(--color-text-primary); }
+}
+@media (max-width: 640px) {
+  .sources-panel-body { padding: var(--space-3); }
 }
