@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import '@fontsource-variable/newsreader';
 import './index.css';
 import './components.css';
 import './workspace-layout.css';

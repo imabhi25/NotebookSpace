@@ -13,13 +13,36 @@ interface SourceRowProps {
   onRemove: () => void;
 }
 
-const TYPE_INFO: Record<string, { badge: string; label: string }> = {
-  pdf: { badge: 'PDF', label: 'PDF' },
-  url: { badge: 'WEB', label: 'Web page' },
-  pasted: { badge: 'TXT', label: 'Pasted text' },
-  markdown: { badge: 'MD', label: 'Markdown' },
-  txt: { badge: 'TXT', label: 'Text' },
+const TYPE_INFO: Record<string, { label: string; icon: 'doc' | 'link' | 'text' }> = {
+  pdf: { label: 'PDF', icon: 'doc' },
+  url: { label: 'Web page', icon: 'link' },
+  pasted: { label: 'Pasted text', icon: 'text' },
+  markdown: { label: 'Markdown', icon: 'text' },
+  txt: { label: 'Text', icon: 'text' },
 };
+
+// A small line icon per kind of source; the colour is the muted ink, never a badge.
+const TypeIcon: React.FC<{ kind: 'doc' | 'link' | 'text' }> = ({ kind }) => (
+  <svg className="source-type-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {kind === 'link' ? (
+      <>
+        <path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1" />
+        <path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1" />
+      </>
+    ) : (
+      <>
+        <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" />
+        <polyline points="14 3 14 8 19 8" />
+        {kind === 'text' && (
+          <>
+            <line x1="9" y1="13" x2="15" y2="13" />
+            <line x1="9" y1="17" x2="13" y2="17" />
+          </>
+        )}
+      </>
+    )}
+  </svg>
+);
 
 // One slim list row: type badge, name, a quiet meta line, then a "more" menu and the selection checkbox.
 export const SourceRow: React.FC<SourceRowProps> = ({
@@ -39,7 +62,10 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   const menuRef = useRef<HTMLDivElement>(null);
 
   const type = (s.source_type || 'doc').toLowerCase();
-  const info = TYPE_INFO[type] || { badge: 'DOC', label: s.source_type || 'Document' };
+  const info = TYPE_INFO[type] || { label: s.source_type || 'Document', icon: 'doc' as const };
+  const sizeLabel = type === 'pdf' || !s.word_count
+    ? `${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}`
+    : `${s.word_count.toLocaleString()} words`;
   const isReady = s.status === 'ready';
   const canRetry = s.status === 'failed' && (type === 'url' || type === 'pasted');
 
@@ -114,9 +140,17 @@ export const SourceRow: React.FC<SourceRowProps> = ({
       ref={rootRef}
       className={`source-row ${isSelected ? 'selected' : ''} ${isMenuOpen ? 'menu-open' : ''} source-row-${s.status}`}
     >
-      <span className={`source-type-badge type-${type}`} aria-hidden="true">
-        {info.badge}
-      </span>
+      <input
+        type="checkbox"
+        className="source-row-checkbox"
+        checked={isSelected}
+        disabled={!isReady}
+        onChange={onToggle}
+        aria-label={`Select ${s.title}`}
+        data-testid={`source-checkbox-${s.id}`}
+      />
+
+      <TypeIcon kind={info.icon} />
 
       <div
         className="source-row-main"
@@ -130,15 +164,18 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         role="button"
         tabIndex={0}
       >
-        <span className="source-row-title" title={`${s.title} · ${info.label}${isReady ? ` · ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}` : ''}`}>
+        <span className="source-row-title" title={`${s.title} · ${info.label}${isReady ? ` · ${sizeLabel}` : ''}`}>
           {s.title}
         </span>
-        <span className="sr-only">
-          {info.label}{isReady ? `, ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}, ready` : ''}
-        </span>
-        {s.status === 'processing' && <span className="source-row-status status-processing">Processing...</span>}
+        {isReady && (
+          <span className="source-row-meta">
+            <span className="meta-type">{info.label}</span>
+            <span className="meta-size">{sizeLabel}</span>
+          </span>
+        )}
+        {s.status === 'processing' && <span className="source-row-status is-processing">Processing…</span>}
         {s.status === 'failed' && (
-          <span className="source-row-status status-failed" title={s.error_message || ''}>
+          <span className="source-row-status is-failed" title={s.error_message || ''}>
             Failed
           </span>
         )}
@@ -160,16 +197,6 @@ export const SourceRow: React.FC<SourceRowProps> = ({
           <circle cx="19" cy="12" r="1.6" />
         </svg>
       </button>
-
-      <input
-        type="checkbox"
-        className="source-row-checkbox"
-        checked={isSelected}
-        disabled={!isReady}
-        onChange={onToggle}
-        aria-label={`Select ${s.title}`}
-        data-testid={`source-checkbox-${s.id}`}
-      />
 
       {isMenuOpen && createPortal(
         <div

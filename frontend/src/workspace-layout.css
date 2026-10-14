@@ -121,8 +121,9 @@
     position: absolute; top: var(--space-3); bottom: var(--space-3);
     width: min(var(--size-350), calc(100% - var(--space-6))) !important;
     max-width: calc(100% - var(--space-6)); height: auto; flex: none;
-    border-radius: var(--radius-lg) !important; z-index: 40;
+    z-index: 40;
   }
+  .workspace-layout aside.workspace-right-panel { border-radius: var(--radius-lg) !important; }
   .workspace-layout aside.workspace-sidebar { left: var(--space-3); right: auto; }
   .workspace-layout aside.workspace-right-panel { right: var(--space-3); left: auto; }
   /* Panels are overlays here, never a split: the one opened last sits on top. */
@@ -139,4 +140,6 @@
     left: var(--space-2); right: var(--space-2); top: var(--space-2); bottom: var(--space-2);
     width: auto !important; max-width: none;
   }
+  /* The chosen desktop width does not apply to the phone drawer: it fills the screen minus the small margin. */
+  .workspace-layout .sources-slot aside.workspace-sidebar { width: auto !important; flex: none; }
 }

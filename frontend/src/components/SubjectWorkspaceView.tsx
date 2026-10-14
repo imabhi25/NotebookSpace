@@ -253,8 +253,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Search queries
   const [sourceSearch, setSourceSearch] = useState('');
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [webQuery, setWebQuery] = useState('');
-  const [webHint, setWebHint] = useState('');
+  const [linkInput, setLinkInput] = useState('');
+  const [linkHint, setLinkHint] = useState('');
   const [initialUrl, setInitialUrl] = useState('');
   const selectAllRef = useRef<HTMLInputElement>(null);
   const [noteSearch, setNoteSearch] = useState('');
@@ -377,28 +377,28 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     onSelectSources(readySources.map((s) => s.id));
   };
 
-  // The link bar adds a page as a source: a link opens the Add sources dialog on its link tab, ready to confirm.
-  const handleWebSearch = (e: React.FormEvent) => {
+  // The link row adds a page as a source: it opens the Add sources dialog on its link tab with the address filled in.
+  const handleAddLink = (e: React.FormEvent) => {
     e.preventDefault();
-    const query = webQuery.trim();
-    if (!query) {
-      setWebHint('Paste a link to a page to add it as a source.');
+    const value = linkInput.trim();
+    if (!value) {
+      setLinkHint('Paste a web address first.');
       return;
     }
-    const candidate = /^https?:\/\//i.test(query) ? query : /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(query) ? `https://${query}` : '';
+    const candidate = /^https?:\/\//i.test(value) ? value : /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(value) ? `https://${value}` : '';
     try {
       if (candidate) {
         new URL(candidate);
         setInitialUrl(candidate);
-        setWebQuery('');
-        setWebHint('');
+        setLinkInput('');
+        setLinkHint('');
         setIsAddSourceOpen(true);
         return;
       }
     } catch {
       // fall through to the hint
     }
-    setWebHint('Web search is not available yet. Paste a link and it is added as a source.');
+    setLinkHint('That does not look like a web address. Paste the full link, such as https://example.com/page.');
   };
 
   const handleClearSources = () => {
@@ -676,17 +676,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           style={sourcesWidth ? ({ '--sources-panel-user-width': `${sourcesWidth}px` } as React.CSSProperties) : undefined}
         >
           <nav className="workspace-sources-rail" aria-label="Sources" ref={railRef} aria-hidden={!isLeftCollapsed}>
-            <button type="button" className="panel-toggle-btn" aria-label="Open sources panel" title="Open sources panel"
+            <button type="button" className="sources-slide-toggle" aria-label="Open sources panel" title="Open sources panel"
               aria-controls="workspace-sources-panel" aria-expanded={false}
               onClick={() => setIsLeftCollapsed(false)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="16" rx="3.5" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
                 <line x1="9" y1="9" x2="9" y2="15" />
               </svg>
             </button>
           </nav>
         {/* --------------------------------------------------------------------
-            1. LEFT PANEL: NotebookLM's Source Workflow & Compact History
+            1. LEFT PANEL: Sources (the reading-room column)
             -------------------------------------------------------------------- */}
         <aside
           className={`workspace-sidebar ${!isLeftCollapsed ? 'sidebar-open' : ''}`}
@@ -699,13 +699,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
             <button
               type="button"
-              className="panel-collapse-btn panel-toggle-btn"
+              className="sources-slide-toggle"
               onClick={closeLeftPanel}
               title="Collapse sources panel"
               aria-label="Collapse sources panel"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="16" rx="3.5" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="2" />
                 <line x1="9" y1="9" x2="9" y2="15" />
               </svg>
             </button>
@@ -732,54 +732,35 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               }
             }}
           >
-            <div className="sources-action-row">
-              <button type="button" className="sources-pill-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
+            <div className="sources-actions">
+              <button type="button" className="sources-text-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn">
+                <span className="sources-plus" aria-hidden="true">+</span>
                 <span>Add sources</span>
               </button>
-              <button type="button" className="sources-pill-btn" onClick={() => setIsCreateNoteOpen(true)} data-testid="create-note-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
+              <button type="button" className="sources-text-btn" onClick={() => setIsCreateNoteOpen(true)} data-testid="create-note-btn">
+                <span className="sources-plus" aria-hidden="true">+</span>
                 <span>Create note</span>
               </button>
             </div>
 
-            <form className="sources-web-search" role="search" aria-label="Add a web page as a source" onSubmit={handleWebSearch}>
-              <input
-                type="search"
-                className="sources-web-input"
-                placeholder="Search the web for new sources"
-                aria-label="Search the web for new sources"
-                value={webQuery}
-                onChange={(e) => { setWebQuery(e.target.value); if (webHint) setWebHint(''); }}
-              />
-              <div className="sources-web-controls">
-                <label className="sources-select">
-                  <span className="sr-only">Where to search</span>
-                  <select defaultValue="web" aria-label="Where to search">
-                    <option value="web">Web</option>
-                  </select>
-                </label>
-                <label className="sources-select">
-                  <span className="sr-only">Research depth</span>
-                  <select defaultValue="fast" aria-label="Research depth">
-                    <option value="fast">Fast Research</option>
-                    <option value="deep" disabled>Deep Research (soon)</option>
-                  </select>
-                </label>
-                <button type="submit" className="sources-web-go" aria-label="Add this link as a source" title="Add this link as a source">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="13 6 19 12 13 18" />
-                  </svg>
-                </button>
+            <form className="sources-link-form" aria-label="Add a link" onSubmit={handleAddLink} noValidate>
+              <label className="sources-link-label" htmlFor="sources-link-input">Add a link</label>
+              <div className="sources-link-field">
+                <input
+                  id="sources-link-input"
+                  type="text"
+                  inputMode="url"
+                  autoCapitalize="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  className="sources-link-input"
+                  placeholder="Paste a web address"
+                  value={linkInput}
+                  onChange={(e) => { setLinkInput(e.target.value); if (linkHint) setLinkHint(''); }}
+                />
+                <button type="submit" className="sources-text-btn sources-link-add">Add</button>
               </div>
-              {webHint && <p className="sources-web-hint" role="status">{webHint}</p>}
+              {linkHint && <p className="sources-link-hint" role="status">{linkHint}</p>}
             </form>
 
             {sources.length === 0 ? (
@@ -789,33 +770,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 onClick={() => setIsAddSourceOpen(true)}
                 data-testid="sources-drop-zone"
               >
-                <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true">
                   <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                   <polyline points="17 8 12 3 7 8" />
                   <line x1="12" y1="3" x2="12" y2="15" />
                 </svg>
-                <span className="sources-drop-title">Drop PDFs here or click to browse</span>
-                <span className="sources-drop-hint">PDFs, links, pasted text</span>
+                <span className="sources-drop-title">Drop files here or browse</span>
+                <span className="sources-drop-hint">PDF, text or Markdown, up to 10 MB each</span>
               </button>
             ) : (
               <>
                 <div className="sources-select-row">
-                  <button
-                    type="button"
-                    className={`sources-filter-btn ${isFilterOpen ? 'active' : ''}`}
-                    aria-label="Filter sources by name"
-                    aria-pressed={isFilterOpen}
-                    title="Filter sources by name"
-                    onClick={() => { setIsFilterOpen((open) => !open); setSourceSearch(''); }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                      <line x1="4" y1="7" x2="20" y2="7" />
-                      <line x1="7" y1="12" x2="17" y2="12" />
-                      <line x1="10" y1="17" x2="14" y2="17" />
-                    </svg>
-                  </button>
                   <label className="sources-select-all">
-                    <span>Select all</span>
                     <input
                       type="checkbox"
                       ref={selectAllRef}
@@ -825,7 +791,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       onChange={() => (allReadySelected ? handleClearSources() : handleSelectAllSources())}
                       aria-label="Select all sources"
                     />
+                    <span>Select all</span>
                   </label>
+                  <button
+                    type="button"
+                    className={`sources-text-btn sources-filter-btn ${isFilterOpen ? 'active' : ''}`}
+                    aria-label="Filter sources by name"
+                    aria-pressed={isFilterOpen}
+                    onClick={() => { setIsFilterOpen((open) => !open); setSourceSearch(''); }}
+                  >
+                    Filter
+                  </button>
                 </div>
                 <p className="sr-only" aria-live="polite">
                   {selectedSourceIds.length} of {readySources.length} selected

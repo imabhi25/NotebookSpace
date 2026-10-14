@@ -45,34 +45,37 @@ afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 describe('Sources panel', () => {
   it('with no sources shows the actions, the link bar and the drop zone, with no count and no selection row', () => {
     render(workspace([], []));
-    const zone = within(panel()).getByRole('button', { name: /Drop PDFs here or click to browse/ });
-    expect(zone).toHaveTextContent('PDFs, links, pasted text');
+    const zone = within(panel()).getByRole('button', { name: /Drop files here or browse/ });
+    expect(zone).toHaveTextContent('PDF, text or Markdown, up to 10 MB each');
     expect(within(panel()).getByRole('heading', { name: 'Sources' })).toHaveTextContent(/^Sources$/);
     expect(within(panel()).queryByText(/of \d+ selected/)).toBeNull();
     expect(within(panel()).queryByText('Select all')).toBeNull();
     expect(screen.queryByText('No materials added yet.')).toBeNull();
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
     expect(within(panel()).getByRole('button', { name: 'Create note' })).toBeInTheDocument();
-    expect(within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' })).toBeInTheDocument();
-    expect(within(panel()).getByRole('combobox', { name: 'Where to search' })).toHaveDisplayValue('Web');
-    expect(within(panel()).getByRole('combobox', { name: 'Research depth' })).toHaveDisplayValue('Fast Research');
+    expect(within(panel()).getByRole('textbox', { name: 'Add a link' })).toBeInTheDocument();
+    expect(within(panel()).getByRole('button', { name: 'Add' })).toBeInTheDocument();
+    // There is no web-search backend, so nothing pretends to be one.
+    expect(within(panel()).queryByRole('combobox')).toBeNull();
+    expect(within(panel()).queryByRole('searchbox')).toBeNull();
+    expect(within(panel()).queryByText(/search the web|fast research|deep research/i)).toBeNull();
   });
 
   it('opens the add dialog from the drop zone, and queues dropped files in it', async () => {
     render(workspace([], []));
-    fireEvent.click(within(panel()).getByRole('button', { name: /Drop PDFs here/ }));
+    fireEvent.click(within(panel()).getByRole('button', { name: /Drop files here/ }));
     expect(await screen.findByText('Add sources to notebook')).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
 
     const file = new File(['%PDF-1.4'], 'handout.pdf', { type: 'application/pdf' });
-    fireEvent.drop(within(panel()).getByRole('button', { name: /Drop PDFs here/ }), { dataTransfer: { files: [file], types: ['Files'] } });
+    fireEvent.drop(within(panel()).getByRole('button', { name: /Drop files here/ }), { dataTransfer: { files: [file], types: ['Files'] } });
     expect(await screen.findByText('handout.pdf')).toBeInTheDocument();
   });
 
   it('with sources drops the drop zone, shows a select-all row, and has no number beside the title', () => {
     const onSelectSources = vi.fn();
     const { rerender } = render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a'], onSelectSources));
-    expect(within(panel()).queryByRole('button', { name: /Drop PDFs here/ })).toBeNull();
+    expect(within(panel()).queryByRole('button', { name: /Drop files here/ })).toBeNull();
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
     expect(within(panel()).getByRole('heading', { name: 'Sources' })).toHaveTextContent(/^Sources$/);
     const selectAll = within(panel()).getByRole('checkbox', { name: 'Select all sources' }) as HTMLInputElement;
@@ -92,16 +95,19 @@ describe('Sources panel', () => {
     expect(onSelectSources).toHaveBeenLastCalledWith([]);
   });
 
-  it('the link bar opens the add dialog on the link tab with the link filled in, and explains anything else', async () => {
+  it('the link row opens the add dialog on the link tab with the address filled in, and explains anything else', async () => {
     render(workspace([], []));
-    const bar = within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' });
+    const bar = within(panel()).getByRole('textbox', { name: 'Add a link' });
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Add' }));
+    expect(within(panel()).getByRole('status')).toHaveTextContent('Paste a web address first');
+
     fireEvent.change(bar, { target: { value: 'how do heaps work' } });
-    fireEvent.click(within(panel()).getByRole('button', { name: 'Add this link as a source' }));
-    expect(within(panel()).getByRole('status')).toHaveTextContent('Web search is not available yet');
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Add' }));
+    expect(within(panel()).getByRole('status')).toHaveTextContent('does not look like a web address');
     expect(screen.queryByText('Add sources to notebook')).toBeNull();
 
     fireEvent.change(bar, { target: { value: 'example.com/notes' } });
-    fireEvent.click(within(panel()).getByRole('button', { name: 'Add this link as a source' }));
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Add' }));
     expect(await screen.findByText('Add sources to notebook')).toBeInTheDocument();
     expect(await screen.findByLabelText(/Public Webpage URL/)).toHaveValue('https://example.com/notes');
     expect(bar).toHaveValue('');
@@ -139,7 +145,11 @@ describe('Sources panel', () => {
     render(React.cloneElement(view, { onDeleteSource }));
     const row = within(panel()).getByText('Syllabus.pdf').closest('li')!;
     expect(within(row).getAllByRole('button')).toHaveLength(2);
-    expect(row.querySelector('.source-row-meta')).toBeNull();
+    // One line: the type icon, a serif title, quiet metadata. Status text only when something is wrong or pending.
+    expect(row.querySelector('.source-type-icon')).not.toBeNull();
+    expect(row.querySelector('.source-row-status')).toBeNull();
+    expect(row).not.toHaveTextContent('Ready');
+    expect(within(panel()).getByText('Notes').closest('li')!.querySelector('.source-row-status')).toHaveTextContent('Failed');
     expect(within(row).queryByRole('button', { name: /^(View|Rename|Delete|Replace|Retry) / })).toBeNull();
     expect(within(row).getByRole('checkbox', { name: 'Select Syllabus.pdf' })).toBeInTheDocument();
     expect(row).toHaveTextContent('PDF');
