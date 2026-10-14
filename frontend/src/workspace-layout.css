@@ -1,0 +1,142 @@
+/* Workspace architecture only. Materials, typography, and motion stay in components.css. */
+.dashboard-shell-layout.workspace-shell { width: 100%; height: 100dvh; }
+.workspace-shell .dashboard-main-content,
+.workspace-shell .dashboard-children-wrapper { min-width: 0; min-height: 0; overflow: hidden; }
+.workspace-shell .workspace-layout { width: 100%; height: 100%; min-height: 0; }
+
+.workspace-layout .workspace-control-bar {
+  height: auto; min-height: var(--size-52); flex: 0 0 auto;
+  display: flex; flex-wrap: nowrap; align-items: center;
+  gap: var(--space-3); padding: var(--space-2) var(--space-4);
+  white-space: nowrap; overflow: visible; z-index: 50;
+}
+.workspace-control-bar > .workspace-back-btn,
+.workspace-control-bar > .workspace-essential-actions { flex-shrink: 0; }
+.workspace-control-bar > .workspace-notebook-identity { flex: 1; }
+.workspace-layout .workspace-essential-actions { margin-left: auto; gap: var(--space-2); flex-wrap: nowrap; }
+.workspace-essential-actions > button,
+.workspace-actions-menu > button { min-width: var(--target-mobile); min-height: var(--target-mobile); }
+.workspace-layout .workspace-notebook-identity { min-width: 0; max-width: none; }
+.workspace-layout .workspace-notebook-identity .workspace-subject-pill-name {
+  max-width: none; overflow: visible; text-overflow: clip;
+  white-space: inherit; overflow-wrap: anywhere;
+}
+.workspace-layout .workspace-notebook-identity .workspace-subject-pill-code { display: inline-block; flex-shrink: 0; }
+.workspace-layout .workspace-title-measure {
+  position: fixed; right: 100%; visibility: hidden; pointer-events: none;
+  width: max-content; max-width: none; white-space: nowrap;
+}
+.workspace-title-measure::before { content: attr(data-title); }
+.workspace-notebook-heading { flex: 0 0 auto; padding: 0 var(--space-4) var(--space-2); }
+.workspace-notebook-heading .workspace-notebook-identity { white-space: normal; flex-wrap: wrap; }
+.workspace-actions-menu { position: relative; }
+.workspace-layout .workspace-overflow-menu {
+  top: calc(100% + var(--space-2)); right: 0; left: auto;
+  max-width: calc(100vw - var(--space-8));
+}
+.workspace-overflow-menu .notebook-menu-item { white-space: normal; overflow-wrap: anywhere; }
+
+.workspace-layout .workspace-body {
+  container-type: inline-size;
+  flex: 1; min-height: 0; min-width: 0; width: 100%; position: relative;
+  display: flex; align-items: stretch; gap: var(--space-3);
+  padding: var(--space-3); overflow: hidden;
+}
+.workspace-layout aside.workspace-sidebar,
+.workspace-layout aside.workspace-right-panel {
+  position: static; height: auto; min-height: 0; min-width: 0 !important;
+  max-width: 100%; transform: none; visibility: visible;
+  opacity: 1; pointer-events: auto; margin: 0; z-index: auto;
+}
+/* The sources slot animates its width; the panel inside keeps its full width so its content never reflows mid-animation. */
+.workspace-layout .sources-slot {
+  /* The chosen width, held between the floor and whatever leaves the chat its minimum room. */
+  --sources-panel-shown: min(var(--sources-panel-user-width), max(var(--sources-panel-min), calc(100cqw - var(--sources-chat-min) - var(--space-6))));
+  position: relative; display: flex; flex: 0 0 auto; min-width: 0; min-height: 0; overflow: clip;
+  width: var(--sources-panel-shown);
+  transition: width var(--motion-panel-resize) var(--motion-ease-out-cubic);
+}
+.workspace-layout .sources-slot.is-collapsed { width: var(--target-mobile); }
+.workspace-layout .sources-slot.is-resizing { transition: none; }
+.workspace-layout .sources-slot aside.workspace-sidebar {
+  width: var(--sources-panel-shown) !important; flex: 0 0 var(--sources-panel-shown);
+  transition: opacity var(--motion-fast) var(--motion-ease), visibility 0s linear 0s;
+}
+.workspace-layout .sources-slot.is-collapsed aside.workspace-sidebar {
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity var(--motion-exit) var(--motion-ease), visibility 0s linear var(--motion-panel-resize);
+}
+.workspace-layout .sources-slot .workspace-sources-rail {
+  position: absolute; top: 0; left: 0; bottom: 0; opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity var(--motion-exit) var(--motion-ease), visibility 0s linear var(--motion-exit);
+}
+.workspace-layout .sources-slot.is-collapsed .workspace-sources-rail {
+  opacity: 1; visibility: visible; pointer-events: auto;
+  transition: opacity var(--motion-panel-resize) var(--motion-ease-out-cubic) var(--motion-press), visibility 0s linear 0s;
+}
+.sources-resize-handle {
+  position: absolute; top: 0; bottom: 0; right: 0; width: var(--resize-handle-width); z-index: 20;
+  cursor: col-resize; touch-action: none;
+}
+.sources-slot.is-collapsed .sources-resize-handle { display: none; }
+.workspace-layout aside.workspace-right-panel {
+  width: var(--size-350) !important; flex: 0 0 var(--size-350);
+}
+.workspace-layout [hidden] { display: none !important; }
+.workspace-layout .workspace-main-area {
+  flex: 1; min-width: 0; min-height: 0; width: auto; height: auto;
+}
+.workspace-layout .thread-scroll-container,
+.workspace-layout .sidebar-tab-content,
+.workspace-layout .right-panel-body { min-height: 0; min-width: 0; }
+.workspace-layout .thread-content-max { width: 100%; min-width: 0; max-width: var(--reading-measure); }
+.workspace-chat-context {
+  display: flex; align-items: center; flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-6);
+  flex-shrink: 0; min-width: 0;
+}
+.workspace-layout .workspace-chat-context .workspace-active-chat-title {
+  display: block; max-width: none; min-width: 0; white-space: normal;
+  overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+}
+.workspace-chat-context .selected-sources-pill { margin-left: auto; white-space: nowrap; }
+.workspace-sources-rail {
+  width: var(--target-mobile); flex: 0 0 var(--target-mobile);
+  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
+}
+.workspace-layout .right-panel-header { flex-wrap: wrap; }
+.workspace-layout .right-header-actions { margin-left: auto; }
+
+@media (max-width: 960px) {
+  .workspace-layout .workspace-control-bar { gap: var(--space-2); }
+  .workspace-layout .workspace-essential-actions { gap: var(--space-1); }
+  .workspace-layout .workspace-back-btn span { display: inline; }
+  .workspace-layout .workspace-essential-actions .toggle-label { display: none; }
+  .workspace-layout .sources-slot { display: contents; }
+  .workspace-layout .sources-slot .workspace-sources-rail, .workspace-layout .sources-resize-handle { display: none; }
+  .workspace-layout .sources-slot.is-collapsed aside.workspace-sidebar { display: none; }
+  .workspace-layout .workspace-panels-overlay { position: absolute; inset: 0; z-index: 30; }
+  .workspace-layout aside.workspace-sidebar,
+  .workspace-layout aside.workspace-right-panel {
+    position: absolute; top: var(--space-3); bottom: var(--space-3);
+    width: min(var(--size-350), calc(100% - var(--space-6))) !important;
+    max-width: calc(100% - var(--space-6)); height: auto; flex: none;
+    border-radius: var(--radius-lg) !important; z-index: 40;
+  }
+  .workspace-layout aside.workspace-sidebar { left: var(--space-3); right: auto; }
+  .workspace-layout aside.workspace-right-panel { right: var(--space-3); left: auto; }
+  /* Panels are overlays here, never a split: the one opened last sits on top. */
+  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-right-panel { z-index: 41; }
+}
+
+@media (max-width: 640px) {
+  .workspace-layout .workspace-control-bar { padding-inline: var(--space-3); }
+  .workspace-layout .workspace-body { padding: var(--space-2); }
+  .workspace-layout .workspace-chat-context { padding-inline: var(--space-4); }
+  /* Phone: each panel is a full overlay drawer. */
+  .workspace-layout aside.workspace-sidebar,
+  .workspace-layout aside.workspace-right-panel {
+    left: var(--space-2); right: var(--space-2); top: var(--space-2); bottom: var(--space-2);
+    width: auto !important; max-width: none;
+  }
+}

@@ -12,6 +12,10 @@ interface SourceModalProps {
   onUploadFiles: (files: File[]) => Promise<void>;
   onPasteText: (title: string, text: string) => Promise<void>;
   onAddUrl: (url: string, title?: string) => Promise<void>;
+  /** Files dropped on the sources panel; queued on the upload tab when the dialog opens. */
+  initialFiles?: File[];
+  /** A link typed into the sources panel; opens the dialog on the link tab with it filled in. */
+  initialUrl?: string;
 }
 
 export const SourceModal: React.FC<SourceModalProps> = ({
@@ -20,6 +24,8 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   onUploadFiles,
   onPasteText,
   onAddUrl,
+  initialFiles,
+  initialUrl,
 }) => {
   const [tab, setTab] = useState<'upload' | 'paste' | 'url'>('upload');
 
@@ -37,6 +43,8 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   // URL tab state
   const [urlInput, setUrlInput] = useState('');
   const [urlTitle, setUrlTitle] = useState('');
+  // The panel's link is applied once per opening; the effect below re-runs on every parent render.
+  const appliedUrl = useRef('');
 
   // Submission state
   const [loading, setLoading] = useState(false);
@@ -51,7 +59,17 @@ export const SourceModal: React.FC<SourceModalProps> = ({
       // A link is never a draft worth keeping: stale values once saved a page under another page's title.
       setUrlInput('');
       setUrlTitle('');
+      appliedUrl.current = '';
       return;
+    }
+
+    if (initialFiles && initialFiles.length > 0) {
+      setTab('upload');
+      setSelectedFiles(initialFiles);
+    } else if (initialUrl && appliedUrl.current !== initialUrl) {
+      appliedUrl.current = initialUrl;
+      setTab('url');
+      setUrlInput(initialUrl);
     }
 
     // Auto-focus dialog container on open
@@ -368,7 +386,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                   id="paste-source-title"
                   type="text"
                   required
-                  placeholder="e.g. Lecture 3 Notes or Assignment Guidelines"
                   value={pasteTitle}
                   onChange={(e) => setPasteTitle(e.target.value)}
                   disabled={loading}
@@ -380,7 +397,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                   id="paste-source-text"
                   rows={8}
                   required
-                  placeholder="Paste lecture text, syllabus policies, or notes here..."
                   value={pasteText}
                   onChange={(e) => setPasteText(e.target.value)}
                   disabled={loading}
@@ -398,7 +414,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                   id="url-source-input"
                   type="url"
                   required
-                  placeholder="https://example.com/course-reading"
                   value={urlInput}
                   onChange={(e) => setUrlInput(e.target.value)}
                   disabled={loading}
@@ -409,7 +424,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                 <input
                   id="url-source-title"
                   type="text"
-                  placeholder="e.g. Official Course Webpage"
                   value={urlTitle}
                   onChange={(e) => setUrlTitle(e.target.value)}
                   disabled={loading}
@@ -433,14 +447,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               </button>
             ) : (
               <>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleDismissDialog}
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
                 <button
                   type="submit"
                   className="btn btn-primary"
