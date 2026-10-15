@@ -219,7 +219,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const formatDate = (iso: string) => {
     try {
       const d = new Date(iso);
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     } catch {
       return iso;
     }
@@ -521,8 +521,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {s.name}
                       </h2>
                       <div className="notebook-card-meta">
-                        {formatDate(s.updated_at)} · {s.source_count ?? 0}{' '}
-                        {(s.source_count ?? 0) === 1 ? 'source' : 'sources'}
+                        {(s.source_count ?? 0) === 0 ? (
+                          <>
+                            {s.course_code ? `${s.course_code} · ` : ''}
+                            <span className="notebook-card-cta">Add your first source</span>
+                          </>
+                        ) : (
+                          <>
+                            {formatDate(s.updated_at)} · {s.source_count}{' '}
+                            {s.source_count === 1 ? 'source' : 'sources'}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

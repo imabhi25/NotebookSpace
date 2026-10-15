@@ -449,7 +449,9 @@ body {
 }
 
 .composer-disclaimer-note {
+  flex-basis: 100%;
   margin-top: 0;
+  text-align: center;
 }
 
 /* ---------- Answer callouts: neutral blocks, colour only on the badge ---------- */
@@ -1056,4 +1058,200 @@ body {
     min-width: var(--size-24) !important;
     min-height: var(--size-24) !important;
   }
+}
+
+/* ---------- Motion ---------- */
+
+/* Theme switch: a brief colour cross-fade, only while the switch is happening. */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition:
+    background-color var(--motion-theme) var(--motion-ease),
+    color var(--motion-theme) var(--motion-ease),
+    border-color var(--motion-theme) var(--motion-ease),
+    fill var(--motion-theme) var(--motion-ease),
+    stroke var(--motion-theme) var(--motion-ease) !important;
+}
+
+/* Side panels glide open and shut on desktop. Their content keeps its full width while
+   the panel narrows, so it slides out of view instead of reflowing. */
+@media (min-width: 961px) {
+  .workspace-body > .workspace-sidebar,
+  .workspace-body > .workspace-right-panel {
+    transition:
+      width var(--motion-panel) var(--motion-ease-drawer),
+      min-width var(--motion-panel) var(--motion-ease-drawer),
+      margin var(--motion-panel) var(--motion-ease-drawer),
+      opacity var(--motion-fast) var(--motion-ease),
+      visibility 0s linear 0s;
+  }
+
+  .workspace-sidebar > * {
+    min-width: var(--panel-left-width);
+  }
+
+  .workspace-right-panel > * {
+    min-width: var(--panel-right-width);
+  }
+
+  /* Collapsed panels stay in the row and shrink to nothing (gap included), rather than
+     sliding away as overlays, so the chat column widens in step with them. */
+  .workspace-body > .workspace-sidebar.panel-collapsed,
+  .workspace-body > .workspace-right-panel.panel-collapsed {
+    position: relative;
+    top: auto;
+    bottom: auto;
+    left: auto;
+    right: auto;
+    height: 100%;
+    transform: none;
+    width: 0 !important;
+    min-width: 0 !important;
+    border: none !important;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      width var(--motion-panel) var(--motion-ease-drawer),
+      min-width var(--motion-panel) var(--motion-ease-drawer),
+      margin var(--motion-panel) var(--motion-ease-drawer),
+      opacity var(--motion-exit) var(--motion-ease),
+      visibility 0s linear var(--motion-panel);
+  }
+
+  .workspace-body > .workspace-sidebar.panel-collapsed {
+    margin-right: calc(-1 * var(--space-4)) !important;
+  }
+
+  .workspace-body > .workspace-right-panel.panel-collapsed {
+    margin-left: calc(-1 * var(--space-4)) !important;
+  }
+}
+
+/* Drawers on smaller screens use the same curve as desktop panels. */
+@media (max-width: 960px) {
+  .workspace-sidebar,
+  .workspace-right-panel {
+    transition: transform var(--motion-panel) var(--motion-ease-drawer);
+  }
+
+  .sidebar-overlay {
+    animation: fade-in var(--motion-panel) var(--motion-ease-out);
+  }
+}
+
+/* The reopen buttons fade in once their panel has gone. */
+.floating-reopen-btn {
+  animation: fade-in var(--motion-panel) var(--motion-ease-out) var(--motion-fast) both;
+}
+
+/* Switching between Tools, Passage and Notes: the new view rises in gently. */
+.workspace-right-panel .right-panel-body,
+.workspace-sidebar .sidebar-tab-content {
+  animation: content-rise var(--motion-content) var(--motion-ease-out);
+}
+
+/* Toggles, tabs, tiles and pills ease between states. */
+.segment-btn,
+.home-tab,
+.theme-option,
+.tool-tile,
+.btn-pill,
+.btn-new-notebook,
+.workspace-toggle-btn,
+.workspace-top-icon-btn,
+.home-icon-btn,
+.panel-back-btn,
+.panel-collapse-btn,
+.answer-action-btn,
+.inline-citation-btn,
+.chips-row .chip,
+.workspace-source-item,
+.tools-recent-item,
+.composer-send-btn {
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease),
+    transform var(--motion-press) var(--motion-ease-out),
+    box-shadow var(--motion-fast) var(--motion-ease);
+}
+
+.tool-tile:active:not(:disabled),
+.btn-pill:active,
+.btn-new-notebook:active,
+.home-tab:active,
+.theme-option:active,
+.composer-send-btn:active:not(:disabled) {
+  transform: scale(var(--press-scale));
+}
+
+.composer-box {
+  transition:
+    border-color var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease);
+}
+
+/* Notebook cards lift slightly under the pointer. */
+.notebook-card {
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    transform var(--motion-fast) var(--motion-ease-out);
+}
+
+@media (hover: hover) {
+  .notebook-card:hover {
+    transform: translateY(var(--lift));
+  }
+}
+
+/* Hints, menus and passages open with the same short rise. */
+.notebook-overflow-menu {
+  animation: content-rise var(--motion-fast) var(--motion-ease-out);
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes content-rise {
+  from { opacity: 0; transform: translateY(var(--content-shift)); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ---------- Appearance control in Settings ---------- */
+.theme-control {
+  display: inline-flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-raised);
+}
+
+.theme-option {
+  height: var(--size-36);
+  padding: 0 var(--space-4);
+  border: none;
+  border-radius: var(--radius-pill);
+  background: var(--color-transparent);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--type-body);
+  cursor: pointer;
+}
+
+.theme-option:hover {
+  color: var(--color-text-primary);
+}
+
+.theme-option.active {
+  background: var(--color-surface);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-1);
+}
+
+.notebook-card-cta {
+  color: var(--color-accent);
 }
