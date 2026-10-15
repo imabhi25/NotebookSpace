@@ -708,25 +708,25 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     >
                       <svg
                         className="check-svg check-svg-tick"
-                        viewBox="0 0 24 24"
+                        viewBox="0 0 16 16"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="2.5"
+                        strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
-                        <polyline points="5 12.5 10 17 19 7" />
+                        <polyline points="3.5 8.5 6.5 11.5 12.5 4.5" />
                       </svg>
                       <svg
                         className="check-svg check-svg-dash"
-                        viewBox="0 0 24 24"
+                        viewBox="0 0 16 16"
                         fill="none"
                         stroke="currentColor"
-                        strokeWidth="2.5"
+                        strokeWidth="2.2"
                         strokeLinecap="round"
                         strokeLinejoin="round"
                       >
-                        <line x1="5" y1="12" x2="19" y2="12" />
+                        <line x1="4" y1="8" x2="12" y2="8" />
                       </svg>
                     </span>
                   </button>
@@ -832,7 +832,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                         <li
                           key={s.id}
                           className={`workspace-source-item ${isSelected ? 'selected' : ''}`}
-                          title={isReady ? readyMetaString : undefined}
                         >
                           <FileTypeIcon sourceType={s.source_type} />
 
@@ -849,12 +848,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             tabIndex={0}
                           >
                             <div className="source-title-row">
-                              <span className="source-title-text" title={s.title}>
+                              <span className="source-title-text">
                                 {s.title}
                               </span>
-                              {isReady && readyMetaString && (
-                                <span className="sr-only"> ({readyMetaString})</span>
-                              )}
                               {(() => {
                                 const supersededInfo =
                                   supersededSourcesMap[normalizeFileName(s.file_name)] ||
@@ -871,12 +867,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 );
                               })()}
                             </div>
+                            {isReady && readyMetaString && (
+                              <span className="sr-only"> ({readyMetaString})</span>
+                            )}
                             {!isReady && (
                               <div className="source-meta-row">
                                 {s.status === 'processing' ? (
                                   <span className="status-processing">Reading…</span>
                                 ) : (
-                                  <span className="status-failed" title={s.error_message || ''}>
+                                  <span className="status-failed">
                                     Failed
                                   </span>
                                 )}
@@ -884,7 +883,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             )}
                           </div>
 
-                          <div className="source-menu-wrap" onClick={(e) => e.stopPropagation()}>
+                          <div className={`source-menu-wrap ${sourceMenuId === s.id ? 'is-open' : ''}`} onClick={(e) => e.stopPropagation()}>
                             <button
                               type="button"
                               className={`source-menu-btn ${sourceMenuId === s.id ? 'is-open' : ''}`}
@@ -893,7 +892,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               aria-haspopup="menu"
                               aria-expanded={sourceMenuId === s.id}
                             >
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
                                 <circle cx="5" cy="12" r="1.6" />
                                 <circle cx="12" cy="12" r="1.6" />
                                 <circle cx="19" cy="12" r="1.6" />
@@ -974,14 +973,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             <span className="check-box" aria-hidden="true">
                               <svg
                                 className="check-svg check-svg-tick"
-                                viewBox="0 0 24 24"
+                                viewBox="0 0 16 16"
                                 fill="none"
                                 stroke="currentColor"
-                                strokeWidth="2.5"
+                                strokeWidth="2.2"
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                               >
-                                <polyline points="5 12.5 10 17 19 7" />
+                                <polyline points="3.5 8.5 6.5 11.5 12.5 4.5" />
                               </svg>
                             </span>
                           </label>
