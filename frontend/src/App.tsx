@@ -3,7 +3,6 @@ import { api } from './api';
 import {
   Subject,
   Source,
-  Conversation,
   MessageItem,
   Note,
   User,
@@ -156,7 +155,6 @@ export function App({
   // Active Subject Notebook state
   const [activeSubject, setActiveSubject] = useState<Subject | null>(null);
   const [sources, setSources] = useState<Source[]>([]);
-  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [notes, setNotes] = useState<Note[]>([]);
   const [selectedSourceIds, setSelectedSourceIds] = useState<string[]>([]);
   const [starterQuestions, setStarterQuestions] = useState<string[]>([]);
@@ -209,7 +207,6 @@ export function App({
 
       setActiveSubject(subj);
       setSources(srcs);
-      setConversations(convs);
       setNotes(nts);
       setStarterQuestions(sqs);
 
@@ -217,16 +214,20 @@ export function App({
       const readyIds = srcs.filter((s) => s.status === 'ready').map((s) => s.id);
       setSelectedSourceIds(readyIds);
 
-      // Set active conversation
+      // Set active conversation: use its most recently updated conversation
       if (convs.length > 0) {
-        const firstConvId = convs[0].id;
-        setActiveConversationId(firstConvId);
-        const msgs = await api.getMessages(subjectId, firstConvId);
-        setMessages(applyStoppedFilter(firstConvId, msgs));
+        const sorted = [...convs].sort((a, b) => {
+          const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0;
+          const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0;
+          return bTime - aTime;
+        });
+        const activeConv = sorted[0];
+        setActiveConversationId(activeConv.id);
+        const msgs = await api.getMessages(subjectId, activeConv.id);
+        setMessages(applyStoppedFilter(activeConv.id, msgs));
       } else {
-        // Auto-create initial conversation
+        // Auto-create initial conversation silently
         const newConv = await api.createConversation(subjectId, 'New Conversation');
-        setConversations([newConv]);
         setActiveConversationId(newConv.id);
         setMessages([]);
       }
@@ -260,61 +261,6 @@ export function App({
       }
     } catch {}
     return msgs;
-  };
-
-  // Switch conversation
-  const handleSelectConversation = async (convId: string) => {
-    if (!activeSubject) return;
-    setActiveConversationId(convId);
-    try {
-      const msgs = await api.getMessages(activeSubject.id, convId);
-      setMessages(applyStoppedFilter(convId, msgs));
-    } catch {
-      setMessages([]);
-    }
-  };
-
-  // Create new conversation
-  const handleCreateConversation = async () => {
-    if (!activeSubject) return;
-    try {
-      const conv = await api.createConversation(activeSubject.id, 'New Conversation');
-      setConversations((prev) => [conv, ...prev]);
-      setActiveConversationId(conv.id);
-      setMessages([]);
-    } catch (err: any) {
-      alert(err.message || 'Failed to create conversation');
-    }
-  };
-
-  // Rename conversation
-  const handleRenameConversation = async (convId: string, title: string) => {
-    if (!activeSubject) return;
-    try {
-      const updated = await api.renameConversation(activeSubject.id, convId, title);
-      setConversations((prev) => prev.map((c) => (c.id === convId ? updated : c)));
-    } catch (err: any) {
-      alert(err.message || 'Failed to rename conversation');
-    }
-  };
-
-  // Delete conversation
-  const handleDeleteConversation = async (convId: string) => {
-    if (!activeSubject) return;
-    try {
-      await api.deleteConversation(activeSubject.id, convId);
-      const remaining = conversations.filter((c) => c.id !== convId);
-      setConversations(remaining);
-      if (activeConversationId === convId) {
-        if (remaining.length > 0) {
-          handleSelectConversation(remaining[0].id);
-        } else {
-          handleCreateConversation();
-        }
-      }
-    } catch (err: any) {
-      alert(err.message || 'Failed to delete conversation');
-    }
   };
 
   // Source upload / add handlers.
@@ -355,14 +301,14 @@ export function App({
     });
     setPendingUploads((prev) => [...items, ...prev]);
 
-    // Three at a time keeps a free-tier server responsive.
+    // Upload ONE file at a time instead of three (the free-tier server can't take parallel PDFs).
     const queue = items.filter((i) => !i.error);
     const worker = async () => {
       for (let next = queue.shift(); next; next = queue.shift()) {
         await runUpload(subjectId, next);
       }
     };
-    void Promise.all([worker(), worker(), worker()]);
+    void worker();
   };
 
   const handleRetryUpload = (uploadId: string) => {
@@ -521,13 +467,9 @@ export function App({
         controller.signal,
         options
       );
-      // Reload actual persisted messages AND conversations so auto-renamed title updates immediately
-      const [msgs, convs] = await Promise.all([
-        api.getMessages(activeSubject.id, activeConversationId),
-        api.getConversations(activeSubject.id),
-      ]);
+      // Reload actual persisted messages
+      const msgs = await api.getMessages(activeSubject.id, activeConversationId);
       setMessages(applyStoppedFilter(activeConversationId, msgs));
-      setConversations(convs);
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted')) {
         return;
@@ -688,7 +630,7 @@ export function App({
         } else {
           setActiveSubject(null);
           setSources([]);
-          setConversations([]);
+          setActiveConversationId(null);
           setMessages([]);
           navigateTo('notebooks');
         }
@@ -707,7 +649,7 @@ export function App({
     setCurrentUser(res.user);
     setActiveSubject(null);
     setSources([]);
-    setConversations([]);
+    setActiveConversationId(null);
     setMessages([]);
     navigateTo('notebooks');
     fetchSubjects();
@@ -1152,9 +1094,7 @@ export function App({
             <SubjectWorkspaceView
               subject={activeSubject}
               sources={sources}
-              conversations={conversations}
               notes={notes}
-              activeConversationId={activeConversationId}
               selectedSourceIds={selectedSourceIds}
               starterQuestions={starterQuestions}
               isDemoMode={isDemoMode}
@@ -1162,10 +1102,6 @@ export function App({
               onBackToDashboard={() => navigateTo('notebooks')}
               onToggleNotebooksDrawer={() => setIsMobileNotebooksOpen((prev) => !prev)}
               onSelectSources={setSelectedSourceIds}
-              onSelectConversation={handleSelectConversation}
-              onCreateConversation={handleCreateConversation}
-              onRenameConversation={handleRenameConversation}
-              onDeleteConversation={handleDeleteConversation}
               onUploadFiles={handleUploadFiles}
               pendingUploads={pendingUploads}
               onRetryUpload={handleRetryUpload}

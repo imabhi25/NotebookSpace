@@ -315,11 +315,17 @@ export const api = {
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(body as Source);
         } else {
-          const detail = typeof body?.detail === 'string' ? body.detail : null;
-          reject(new Error(detail || (xhr.status === 413 ? 'File is too large.' : `Upload failed (${xhr.status}).`)));
+          if (xhr.status === 413) {
+            reject(new Error('File is too large.'));
+          } else if (xhr.status === 502 || xhr.status === 503 || xhr.status === 504) {
+            reject(new Error('The server was busy. Try again in a moment.'));
+          } else {
+            const detail = typeof body?.detail === 'string' ? body.detail : null;
+            reject(new Error(detail || `Upload failed (${xhr.status}).`));
+          }
         }
       };
-      xhr.onerror = () => reject(new Error('Network error. Check your connection and try again.'));
+      xhr.onerror = () => reject(new Error('The server was busy. Try again in a moment.'));
       const form = new FormData();
       form.append('file', file);
       xhr.send(form);

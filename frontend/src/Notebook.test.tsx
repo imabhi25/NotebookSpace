@@ -7,7 +7,7 @@ import { MarkdownRenderer } from './components/MarkdownRenderer';
 import { AssistantMessage } from './components/AssistantMessage';
 import { Sidebar } from './components/Sidebar';
 import { SourcePanel } from './components/SourcePanel';
-import { Subject, Source, Conversation, MessageItem, AskResponse } from './types';
+import { Subject, Source, MessageItem, AskResponse } from './types';
 
 describe('MarkdownRenderer component', () => {
   it('renders markdown text with inline citation chips and handles citation click', () => {
@@ -198,17 +198,6 @@ describe('SubjectWorkspaceView component', () => {
     },
   ];
 
-  const mockConversations: Conversation[] = [
-    {
-      id: 'conv-1',
-      subject_id: 'sub-1',
-      user_id: 'user-1',
-      title: 'Midterm Grading',
-      created_at: '2026-10-05T10:00:00Z',
-      updated_at: '2026-10-05T10:00:00Z',
-    },
-  ];
-
   const mockMessages: MessageItem[] = [
     {
       id: 'msg-1',
@@ -273,17 +262,11 @@ describe('SubjectWorkspaceView component', () => {
         subject={activeSubject}
         sources={mockSources}
         selectedSourceIds={['src-1']}
-        conversations={mockConversations}
         notes={[]}
-        activeConversationId="conv-1"
         starterQuestions={[]}
         isDemoMode={false}
         onBackToDashboard={() => {}}
         onSelectSources={handleSelectSources}
-        onSelectConversation={() => {}}
-        onCreateConversation={async () => {}}
-        onRenameConversation={async () => {}}
-        onDeleteConversation={async () => {}}
         onUploadFiles={async () => {}}
         onPasteText={async () => {}}
         onAddUrl={async () => {}}
@@ -319,17 +302,11 @@ describe('SubjectWorkspaceView component', () => {
         subject={activeSubject}
         sources={mockSources}
         selectedSourceIds={['src-1', 'src-2']}
-        conversations={mockConversations}
         notes={[]}
-        activeConversationId="conv-1"
         starterQuestions={[]}
         isDemoMode={false}
         onBackToDashboard={() => {}}
         onSelectSources={() => {}}
-        onSelectConversation={() => {}}
-        onCreateConversation={async () => {}}
-        onRenameConversation={async () => {}}
-        onDeleteConversation={async () => {}}
         onUploadFiles={async () => {}}
         onPasteText={async () => {}}
         onAddUrl={async () => {}}

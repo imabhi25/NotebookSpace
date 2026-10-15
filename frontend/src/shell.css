@@ -158,29 +158,11 @@ body {
   color: var(--color-text-primary);
 }
 
-/* Sources / Chats switch reads as quiet text tabs, not a segmented control. */
-.workspace-sidebar-header .sidebar-segment-switcher {
-  background: var(--color-transparent);
-  border: none;
-  box-shadow: none;
-  padding: 0;
-  gap: var(--space-1);
-}
-
-.workspace-sidebar-header .segment-btn {
-  background: var(--color-transparent);
-  border: none;
-  box-shadow: none;
-  border-radius: var(--radius-pill);
-  padding: var(--space-1) var(--space-3);
-  font-size: var(--type-body);
+.workspace-sidebar-title {
+  font-size: var(--type-heading);
   font-weight: var(--weight-regular);
-  color: var(--color-text-secondary);
-}
-
-.workspace-sidebar-header .segment-btn.active {
-  background: var(--color-surface-active);
   color: var(--color-text-primary);
+  margin: 0;
 }
 
 /* ---------- Sources list ---------- */
@@ -1528,7 +1510,7 @@ html.theme-switching *::after {
 .pending-upload-item {
   display: grid;
   gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
+  padding: var(--space-2);
   border-radius: var(--radius-md);
   background: var(--color-surface-raised);
   animation: content-rise var(--motion-content) var(--motion-ease-out);
@@ -1540,7 +1522,7 @@ html.theme-switching *::after {
 
 .pending-upload-top {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-2);
   min-width: 0;
 }
@@ -1563,8 +1545,23 @@ html.theme-switching *::after {
 
 .pending-upload-actions {
   display: inline-flex;
-  align-items: center;
+  align-items: baseline;
   gap: var(--space-2);
+}
+
+.pending-upload-actions .btn-link {
+  font-size: var(--size-14);
+  color: var(--color-danger-text);
+  background: var(--color-transparent);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: none;
+  line-height: inherit;
+}
+
+.pending-upload-actions .btn-link:hover {
+  text-decoration: underline;
 }
 
 .pending-upload-dismiss {
@@ -1574,6 +1571,7 @@ html.theme-switching *::after {
   font-size: var(--type-heading);
   line-height: 1;
   cursor: pointer;
+  padding: 0;
 }
 
 .pending-upload-bar {
@@ -1661,21 +1659,26 @@ html.theme-switching *::after {
 /* One drawn checkbox for rows and Select all (monochrome NotebookLM style). */
 .check-box {
   position: relative;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   flex: none;
   width: var(--size-18);
   height: var(--size-18);
   border: var(--border-width-dash) solid var(--color-text-secondary);
-  border-radius: var(--radius-xs);
+  border-radius: var(--radius-sm);
   background: var(--color-transparent);
   transition:
     border-color var(--motion-fast) var(--motion-ease);
 }
 
-.check-box::after {
-  content: "";
+.check-box .check-svg {
   position: absolute;
+  width: 70%;
+  height: 70%;
+  color: var(--color-text-primary);
   opacity: 0;
+  pointer-events: none;
   transition: opacity var(--motion-fast) var(--motion-ease);
 }
 
@@ -1692,26 +1695,12 @@ html.theme-switching *::after {
   background: var(--color-transparent);
 }
 
-/* The tick: a short L rotated into place in monochrome text-primary. */
-.check-box.is-checked::after,
-.source-checkbox-col input:checked + .check-box::after {
-  left: 32%;
-  top: 12%;
-  width: 28%;
-  height: 55%;
-  border: solid var(--color-text-primary);
-  border-width: 0 var(--size-2) var(--size-2) 0;
-  transform: rotate(45deg);
+.check-box.is-checked .check-svg-tick,
+.source-checkbox-col input:checked + .check-box .check-svg-tick {
   opacity: 1;
 }
 
-.check-box.is-mixed::after {
-  left: 22%;
-  right: 22%;
-  top: calc(50% - var(--size-1));
-  height: var(--size-2);
-  border-radius: var(--radius-pill);
-  background: var(--color-text-primary);
+.check-box.is-mixed .check-svg-dash {
   opacity: 1;
 }
 
@@ -1863,16 +1852,6 @@ html.theme-switching *::after {
   padding: var(--space-4) var(--space-3) var(--space-3) var(--space-4);
 }
 
-.workspace-sidebar-header .sidebar-segment-switcher {
-  padding: 0;
-  gap: var(--space-1);
-}
-
-/* The old sliding thumb drew a white edge beside the selected tab. */
-.workspace-sidebar-header .sidebar-segment-switcher::before {
-  content: none;
-}
-
 .sources-action-row {
   padding: 0 var(--space-4) var(--space-3);
 }
@@ -1973,40 +1952,6 @@ html.theme-switching *::after {
   flex: none;
 }
 
-/* Recent chats shelf: same 16px left/right inset as rows above */
-.workspace-sidebar .compact-conversations-shelf {
-  padding-top: var(--space-3);
-  margin-top: var(--space-3);
-  border-top: var(--border-width) solid var(--color-border);
-}
-
-.workspace-sidebar .shelf-header {
-  padding: 0 var(--space-4);
-  margin-bottom: var(--space-2);
-}
-
-.workspace-sidebar .shelf-conv-list {
-  padding: 0 var(--space-2);
-  margin: 0;
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.workspace-sidebar .shelf-conv-item {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-2);
-  min-height: var(--size-36);
-  padding: 0 var(--space-2);
-  border-radius: var(--radius-md);
-}
-
-.pending-upload-item {
-  padding: var(--space-2);
-}
 
 .workspace-sidebar .sidebar-tab-content {
   padding-left: 0;

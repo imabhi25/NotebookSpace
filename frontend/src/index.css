@@ -2435,37 +2435,6 @@ button, input[type="file"], .btn {
   gap: var(--space-2);
 }
 
-.sidebar-segment-switcher {
-  display: flex;
-  background: var(--color-surface-hover);
-  padding: var(--space-1);
-  border-radius: var(--radius-sm);
-  gap: var(--space-1);
-  flex: 1;
-}
-
-.segment-btn {
-  flex: 1;
-  padding: var(--space-1) var(--space-2);
-  font-size: var(--type-caption);
-  font-weight: var(--weight-medium);
-  background: var(--color-transparent);
-  border: none;
-  border-radius: var(--radius-xs);
-  color: var(--text-muted);
-  cursor: pointer;
-  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
-  white-space: nowrap;
-  text-align: center;
-}
-
-.segment-btn.active {
-  background: var(--color-surface);
-  color: var(--text-main);
-  font-weight: var(--weight-semibold);
-  box-shadow: var(--shadow-low);
-}
-
 .panel-collapse-btn {
   background: var(--color-transparent);
   border: var(--size-1) solid var(--color-transparent);
@@ -2576,7 +2545,6 @@ button, input[type="file"], .btn {
 }
 
 .workspace-sources-ul,
-.workspace-conv-ul,
 .workspace-notes-ul {
   list-style: none;
   display: flex;
@@ -2723,158 +2691,6 @@ button, input[type="file"], .btn {
   cursor: pointer;
   accent-color: var(--ink-primary);
   border-radius: var(--radius-xs);
-}
-
-/* Compact Conversations Shelf under sources */
-.compact-conversations-shelf {
-  border-top: var(--size-1) solid var(--border);
-  padding-top: var(--space-3);
-  margin-top: var(--space-3);
-}
-
-.shelf-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-2);
-}
-
-.shelf-title {
-  font-size: var(--type-caption);
-  font-weight: var(--weight-semibold);
-  text-transform: uppercase;
-  letter-spacing: var(--tracking-label);
-  color: var(--text-muted);
-}
-
-.shelf-new-btn {
-  background: var(--color-transparent);
-  border: none;
-  font-size: var(--type-caption);
-  font-weight: var(--weight-semibold);
-  color: var(--color-accent);
-  cursor: pointer;
-  padding: var(--space-1) var(--space-1);
-  border-radius: var(--radius-xs);
-}
-
-.shelf-new-btn:hover {
-  background: var(--color-surface-raised);
-}
-
-.shelf-conv-list {
-  list-style: none;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-}
-
-.shelf-conv-item {
-  padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: var(--type-caption);
-  color: var(--text-main);
-  transition: background-color var(--motion-fast) var(--motion-ease);
-}
-
-.shelf-conv-item:hover {
-  background: var(--color-surface-hover);
-}
-
-.shelf-conv-item.active {
-  background: var(--bg-sidebar-active);
-  font-weight: var(--weight-semibold);
-  color: var(--text-main);
-}
-
-.shelf-conv-title {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-
-.shelf-conv-count {
-  font-size: var(--type-caption);
-  color: var(--text-muted);
-  margin-left: var(--space-2);
-}
-
-.sidebar-bottom-bar {
-  padding: var(--space-2) var(--space-3);
-  border-top: var(--size-1) solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.sidebar-settings-link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  background: var(--color-transparent);
-  border: none;
-  font-size: var(--type-caption);
-  color: var(--text-muted);
-  cursor: pointer;
-  padding: var(--space-1) 0;
-  transition: color var(--motion-fast) var(--motion-ease);
-}
-
-.sidebar-settings-link:hover {
-  color: var(--text-main);
-}
-
-/* Conversations Tab */
-.workspace-conv-item {
-  background: var(--color-surface);
-  border: var(--size-1) solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-2) var(--space-3);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
-}
-
-.workspace-conv-item:hover {
-  border-color: var(--border-dark);
-  background-color: var(--color-surface-raised);
-}
-
-.workspace-conv-item.active {
-  border-color: var(--accent-border);
-  background-color: var(--accent-subtle);
-  font-weight: var(--weight-semibold);
-}
-
-.conv-title-col {
-  flex: 1;
-  overflow: hidden;
-}
-
-.conv-title-text {
-  font-size: var(--type-caption);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: block;
-}
-
-.conv-meta-text {
-  font-size: var(--type-caption);
-  color: var(--text-muted);
-}
-
-.conv-actions-col {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
 }
 
 /* Notes in Right Panel */

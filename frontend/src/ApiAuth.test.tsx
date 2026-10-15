@@ -29,17 +29,11 @@ const renderWorkspace = (
       subject={subjectOverride}
       sources={[]}
       selectedSourceIds={[]}
-      conversations={[]}
       notes={[]}
-      activeConversationId={null}
       starterQuestions={[]}
       isDemoMode={false}
       onBackToDashboard={() => {}}
       onSelectSources={() => {}}
-      onSelectConversation={() => {}}
-      onCreateConversation={async () => {}}
-      onRenameConversation={async () => {}}
-      onDeleteConversation={async () => {}}
       onUploadFiles={async () => {}}
       onPasteText={async () => {}}
       onAddUrl={async () => {}}
