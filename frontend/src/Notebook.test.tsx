@@ -294,6 +294,140 @@ describe('SubjectWorkspaceView component', () => {
     expect(handleSelectSources).toHaveBeenCalledWith(['src-1', 'src-2']);
   });
 
+  it('sorts sources by Title and Type correctly and preserves selection', () => {
+    const testSources: Source[] = [
+      {
+        id: 'src-zoo',
+        subject_id: 'sub-1',
+        user_id: 'user-1',
+        title: 'Zoo Assignment.pdf',
+        file_name: 'Zoo Assignment.pdf',
+        source_type: 'pdf',
+        status: 'ready',
+        page_count: 5,
+        word_count: 1000,
+        version: 1,
+        created_at: '2026-10-01T10:00:00Z',
+        updated_at: '2026-10-01T10:00:00Z',
+      },
+      {
+        id: 'src-algo',
+        subject_id: 'sub-1',
+        user_id: 'user-1',
+        title: 'Algorithms Slides.pptx',
+        file_name: 'Algorithms Slides.pptx',
+        source_type: 'pptx' as any,
+        status: 'ready',
+        page_count: 10,
+        word_count: 2000,
+        version: 1,
+        created_at: '2026-10-02T10:00:00Z',
+        updated_at: '2026-10-02T10:00:00Z',
+      },
+      {
+        id: 'src-notes',
+        subject_id: 'sub-1',
+        user_id: 'user-1',
+        title: 'Basic Notes.txt',
+        file_name: 'Basic Notes.txt',
+        source_type: 'txt',
+        status: 'ready',
+        page_count: 1,
+        word_count: 500,
+        version: 1,
+        created_at: '2026-10-03T10:00:00Z',
+        updated_at: '2026-10-03T10:00:00Z',
+      },
+      {
+        id: 'src-alpha',
+        subject_id: 'sub-1',
+        user_id: 'user-1',
+        title: 'Alpha Guide.docx',
+        file_name: 'Alpha Guide.docx',
+        source_type: 'docx' as any,
+        status: 'ready',
+        page_count: 3,
+        word_count: 800,
+        version: 1,
+        created_at: '2026-10-04T10:00:00Z',
+        updated_at: '2026-10-04T10:00:00Z',
+      },
+    ];
+
+    const { container } = render(
+      <SubjectWorkspaceView
+        subject={activeSubject}
+        sources={testSources}
+        selectedSourceIds={['src-zoo']}
+        notes={[]}
+        starterQuestions={[]}
+        isDemoMode={false}
+        onBackToDashboard={() => {}}
+        onSelectSources={() => {}}
+        onUploadFiles={async () => {}}
+        onPasteText={async () => {}}
+        onAddUrl={async () => {}}
+        onRenameSource={async () => {}}
+        onDeleteSource={async () => {}}
+        onRetrySource={async () => {}}
+        onReplaceSource={async () => {}}
+        onSendMessage={async () => {}}
+        onUpdateSettings={async () => {}}
+        onCreateNote={async () => {}}
+        onSaveAnswerAsNote={async () => {}}
+        onUpdateNote={async () => {}}
+        onDeleteNote={async () => {}}
+        messages={[]}
+        chatLoading={false}
+      />
+    );
+
+    // Initial default: 'recent' (newest created_at first: Alpha Guide, Basic Notes, Algorithms Slides, Zoo Assignment)
+    let titles = Array.from(container.querySelectorAll('.source-title-text')).map((el) => el.textContent?.trim());
+    expect(titles).toEqual([
+      'Alpha Guide.docx',
+      'Basic Notes.txt',
+      'Algorithms Slides.pptx',
+      'Zoo Assignment.pdf',
+    ]);
+    expect(screen.getByLabelText(/1 of 4 sources selected/i)).toHaveTextContent('1/4');
+
+    // Open Sort Menu
+    const sortBtn = screen.getByTestId('sources-sort-btn');
+    fireEvent.click(sortBtn);
+
+    // Select Title Sort (A -> Z)
+    const titleOption = screen.getByRole('menuitem', { name: /Title/i });
+    fireEvent.click(titleOption);
+
+    titles = Array.from(container.querySelectorAll('.source-title-text')).map((el) => el.textContent?.trim());
+    expect(titles).toEqual([
+      'Algorithms Slides.pptx',
+      'Alpha Guide.docx',
+      'Basic Notes.txt',
+      'Zoo Assignment.pdf',
+    ]);
+    // Selection is preserved
+    expect(screen.getByLabelText(/1 of 4 sources selected/i)).toHaveTextContent('1/4');
+    expect(container.querySelector('.workspace-source-item.selected .source-title-text')).toHaveTextContent('Zoo Assignment.pdf');
+
+    // Open Sort Menu again and select Type Sort (PDF -> Slides -> Word -> Sheets -> Text -> Web -> Code)
+    fireEvent.click(sortBtn);
+    const typeOption = screen.getByRole('menuitem', { name: /Type/i });
+    fireEvent.click(typeOption);
+
+    titles = Array.from(container.querySelectorAll('.source-title-text')).map((el) => el.textContent?.trim());
+    expect(titles).toEqual([
+      'Zoo Assignment.pdf',
+      'Algorithms Slides.pptx',
+      'Alpha Guide.docx',
+      'Basic Notes.txt',
+    ]);
+    // Selection still preserved
+    expect(screen.getByLabelText(/1 of 4 sources selected/i)).toHaveTextContent('1/4');
+    expect(container.querySelector('.workspace-source-item.selected .source-title-text')).toHaveTextContent('Zoo Assignment.pdf');
+  });
+
   it('renders chat message with citation and handles inline citation chip click', async () => {
     const handleSaveNote = vi.fn();
 

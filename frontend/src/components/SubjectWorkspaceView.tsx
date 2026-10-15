@@ -1,6 +1,6 @@
 import { PendingUpload } from '../uploads';
 import { EmptyStateIcon } from './EmptyStateIcon';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { api } from '../api';
 import {
   Subject,
@@ -24,6 +24,29 @@ const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceM
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
 import { Composer } from './Composer';
 import { FileTypeIcon } from './FileTypeIcon';
+
+export type SourceSortMode = 'recent' | 'title' | 'type';
+
+const getSourceTypeRank = (source: Source): number => {
+  let st = (source.source_type as string || '').toLowerCase();
+  const ext = (source.file_name || '').split('.').pop()?.toLowerCase();
+  if (ext === 'pptx' || ext === 'ppt' || ext === 'slides') st = 'pptx';
+  else if (ext === 'docx' || ext === 'doc' || ext === 'word') st = 'docx';
+  else if (ext === 'xlsx' || ext === 'xls' || ext === 'csv' || ext === 'sheet' || ext === 'sheets') st = 'xlsx';
+  else if (ext === 'html' || ext === 'htm') st = 'html';
+  else if (ext === 'pdf') st = 'pdf';
+  else if (ext === 'md' || ext === 'markdown') st = 'markdown';
+  else if (!st && ext) st = ext;
+
+  if (st === 'pdf') return 1;
+  if (st === 'pptx' || st === 'ppt' || st === 'slides') return 2;
+  if (st === 'docx' || st === 'doc' || st === 'word') return 3;
+  if (st === 'xlsx' || st === 'xls' || st === 'csv' || st === 'sheet' || st === 'sheets') return 4;
+  if (st === 'txt' || st === 'text' || st === 'pasted' || st === 'markdown' || st === 'md') return 5;
+  if (st === 'url' || st === 'web' || st === 'html') return 6;
+  if (st === 'code') return 7;
+  return 8;
+};
 
 interface SubjectWorkspaceViewProps {
   subject: Subject;
@@ -112,6 +135,57 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       window.removeEventListener('keydown', onKey);
     };
   }, [sourceMenuId]);
+
+  // Source sorting: 'recent' (default), 'title', or 'type'
+  const [sourceSortMode, setSourceSortMode] = useState<SourceSortMode>(() => {
+    try {
+      const saved = localStorage.getItem(`notebook_sort_${subject.id}`);
+      if (saved === 'recent' || saved === 'title' || saved === 'type') {
+        return saved;
+      }
+    } catch {
+      // ignore
+    }
+    return 'recent';
+  });
+  const [isSortMenuOpen, setIsSortMenuOpen] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(`notebook_sort_${subject.id}`);
+      if (saved === 'recent' || saved === 'title' || saved === 'type') {
+        setSourceSortMode(saved);
+        return;
+      }
+    } catch {
+      // ignore
+    }
+    setSourceSortMode('recent');
+  }, [subject.id]);
+
+  useEffect(() => {
+    if (!isSortMenuOpen) return;
+    const close = () => setIsSortMenuOpen(false);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('click', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [isSortMenuOpen]);
+
+  const handleSelectSort = (mode: SourceSortMode) => {
+    setSourceSortMode(mode);
+    setIsSortMenuOpen(false);
+    try {
+      localStorage.setItem(`notebook_sort_${subject.id}`, mode);
+    } catch {
+      // ignore
+    }
+  };
 
   // Dropping files anywhere on the Sources panel uploads them.
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
@@ -470,8 +544,31 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
   };
 
-  // Filtered sources & notes
-  const filteredSources = sources.filter((s) => {
+  // Sorted & Filtered sources
+  const sortedSources = useMemo(() => {
+    return [...sources].sort((a, b) => {
+      if (sourceSortMode === 'title') {
+        const titleA = (a.title || a.file_name || '').toLowerCase();
+        const titleB = (b.title || b.file_name || '').toLowerCase();
+        return titleA.localeCompare(titleB, undefined, { sensitivity: 'base' });
+      }
+      if (sourceSortMode === 'type') {
+        const rankA = getSourceTypeRank(a);
+        const rankB = getSourceTypeRank(b);
+        if (rankA !== rankB) return rankA - rankB;
+        const titleA = (a.title || a.file_name || '').toLowerCase();
+        const titleB = (b.title || b.file_name || '').toLowerCase();
+        return titleA.localeCompare(titleB, undefined, { sensitivity: 'base' });
+      }
+      // 'recent' (default, newest first)
+      const timeA = new Date(a.created_at || 0).getTime();
+      const timeB = new Date(b.created_at || 0).getTime();
+      if (timeA !== timeB) return timeB - timeA;
+      return (a.title || a.file_name || '').localeCompare(b.title || b.file_name || '');
+    });
+  }, [sources, sourceSortMode]);
+
+  const filteredSources = sortedSources.filter((s) => {
     if (!sourceSearch.trim()) return true;
     const q = sourceSearch.toLowerCase();
     return s.title.toLowerCase().includes(q) || s.file_name.toLowerCase().includes(q);
@@ -651,11 +748,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 setIsLeftCollapsed(true);
                 setIsSidebarOpenMobile(false);
               }}
-              title="Collapse sources panel"
-              aria-label="Collapse sources panel"
+              title="Hide sources"
+              aria-label="Hide sources"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="4" />
+                <line x1="9" y1="3" x2="9" y2="21" />
               </svg>
             </button>
           </div>
@@ -698,50 +796,115 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               >
                 {selectedSourceIds.length}/{readySources.length}
               </span>
-              {(() => {
-                const allSelected =
-                  readySources.length > 0 && readySources.every((s) => selectedSourceIds.includes(s.id));
-                const someSelected = !allSelected && selectedSourceIds.length > 0;
-                return (
+              <div className="sources-header-actions">
+                <div className={`sources-sort-wrap ${isSortMenuOpen ? 'is-open' : ''}`} onClick={(e) => e.stopPropagation()}>
                   <button
                     type="button"
-                    className="select-all-toggle"
-                    onClick={allSelected ? handleClearSources : handleSelectAllSources}
-                    disabled={readySources.length === 0}
-                    aria-pressed={allSelected}
-                    title={allSelected ? 'Deselect all sources' : 'Select all sources'}
+                    className={`sources-sort-btn ${isSortMenuOpen ? 'is-open' : ''}`}
+                    onClick={() => setIsSortMenuOpen(!isSortMenuOpen)}
+                    aria-label="Sort sources"
+                    title="Sort sources"
+                    aria-haspopup="menu"
+                    aria-expanded={isSortMenuOpen}
+                    data-testid="sources-sort-btn"
                   >
-                    <span>Select all</span>
-                    <span
-                      className={`check-box ${allSelected ? 'is-checked' : someSelected ? 'is-mixed' : ''}`}
-                      aria-hidden="true"
-                    >
-                      <svg
-                        className="check-svg check-svg-tick"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <polyline points="3.5 8.5 6.5 11.5 12.5 4.5" />
-                      </svg>
-                      <svg
-                        className="check-svg check-svg-dash"
-                        viewBox="0 0 16 16"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2.2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <line x1="4" y1="8" x2="12" y2="8" />
-                      </svg>
-                    </span>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <line x1="4" y1="6" x2="20" y2="6" />
+                      <line x1="4" y1="12" x2="14" y2="12" />
+                      <line x1="4" y1="18" x2="8" y2="18" />
+                    </svg>
                   </button>
-                );
-              })()}
+
+                  {isSortMenuOpen && (
+                    <div className="source-menu sources-sort-menu" role="menu" data-testid="sources-sort-menu">
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={sourceSortMode === 'recent' ? 'is-active' : ''}
+                        onClick={() => handleSelectSort('recent')}
+                      >
+                        <span>Recent</span>
+                        {sourceSortMode === 'recent' && (
+                          <svg className="sort-menu-check" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polyline points="3.5 8.5 6.5 11.5 12.5 4.5" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={sourceSortMode === 'title' ? 'is-active' : ''}
+                        onClick={() => handleSelectSort('title')}
+                      >
+                        <span>Title</span>
+                        {sourceSortMode === 'title' && (
+                          <svg className="sort-menu-check" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polyline points="3.5 8.5 6.5 11.5 12.5 4.5" />
+                          </svg>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={sourceSortMode === 'type' ? 'is-active' : ''}
+                        onClick={() => handleSelectSort('type')}
+                      >
+                        <span>Type</span>
+                        {sourceSortMode === 'type' && (
+                          <svg className="sort-menu-check" viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <polyline points="3.5 8.5 6.5 11.5 12.5 4.5" />
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {(() => {
+                  const allSelected =
+                    readySources.length > 0 && readySources.every((s) => selectedSourceIds.includes(s.id));
+                  const someSelected = !allSelected && selectedSourceIds.length > 0;
+                  return (
+                    <button
+                      type="button"
+                      className="select-all-toggle"
+                      onClick={allSelected ? handleClearSources : handleSelectAllSources}
+                      disabled={readySources.length === 0}
+                      aria-pressed={allSelected}
+                      title={allSelected ? 'Deselect all sources' : 'Select all sources'}
+                    >
+                      <span>Select all</span>
+                      <span
+                        className={`check-box ${allSelected ? 'is-checked' : someSelected ? 'is-mixed' : ''}`}
+                        aria-hidden="true"
+                      >
+                        <svg
+                          className="check-svg check-svg-tick"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <polyline points="3.5 8.5 6.5 11.5 12.5 4.5" />
+                        </svg>
+                        <svg
+                          className="check-svg check-svg-dash"
+                          viewBox="0 0 16 16"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2.2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <line x1="4" y1="8" x2="12" y2="8" />
+                        </svg>
+                      </span>
+                    </button>
+                  );
+                })()}
+              </div>
             </div>
 
 
@@ -1014,13 +1177,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               type="button"
               className="floating-reopen-btn left-reopen"
               onClick={() => setIsLeftCollapsed(false)}
-              title="Open sources panel"
-              aria-label="Open sources panel"
+              title="Show sources"
+              aria-label="Show sources"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="9 18 15 12 9 6" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="4" />
+                <line x1="9" y1="3" x2="9" y2="21" />
               </svg>
-              <span>Sources ({sources.length})</span>
             </button>
           )}
 
@@ -1030,12 +1193,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               type="button"
               className="floating-reopen-btn right-reopen"
               onClick={() => setIsRightCollapsed(false)}
-              title="Open tools panel"
-              aria-label="Open tools panel"
+              title="Show tools"
+              aria-label="Show tools"
             >
-              <span>Tools</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="4" />
+                <line x1="15" y1="3" x2="15" y2="21" />
               </svg>
             </button>
           )}
@@ -1761,12 +1924,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   setIsRightCollapsed(true);
                   setIsRightOpenMobile(false);
                 }}
-                title="Collapse inspector panel"
-                aria-label="Close source panel"
+                title="Hide tools"
+                aria-label="Hide tools"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="4" />
+                  <line x1="15" y1="3" x2="15" y2="21" />
                 </svg>
               </button>
             </div>

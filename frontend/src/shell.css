@@ -1208,7 +1208,60 @@ html.theme-switching *::after {
 
 /* The reopen buttons fade in once their panel has gone. */
 .floating-reopen-btn {
+  position: absolute;
+  top: var(--size-14);
+  z-index: 10;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-28);
+  height: var(--size-28);
+  padding: 0;
+  border-radius: var(--radius-circle);
+  background: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  box-shadow: var(--shadow-1);
+  color: var(--color-text-secondary);
+  cursor: pointer;
   animation: fade-in var(--motion-panel) var(--motion-ease-out) var(--motion-fast) both;
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease);
+}
+
+.floating-reopen-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+.floating-reopen-btn.left-reopen {
+  left: var(--size-14);
+}
+
+.floating-reopen-btn.right-reopen {
+  right: var(--size-14);
+}
+
+.panel-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-28);
+  height: var(--size-28);
+  border: none;
+  border-radius: var(--radius-circle);
+  background: var(--color-transparent);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  flex: none;
+}
+
+.panel-collapse-btn:hover {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
 }
 
 /* Switching between Tools, Passage and Notes: the new view rises in gently. */
@@ -1746,6 +1799,63 @@ html.theme-switching *::after {
   font-variant-numeric: tabular-nums;
 }
 
+.sources-header-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.sources-sort-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.sources-sort-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-28);
+  height: var(--size-28);
+  border: none;
+  border-radius: var(--radius-circle);
+  background: var(--color-transparent);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 0;
+  transition:
+    color var(--motion-fast) var(--motion-ease),
+    background-color var(--motion-fast) var(--motion-ease);
+}
+
+.sources-sort-btn:hover,
+.sources-sort-btn.is-open,
+.sources-sort-btn:focus-visible {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.sources-sort-menu {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  min-width: var(--size-140);
+  z-index: 30;
+}
+
+.sources-sort-menu button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.sources-sort-menu .sort-menu-check {
+  margin-left: var(--space-2);
+  color: var(--color-text-primary);
+  flex: none;
+}
+
 .select-all-toggle {
   display: inline-flex;
   align-items: center;
@@ -2072,6 +2182,33 @@ html.theme-switching *::after {
 @media (max-width: 768px) {
   .sources-header-bar {
     padding-right: var(--space-5);
+  }
+}
+
+/* On touch screens and mobile, keep visible toggle and sort buttons at 28px while providing 44px tap targets */
+@media (max-width: 768px), (hover: none) {
+  .floating-reopen-btn,
+  .panel-collapse-btn,
+  .sources-sort-btn {
+    width: var(--size-28) !important;
+    height: var(--size-28) !important;
+    min-width: var(--size-28) !important;
+    min-height: var(--size-28) !important;
+    position: relative;
+  }
+
+  .floating-reopen-btn::after,
+  .panel-collapse-btn::after,
+  .sources-sort-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: var(--target-mobile);
+    height: var(--target-mobile);
+    min-width: var(--target-mobile);
+    min-height: var(--target-mobile);
   }
 }
 
