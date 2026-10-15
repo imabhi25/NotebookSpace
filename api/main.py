@@ -12,7 +12,7 @@ from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
 from answering.answer import answer_question
 from answering.notebook_answer import answer_notebook_question
@@ -354,19 +354,66 @@ class ConversationRenameRequest(BaseModel):
         return s
 
 
+class ProofSubmissionPayload(BaseModel):
+    statement: str = Field(..., max_length=500)
+    format: str = Field(..., pattern="^(loop_invariant|free_form)$")
+    initialization: Optional[str] = Field(default=None, max_length=4000)
+    maintenance: Optional[str] = Field(default=None, max_length=4000)
+    termination: Optional[str] = Field(default=None, max_length=4000)
+    body: Optional[str] = Field(default=None, max_length=4000)
+
+    @field_validator("statement")
+    @classmethod
+    def validate_statement(cls, v: str) -> str:
+        s = v.strip()
+        if not s:
+            raise ValueError("Statement cannot be empty or whitespace.")
+        return s
+
+    @model_validator(mode="after")
+    def validate_submission_not_empty(self) -> "ProofSubmissionPayload":
+        if self.format == "loop_invariant":
+            has_init = bool(self.initialization and self.initialization.strip())
+            has_maint = bool(self.maintenance and self.maintenance.strip())
+            has_term = bool(self.termination and self.termination.strip())
+            if not (has_init or has_maint or has_term):
+                raise ValueError("Loop invariant proof submission cannot be empty.")
+        elif self.format == "free_form":
+            if not (self.body and self.body.strip()):
+                raise ValueError("Free-form proof submission cannot be empty.")
+        return self
+
+
 class MessageSendRequest(BaseModel):
-    question: str = Field(..., max_length=4000)
+    question: Optional[str] = Field(default=None, max_length=15000)
     selected_source_ids: list[str] = Field(default_factory=list)
     is_retry: bool = False
     retry_message_id: Optional[str] = None
+    mode: str = Field(default="ask", pattern="^(ask|proof)$")
+    proof_submission: Optional[ProofSubmissionPayload] = None
 
-    @field_validator("question")
-    @classmethod
-    def validate_question(cls, v: str) -> str:
-        s = v.strip()
-        if not s:
-            raise ValueError("Question cannot be empty or whitespace.")
-        return s
+    @model_validator(mode="after")
+    def validate_request_by_mode(self) -> "MessageSendRequest":
+        if self.mode == "proof":
+            if not self.proof_submission:
+                raise ValueError("proof_submission is required when mode is 'proof'.")
+            if not self.question or not self.question.strip():
+                sub = self.proof_submission
+                if sub.format == "loop_invariant":
+                    parts = [f"What are you proving: {sub.statement}"]
+                    if sub.initialization and sub.initialization.strip():
+                        parts.append(f"**Initialization:**\n{sub.initialization.strip()}")
+                    if sub.maintenance and sub.maintenance.strip():
+                        parts.append(f"**Maintenance:**\n{sub.maintenance.strip()}")
+                    if sub.termination and sub.termination.strip():
+                        parts.append(f"**Termination:**\n{sub.termination.strip()}")
+                    self.question = "\n\n".join(parts)
+                else:
+                    self.question = f"What are you proving: {sub.statement}\n\n**Proof:**\n{(sub.body or '').strip()}"
+        else:
+            if not self.question or not self.question.strip():
+                raise ValueError("Question cannot be empty or whitespace.")
+        return self
 
 
 class NoteCreateRequest(BaseModel):
@@ -1364,7 +1411,9 @@ def send_message_endpoint(
 
     check_user_ask_rate_limit(current_user["id"])
 
-    settings = subj.get("settings", {})
+    settings = dict(subj.get("settings", {}))
+    if payload.mode == "proof":
+        settings["response_style"] = "proof-check"
 
     # Auto-rename "New Conversation" on first question
     if not payload.is_retry and conv["title"] == "New Conversation":
@@ -1386,6 +1435,8 @@ def send_message_endpoint(
         settings=settings,
         is_retry=payload.is_retry,
         retry_message_id=payload.retry_message_id,
+        mode=payload.mode,
+        proof_submission=payload.proof_submission.model_dump() if payload.proof_submission else None,
     )
     return asst_msg
 

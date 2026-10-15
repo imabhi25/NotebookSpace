@@ -1,0 +1,81 @@
+[
+  {
+    "id": "proof_merge_correct",
+    "question": "Check loop invariant proof for the merge routine while loop",
+    "type": "proof_check",
+    "mode": "proof",
+    "proof_submission": {
+      "statement": "Loop invariant for merge(): at each iteration of the while loop, temp[0..k-1] contains the k smallest elements of arr[left..mid] and arr[mid+1..right] in sorted order",
+      "format": "loop_invariant",
+      "initialization": "Prior to the first iteration of the loop, k = 0, so temp[0..-1] is empty, which vacuously contains the 0 smallest elements in sorted order.",
+      "maintenance": "At each iteration, arr[i] and arr[j] are compared. Since arr[left..mid] and arr[mid+1..right] are already sorted, min(arr[i], arr[j]) is the smallest uncopied element and is placed into temp[k]. Incrementing k and the respective index preserves the invariant for k+1.",
+      "termination": "The loop terminates when i > mid or j > right. At termination, one subarray is exhausted and temp contains all copied elements in sorted order; the subsequent while-loops copy the remaining elements."
+    },
+    "expected_sources": [
+      {
+        "file": "lecture_algorithms_math_code.pdf",
+        "page": 1
+      }
+    ],
+    "expected_verdicts": {
+      "initialization": "correct",
+      "maintenance": "correct",
+      "termination": "correct"
+    },
+    "expected_overall_contains": [
+      "correct",
+      "valid",
+      "sound",
+      "well"
+    ]
+  },
+  {
+    "id": "proof_merge_wrong_termination",
+    "question": "Check loop invariant proof for merge() with wrong termination condition",
+    "type": "proof_check",
+    "mode": "proof",
+    "proof_submission": {
+      "statement": "Loop invariant for merge() while loop",
+      "format": "loop_invariant",
+      "initialization": "Before the first iteration, k = 0, so temp is empty and vacuously sorted.",
+      "maintenance": "At each step, we copy the smaller of arr[i] and arr[j] to temp[k] and increment the corresponding pointer, maintaining sorted order in temp.",
+      "termination": "The while loop terminates only when BOTH i > mid and j > right simultaneously, meaning all elements from both subarrays have already been copied into temp and no cleanup is necessary."
+    },
+    "expected_sources": [
+      {
+        "file": "lecture_algorithms_math_code.pdf",
+        "page": 1
+      }
+    ],
+    "expected_verdicts": {
+      "initialization": "correct",
+      "maintenance": "correct",
+      "termination": "incorrect"
+    }
+  },
+  {
+    "id": "proof_merge_missing_init",
+    "question": "Check loop invariant proof for merge() with missing initialization",
+    "type": "proof_check",
+    "mode": "proof",
+    "proof_submission": {
+      "statement": "Loop invariant for merge() while loop",
+      "format": "loop_invariant",
+      "initialization": "",
+      "maintenance": "In each step, comparing arr[i] and arr[j] and copying the smaller element preserves sorted order in temp[0..k-1].",
+      "termination": "The loop terminates when either i > mid or j > right, after which remaining elements are copied by the following loops."
+    },
+    "expected_sources": [
+      {
+        "file": "lecture_algorithms_math_code.pdf",
+        "page": 1
+      }
+    ],
+    "expected_verdicts": {
+      "initialization": "missing"
+    },
+    "leak_check": {
+      "max_words_per_hint": 40
+    }
+  }
+]

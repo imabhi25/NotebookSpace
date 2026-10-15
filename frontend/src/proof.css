@@ -1,0 +1,436 @@
+/* ==========================================================================
+   Proof Check Mode Styles (strictly tokenized, light/dark responsive)
+   ========================================================================== */
+
+/* Mode chip inside the composer pill */
+.composer-mode-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  background-color: var(--color-accent-soft);
+  border: var(--border-width) solid var(--color-accent-border);
+  border-radius: var(--radius-pill);
+  color: var(--color-accent);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-ui);
+  white-space: nowrap;
+}
+
+.composer-mode-chip-remove {
+  background: transparent;
+  border: none;
+  color: var(--color-accent);
+  cursor: pointer;
+  padding: var(--space-0);
+  margin-left: var(--space-1);
+  line-height: 1;
+  font-size: var(--type-small);
+  opacity: var(--opacity-quiet);
+  transition: opacity var(--motion-fast) var(--motion-ease-out);
+}
+
+.composer-mode-chip-remove:hover {
+  opacity: 1;
+}
+
+/* Expanded Proof Composer Card */
+.proof-composer-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  background-color: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: var(--space-4);
+  box-shadow: var(--shadow-3);
+  margin-bottom: var(--space-3);
+  overflow: hidden;
+  transition: max-height var(--motion-panel) var(--motion-ease-out),
+              opacity var(--motion-fast) var(--motion-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proof-composer-card {
+    transition: none;
+  }
+}
+
+.proof-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.proof-card-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--color-text-primary);
+  font-size: var(--type-heading);
+  font-weight: var(--weight-semibold);
+}
+
+.proof-card-close-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: var(--space-1);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.proof-card-close-btn:hover {
+  color: var(--color-text-primary);
+  background-color: var(--color-surface-hover);
+}
+
+/* Statement Input */
+.proof-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.proof-field-label {
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+.proof-statement-input {
+  width: 100%;
+  background-color: var(--color-surface-raised);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-ui);
+  font-size: var(--type-body);
+  outline: none;
+  transition: border-color var(--motion-fast) var(--motion-ease-out);
+}
+
+.proof-statement-input:focus {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+/* Format Toggle Pill */
+.proof-format-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.proof-toggle-pill {
+  display: inline-flex;
+  background-color: var(--color-surface-raised);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1);
+  gap: var(--space-1);
+}
+
+.proof-toggle-btn {
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease-out),
+              color var(--motion-fast) var(--motion-ease-out);
+}
+
+.proof-toggle-btn.active {
+  background-color: var(--color-surface-active);
+  color: var(--color-text-primary);
+  box-shadow: var(--shadow-1);
+}
+
+/* Textareas */
+.proof-textarea {
+  width: 100%;
+  min-height: var(--size-72);
+  background-color: var(--color-surface-raised);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-control);
+  padding: var(--space-2) var(--space-3);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-ui);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--motion-fast) var(--motion-ease-out);
+}
+
+.proof-textarea:focus {
+  border-color: var(--color-accent);
+  box-shadow: var(--shadow-focus);
+}
+
+.proof-textarea-freeform {
+  min-height: var(--size-140);
+}
+
+/* Actions footer */
+.proof-actions-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding-top: var(--space-1);
+}
+
+.proof-check-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+  border: none;
+  border-radius: var(--radius-pill);
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--type-body);
+  font-weight: var(--weight-semibold);
+  cursor: pointer;
+  box-shadow: var(--shadow-accent);
+  transition: background-color var(--motion-fast) var(--motion-ease-out),
+              opacity var(--motion-fast) var(--motion-ease-out);
+}
+
+.proof-check-submit-btn:hover:not(:disabled) {
+  background-color: var(--color-accent-hover);
+}
+
+.proof-check-submit-btn:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   User Message: Proof Submission & LaTeX Copy
+   ========================================================================== */
+
+.user-proof-submission-view {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.user-proof-statement {
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+}
+
+.user-proof-section-box {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-sm);
+}
+
+.user-proof-section-title {
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-label);
+}
+
+.user-proof-section-body {
+  color: var(--color-text-primary);
+  font-size: var(--type-body);
+  line-height: var(--leading-body);
+  white-space: pre-wrap;
+}
+
+.proof-copy-latex-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background-color: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: var(--space-1) var(--space-3);
+  color: var(--color-text-secondary);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease-out),
+              color var(--motion-fast) var(--motion-ease-out),
+              border-color var(--motion-fast) var(--motion-ease-out);
+}
+
+.proof-copy-latex-btn:hover {
+  background-color: var(--color-surface-hover);
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong);
+}
+
+/* ==========================================================================
+   Assistant Message: Proof Check Results
+   ========================================================================== */
+
+.proof-check-container {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.proof-check-overall-banner {
+  padding: var(--space-3) var(--space-4);
+  background-color: var(--color-surface-raised);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-size: var(--type-body);
+  font-weight: var(--weight-medium);
+  line-height: var(--leading-body);
+  box-shadow: var(--shadow-1);
+}
+
+.proof-sections-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.proof-section-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  background-color: var(--color-surface);
+  border: var(--border-width) solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: var(--space-3) var(--space-4);
+  box-shadow: var(--shadow-1);
+}
+
+.proof-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.proof-section-part-name {
+  color: var(--color-text-primary);
+  font-size: var(--type-heading);
+  font-weight: var(--weight-semibold);
+  text-transform: capitalize;
+}
+
+/* Verdict Badges (text and color) */
+.proof-verdict-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-ui);
+  line-height: 1;
+}
+
+.proof-verdict-badge.verdict-correct {
+  background-color: var(--color-success-surface);
+  border: var(--border-width) solid var(--color-success-border);
+  color: var(--color-success);
+}
+
+.proof-verdict-badge.verdict-partially_correct {
+  background-color: var(--color-warning-surface);
+  border: var(--border-width) solid var(--color-warning-border);
+  color: var(--color-warning-text);
+}
+
+.proof-verdict-badge.verdict-incorrect {
+  background-color: var(--color-danger-surface);
+  border: var(--border-width) solid var(--color-danger-border);
+  color: var(--color-danger-text);
+}
+
+.proof-verdict-badge.verdict-missing {
+  background-color: var(--color-surface-raised);
+  border: var(--border-width) solid var(--color-border-strong);
+  color: var(--color-text-muted);
+}
+
+.proof-section-feedback {
+  color: var(--color-text-primary);
+  font-size: var(--type-body);
+  line-height: var(--leading-reading);
+}
+
+.proof-citations-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+/* Hint Expand Toggle */
+.proof-hint-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-top: var(--space-1);
+}
+
+.proof-hint-toggle-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  border: none;
+  color: var(--color-accent);
+  font-size: var(--type-small);
+  font-weight: var(--weight-medium);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-0);
+  transition: opacity var(--motion-fast) var(--motion-ease-out);
+}
+
+.proof-hint-toggle-btn:hover {
+  opacity: var(--opacity-quiet);
+}
+
+.proof-hint-content {
+  padding: var(--space-2) var(--space-3);
+  background-color: var(--color-surface-raised);
+  border-left: var(--border-width-strong) solid var(--color-accent);
+  border-radius: var(--radius-none) var(--radius-sm) var(--radius-sm) var(--radius-none);
+  color: var(--color-text-secondary);
+  font-size: var(--type-small);
+  line-height: var(--leading-body);
+  overflow: hidden;
+  transition: max-height var(--motion-panel) var(--motion-ease-out),
+              opacity var(--motion-fast) var(--motion-ease-out);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proof-hint-content {
+    transition: none;
+  }
+}

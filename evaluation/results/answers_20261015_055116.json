@@ -1,0 +1,26 @@
+{
+  "timestamp": "2026-10-15T05:51:16.081226+00:00",
+  "label": null,
+  "total_questions": 3,
+  "by_type": {},
+  "retrieval_hit_rate_top_3": 1.0,
+  "retrieval_hit_rate_top_5": 1.0,
+  "conflict_detection_rate": 0.0,
+  "false_positive_conflict_rate": 0.0,
+  "latency_p50": 1.6722,
+  "latency_p95": 2.2531,
+  "tokens": {
+    "input": 8599,
+    "output": 1175,
+    "total": 9774
+  },
+  "cost_per_100_questions": 0.0,
+  "failures_count": 0,
+  "worst_failures_by_type": {
+    "single_page": [],
+    "multi_page": [],
+    "not_in_documents": [],
+    "conflicting": []
+  },
+  "failures": []
+}

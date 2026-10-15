@@ -397,7 +397,12 @@ export function App({
   // Send grounded chat message
   const handleSendMessage = async (
     queryText: string,
-    options?: { is_retry?: boolean; retry_message_id?: string }
+    options?: {
+      is_retry?: boolean;
+      retry_message_id?: string;
+      mode?: 'ask' | 'proof';
+      proof_submission?: any;
+    }
   ) => {
     if (!activeSubject || !activeConversationId || chatLoading) return;
     const trimmed = queryText.trim();
@@ -422,6 +427,9 @@ export function App({
         citations: [],
         conflicts: [],
         conflict_detected: false,
+        proof_check: options?.proof_submission
+          ? { type: 'submission', ...options.proof_submission }
+          : null,
         abstained: false,
         retrieved: [],
         selected_source_ids: selectedSourceIds,

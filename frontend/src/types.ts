@@ -170,6 +170,73 @@ export interface Conversation {
   message_count?: number;
 }
 
+export type ProofPart = 'initialization' | 'maintenance' | 'termination' | 'general';
+export type ProofVerdict = 'correct' | 'partially_correct' | 'incorrect' | 'missing';
+
+export interface ProofSection {
+  part: ProofPart;
+  verdict: ProofVerdict;
+  feedback: string;
+  hint: string;
+  citations: Citation[];
+}
+
+export interface ProofSubmission {
+  statement: string;
+  format: 'loop_invariant' | 'free_form';
+  initialization?: string;
+  maintenance?: string;
+  termination?: string;
+  body?: string;
+}
+
+export interface ProofCheckData {
+  type?: 'submission';
+  statement?: string;
+  format?: 'loop_invariant' | 'free_form';
+  initialization?: string;
+  maintenance?: string;
+  termination?: string;
+  body?: string;
+  supported?: boolean;
+  overall?: string;
+  sections?: ProofSection[];
+}
+
+/**
+ * Escape LaTeX special characters (&, %, #, _) in text, preserving $...$ math blocks untouched.
+ */
+export function escapeLatex(text: string): string {
+  if (!text) return '';
+  const segments = text.split(/(\$\$[\s\S]*?\$\$|\$[\s\S]*?\$)/g);
+  return segments
+    .map((seg, idx) => {
+      if (idx % 2 === 1) {
+        return seg;
+      }
+      return seg
+        .replace(/(?<!\\)&/g, '\\&')
+        .replace(/(?<!\\)%/g, '\\%')
+        .replace(/(?<!\\)#/g, '\\#')
+        .replace(/(?<!\\)_/g, '\\_');
+    })
+    .join('');
+}
+
+/**
+ * Format a student proof submission as LaTeX.
+ */
+export function formatProofAsLatex(sub: ProofSubmission | ProofCheckData): string {
+  if (sub.format === 'free_form') {
+    const body = escapeLatex(sub.body || '').trim();
+    return `\\begin{proof} ${body} \\end{proof}`;
+  }
+  const init = escapeLatex(sub.initialization || '').trim();
+  const maint = escapeLatex(sub.maintenance || '').trim();
+  const term = escapeLatex(sub.termination || '').trim();
+  return `\\begin{proof} \\textbf{Initialization.} ${init} \\textbf{Maintenance.} ${maint} \\textbf{Termination.} ${term} \\end{proof}`;
+}
+
 export interface MessageItem {
   id: string;
   conversation_id: string;
@@ -182,6 +249,7 @@ export interface MessageItem {
   conflict_detected: boolean;
   conventions?: ConventionItem[];
   convention_mismatches?: ConventionMismatchItem[];
+  proof_check?: ProofCheckData | null;
   abstained: boolean;
   abstain_reason?: string | null;
   retrieved: RetrievedPassage[];

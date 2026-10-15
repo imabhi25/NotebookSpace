@@ -366,7 +366,12 @@ export const api = {
     question: string,
     selectedSourceIds: string[],
     signal?: AbortSignal,
-    options?: { is_retry?: boolean; retry_message_id?: string }
+    options?: {
+      is_retry?: boolean;
+      retry_message_id?: string;
+      mode?: 'ask' | 'proof';
+      proof_submission?: any;
+    }
   ): Promise<MessageItem> {
     return apiFetch<MessageItem>(`/subjects/${subjectId}/conversations/${conversationId}/messages`, {
       method: 'POST',
@@ -376,6 +381,8 @@ export const api = {
         selected_source_ids: selectedSourceIds,
         is_retry: options?.is_retry || false,
         retry_message_id: options?.retry_message_id || null,
+        mode: options?.mode || 'ask',
+        proof_submission: options?.proof_submission || null,
       }),
     });
   },

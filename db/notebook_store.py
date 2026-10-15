@@ -1094,6 +1094,7 @@ def save_message(
     latency: float = 0.0,
     conventions: list[dict[str, Any]] | None = None,
     convention_mismatches: list[dict[str, Any]] | None = None,
+    proof_check: dict[str, Any] | None = None,
     db_url: str | None = None,
 ) -> dict[str, Any]:
     with get_connection(db_url) as conn:
@@ -1105,18 +1106,18 @@ def save_message(
                         conversation_id, user_id, role, content, model,
                         citations, conflicts, conflict_detected, abstained, abstain_reason,
                         retrieved, selected_source_ids, source_versions, tokens, latency,
-                        conventions, convention_mismatches
+                        conventions, convention_mismatches, proof_check
                     )
                     VALUES (
                         %s, %s, %s, %s, %s,
                         %s::jsonb, %s::jsonb, %s, %s, %s,
                         %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s,
-                        %s::jsonb, %s::jsonb
+                        %s::jsonb, %s::jsonb, %s::jsonb
                     )
                     RETURNING id, conversation_id, user_id, role, content, model,
                               citations, conflicts, conflict_detected, abstained, abstain_reason,
                               retrieved, selected_source_ids, source_versions, tokens, latency,
-                              conventions, convention_mismatches, created_at;
+                              conventions, convention_mismatches, proof_check, created_at;
                     """,
                     (
                         str(conversation_id),
@@ -1129,13 +1130,17 @@ def save_message(
                         conflict_detected,
                         abstained,
                         abstain_reason,
-                        json.dumps(retrieved or []),
+                        json.dumps([
+                            {k: (0.0 if isinstance(v, float) and (v != v) else v) for k, v in r.items()}
+                            for r in (retrieved or [])
+                        ]),
                         json.dumps(selected_source_ids or []),
                         json.dumps(source_versions or {}),
                         json.dumps(tokens or {"input": 0, "output": 0, "total": 0}),
                         latency,
                         json.dumps(conventions or []),
                         json.dumps(convention_mismatches or []),
+                        json.dumps(proof_check) if proof_check is not None else None,
                     ),
                 )
                 row = cur.fetchone()
@@ -1144,6 +1149,11 @@ def save_message(
                     "UPDATE conversations SET updated_at = CURRENT_TIMESTAMP WHERE id = %s;",
                     (str(conversation_id),),
                 )
+                raw_proof = row[18]
+                parsed_proof = None
+                if raw_proof is not None:
+                    parsed_proof = raw_proof if isinstance(raw_proof, dict) else json.loads(raw_proof)
+
                 return {
                     "id": str(row[0]),
                     "conversation_id": str(row[1]),
@@ -1163,7 +1173,8 @@ def save_message(
                     "latency": row[15],
                     "conventions": row[16] if isinstance(row[16], list) else json.loads(row[16] or "[]"),
                     "convention_mismatches": row[17] if isinstance(row[17], list) else json.loads(row[17] or "[]"),
-                    "created_at": row[18].isoformat(),
+                    "proof_check": parsed_proof,
+                    "created_at": row[19].isoformat(),
                 }
 
 
@@ -1180,7 +1191,7 @@ def get_messages_for_conversation(
                     id, conversation_id, user_id, role, content, model,
                     citations, conflicts, conflict_detected, abstained, abstain_reason,
                     retrieved, selected_source_ids, source_versions, tokens, latency,
-                    conventions, convention_mismatches, created_at
+                    conventions, convention_mismatches, proof_check, created_at
                 FROM messages
                 WHERE conversation_id = %s AND user_id = %s
                 ORDER BY created_at ASC;
@@ -1189,8 +1200,14 @@ def get_messages_for_conversation(
             )
             rows = cur.fetchall()
 
-            return [
-                {
+            messages = []
+            for r in rows:
+                raw_proof = r[18]
+                parsed_proof = None
+                if raw_proof is not None:
+                    parsed_proof = raw_proof if isinstance(raw_proof, dict) else json.loads(raw_proof)
+
+                messages.append({
                     "id": str(r[0]),
                     "conversation_id": str(r[1]),
                     "user_id": str(r[2]),
@@ -1209,10 +1226,10 @@ def get_messages_for_conversation(
                     "latency": r[15],
                     "conventions": r[16] if isinstance(r[16], list) else json.loads(r[16] or "[]"),
                     "convention_mismatches": r[17] if isinstance(r[17], list) else json.loads(r[17] or "[]"),
-                    "created_at": r[18].isoformat(),
-                }
-                for r in rows
-            ]
+                    "proof_check": parsed_proof,
+                    "created_at": r[19].isoformat(),
+                })
+            return messages
 
 
 # ============================================================================

@@ -46,6 +46,14 @@ def _format_expected(q: dict[str, Any]) -> str:
             parts.append(f"Sources: [{', '.join(srcs)}]")
         return "; ".join(parts) if parts else "Conflict expected"
 
+    if q_type == "proof_check":
+        parts = []
+        if "expected_verdicts" in q:
+            parts.append(f"Verdicts: {q['expected_verdicts']}")
+        if "leak_check" in q:
+            parts.append(f"LeakCheck: max_words<={q['leak_check'].get('max_words_per_hint', 40)}")
+        return "; ".join(parts) if parts else "Proof check expected"
+
     srcs = [f"{s['file']} p.{s['page']}" for s in q.get("expected_sources", [])]
     res = f"Sources: [{', '.join(srcs)}]" if srcs else "None"
     if q.get("expected_answer_contains"):
@@ -159,7 +167,14 @@ def evaluate_answering(
         expected_sources = q.get("expected_sources", [])
         expected_contains = q.get("expected_answer_contains", [])
 
-        res = answer_question(question=q_text, k=k, llm_client=llm_client, db_url=db_url)
+        res = answer_question(
+            question=q_text,
+            k=k,
+            llm_client=llm_client,
+            db_url=db_url,
+            mode=q.get("mode", "ask"),
+            proof_submission=q.get("proof_submission"),
+        )
 
         latency = res["latency"]
         latencies.append(latency)
@@ -349,6 +364,66 @@ def evaluate_answering(
                     )
                     if any_cited:
                         stats["cited_page_correct"] += 1
+                elif q_type == "proof_check":
+                    proof_data = res.get("proof_check") or {}
+                    supported = bool(proof_data.get("supported", False))
+                    sections = proof_data.get("sections", [])
+                    stats.setdefault("supported", 0)
+                    stats.setdefault("verdicts_correct", 0)
+                    stats.setdefault("leak_check_passed", 0)
+
+                    if supported:
+                        stats["supported"] += 1
+                    else:
+                        question_failures.append("Proof check marked as unsupported/abstained.")
+
+                    # Check citations against expected
+                    if expected_sources:
+                        any_cited = any(
+                            is_source_match(exp["file"], exp["page"], cit["file"], cit["page"])
+                            for exp in expected_sources
+                            for cit in citations
+                        )
+                        if any_cited:
+                            stats["cited_page_correct"] += 1
+
+                    # Check expected verdicts
+                    expected_verdicts = q.get("expected_verdicts", {})
+                    sec_by_part = {s.get("part"): s for s in sections}
+                    all_verdicts_matched = True
+                    for part, exp_v in expected_verdicts.items():
+                        actual_s = sec_by_part.get(part)
+                        if not actual_s:
+                            all_verdicts_matched = False
+                            question_failures.append(f"Missing expected proof section for part '{part}'.")
+                        elif actual_s.get("verdict") != exp_v:
+                            all_verdicts_matched = False
+                            question_failures.append(
+                                f"Verdict mismatch for '{part}': expected '{exp_v}', got '{actual_s.get('verdict')}'"
+                            )
+                    if all_verdicts_matched and expected_verdicts:
+                        stats["verdicts_correct"] += 1
+
+                    # Leak check: each hint <= max_words_per_hint (default 40 words)
+                    max_words = q.get("leak_check", {}).get("max_words_per_hint", 40)
+                    leak_failed = False
+                    for s in sections:
+                        hint = s.get("hint", "")
+                        word_count = len(hint.split())
+                        if word_count > max_words:
+                            leak_failed = True
+                            question_failures.append(
+                                f"Leak check failed: hint for '{s.get('part')}' has {word_count} words (> {max_words}): \"{hint}\""
+                            )
+                    if not leak_failed:
+                        stats["leak_check_passed"] += 1
+
+                    if q.get("expected_overall_contains") and not abstained:
+                        overall_text = str(proof_data.get("overall", "")).lower()
+                        if not any(sub.lower() in overall_text for sub in q["expected_overall_contains"]):
+                            question_failures.append(
+                                f"Overall proof assessment did not contain any of {q['expected_overall_contains']}: '{overall_text}'"
+                            )
 
                 # Check expected_answer_contains
                 if expected_contains and not abstained:
@@ -425,6 +500,13 @@ def evaluate_answering(
                 "unsupported_answer_rate": s["answered"] / tot,
                 "abstention_rate": s["abstained"] / tot,
             }
+        elif t_name == "proof_check":
+            summary_by_type[t_name] = {
+                "total": tot,
+                "supported_rate": s.get("supported", 0) / tot,
+                "verdicts_correct_rate": s.get("verdicts_correct", 0) / tot,
+                "leak_check_passed_rate": s.get("leak_check_passed", 0) / tot,
+            }
 
     tot_q = len(questions)
     p50 = calculate_percentile(latencies, 50)
@@ -453,7 +535,7 @@ def evaluate_answering(
 
     # Compile the 5 worst failures per question type
     worst_failures_by_type: dict[str, list[dict[str, Any]]] = {}
-    standard_types = ["single_page", "multi_page", "not_in_documents", "conflicting"]
+    standard_types = ["single_page", "multi_page", "not_in_documents", "conflicting", "proof_check"]
     for st in standard_types:
         type_fails = [f for f in failures if f.get("type") == st]
         # Sort so severe errors (unsupported answers, missing conflicts, etc.) come first
@@ -549,6 +631,10 @@ def render_markdown_report(report: dict[str, Any]) -> str:
         if q_type == "not_in_documents":
             lines.append(f"| Unsupported Answer Rate | {data.get('unsupported_answer_rate', 0.0) * 100:.1f}% |")
             lines.append(f"| Proper Abstention Rate | {data.get('abstention_rate', 0.0) * 100:.1f}% |")
+        elif q_type == "proof_check":
+            lines.append(f"| Supported Rate | {data.get('supported_rate', 0.0) * 100:.1f}% |")
+            lines.append(f"| Verdicts Correct Rate | {data.get('verdicts_correct_rate', 0.0) * 100:.1f}% |")
+            lines.append(f"| Leak Check Passed Rate | {data.get('leak_check_passed_rate', 0.0) * 100:.1f}% |")
         else:
             lines.append(f"| Answered Rate | {data.get('answered_rate', 0.0) * 100:.1f}% |")
             lines.append(f"| Abstained on Answerable | {data.get('abstained_on_answerable_rate', 0.0) * 100:.1f}% |")
@@ -562,7 +648,7 @@ def render_markdown_report(report: dict[str, Any]) -> str:
 
     lines.append("## Worst Failures by Question Type (Up to 5 per type)\n")
     worst = report.get("worst_failures_by_type", {})
-    for q_type in ["single_page", "multi_page", "not_in_documents", "conflicting"]:
+    for q_type in ["single_page", "multi_page", "not_in_documents", "conflicting", "proof_check"]:
         lines.append(f"### {q_type.upper()}\n")
         failures_list = worst.get(q_type, [])
         if not failures_list:
@@ -594,6 +680,10 @@ def print_answer_eval_report(report: dict[str, Any]):
         if q_type == "not_in_documents":
             print(f"  Unsupported Answer Rate:   {data['unsupported_answer_rate']*100:.1f}%")
             print(f"  Proper Abstention Rate:    {data['abstention_rate']*100:.1f}%")
+        elif q_type == "proof_check":
+            print(f"  Supported Rate:            {data.get('supported_rate', 0.0)*100:.1f}%")
+            print(f"  Verdicts Correct Rate:     {data.get('verdicts_correct_rate', 0.0)*100:.1f}%")
+            print(f"  Leak Check Passed Rate:    {data.get('leak_check_passed_rate', 0.0)*100:.1f}%")
         else:
             print(f"  Answered Rate:             {data['answered_rate']*100:.1f}%")
             print(f"  Abstained on Answerable:   {data['abstained_on_answerable_rate']*100:.1f}%")
@@ -626,7 +716,7 @@ def print_answer_eval_report(report: dict[str, Any]):
     print(f"   WORST FAILURES BREAKDOWN (Total Failures: {total_failures})")
     print("=" * 65)
 
-    for q_type in ["single_page", "multi_page", "not_in_documents", "conflicting"]:
+    for q_type in ["single_page", "multi_page", "not_in_documents", "conflicting", "proof_check"]:
         failures_list = worst_by_type.get(q_type, [])
         print(f"\n--- TYPE: {q_type.upper()} ---")
         if not failures_list:
