@@ -24,21 +24,7 @@ import { lazyView, preloadWhenIdle } from '../lazyView';
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
 import { Composer } from './Composer';
-
-// The short label drawn inside each source's file badge.
-const FILE_GLYPH_LABELS: Record<string, string> = {
-  pdf: 'PDF',
-  pptx: 'PPT',
-  docx: 'DOC',
-  xlsx: 'XLS',
-  csv: 'CSV',
-  markdown: 'MD',
-  txt: 'TXT',
-  pasted: 'TXT',
-  url: 'WEB',
-  html: 'WEB',
-  code: '</>',
-};
+import { FileTypeIcon } from './FileTypeIcon';
 
 interface SubjectWorkspaceViewProps {
   subject: Subject;
@@ -845,15 +831,35 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     {filteredSources.map((s) => {
                       const isReady = s.status === 'ready';
                       const isSelected = selectedSourceIds.includes(s.id);
+                      const st = (s.source_type as string || '').toLowerCase();
+                      const typeLabel =
+                        st === 'url'
+                          ? 'Web'
+                          : st === 'pdf'
+                          ? 'PDF'
+                          : st === 'docx' || st === 'doc'
+                          ? 'DOC'
+                          : st === 'pptx' || st === 'ppt'
+                          ? 'PPT'
+                          : st === 'xlsx' || st === 'xls' || st === 'csv'
+                          ? 'Sheet'
+                          : st === 'markdown' || st === 'md'
+                          ? 'Markdown'
+                          : 'Text';
+                      const pageCountText =
+                        s.page_count != null ? `${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}` : '';
+                      const citedTimes =
+                        citationCounts[normalizeFileName(s.title)] || citationCounts[normalizeFileName(s.file_name)];
+                      const citedText = citedTimes ? `cited ${citedTimes}×` : '';
+                      const readyMetaString = [typeLabel, pageCountText, citedText].filter(Boolean).join(' · ');
 
                       return (
-                        <li key={s.id} className={`workspace-source-item ${isSelected ? 'selected' : ''}`}>
-                          <span
-                            className={`source-type-badge-icon badge-${(s.source_type || 'doc').toLowerCase()}`}
-                            aria-hidden="true"
-                          >
-                            {FILE_GLYPH_LABELS[(s.source_type || '').toLowerCase()] || 'TXT'}
-                          </span>
+                        <li
+                          key={s.id}
+                          className={`workspace-source-item ${isSelected ? 'selected' : ''}`}
+                          title={isReady ? readyMetaString : undefined}
+                        >
+                          <FileTypeIcon sourceType={s.source_type} />
 
                           <div
                             className="source-info-col"
@@ -871,6 +877,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               <span className="source-title-text" title={s.title}>
                                 {s.title}
                               </span>
+                              {isReady && readyMetaString && (
+                                <span className="sr-only"> ({readyMetaString})</span>
+                              )}
                               {(() => {
                                 const supersededInfo =
                                   supersededSourcesMap[normalizeFileName(s.file_name)] ||
@@ -887,24 +896,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 );
                               })()}
                             </div>
-                            <div className="source-meta-row">
-                              <span className="source-type-tag">{s.source_type === 'url' ? 'Web' : s.source_type === 'pdf' ? 'PDF' : 'Text'}</span>
-                              {isReady ? (
-                                <span>
-                                  {s.page_count} {s.page_count === 1 ? 'page' : 'pages'}
-                                  {(citationCounts[normalizeFileName(s.title)] || citationCounts[normalizeFileName(s.file_name)])
-                                    ? ` · cited ${citationCounts[normalizeFileName(s.title)] || citationCounts[normalizeFileName(s.file_name)]}×`
-                                    : ''}
-                                </span>
-                              ) : s.status === 'processing' ? (
-                                <span className="status-processing">Reading…</span>
-                              ) : (
-                                <span className="status-failed" title={s.error_message || ''}>
-                                  Failed
-                                </span>
-                              )}
-
-                            </div>
+                            {!isReady && (
+                              <div className="source-meta-row">
+                                {s.status === 'processing' ? (
+                                  <span className="status-processing">Reading…</span>
+                                ) : (
+                                  <span className="status-failed" title={s.error_message || ''}>
+                                    Failed
+                                  </span>
+                                )}
+                              </div>
+                            )}
                           </div>
 
                           <div className="source-menu-wrap" onClick={(e) => e.stopPropagation()}>
@@ -1955,8 +1957,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     <polyline points="9 11 12 14 22 4" />
                     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                   </svg>
-                  <span className="tool-tile-label">Proof check</span>
-                  <span className="tool-tile-soon">Soon</span>
+                  <div className="tool-tile-text">
+                    <span className="tool-tile-label">Proof check</span>
+                    <span className="tool-tile-soon">Soon</span>
+                  </div>
                 </button>
                 <button type="button" role="listitem" className="tool-tile tool-trace" disabled title="Coming soon">
                   <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
@@ -1964,8 +1968,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     <rect x="9.5" y="7" width="5" height="10" rx="1" />
                     <rect x="17" y="7" width="5" height="10" rx="1" />
                   </svg>
-                  <span className="tool-tile-label">Trace</span>
-                  <span className="tool-tile-soon">Soon</span>
+                  <div className="tool-tile-text">
+                    <span className="tool-tile-label">Trace</span>
+                    <span className="tool-tile-soon">Soon</span>
+                  </div>
                 </button>
               </div>
 
