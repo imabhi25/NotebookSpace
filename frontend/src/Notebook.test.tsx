@@ -304,7 +304,7 @@ describe('SubjectWorkspaceView component', () => {
 
     expect(screen.getByText('Syllabus.pdf', { selector: '.source-title-text' })).toBeInTheDocument();
     expect(screen.getByText('Lecture 1.pdf')).toBeInTheDocument();
-    expect(screen.getByText(/1 of 2 selected/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/1 of 2 sources selected/i)).toHaveTextContent('1/2');
 
     const selectAllBtn = screen.getByRole('button', { name: /Select all/i });
     fireEvent.click(selectAllBtn);

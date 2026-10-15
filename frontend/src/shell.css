@@ -1376,7 +1376,7 @@ html.theme-switching *::after {
 }
 
 /* ---------- Type-coloured source rows ---------- */
-.workspace-source-item .source-type-badge-icon {
+.workspace-sources-ul .workspace-source-item .source-type-badge-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1388,12 +1388,12 @@ html.theme-switching *::after {
   color: var(--source-text);
 }
 
-.workspace-source-item .source-type-badge-icon.badge-pdf {
+.workspace-sources-ul .workspace-source-item .source-type-badge-icon.badge-pdf {
   background: color-mix(in oklab, var(--source-pdf) var(--tool-well-mix), var(--color-surface));
   color: var(--source-pdf);
 }
 
-.workspace-source-item .source-type-badge-icon.badge-url {
+.workspace-sources-ul .workspace-source-item .source-type-badge-icon.badge-url {
   background: color-mix(in oklab, var(--source-url) var(--tool-well-mix), var(--color-surface));
   color: var(--source-url);
 }
@@ -1488,32 +1488,32 @@ html.theme-switching *::after {
 
 
 /* More source types get their own badge colours. */
-.workspace-source-item .source-type-badge-icon.badge-pptx {
+.workspace-sources-ul .workspace-source-item .source-type-badge-icon.badge-pptx {
   background: color-mix(in oklab, var(--source-slides) var(--tool-well-mix), var(--color-surface));
   color: var(--source-slides);
 }
 
-.workspace-source-item .source-type-badge-icon.badge-docx {
+.workspace-sources-ul .workspace-source-item .source-type-badge-icon.badge-docx {
   background: color-mix(in oklab, var(--source-doc) var(--tool-well-mix), var(--color-surface));
   color: var(--source-doc);
 }
 
-.workspace-source-item .source-type-badge-icon.badge-xlsx {
+.workspace-sources-ul .workspace-source-item .source-type-badge-icon.badge-xlsx {
   background: color-mix(in oklab, var(--source-sheet) var(--tool-well-mix), var(--color-surface));
   color: var(--source-sheet);
 }
 
-.workspace-source-item .source-type-badge-icon.badge-csv {
+.workspace-sources-ul .workspace-source-item .source-type-badge-icon.badge-csv {
   background: color-mix(in oklab, var(--source-sheet) var(--tool-well-mix), var(--color-surface));
   color: var(--source-sheet);
 }
 
-.workspace-source-item .source-type-badge-icon.badge-code {
+.workspace-sources-ul .workspace-source-item .source-type-badge-icon.badge-code {
   background: color-mix(in oklab, var(--source-code) var(--tool-well-mix), var(--color-surface));
   color: var(--source-code);
 }
 
-.workspace-source-item .source-type-badge-icon.badge-html {
+.workspace-sources-ul .workspace-source-item .source-type-badge-icon.badge-html {
   background: color-mix(in oklab, var(--source-url) var(--tool-well-mix), var(--color-surface));
   color: var(--source-url);
 }
@@ -1630,4 +1630,170 @@ html.theme-switching *::after {
 @keyframes reading-pulse {
   from { opacity: 1; }
   to { opacity: var(--opacity-quiet); }
+}
+
+/* ---------- Sources panel polish ---------- */
+
+/* Add sources / Create note: two equal pills, content centred, same inset both sides. */
+.sources-action-row {
+  padding: 0 var(--space-4) var(--space-3);
+}
+
+.sources-action-row .btn-pill {
+  justify-content: center;
+  padding: 0 var(--space-3);
+  min-width: 0;
+}
+
+/* Selection row: a quiet count on the left, "Select all" with its box on the right. */
+.sources-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--space-4) var(--space-2) var(--space-5);
+}
+
+.selection-badge {
+  font-variant-numeric: tabular-nums;
+}
+
+.select-all-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: var(--size-32);
+  padding: 0 var(--space-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--color-transparent);
+  color: var(--color-text-secondary);
+  font-family: inherit;
+  font-size: var(--type-small);
+  cursor: pointer;
+}
+
+.select-all-toggle:hover:not(:disabled) {
+  background: var(--color-surface-hover);
+  color: var(--color-text-primary);
+}
+
+.select-all-toggle:disabled {
+  opacity: var(--opacity-disabled);
+  cursor: default;
+}
+
+/* One drawn checkbox for rows and Select all. */
+.check-box {
+  position: relative;
+  display: inline-block;
+  flex: none;
+  width: var(--size-18);
+  height: var(--size-18);
+  border: var(--border-width-dash) solid var(--color-border-strong);
+  border-radius: var(--radius-xs);
+  background: var(--color-transparent);
+  transition:
+    background-color var(--motion-fast) var(--motion-ease),
+    border-color var(--motion-fast) var(--motion-ease);
+}
+
+.check-box::after {
+  content: "";
+  position: absolute;
+  opacity: 0;
+  transition: opacity var(--motion-fast) var(--motion-ease);
+}
+
+.check-box.is-checked,
+.source-checkbox-col input:checked + .check-box,
+.check-box.is-mixed {
+  border-color: var(--color-accent);
+  background: var(--color-accent);
+}
+
+/* The tick: a short L rotated into place. */
+.check-box.is-checked::after,
+.source-checkbox-col input:checked + .check-box::after {
+  left: 32%;
+  top: 12%;
+  width: 28%;
+  height: 55%;
+  border: solid var(--color-on-accent);
+  border-width: 0 var(--size-2) var(--size-2) 0;
+  transform: rotate(45deg);
+  opacity: 1;
+}
+
+.check-box.is-mixed::after {
+  left: 22%;
+  right: 22%;
+  top: calc(50% - var(--size-1));
+  height: var(--size-2);
+  border-radius: var(--radius-pill);
+  background: var(--color-on-accent);
+  opacity: 1;
+}
+
+/* The real checkbox stays for keyboard and screen readers, invisible on top of the drawn one. */
+.source-checkbox-col {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-28);
+  height: var(--size-28);
+  cursor: pointer;
+}
+
+.source-checkbox-col input[type="checkbox"] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.source-checkbox-col input[type="checkbox"]::before {
+  content: none;
+}
+
+.source-checkbox-col input:focus-visible + .check-box {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+
+.source-checkbox-col input:disabled + .check-box {
+  opacity: var(--opacity-disabled);
+}
+
+/* File badges: an outlined sheet with the type written on it, coloured by type. */
+.workspace-source-item .source-type-badge-icon {
+  width: var(--size-26);
+  height: var(--size-30);
+  border-radius: var(--radius-xs);
+  border: var(--border-width-dash) solid currentColor;
+  font-family: var(--font-family-code);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-semibold);
+  letter-spacing: calc(-1 * var(--tracking-ui));
+  line-height: 1;
+  transform: scale(0.94);
+}
+
+@media (max-width: 768px) {
+  .source-checkbox-col {
+    width: var(--target-mobile);
+    height: var(--target-mobile);
+  }
+}
+
+/* In the narrow phone drawer the two pills share less room. */
+@media (max-width: 960px) {
+  .sources-action-row .btn-pill {
+    gap: var(--space-1);
+    padding: 0 var(--space-2);
+    font-size: var(--type-small);
+  }
 }

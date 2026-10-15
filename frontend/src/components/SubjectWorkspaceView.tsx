@@ -25,6 +25,21 @@ const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceM
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
 import { Composer } from './Composer';
 
+// The short label drawn inside each source's file badge.
+const FILE_GLYPH_LABELS: Record<string, string> = {
+  pdf: 'PDF',
+  pptx: 'PPT',
+  docx: 'DOC',
+  xlsx: 'XLS',
+  csv: 'CSV',
+  markdown: 'MD',
+  txt: 'TXT',
+  pasted: 'TXT',
+  url: 'WEB',
+  html: 'WEB',
+  code: '</>',
+};
+
 interface SubjectWorkspaceViewProps {
   subject: Subject;
   sources: Source[];
@@ -713,28 +728,33 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 </button>
               </div>
               <div className="sources-header-bar">
-                <span className="selection-badge">
-                  {selectedSourceIds.length} of {readySources.length} selected
+                <span
+                  className="selection-badge"
+                  aria-label={`${selectedSourceIds.length} of ${readySources.length} sources selected`}
+                >
+                  {selectedSourceIds.length}/{readySources.length}
                 </span>
-                <div className="selection-controls">
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={handleSelectAllSources}
-                    disabled={readySources.length === 0}
-                  >
-                    Select all
-                  </button>
-                  <span>&bull;</span>
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={handleClearSources}
-                    disabled={selectedSourceIds.length === 0}
-                  >
-                    Clear
-                  </button>
-                </div>
+                {(() => {
+                  const allSelected =
+                    readySources.length > 0 && readySources.every((s) => selectedSourceIds.includes(s.id));
+                  const someSelected = !allSelected && selectedSourceIds.length > 0;
+                  return (
+                    <button
+                      type="button"
+                      className="select-all-toggle"
+                      onClick={allSelected ? handleClearSources : handleSelectAllSources}
+                      disabled={readySources.length === 0}
+                      aria-pressed={allSelected}
+                      title={allSelected ? 'Deselect all sources' : 'Select all sources'}
+                    >
+                      <span>Select all</span>
+                      <span
+                        className={`check-box ${allSelected ? 'is-checked' : someSelected ? 'is-mixed' : ''}`}
+                        aria-hidden="true"
+                      />
+                    </button>
+                  );
+                })()}
               </div>
 
 
@@ -812,30 +832,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
                       return (
                         <li key={s.id} className={`workspace-source-item ${isSelected ? 'selected' : ''}`}>
-                          <div className={`source-type-badge-icon badge-${(s.source_type || 'doc').toLowerCase()}`}>
-                            {s.source_type === 'pdf' ? (
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                                <line x1="16" y1="13" x2="8" y2="13" />
-                                <line x1="16" y1="17" x2="8" y2="17" />
-                                <polyline points="10 9 9 9 8 9" />
-                              </svg>
-                            ) : s.source_type === 'url' ? (
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="2" y1="12" x2="22" y2="12" />
-                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                              </svg>
-                            ) : (
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                                <line x1="16" y1="13" x2="8" y2="13" />
-                                <line x1="16" y1="17" x2="8" y2="17" />
-                              </svg>
-                            )}
-                          </div>
+                          <span
+                            className={`source-type-badge-icon badge-${(s.source_type || 'doc').toLowerCase()}`}
+                            aria-hidden="true"
+                          >
+                            {FILE_GLYPH_LABELS[(s.source_type || '').toLowerCase()] || 'TXT'}
+                          </span>
 
                           <div
                             className="source-info-col"
@@ -971,7 +973,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             </div>
                           </div>
 
-                          <div className="source-checkbox-col">
+                          <label className="source-checkbox-col">
                             <input
                               type="checkbox"
                               checked={isSelected}
@@ -980,7 +982,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               aria-label={`Select ${s.title}`}
                               data-testid={`source-checkbox-${s.id}`}
                             />
-                          </div>
+                            <span className="check-box" aria-hidden="true" />
+                          </label>
                         </li>
                       );
                     })}
@@ -1112,21 +1115,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </div>
           )}
 
-          {/* Left Panel Footer: Subject Settings */}
-          <div className="sidebar-bottom-bar">
-            <button
-              type="button"
-              className="sidebar-settings-link"
-              onClick={() => setIsSettingsOpen(true)}
-              title="Notebook Settings"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1z" />
-              </svg>
-              <span>Notebook Settings</span>
-            </button>
-          </div>
         </aside>
 
         {/* --------------------------------------------------------------------
