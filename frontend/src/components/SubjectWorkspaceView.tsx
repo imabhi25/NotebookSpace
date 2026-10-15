@@ -515,14 +515,24 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             type="button"
             className="workspace-brand-link"
             onClick={onBackToDashboard}
-            title="All notebooks"
+            title="NotebookSpace home"
             aria-label="Back to all notebooks"
           >
             <span className="brand-logo-letter-small" aria-hidden="true">N</span>
           </button>
+          <span className="workspace-brand-name">NotebookSpace</span>
+          <span className="workspace-breadcrumb-separator" aria-hidden="true">/</span>
           <h1 className="workspace-notebook-title" title={subject.name}>
             {subject.name}
           </h1>
+          {Boolean(
+            subject.course_code &&
+            !subject.name.replace(/\s+/g, '').toLowerCase().includes(subject.course_code.replace(/\s+/g, '').toLowerCase())
+          ) && (
+            <span className="workspace-course-code-pill" data-testid="workspace-course-code">
+              {subject.course_code}
+            </span>
+          )}
         </div>
 
         <div className="workspace-top-right">
@@ -1072,69 +1082,71 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               </div>
             </div>
           ) : messages.length === 0 ? (
-            <div className="empty-state-scroll-container">
-              <div className="empty-state-centered-box">
-                <div className="empty-state-brand-mark" aria-hidden="true">
-                  <EmptyStateIcon />
-                </div>
-                <h1 className="empty-state-heading" data-testid="empty-state-heading">
-                  What would you like to understand?
-                </h1>
-                <p className="empty-state-subtext">
-                  Ask about your course materials. Every answer starts with your selected sources.
-                </p>
+            <>
+              <div className="empty-state-scroll-container">
+                <div className="empty-state-centered-box">
+                  <div className="empty-state-brand-mark" aria-hidden="true">
+                    <EmptyStateIcon />
+                  </div>
+                  <h1 className="empty-state-heading" data-testid="empty-state-heading">
+                    What would you like to understand?
+                  </h1>
+                  <p className="empty-state-subtext">
+                    Ask about your course materials. Every answer starts with your selected sources.
+                  </p>
 
-                {/* Starter questions */}
-                {starterQuestions.length > 0 && (
-                  <div className="starter-chips-container" role="group" aria-label="Starter questions">
-                    {starterQuestions.map((sq, idx) => (
+                  {/* Starter questions */}
+                  {starterQuestions.length > 0 && (
+                    <div className="starter-chips-container" role="group" aria-label="Starter questions">
+                      {starterQuestions.map((sq, idx) => (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="starter-chip-btn"
+                          onClick={() => onSendMessage(sq)}
+                        >
+                          {sq}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {readySources.length === 0 && (
+                    <div className="workspace-no-sources-alert" role="status">
+                      <p>No ready sources in this notebook yet.</p>
                       <button
-                        key={idx}
                         type="button"
-                        className="starter-chip-btn"
-                        onClick={() => onSendMessage(sq)}
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setIsAddSourceOpen(true)}
                       >
-                        {sq}
+                        Add course materials
                       </button>
-                    ))}
-                  </div>
-                )}
-
-                {readySources.length === 0 && (
-                  <div className="workspace-no-sources-alert" role="status">
-                    <p>No ready sources in this notebook yet.</p>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setIsAddSourceOpen(true)}
-                    >
-                      Add course materials
-                    </button>
-                  </div>
-                )}
-
-                {/* Centered Composer in Empty State */}
-                <Composer
-                  question={question}
-                  setQuestion={setQuestion}
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (question.trim() && !chatLoading) {
-                      const q = question.trim();
-                      try {
-                        setQuestion('');
-                        await onSendMessage(q);
-                      } catch {
-                        setQuestion(q);
-                      }
-                    }
-                  }}
-                  loading={chatLoading}
-                  onStop={onStopGeneration}
-                  selectedSourceCount={selectedSourceIds.length}
-                />
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+
+              {/* Pinned Bottom Composer */}
+              <Composer
+                question={question}
+                setQuestion={setQuestion}
+                onSubmit={async (e) => {
+                  e.preventDefault();
+                  if (question.trim() && !chatLoading) {
+                    const q = question.trim();
+                    try {
+                      setQuestion('');
+                      await onSendMessage(q);
+                    } catch {
+                      setQuestion(q);
+                    }
+                  }
+                }}
+                loading={chatLoading}
+                onStop={onStopGeneration}
+                selectedSourceCount={selectedSourceIds.length}
+              />
+            </>
           ) : (
             <>
               <div className="thread-scroll-container">
@@ -1815,27 +1827,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <span className="tool-tile-label">Conventions</span>
                   {conventionMessageCount > 0 && <span className="tool-tile-count">{conventionMessageCount}</span>}
                 </button>
-                <button type="button" role="listitem" className="tool-tile tool-proof" disabled title="Coming soon">
-                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <polyline points="9 11 12 14 22 4" />
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                  </svg>
-                  <div className="tool-tile-text">
-                    <span className="tool-tile-label">Proof check</span>
-                    <span className="tool-tile-soon">Soon</span>
-                  </div>
-                </button>
-                <button type="button" role="listitem" className="tool-tile tool-trace" disabled title="Coming soon">
-                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <rect x="2" y="7" width="5" height="10" rx="1" />
-                    <rect x="9.5" y="7" width="5" height="10" rx="1" />
-                    <rect x="17" y="7" width="5" height="10" rx="1" />
-                  </svg>
-                  <div className="tool-tile-text">
-                    <span className="tool-tile-label">Trace</span>
-                    <span className="tool-tile-soon">Soon</span>
-                  </div>
-                </button>
+                {/* Proof check and Trace tiles return here once the features are implemented */}
               </div>
 
               {notes.length > 0 ? (

@@ -67,7 +67,6 @@ export const FileTypeIcon: React.FC<FileTypeIconProps> = ({ sourceType, classNam
           fontSize={fontSize}
           fontWeight="800"
           letterSpacing={letterSpacing}
-          fontFamily="var(--font-family-code)"
           fill="currentColor"
         >
           {config.label}
