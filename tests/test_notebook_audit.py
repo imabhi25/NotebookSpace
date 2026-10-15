@@ -74,16 +74,17 @@ def auth_user():
                 cur.execute("DELETE FROM users WHERE id = %s;", (user_id,))
 
 
-def test_50mb_upload_limit_enforcement(auth_user):
+def test_upload_size_limit_enforcement(auth_user, monkeypatch):
+    import api.main as main_module
+
     headers = auth_user["headers"]
-    # Create subject
-    subj_res = client.post("/subjects", json={"name": "50MB Test Subject"}, headers=headers)
+    subj_res = client.post("/subjects", json={"name": "Size Limit Subject"}, headers=headers)
     assert subj_res.status_code == 200
     subj_id = subj_res.json()["id"]
 
-    # Try uploading a file slightly over 50 MB (50 * 1024 * 1024 + 1024 bytes)
-    # Using a sparse byte buffer with a PDF header so it's a 50+ MB payload
-    over_limit_data = b"%PDF-1.4\n" + b"0" * (50 * 1024 * 1024 + 500)
+    # The real limit is 100 MB; shrink it so the test doesn't build a 100 MB payload.
+    monkeypatch.setattr(main_module, "MAX_UPLOAD_SIZE_BYTES", 2 * 1024 * 1024)
+    over_limit_data = b"%PDF-1.4\n" + b"0" * (2 * 1024 * 1024 + 500)
     resp = client.post(
         f"/subjects/{subj_id}/sources/upload",
         files={"file": ("too_large.pdf", over_limit_data, "application/pdf")},
@@ -91,6 +92,7 @@ def test_50mb_upload_limit_enforcement(auth_user):
     )
     assert resp.status_code == 413
     assert "exceeds maximum allowed size" in resp.json()["detail"].lower()
+    assert "(2 mb)" in resp.json()["detail"].lower()
 
 
 def test_valid_large_pdf_over_10mb_upload(auth_user):

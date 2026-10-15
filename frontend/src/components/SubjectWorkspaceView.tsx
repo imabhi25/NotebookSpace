@@ -1,3 +1,4 @@
+import { PendingUpload } from '../uploads';
 import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
@@ -40,7 +41,10 @@ interface SubjectWorkspaceViewProps {
   onCreateConversation: () => Promise<void>;
   onRenameConversation: (convId: string, title: string) => Promise<void>;
   onDeleteConversation: (convId: string) => Promise<void>;
-  onUploadFiles: (files: File[]) => Promise<void>;
+  onUploadFiles: (files: File[]) => void | Promise<void>;
+  pendingUploads?: PendingUpload[];
+  onRetryUpload?: (uploadId: string) => void;
+  onDismissUpload?: (uploadId: string) => void;
   onPasteText: (title: string, text: string) => Promise<void>;
   onAddUrl: (url: string, title?: string) => Promise<void>;
   onRenameSource: (sourceId: string, title: string) => Promise<void>;
@@ -77,6 +81,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   onRenameConversation,
   onDeleteConversation,
   onUploadFiles,
+  pendingUploads = [],
+  onRetryUpload,
+  onDismissUpload,
   onPasteText,
   onAddUrl,
   onRenameSource,
@@ -105,6 +112,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [sidebarTab, setSidebarTab] = useState<'sources' | 'conversations'>('sources');
 
   // Right contextual panel tab: 'passage' | 'notes'
+  // Dropping files anywhere on the Sources panel uploads them.
+  const [isDraggingFiles, setIsDraggingFiles] = useState(false);
+  const dragDepth = useRef(0);
+  const hasFiles = (e: React.DragEvent) => Array.from(e.dataTransfer?.types || []).includes('Files');
+
   const [rightPanelTab, setRightPanelTab] = useState<'tools' | 'passage' | 'notes'>('tools');
 
   // Search queries
@@ -596,9 +608,42 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <aside
           className={`workspace-sidebar ${isLeftCollapsed ? 'panel-collapsed' : ''} ${
             isSidebarOpenMobile ? 'sidebar-open' : ''
-          }`}
+          } ${isDraggingFiles ? 'is-drop-target' : ''}`}
           aria-label="Course Sources and Chats"
+          onDragEnter={(e) => {
+            if (!hasFiles(e)) return;
+            e.preventDefault();
+            dragDepth.current += 1;
+            setIsDraggingFiles(true);
+          }}
+          onDragOver={(e) => {
+            if (hasFiles(e)) e.preventDefault();
+          }}
+          onDragLeave={(e) => {
+            if (!hasFiles(e)) return;
+            dragDepth.current = Math.max(0, dragDepth.current - 1);
+            if (dragDepth.current === 0) setIsDraggingFiles(false);
+          }}
+          onDrop={(e) => {
+            if (!hasFiles(e)) return;
+            e.preventDefault();
+            dragDepth.current = 0;
+            setIsDraggingFiles(false);
+            setSidebarTab('sources');
+            const dropped = Array.from(e.dataTransfer.files);
+            if (dropped.length > 0) void onUploadFiles(dropped);
+          }}
         >
+          {isDraggingFiles && (
+            <div className="sources-drop-overlay" aria-hidden="true">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span>Drop to add to this notebook</span>
+            </div>
+          )}
           {/* Sidebar Tab Header */}
           <div className="workspace-sidebar-header">
             <div className="sidebar-segment-switcher">
@@ -706,10 +751,56 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               )}
 
               <div className="sources-list-scroll">
-                {sources.length === 0 ? (
+                {pendingUploads.length > 0 && (
+                  <ul className="pending-uploads-ul" aria-label="Uploads in progress">
+                    {pendingUploads.map((u) => (
+                      <li key={u.id} className={`pending-upload-item ${u.error ? 'has-error' : ''}`}>
+                        <div className="pending-upload-top">
+                          <span className="pending-upload-name" title={u.name}>{u.name}</span>
+                          {u.error ? (
+                            <span className="pending-upload-actions">
+                              {onRetryUpload && !u.rejected && (
+                                <button type="button" className="btn-link" onClick={() => onRetryUpload(u.id)}>
+                                  Retry
+                                </button>
+                              )}
+                              {onDismissUpload && (
+                                <button
+                                  type="button"
+                                  className="pending-upload-dismiss"
+                                  onClick={() => onDismissUpload(u.id)}
+                                  aria-label={`Dismiss ${u.name}`}
+                                >
+                                  &times;
+                                </button>
+                              )}
+                            </span>
+                          ) : (
+                            <span className="pending-upload-percent">{u.progress}%</span>
+                          )}
+                        </div>
+                        {u.error ? (
+                          <p className="pending-upload-error" role="alert">{u.error}</p>
+                        ) : (
+                          <div
+                            className="pending-upload-bar"
+                            role="progressbar"
+                            aria-label={`Uploading ${u.name}`}
+                            aria-valuenow={u.progress}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                          >
+                            <span style={{ width: `${u.progress}%` }} />
+                          </div>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {sources.length === 0 && pendingUploads.length > 0 ? null : sources.length === 0 ? (
                   <div className="sidebar-empty-box"><EmptyStateIcon />
                     <p>No materials added yet.</p>
-                    <p className="subtext">Upload PDFs, notes, or web articles.</p>
+                    <p className="subtext">Drop files here or use Add sources.</p>
                   </div>
                 ) : filteredSources.length === 0 ? (
                   <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
@@ -788,7 +879,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     : ''}
                                 </span>
                               ) : s.status === 'processing' ? (
-                                <span className="status-processing">Processing...</span>
+                                <span className="status-processing">Reading…</span>
                               ) : (
                                 <span className="status-failed" title={s.error_message || ''}>
                                   Failed

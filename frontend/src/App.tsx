@@ -18,6 +18,7 @@ import {
 import { DashboardView } from './components/DashboardView';
 import { WorkspaceSkeleton } from './components/WorkspaceSkeleton';
 import { lazyView, preloadWhenIdle } from './lazyView';
+import { PendingUpload, uploadProblem } from './uploads';
 import { Sidebar } from './components/Sidebar';
 import { Composer } from './components/Composer';
 import { AssistantMessage } from './components/AssistantMessage';
@@ -316,25 +317,99 @@ export function App({
     }
   };
 
-  // Source upload / add handlers
-  const handleUploadFiles = async (files: File[]) => {
-    if (!activeSubject) return;
-    for (const f of files) {
-      try {
-        const newSrc = await api.uploadSource(activeSubject.id, f);
-        setSources((prev) => [newSrc, ...prev.filter((s) => s.id !== newSrc.id)]);
-        if (newSrc.status === 'ready') {
-          setSelectedSourceIds((prev) => [...prev, newSrc.id]);
-        } else if (newSrc.status === 'failed') {
-          throw new Error(newSrc.error_message || 'Processing failed');
-        }
-      } catch (err: any) {
-        throw err;
-      }
+  // Source upload / add handlers.
+  // Files upload in the background: each shows as a row in the Sources list with its own progress,
+  // then as a "Reading…" source until the server finishes, then ready (and selected).
+  const [pendingUploads, setPendingUploads] = useState<PendingUpload[]>([]);
+  const awaitingSelection = useRef<Set<string>>(new Set());
+
+  const runUpload = async (subjectId: string, item: PendingUpload) => {
+    try {
+      const created = await api.uploadSourceWithProgress(subjectId, item.file, (progress) =>
+        setPendingUploads((prev) => prev.map((u) => (u.id === item.id ? { ...u, progress } : u)))
+      );
+      setPendingUploads((prev) => prev.filter((u) => u.id !== item.id));
+      awaitingSelection.current.add(created.id);
+      setSources((prev) => [created, ...prev.filter((s) => s.id !== created.id)]);
+    } catch (err: any) {
+      setPendingUploads((prev) =>
+        prev.map((u) => (u.id === item.id ? { ...u, error: err?.message || 'Upload failed.' } : u))
+      );
     }
-    const sqs = await api.getStarterQuestions(activeSubject.id).catch(() => []);
-    setStarterQuestions(sqs);
   };
+
+  const handleUploadFiles = (files: File[]) => {
+    if (!activeSubject) return;
+    const subjectId = activeSubject.id;
+    const items: PendingUpload[] = files.map((file) => {
+      const problem = uploadProblem(file);
+      return {
+        id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        name: file.name,
+        size: file.size,
+        progress: 0,
+        error: problem,
+        rejected: Boolean(problem),
+        file,
+      };
+    });
+    setPendingUploads((prev) => [...items, ...prev]);
+
+    // Three at a time keeps a free-tier server responsive.
+    const queue = items.filter((i) => !i.error);
+    const worker = async () => {
+      for (let next = queue.shift(); next; next = queue.shift()) {
+        await runUpload(subjectId, next);
+      }
+    };
+    void Promise.all([worker(), worker(), worker()]);
+  };
+
+  const handleRetryUpload = (uploadId: string) => {
+    if (!activeSubject) return;
+    const item = pendingUploads.find((u) => u.id === uploadId);
+    if (!item || item.rejected) return;
+    const fresh = { ...item, error: null, progress: 0 };
+    setPendingUploads((prev) => prev.map((u) => (u.id === uploadId ? fresh : u)));
+    void runUpload(activeSubject.id, fresh);
+  };
+
+  const handleDismissUpload = (uploadId: string) => {
+    setPendingUploads((prev) => prev.filter((u) => u.id !== uploadId));
+  };
+
+  // While any source is still being read, check on it every two seconds.
+  const hasProcessingSources = sources.some((s) => s.status === 'processing');
+  useEffect(() => {
+    if (!activeSubject || !hasProcessingSources) return;
+    const subjectId = activeSubject.id;
+    const timer = window.setInterval(async () => {
+      try {
+        const latest = await api.getSources(subjectId);
+        setSources(latest);
+        const finished = latest.filter(
+          (s) => awaitingSelection.current.has(s.id) && s.status !== 'processing'
+        );
+        if (finished.length > 0) {
+          finished.forEach((s) => awaitingSelection.current.delete(s.id));
+          const readyIds = finished.filter((s) => s.status === 'ready').map((s) => s.id);
+          if (readyIds.length > 0) {
+            setSelectedSourceIds((prev) => [...prev, ...readyIds.filter((id) => !prev.includes(id))]);
+            const sqs = await api.getStarterQuestions(subjectId).catch(() => []);
+            setStarterQuestions(sqs);
+          }
+        }
+      } catch {
+        // try again on the next tick
+      }
+    }, 2000);
+    return () => window.clearInterval(timer);
+  }, [activeSubject?.id, hasProcessingSources]);
+
+  // Uploads belong to the notebook they were started in.
+  useEffect(() => {
+    setPendingUploads([]);
+  }, [activeSubject?.id]);
 
   const handlePasteText = async (title: string, text: string) => {
     if (!activeSubject) return;
@@ -1092,6 +1167,9 @@ export function App({
               onRenameConversation={handleRenameConversation}
               onDeleteConversation={handleDeleteConversation}
               onUploadFiles={handleUploadFiles}
+              pendingUploads={pendingUploads}
+              onRetryUpload={handleRetryUpload}
+              onDismissUpload={handleDismissUpload}
               onPasteText={handlePasteText}
               onAddUrl={handleAddUrl}
               onRenameSource={handleRenameSource}

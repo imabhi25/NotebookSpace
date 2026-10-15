@@ -287,6 +287,45 @@ export const api = {
     });
   },
 
+  /**
+   * Upload one file and report byte progress. The server answers as soon as the file is saved
+   * (status "processing") and reads it in the background; poll the sources list until it settles.
+   */
+  async uploadSourceWithProgress(
+    subjectId: string,
+    file: File,
+    onProgress: (percent: number) => void
+  ): Promise<Source> {
+    await getOrInitToken();
+    return new Promise<Source>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', `${API_BASE_URL}/subjects/${subjectId}/sources/upload?background=true`);
+      const token = getToken();
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        let body: any = null;
+        try {
+          body = JSON.parse(xhr.responseText);
+        } catch {
+          // fall through to the status-based message
+        }
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve(body as Source);
+        } else {
+          const detail = typeof body?.detail === 'string' ? body.detail : null;
+          reject(new Error(detail || (xhr.status === 413 ? 'File is too large.' : `Upload failed (${xhr.status}).`)));
+        }
+      };
+      xhr.onerror = () => reject(new Error('Network error. Check your connection and try again.'));
+      const form = new FormData();
+      form.append('file', file);
+      xhr.send(form);
+    });
+  },
+
   async pasteSource(subjectId: string, title: string, text: string): Promise<Source> {
     return apiFetch<Source>(`/subjects/${subjectId}/sources/paste`, {
       method: 'POST',

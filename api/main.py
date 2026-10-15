@@ -6,11 +6,12 @@ import math
 import os
 import re
 from pathlib import Path
+import tempfile
 import time
 from typing import Any, List, Optional
 from uuid import UUID
 
-from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
@@ -66,6 +67,7 @@ from ingestion.parsers import (
     parse_pdf_source,
     parse_text_source,
 )
+from ingestion.file_types import BINARY_TYPES, LEGACY_HINTS, parse_uploaded_file, source_type_for
 from ingestion.pipeline import ingest_pdf
 
 logger = logging.getLogger("course_assistant.api")
@@ -93,8 +95,9 @@ app.add_middleware(
     expose_headers=["Retry-After"],
 )
 
-MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(50 * 1024 * 1024)))  # 50 MB for PDF
-MAX_TEXT_SIZE_BYTES = int(os.getenv("MAX_TEXT_SIZE_BYTES", str(10 * 1024 * 1024)))      # 10 MB for TXT/MD
+MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(100 * 1024 * 1024)))  # 100 MB: PDF, PPTX, DOCX, XLSX
+MAX_TEXT_SIZE_BYTES = int(os.getenv("MAX_TEXT_SIZE_BYTES", str(20 * 1024 * 1024)))      # 20 MB: text, markdown, CSV, HTML, code
+UPLOAD_READ_CHUNK = 1024 * 1024
 
 # Demo mode in-memory rate limiter tracking timestamps per IP
 ask_rate_limit_history: dict[str, list[float]] = defaultdict(list)
@@ -882,6 +885,83 @@ def _process_and_store_source(
     )
 
 
+def _upload_source_type(filename: str) -> str:
+    """Return the source_type for an upload, or raise a 400 that says what to do instead."""
+    ext = Path(filename).suffix.lower()
+    if ext in LEGACY_HINTS:
+        raise HTTPException(status_code=400, detail=LEGACY_HINTS[ext])
+    source_type = source_type_for(filename)
+    if source_type is None:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Unsupported file type. Upload PDF, PowerPoint (.pptx), Word (.docx), Excel (.xlsx), CSV, "
+                "text, Markdown, HTML or code files."
+            ),
+        )
+    return source_type
+
+
+async def _save_upload_to_temp(file: UploadFile, source_type: str) -> tuple[str, str]:
+    """Stream an upload to a temporary file, enforcing the size limit as it arrives.
+
+    Returns (path, sha256). The caller owns the file and must delete it.
+    """
+    max_size = MAX_UPLOAD_SIZE_BYTES if source_type in BINARY_TYPES else MAX_TEXT_SIZE_BYTES
+    digest = hashlib.sha256()
+    size = 0
+    suffix = Path(file.filename or "").suffix.lower()
+    handle = tempfile.NamedTemporaryFile(delete=False, suffix=suffix, prefix="notebookspace-upload-")
+    try:
+        with handle:
+            while True:
+                chunk = await file.read(UPLOAD_READ_CHUNK)
+                if not chunk:
+                    break
+                size += len(chunk)
+                if size > max_size:
+                    raise HTTPException(
+                        status_code=413,
+                        detail=f"File exceeds maximum allowed size ({max_size // (1024 * 1024)} MB).",
+                    )
+                digest.update(chunk)
+                handle.write(chunk)
+    except BaseException:
+        Path(handle.name).unlink(missing_ok=True)
+        raise
+    return handle.name, digest.hexdigest()
+
+
+def _ingest_saved_upload(
+    user_id: str,
+    subject_id: str,
+    source_id: str,
+    version: int,
+    path: str,
+    filename: str,
+    file_hash: str | None = None,
+) -> None:
+    """Parse, chunk, embed and store a saved upload; marks the source ready or failed and removes the file."""
+    try:
+        pages = parse_uploaded_file(path, filename)
+        _process_and_store_source(
+            user_id=user_id,
+            subject_id=subject_id,
+            source_id=source_id,
+            version=version,
+            pages=pages,
+        )
+        if file_hash is not None:
+            update_source_status(
+                source_id=source_id, status="ready", file_hash=file_hash, version=version, file_name=filename
+            )
+    except Exception as e:
+        logger.error(f"Failed to ingest source {filename}: {e}", exc_info=True)
+        update_source_status(source_id=source_id, status="failed", error_message=str(e))
+    finally:
+        Path(path).unlink(missing_ok=True)
+
+
 def _stale_processing_minutes() -> int:
     try:
         return max(1, int(os.getenv("STALE_PROCESSING_MINUTES", "10")))
@@ -924,7 +1004,9 @@ def get_sources_endpoint(
 @app.post("/subjects/{subject_id}/sources/upload")
 async def upload_source_endpoint(
     subject_id: str,
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
+    background: bool = Query(False, description="Return right away and process the file after responding."),
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
@@ -939,68 +1021,50 @@ async def upload_source_endpoint(
         )
 
     filename = file.filename or "uploaded_file"
-    ext = Path(filename).suffix.lower()
-
-    if ext not in (".pdf", ".txt", ".md", ".markdown"):
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported format. Only PDF, TXT, and Markdown (.md) files are supported.",
-        )
-
-    content = await file.read()
-    max_size = MAX_UPLOAD_SIZE_BYTES if ext == ".pdf" else MAX_TEXT_SIZE_BYTES
-    if len(content) > max_size:
-        limit_mb = max_size // (1024 * 1024)
-        raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size ({limit_mb} MB).")
-
-    file_hash = hashlib.sha256(content).hexdigest()
-
-    # Detect duplicates within subject
-    dup = check_duplicate_source(
-        user_id=current_user["id"],
-        subject_id=subject_id,
-        file_name=filename,
-        file_hash=file_hash,
-    )
-    if dup:
-        raise HTTPException(
-            status_code=409,
-            detail=f"A source with this name or content ('{dup['title']}') already exists in this subject.",
-        )
-
-    source_type = "pdf" if ext == ".pdf" else "markdown" if ext in (".md", ".markdown") else "txt"
-
-    # Create source in 'processing' state
-    src = create_source(
-        user_id=current_user["id"],
-        subject_id=subject_id,
-        title=filename,
-        file_name=filename,
-        source_type=source_type,
-        file_hash=file_hash,
-        status="processing",
-    )
+    source_type = _upload_source_type(filename)
+    path, file_hash = await _save_upload_to_temp(file, source_type)
 
     try:
-        if ext == ".pdf":
-            stream = io.BytesIO(content)
-            pages = parse_pdf_source(source=stream, file_name=filename)
-        else:
-            text_str = content.decode("utf-8", errors="replace")
-            pages = parse_text_source(content=text_str, file_name=filename)
-
-        _process_and_store_source(
+        dup = check_duplicate_source(
             user_id=current_user["id"],
             subject_id=subject_id,
-            source_id=src["id"],
-            version=1,
-            pages=pages,
+            file_name=filename,
+            file_hash=file_hash,
         )
-        return get_source_by_id(user_id=current_user["id"], source_id=src["id"])
-    except Exception as e:
-        logger.error(f"Failed to ingest source {filename}: {e}", exc_info=True)
-        update_source_status(source_id=src["id"], status="failed", error_message=str(e))
-        return get_source_by_id(user_id=current_user["id"], source_id=src["id"])
+        if dup:
+            raise HTTPException(
+                status_code=409,
+                detail=f"A source with this name or content ('{dup['title']}') already exists in this subject.",
+            )
+
+        src = create_source(
+            user_id=current_user["id"],
+            subject_id=subject_id,
+            title=filename,
+            file_name=filename,
+            source_type=source_type,
+            file_hash=file_hash,
+            status="processing",
+        )
+    except BaseException:
+        Path(path).unlink(missing_ok=True)
+        raise
+
+    ingest_args = dict(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        source_id=src["id"],
+        version=1,
+        path=path,
+        filename=filename,
+    )
+    if background:
+        # The client shows the row as "Reading…" and polls until it turns ready or failed.
+        background_tasks.add_task(_ingest_saved_upload, **ingest_args)
+        return src
+
+    _ingest_saved_upload(**ingest_args)
+    return get_source_by_id(user_id=current_user["id"], source_id=src["id"])
 
 
 @app.post("/subjects/{subject_id}/sources/paste")
@@ -1222,48 +1286,20 @@ async def replace_source_endpoint(
         raise HTTPException(status_code=404, detail="Source not found.")
 
     filename = file.filename or src["file_name"]
-    ext = Path(filename).suffix.lower()
-    if ext not in (".pdf", ".txt", ".md", ".markdown"):
-        raise HTTPException(status_code=400, detail="Only PDF, TXT, and Markdown files are supported.")
-
-    content = await file.read()
-    max_size = MAX_UPLOAD_SIZE_BYTES if ext == ".pdf" else MAX_TEXT_SIZE_BYTES
-    if len(content) > max_size:
-        limit_mb = max_size // (1024 * 1024)
-        raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size ({limit_mb} MB).")
-
-    file_hash = hashlib.sha256(content).hexdigest()
-    new_version = src["version"] + 1
+    source_type = _upload_source_type(filename)
+    path, file_hash = await _save_upload_to_temp(file, source_type)
 
     update_source_status(source_id=source_id, status="processing", error_message=None)
-
-    try:
-        if ext == ".pdf":
-            stream = io.BytesIO(content)
-            pages = parse_pdf_source(source=stream, file_name=filename)
-        else:
-            text_str = content.decode("utf-8", errors="replace")
-            pages = parse_text_source(content=text_str, file_name=filename)
-
-        _process_and_store_source(
-            user_id=current_user["id"],
-            subject_id=subject_id,
-            source_id=source_id,
-            version=new_version,
-            pages=pages,
-        )
-        update_source_status(
-            source_id=source_id,
-            status="ready",
-            file_hash=file_hash,
-            version=new_version,
-            file_name=filename,
-        )
-        return get_source_by_id(user_id=current_user["id"], source_id=source_id)
-    except Exception as e:
-        logger.error(f"Failed to replace source {source_id}: {e}", exc_info=True)
-        update_source_status(source_id=source_id, status="failed", error_message=str(e))
-        return get_source_by_id(user_id=current_user["id"], source_id=source_id)
+    _ingest_saved_upload(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        source_id=source_id,
+        version=src["version"] + 1,
+        path=path,
+        filename=filename,
+        file_hash=file_hash,
+    )
+    return get_source_by_id(user_id=current_user["id"], source_id=source_id)
 
 
 # ============================================================================

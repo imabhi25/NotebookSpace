@@ -59,6 +59,10 @@
   --source-pdf: oklch(0.74 0.13 25);
   --source-text: oklch(0.76 0.1 250);
   --source-url: oklch(0.76 0.11 155);
+  --source-slides: oklch(0.78 0.12 55);
+  --source-doc: oklch(0.74 0.11 265);
+  --source-sheet: oklch(0.76 0.12 145);
+  --source-code: oklch(0.76 0.1 300);
   --tool-well-mix: 20%;
   --brand-gradient: linear-gradient(135deg, var(--tool-passage), var(--tool-notes));
 
@@ -371,6 +375,10 @@
   --source-pdf: oklch(0.55 0.17 25);
   --source-text: oklch(0.5 0.14 250);
   --source-url: oklch(0.5 0.13 155);
+  --source-slides: oklch(0.56 0.15 50);
+  --source-doc: oklch(0.48 0.16 265);
+  --source-sheet: oklch(0.48 0.13 145);
+  --source-code: oklch(0.5 0.15 300);
   --tool-well-mix: 13%;
 
   --shadow-ink: oklch(0.3 0.02 265);

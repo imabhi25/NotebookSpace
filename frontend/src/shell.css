@@ -1486,3 +1486,148 @@ html.theme-switching *::after {
   color: var(--tool-trace);
 }
 
+
+/* More source types get their own badge colours. */
+.workspace-source-item .source-type-badge-icon.badge-pptx {
+  background: color-mix(in oklab, var(--source-slides) var(--tool-well-mix), var(--color-surface));
+  color: var(--source-slides);
+}
+
+.workspace-source-item .source-type-badge-icon.badge-docx {
+  background: color-mix(in oklab, var(--source-doc) var(--tool-well-mix), var(--color-surface));
+  color: var(--source-doc);
+}
+
+.workspace-source-item .source-type-badge-icon.badge-xlsx {
+  background: color-mix(in oklab, var(--source-sheet) var(--tool-well-mix), var(--color-surface));
+  color: var(--source-sheet);
+}
+
+.workspace-source-item .source-type-badge-icon.badge-csv {
+  background: color-mix(in oklab, var(--source-sheet) var(--tool-well-mix), var(--color-surface));
+  color: var(--source-sheet);
+}
+
+.workspace-source-item .source-type-badge-icon.badge-code {
+  background: color-mix(in oklab, var(--source-code) var(--tool-well-mix), var(--color-surface));
+  color: var(--source-code);
+}
+
+.workspace-source-item .source-type-badge-icon.badge-html {
+  background: color-mix(in oklab, var(--source-url) var(--tool-well-mix), var(--color-surface));
+  color: var(--source-url);
+}
+
+/* ---------- Uploads: progress rows and the Sources drop target ---------- */
+.workspace-sidebar {
+  position: relative;
+}
+
+.sources-drop-overlay {
+  position: absolute;
+  inset: var(--space-2);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  border: var(--border-width-dash) dashed var(--color-accent-border);
+  border-radius: var(--radius-lg);
+  background: color-mix(in oklab, var(--color-accent) 10%, var(--color-surface));
+  color: var(--color-accent-bright);
+  font-size: var(--type-body);
+  pointer-events: none;
+  animation: fade-in var(--motion-fast) var(--motion-ease-out);
+}
+
+.pending-uploads-ul {
+  list-style: none;
+  margin: 0 0 var(--space-2);
+  padding: 0 var(--space-2);
+  display: grid;
+  gap: var(--space-1);
+}
+
+.pending-upload-item {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  animation: content-rise var(--motion-content) var(--motion-ease-out);
+}
+
+.pending-upload-item.has-error {
+  background: var(--color-danger-surface);
+}
+
+.pending-upload-top {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.pending-upload-name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--type-small);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pending-upload-percent {
+  font-size: var(--type-caption);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pending-upload-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pending-upload-dismiss {
+  border: none;
+  background: var(--color-transparent);
+  color: var(--color-text-secondary);
+  font-size: var(--type-heading);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.pending-upload-bar {
+  height: var(--size-3);
+  border-radius: var(--radius-pill);
+  background: var(--color-surface-active);
+  overflow: hidden;
+}
+
+.pending-upload-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brand-gradient);
+  transition: width var(--motion-fast) var(--motion-ease);
+}
+
+.pending-upload-error {
+  margin: 0;
+  font-size: var(--type-caption);
+  color: var(--color-danger-text);
+}
+
+/* A source the server is still reading pulses gently instead of showing a spinner. */
+.workspace-source-item .status-processing {
+  color: var(--color-accent-bright);
+  animation: reading-pulse var(--motion-pulse) var(--motion-ease) infinite alternate;
+}
+
+@keyframes reading-pulse {
+  from { opacity: 1; }
+  to { opacity: var(--opacity-quiet); }
+}

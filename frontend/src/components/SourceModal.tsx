@@ -1,15 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
-
-export interface FileUploadResult {
-  filename: string;
-  status: 'added' | 'failed' | 'skipped';
-  reason?: string;
-}
+import { ACCEPT_ATTRIBUTE, MAX_DOCUMENT_MB } from '../uploads';
 
 interface SourceModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onUploadFiles: (files: File[]) => Promise<void>;
+  onUploadFiles: (files: File[]) => void | Promise<void>;
   onPasteText: (title: string, text: string) => Promise<void>;
   onAddUrl: (url: string, title?: string) => Promise<void>;
 }
@@ -24,9 +19,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   const [tab, setTab] = useState<'upload' | 'paste' | 'url'>('upload');
 
   // Upload tab state
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const [uploadResults, setUploadResults] = useState<FileUploadResult[] | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -45,8 +38,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   // Focus trap and Escape key handling
   useEffect(() => {
     if (!isOpen) {
-      setUploadResults(null);
-      setSelectedFiles([]);
       setError(null);
       // A link is never a draft worth keeping: stale values once saved a page under another page's title.
       setUrlInput('');
@@ -106,19 +97,25 @@ export const SourceModal: React.FC<SourceModalProps> = ({
     setIsDragging(false);
   };
 
+  // Picking or dropping files starts the upload right away; progress shows in the Sources list.
+  const startUpload = (files: File[]) => {
+    if (files.length === 0) return;
+    void onUploadFiles(files);
+    onClose();
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      setSelectedFiles(Array.from(e.dataTransfer.files));
-      setUploadResults(null);
+      startUpload(Array.from(e.dataTransfer.files));
     }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
-      setSelectedFiles(Array.from(e.target.files));
-      setUploadResults(null);
+      startUpload(Array.from(e.target.files));
+      e.target.value = '';
     }
   };
 
@@ -128,61 +125,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
     setLoading(true);
 
     try {
-      if (tab === 'upload') {
-        if (selectedFiles.length === 0) {
-          throw new Error('Please select at least one file to upload.');
-        }
-
-        const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
-        const results: FileUploadResult[] = [];
-
-        for (const file of selectedFiles) {
-          if (file.size > MAX_UPLOAD_SIZE) {
-            results.push({
-              filename: file.name,
-              status: 'failed',
-              reason: `File exceeds 50 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`,
-            });
-            continue;
-          }
-
-          const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-          if (!['.pdf', '.txt', '.md', '.markdown'].includes(ext)) {
-            results.push({
-              filename: file.name,
-              status: 'failed',
-              reason: 'Unsupported format. Only PDF, TXT, and Markdown (.md) files are supported.',
-            });
-            continue;
-          }
-
-          try {
-            await onUploadFiles([file]);
-            results.push({
-              filename: file.name,
-              status: 'added',
-            });
-          } catch (err: any) {
-            const errMsg = err.message || 'Upload failed.';
-            if (errMsg.toLowerCase().includes('already exists')) {
-              results.push({
-                filename: file.name,
-                status: 'skipped',
-                reason: errMsg,
-              });
-            } else {
-              results.push({
-                filename: file.name,
-                status: 'failed',
-                reason: errMsg,
-              });
-            }
-          }
-        }
-
-        setUploadResults(results);
-        return; // Keep dialog open so user sees per-file result rows
-      } else if (tab === 'paste') {
+      if (tab === 'paste') {
         if (!pasteTitle.trim()) throw new Error('Please enter a title for the pasted content.');
         if (!pasteText.trim()) throw new Error('Please enter or paste the text content.');
         await onPasteText(pasteTitle.trim(), pasteText.trim());
@@ -204,8 +147,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   };
 
   const handleDismissDialog = () => {
-    setUploadResults(null);
-    setSelectedFiles([]);
     onClose();
   };
 
@@ -242,7 +183,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               setError(null);
             }}
           >
-            File Uploads
+            Upload files
           </button>
           <button
             type="button"
@@ -252,7 +193,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               setError(null);
             }}
           >
-            Paste Text
+            Paste text
           </button>
           <button
             type="button"
@@ -271,91 +212,44 @@ export const SourceModal: React.FC<SourceModalProps> = ({
 
           {/* 1. UPLOAD TAB */}
           {tab === 'upload' && (
-            <div>
-              {uploadResults ? (
-                /* Per-file results view after batch upload */
-                <div className="upload-results-panel" data-testid="upload-results-panel">
-                  <div className="upload-results-header">
-                    <h4>Upload Results</h4>
-                    <span className="upload-results-summary">
-                      {uploadResults.filter((r) => r.status === 'added').length} of {uploadResults.length} files added
-                    </span>
-                  </div>
-                  <div className="upload-results-list" data-testid="upload-results-list">
-                    {uploadResults.map((res, rIdx) => (
-                      <div
-                        key={rIdx}
-                        className={`upload-result-item status-${res.status}`}
-                        data-testid={`upload-result-${rIdx}`}
-                      >
-                        <div className="upload-result-info">
-                          <span className="upload-result-name">{res.filename}</span>
-                          {res.reason && (
-                            <span className="upload-result-reason" title={res.reason}>
-                              {res.reason}
-                            </span>
-                          )}
-                        </div>
-                        <span className={`upload-status-badge badge-${res.status}`}>
-                          {res.status === 'added'
-                            ? '✓ Added'
-                            : res.status === 'skipped'
-                            ? '⊘ Skipped'
-                            : '✕ Failed'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <>
-                  <div
-                    className={`drop-zone ${isDragging ? 'drop-zone-active' : ''}`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                    onClick={() => fileInputRef.current?.click()}
-                    role="button"
-                    tabIndex={0}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept=".pdf,.txt,.md,.markdown"
-                      style={{ display: 'none' }}
-                      onChange={handleFileChange}
-                    />
-                    <div className="drop-zone-icon" aria-hidden="true">
-                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                        <polyline points="17 8 12 3 7 8" />
-                        <line x1="12" y1="3" x2="12" y2="15" />
-                      </svg>
-                    </div>
-                    <p className="drop-zone-text">
-                      Drag and drop files here, or <span className="drop-zone-link">browse</span>
-                    </p>
-                    <p className="drop-zone-hint">
-                      Supports PDF, Plain Text (.txt), and Markdown (.md). Max 50 MB per file.
-                    </p>
-                  </div>
-
-                  {selectedFiles.length > 0 && (
-                    <div className="selected-files-list">
-                      <h4 className="selected-files-title">Selected files ({selectedFiles.length}):</h4>
-                      <ul>
-                        {selectedFiles.map((file, idx) => (
-                          <li key={idx} className="selected-file-row">
-                            <span className="file-name">{file.name}</span>
-                            <span className="file-size">{(file.size / 1024).toFixed(0)} KB</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
-                </>
-              )}
+            <div
+              className={`drop-zone ${isDragging ? 'drop-zone-active' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  fileInputRef.current?.click();
+                }
+              }}
+              role="button"
+              tabIndex={0}
+              aria-label="Choose files to upload"
+            >
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={ACCEPT_ATTRIBUTE}
+                style={{ display: 'none' }}
+                onChange={handleFileChange}
+                data-testid="source-file-input"
+              />
+              <div className="drop-zone-icon" aria-hidden="true">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+              </div>
+              <p className="drop-zone-text">
+                Drop files here or <span className="drop-zone-link">choose files</span>
+              </p>
+              <p className="drop-zone-hint">
+                PDF, PowerPoint, Word, Excel, CSV, text, Markdown, HTML and code · up to {MAX_DOCUMENT_MB} MB each
+              </p>
             </div>
           )}
 
@@ -419,37 +313,26 @@ export const SourceModal: React.FC<SourceModalProps> = ({
             </div>
           )}
 
-          <div className="modal-actions">
-            {uploadResults ? (
+          {tab !== 'upload' && (
+            <div className="modal-actions">
               <button
                 type="button"
-                className="btn btn-primary"
+                className="btn btn-secondary"
                 onClick={handleDismissDialog}
-                data-testid="upload-results-done-btn"
+                disabled={loading}
               >
-                Done
+                Cancel
               </button>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={handleDismissDialog}
-                  disabled={loading}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={loading || (tab === 'upload' && selectedFiles.length === 0)}
-                  data-testid="submit-add-source-btn"
-                >
-                  {loading ? 'Processing & Ingesting...' : 'Add Source'}
-                </button>
-              </>
-            )}
-          </div>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={loading}
+                data-testid="submit-add-source-btn"
+              >
+                {loading ? 'Adding…' : 'Add Source'}
+              </button>
+            </div>
+          )}
         </form>
       </div>
     </div>
