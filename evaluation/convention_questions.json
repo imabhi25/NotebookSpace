@@ -1,0 +1,103 @@
+[
+  {
+    "id": "c_res1",
+    "question": "When is Assignment 1 due according to the latest course updates?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 3
+      },
+      {
+        "file": "announcement_update.pdf",
+        "page": 1
+      }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "announcement_update.pdf"
+    ],
+    "expected_resolution": {
+      "current_file": "announcement_update.pdf",
+      "basis": "newer_source_explicit_override"
+    },
+    "expected_answer_contains": [
+      [
+        "October 21",
+        "Oct 21"
+      ]
+    ]
+  },
+  {
+    "id": "c_res2",
+    "question": "What is the daily penalty rate and maximum allowable late days for assignment submissions according to the latest course updates?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 2
+      },
+      {
+        "file": "announcement_update.pdf",
+        "page": 1
+      }
+    ],
+    "expected_conflict_files": [
+      "syllabus.pdf",
+      "announcement_update.pdf"
+    ],
+    "expected_resolution": {
+      "current_file": "announcement_update.pdf",
+      "basis": "newer_source_explicit_override"
+    },
+    "expected_answer_contains": [
+      "10%"
+    ]
+  },
+  {
+    "id": "conv_mismatch_1",
+    "question": "What is the first or starting index of an array in the tutorial exercises compared to the lecture pseudocode?",
+    "type": "conflicting",
+    "expected_sources": [
+      {
+        "file": "tutorial_02_arrays.pdf",
+        "page": 1
+      },
+      {
+        "file": "lecture_algorithms_math_code.pdf",
+        "page": 1
+      }
+    ],
+    "expected_conflict_files": [
+      "tutorial_02_arrays.pdf",
+      "lecture_algorithms_math_code.pdf"
+    ],
+    "expected_convention_mismatch": {
+      "topic": "array_indexing"
+    },
+    "expected_conventions": [
+      {
+        "topic": "array_indexing"
+      }
+    ],
+    "expected_answer_contains": [
+      "1-indexed",
+      "0-indexed"
+    ]
+  },
+  {
+    "id": "conv_zero_1",
+    "question": "What is the official university email address for Dr. Alex Mercer?",
+    "type": "single_page",
+    "expected_sources": [
+      {
+        "file": "syllabus.pdf",
+        "page": 1
+      }
+    ],
+    "expected_conventions": [],
+    "expected_answer_contains": [
+      "amercer@example.edu"
+    ]
+  }
+]

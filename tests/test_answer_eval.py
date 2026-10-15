@@ -455,3 +455,23 @@ def test_evaluate_answering_sleep_between_questions(tmp_path: Path):
     delete_document(doc_name)
 
 
+def test_evaluate_answering_conventions_and_resolution(tmp_path: Path):
+    """Test evaluate_answering evaluates expected_resolution, expected_conventions, and expected_convention_mismatch."""
+    q_file = Path(__file__).resolve().parent.parent / "evaluation" / "convention_questions.json"
+    assert q_file.exists()
+
+    with open(q_file, "r", encoding="utf-8") as f:
+        questions = json.load(f)
+
+    assert len(questions) == 4
+    # Verify our eval questions cover conflict resolution, convention mismatch, and zero conventions
+    has_res = any("expected_resolution" in q for q in questions)
+    has_mismatch = any("expected_convention_mismatch" in q for q in questions)
+    has_zero_conv = any("expected_conventions" in q and len(q["expected_conventions"]) == 0 for q in questions)
+
+    assert has_res, "Must have expected_resolution question"
+    assert has_mismatch, "Must have expected_convention_mismatch question"
+    assert has_zero_conv, "Must have question expecting zero conventions"
+
+
+

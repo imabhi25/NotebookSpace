@@ -1092,6 +1092,8 @@ def save_message(
     source_versions: dict[str, int] | None = None,
     tokens: dict[str, int] | None = None,
     latency: float = 0.0,
+    conventions: list[dict[str, Any]] | None = None,
+    convention_mismatches: list[dict[str, Any]] | None = None,
     db_url: str | None = None,
 ) -> dict[str, Any]:
     with get_connection(db_url) as conn:
@@ -1102,16 +1104,19 @@ def save_message(
                     INSERT INTO messages (
                         conversation_id, user_id, role, content, model,
                         citations, conflicts, conflict_detected, abstained, abstain_reason,
-                        retrieved, selected_source_ids, source_versions, tokens, latency
+                        retrieved, selected_source_ids, source_versions, tokens, latency,
+                        conventions, convention_mismatches
                     )
                     VALUES (
                         %s, %s, %s, %s, %s,
                         %s::jsonb, %s::jsonb, %s, %s, %s,
-                        %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s
+                        %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s,
+                        %s::jsonb, %s::jsonb
                     )
                     RETURNING id, conversation_id, user_id, role, content, model,
                               citations, conflicts, conflict_detected, abstained, abstain_reason,
-                              retrieved, selected_source_ids, source_versions, tokens, latency, created_at;
+                              retrieved, selected_source_ids, source_versions, tokens, latency,
+                              conventions, convention_mismatches, created_at;
                     """,
                     (
                         str(conversation_id),
@@ -1129,6 +1134,8 @@ def save_message(
                         json.dumps(source_versions or {}),
                         json.dumps(tokens or {"input": 0, "output": 0, "total": 0}),
                         latency,
+                        json.dumps(conventions or []),
+                        json.dumps(convention_mismatches or []),
                     ),
                 )
                 row = cur.fetchone()
@@ -1154,7 +1161,9 @@ def save_message(
                     "source_versions": row[13] if isinstance(row[13], dict) else json.loads(row[13]),
                     "tokens": row[14] if isinstance(row[14], dict) else json.loads(row[14]),
                     "latency": row[15],
-                    "created_at": row[16].isoformat(),
+                    "conventions": row[16] if isinstance(row[16], list) else json.loads(row[16] or "[]"),
+                    "convention_mismatches": row[17] if isinstance(row[17], list) else json.loads(row[17] or "[]"),
+                    "created_at": row[18].isoformat(),
                 }
 
 
@@ -1170,7 +1179,8 @@ def get_messages_for_conversation(
                 SELECT 
                     id, conversation_id, user_id, role, content, model,
                     citations, conflicts, conflict_detected, abstained, abstain_reason,
-                    retrieved, selected_source_ids, source_versions, tokens, latency, created_at
+                    retrieved, selected_source_ids, source_versions, tokens, latency,
+                    conventions, convention_mismatches, created_at
                 FROM messages
                 WHERE conversation_id = %s AND user_id = %s
                 ORDER BY created_at ASC;
@@ -1197,7 +1207,9 @@ def get_messages_for_conversation(
                     "source_versions": r[13] if isinstance(r[13], dict) else json.loads(r[13]),
                     "tokens": r[14] if isinstance(r[14], dict) else json.loads(r[14]),
                     "latency": r[15],
-                    "created_at": r[16].isoformat(),
+                    "conventions": r[16] if isinstance(r[16], list) else json.loads(r[16] or "[]"),
+                    "convention_mismatches": r[17] if isinstance(r[17], list) else json.loads(r[17] or "[]"),
+                    "created_at": r[18].isoformat(),
                 }
                 for r in rows
             ]

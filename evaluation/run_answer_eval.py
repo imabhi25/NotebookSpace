@@ -245,6 +245,44 @@ def evaluate_answering(
                     "False positive: conflict reported on non-conflicting question."
                 )
 
+        # Check expected conflict resolution
+        if "expected_resolution" in q:
+            exp_res = q["expected_resolution"]
+            exp_curr = Path(exp_res.get("current_file", "")).name.lower()
+            conflicts = res.get("conflicts", [])
+            matched_res = False
+            for conf in conflicts:
+                r = conf.get("resolution")
+                if r and Path(r.get("current_file", "")).name.lower() == exp_curr:
+                    if not exp_res.get("basis") or r.get("basis") == exp_res.get("basis"):
+                        matched_res = True
+                        break
+            if not matched_res:
+                question_failures.append(
+                    f"Expected conflict resolution current_file={exp_curr}, got: {[c.get('resolution') for c in conflicts]}"
+                )
+
+        # Check expected conventions
+        if "expected_conventions" in q:
+            exp_convs = q["expected_conventions"]
+            got_convs = res.get("conventions", [])
+            if len(exp_convs) == 0 and len(got_convs) > 0:
+                question_failures.append(f"Expected 0 conventions, got {len(got_convs)}: {got_convs}")
+            elif len(exp_convs) > 0:
+                for exp_c in exp_convs:
+                    exp_top = exp_c.get("topic")
+                    found = any(c.get("topic") == exp_top for c in got_convs)
+                    if not found:
+                        question_failures.append(f"Expected convention topic '{exp_top}' not found in {got_convs}")
+
+        # Check expected convention mismatch
+        if "expected_convention_mismatch" in q:
+            exp_mismatch = q["expected_convention_mismatch"]
+            mismatches = res.get("convention_mismatches", [])
+            found_mismatch = any(m.get("topic") == exp_mismatch.get("topic") for m in mismatches)
+            if not found_mismatch:
+                question_failures.append(f"Expected convention mismatch for '{exp_mismatch.get('topic')}', got: {mismatches}")
+
         if q_type == "not_in_documents":
             if not abstained:
                 stats["answered"] += 0  # already counted

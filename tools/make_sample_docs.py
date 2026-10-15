@@ -401,6 +401,30 @@ def build_lecture_schedule(out_path: Path):
     c.save()
 
 
+def build_tutorial_02(out_path: Path):
+    c = canvas.Canvas(str(out_path), pagesize=letter)
+    _draw_page_content(
+        c,
+        "Tutorial 02: Array Algorithms and Pseudocode Conventions",
+        [
+            "Course: EECS 3101 / CS 401 Introduction to Algorithms.",
+            "Array Indexing Convention:",
+            "In all tutorial pseudocode, exercises, and algorithm walkthroughs, arrays are 1-indexed (indices range from 1 to n).",
+            "For example, for an array A with n elements:",
+            "The first element is located at A[1] and the final element is located at A[n].",
+            "Example Linear Search Routine:",
+            "    function linear_search(A, n, target):",
+            "        for i = 1 to n do:",
+            "            if A[i] == target then return i",
+            "        return -1",
+            "Subarray Partitioning Convention:",
+            "The left subarray is denoted A[1 .. mid] and the right subarray is denoted A[mid + 1 .. right].",
+            "All loop invariants must be formulated assuming index 1 as the first element.",
+        ],
+    )
+    c.save()
+
+
 def make_sample_docs():
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -410,6 +434,7 @@ def make_sample_docs():
     assignment2_path = OUTPUT_DIR / "assignment_2.pdf"
     exam_guide_path = OUTPUT_DIR / "exam_guide.pdf"
     lecture_schedule_path = OUTPUT_DIR / "lecture_schedule.pdf"
+    tutorial2_path = OUTPUT_DIR / "tutorial_02_arrays.pdf"
 
     print(f"Generating synthetic sample documents in {OUTPUT_DIR}...")
     build_syllabus(syllabus_path)
@@ -429,6 +454,9 @@ def make_sample_docs():
 
     build_lecture_schedule(lecture_schedule_path)
     print(f"Generated {lecture_schedule_path.name}")
+
+    build_tutorial_02(tutorial2_path)
+    print(f"Generated {tutorial2_path.name}")
 
     print("All sample documents successfully generated.")
 

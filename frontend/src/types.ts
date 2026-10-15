@@ -69,10 +69,79 @@ export interface ConflictClaim {
   upload_date?: string | null;
 }
 
+export type ConflictResolutionBasis =
+  | 'newer_source_explicit_override'
+  | 'date_in_text_newer'
+  | 'syllabus_schedule_update'
+  | 'explicit_supersede'
+  | 'newer_dated_document'
+  | string;
+
+export interface ConflictResolution {
+  current_file: string;
+  current_page: number;
+  basis: ConflictResolutionBasis;
+  evidence: string;
+}
+
 export interface ConflictItem {
   topic: string;
   claims: ConflictClaim[];
+  resolution?: ConflictResolution | null;
 }
+
+export type ConventionTopic =
+  | 'array_indexing'
+  | 'log_base'
+  | 'range_bounds'
+  | 'pseudocode_style'
+  | 'other';
+
+export interface ConventionItem {
+  topic: ConventionTopic;
+  value: string;
+  file: string;
+  page: number;
+  adopted?: boolean;
+  source_id?: string | null;
+  source_version?: number;
+}
+
+export interface ConventionMismatchItem {
+  topic: ConventionTopic;
+  conventions: ConventionItem[];
+  adopted_file?: string | null;
+  adopted_value?: string | null;
+}
+
+export const formatConventionTopic = (topic: string): string => {
+  switch (topic) {
+    case 'array_indexing':
+      return 'array indexing';
+    case 'log_base':
+      return 'logarithm base';
+    case 'range_bounds':
+      return 'range bounds';
+    case 'pseudocode_style':
+      return 'pseudocode style';
+    default:
+      return 'convention';
+  }
+};
+
+export const formatSourceTitle = (fileName?: string | null, sources?: Source[]): string => {
+  if (!fileName) return 'Document';
+  if (sources && sources.length > 0) {
+    const found = sources.find(
+      (s) =>
+        normalizeFileName(s.file_name) === normalizeFileName(fileName) ||
+        normalizeFileName(s.title) === normalizeFileName(fileName)
+    );
+    if (found && found.title) return found.title;
+  }
+  const clean = fileName.replace(/\.pdf$/i, '').replace(/[_-]/g, ' ');
+  return clean.charAt(0).toUpperCase() + clean.slice(1);
+};
 
 export interface RetrievedPassage {
   id?: number | string;
@@ -111,6 +180,8 @@ export interface MessageItem {
   citations: Citation[];
   conflicts: ConflictItem[];
   conflict_detected: boolean;
+  conventions?: ConventionItem[];
+  convention_mismatches?: ConventionMismatchItem[];
   abstained: boolean;
   abstain_reason?: string | null;
   retrieved: RetrievedPassage[];
@@ -153,6 +224,8 @@ export interface AskResponse {
   citations: Citation[];
   conflicts: ConflictItem[];
   conflict_detected: boolean;
+  conventions?: ConventionItem[];
+  convention_mismatches?: ConventionMismatchItem[];
   abstained: boolean;
   abstain_reason?: string | null;
   retrieved: RetrievedPassage[];

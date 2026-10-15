@@ -1,5 +1,5 @@
 import React from 'react';
-import { DocumentItem } from '../types';
+import { DocumentItem, normalizeFileName, formatSourceTitle } from '../types';
 
 interface SidebarProps {
   documents: DocumentItem[];
@@ -12,6 +12,7 @@ interface SidebarProps {
   uploadMsg: string | null;
   isOpenMobile: boolean;
   onCloseMobile: () => void;
+  supersededMap?: Record<string, { supersededBy: string; topic: string }>;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -25,6 +26,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   uploadMsg,
   isOpenMobile,
   onCloseMobile,
+  supersededMap,
 }) => {
   return (
     <aside className={`sidebar ${isOpenMobile ? 'sidebar-open' : ''}`} aria-label="Sidebar">
@@ -154,6 +156,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
               {documents.map((doc, idx) => {
                 const hasPageCount =
                   typeof doc.page_count === 'number' && doc.page_count > 0;
+                const supersededInfo = supersededMap
+                  ? supersededMap[normalizeFileName(doc.file_name)]
+                  : undefined;
                 return (
                   <li key={idx} className="doc-item-row" title={doc.file_name}>
                     <div className="doc-item-icon" aria-hidden="true">
@@ -163,7 +168,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       </svg>
                     </div>
                     <div className="doc-item-text">
-                      <span className="doc-name">{doc.file_name}</span>
+                      <div className="doc-item-title-row">
+                        <span className="doc-name">{doc.file_name}</span>
+                        {supersededInfo && (
+                          <span
+                            className="doc-superseded-badge"
+                            data-testid="doc-superseded-badge"
+                            title={`Superseded by ${formatSourceTitle(supersededInfo.supersededBy)}`}
+                          >
+                            Superseded
+                          </span>
+                        )}
+                      </div>
                       <span className="doc-meta">
                         {hasPageCount
                           ? `${doc.page_count} ${doc.page_count === 1 ? 'page' : 'pages'} \u00B7 Ready`

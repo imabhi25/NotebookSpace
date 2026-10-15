@@ -1,0 +1,141 @@
+{
+  "timestamp": "2026-10-15T04:59:20.325147+00:00",
+  "label": null,
+  "total_questions": 4,
+  "by_type": {
+    "single_page": {
+      "total": 1,
+      "answered_rate": 1.0,
+      "abstained_on_answerable_rate": 0.0,
+      "cited_page_correct_rate": 1.0
+    },
+    "conflicting": {
+      "total": 3,
+      "answered_rate": 1.0,
+      "abstained_on_answerable_rate": 0.0,
+      "cited_page_correct_rate": 0.6666666666666666,
+      "conflict_detection_rate": 0.6666666666666666
+    }
+  },
+  "retrieval_hit_rate_top_3": 0.75,
+  "retrieval_hit_rate_top_5": 1.0,
+  "conflict_detection_rate": 0.6667,
+  "false_positive_conflict_rate": 0.0,
+  "latency_p50": 1.012,
+  "latency_p95": 1.2184,
+  "tokens": {
+    "input": 8052,
+    "output": 874,
+    "total": 8926
+  },
+  "cost_per_100_questions": 0.0,
+  "failures_count": 3,
+  "worst_failures_by_type": {
+    "single_page": [],
+    "multi_page": [],
+    "not_in_documents": [],
+    "conflicting": [
+      {
+        "id": "conv_mismatch_1",
+        "question": "What is the first or starting index of an array in the tutorial exercises compared to the lecture pseudocode?",
+        "expected": "Conflict between ['tutorial_02_arrays.pdf', 'lecture_algorithms_math_code.pdf']; Sources: [tutorial_02_arrays.pdf p.1, lecture_algorithms_math_code.pdf p.1]",
+        "retrieved_pages": "tutorial_02_arrays.pdf p.1, assignment_1.pdf p.3, assignment_2.pdf p.4, EECS2031_syllabus_F26_0907.pdf p.1, EECS2031_syllabus_F26_0914.pdf p.1",
+        "model_answer": "In all tutorial pseudocode, exercises, and algorithm walkthroughs, arrays are 1-indexed (indices range from 1 to n) [tutorial_02_arrays.pdf p.1]. (citations: [tutorial_02_arrays.pdf p.1])",
+        "failure_reason": "Failed to detect conflict between sources.; Expected convention mismatch for 'array_indexing', got: []; Answer missing expected phrase(s): ['0-indexed']"
+      },
+      {
+        "id": "c_res2",
+        "question": "What is the daily penalty rate and maximum allowable late days for assignment submissions according to the latest course updates?",
+        "expected": "Conflict between ['syllabus.pdf', 'announcement_update.pdf']; Sources: [syllabus.pdf p.2, announcement_update.pdf p.1]",
+        "retrieved_pages": "announcement_update.pdf p.2, syllabus.pdf p.3, announcement_update.pdf p.1, assignment_1.pdf p.3, syllabus.pdf p.2",
+        "model_answer": "According to the revised late policy, late submissions lose 5 percent per day up to a maximum of 2 days, and submissions beyond 2 days late will not be accepted [announcement_update.pdf p.2]. (citations: [announcement_update.pdf p.2])",
+        "failure_reason": "Expected conflict resolution current_file=announcement_update.pdf, got: [{'current_file': 'announcement_update.pdf', 'current_page': 2, 'basis': 'explicit_supersede', 'evidence': 'This policy replaces the prior late policy effective immediately.'}]; Answer missing expected phrase(s): ['10%']"
+      },
+      {
+        "id": "c_res1",
+        "question": "When is Assignment 1 due according to the latest course updates?",
+        "expected": "Conflict between ['syllabus.pdf', 'announcement_update.pdf']; Sources: [syllabus.pdf p.3, announcement_update.pdf p.1]",
+        "retrieved_pages": "announcement_update.pdf p.1, syllabus.pdf p.3, announcement_update.pdf p.2, assignment_1.pdf p.3, assignment_2.pdf p.4",
+        "model_answer": "Assignment 1 is due on October 21, 2026 at 11:59 PM [announcement_update.pdf p.1]. (citations: [announcement_update.pdf p.1])",
+        "failure_reason": "Expected conflict resolution current_file=announcement_update.pdf, got: [{'current_file': 'announcement_update.pdf', 'current_page': 1, 'basis': 'newer_dated_document', 'evidence': 'Date: October 8, 2026'}]"
+      }
+    ]
+  },
+  "failures": [
+    {
+      "id": "c_res1",
+      "question": "When is Assignment 1 due according to the latest course updates?",
+      "type": "conflicting",
+      "expected": "Conflict between ['syllabus.pdf', 'announcement_update.pdf']; Sources: [syllabus.pdf p.3, announcement_update.pdf p.1]",
+      "retrieved_pages": "announcement_update.pdf p.1, syllabus.pdf p.3, announcement_update.pdf p.2, assignment_1.pdf p.3, assignment_2.pdf p.4",
+      "model_answer": "Assignment 1 is due on October 21, 2026 at 11:59 PM [announcement_update.pdf p.1]. (citations: [announcement_update.pdf p.1])",
+      "failure_reasons": [
+        "Expected conflict resolution current_file=announcement_update.pdf, got: [{'current_file': 'announcement_update.pdf', 'current_page': 1, 'basis': 'newer_dated_document', 'evidence': 'Date: October 8, 2026'}]"
+      ],
+      "failures": [
+        "Expected conflict resolution current_file=announcement_update.pdf, got: [{'current_file': 'announcement_update.pdf', 'current_page': 1, 'basis': 'newer_dated_document', 'evidence': 'Date: October 8, 2026'}]"
+      ],
+      "answer": "Assignment 1 is due on October 21, 2026 at 11:59 PM [announcement_update.pdf p.1].",
+      "citations": [
+        {
+          "file": "announcement_update.pdf",
+          "page": 1
+        }
+      ],
+      "abstained": false,
+      "abstain_reason": null
+    },
+    {
+      "id": "c_res2",
+      "question": "What is the daily penalty rate and maximum allowable late days for assignment submissions according to the latest course updates?",
+      "type": "conflicting",
+      "expected": "Conflict between ['syllabus.pdf', 'announcement_update.pdf']; Sources: [syllabus.pdf p.2, announcement_update.pdf p.1]",
+      "retrieved_pages": "announcement_update.pdf p.2, syllabus.pdf p.3, announcement_update.pdf p.1, assignment_1.pdf p.3, syllabus.pdf p.2",
+      "model_answer": "According to the revised late policy, late submissions lose 5 percent per day up to a maximum of 2 days, and submissions beyond 2 days late will not be accepted [announcement_update.pdf p.2]. (citations: [announcement_update.pdf p.2])",
+      "failure_reasons": [
+        "Expected conflict resolution current_file=announcement_update.pdf, got: [{'current_file': 'announcement_update.pdf', 'current_page': 2, 'basis': 'explicit_supersede', 'evidence': 'This policy replaces the prior late policy effective immediately.'}]",
+        "Answer missing expected phrase(s): ['10%']"
+      ],
+      "failures": [
+        "Expected conflict resolution current_file=announcement_update.pdf, got: [{'current_file': 'announcement_update.pdf', 'current_page': 2, 'basis': 'explicit_supersede', 'evidence': 'This policy replaces the prior late policy effective immediately.'}]",
+        "Answer missing expected phrase(s): ['10%']"
+      ],
+      "answer": "According to the revised late policy, late submissions lose 5 percent per day up to a maximum of 2 days, and submissions beyond 2 days late will not be accepted [announcement_update.pdf p.2].",
+      "citations": [
+        {
+          "file": "announcement_update.pdf",
+          "page": 2
+        }
+      ],
+      "abstained": false,
+      "abstain_reason": null
+    },
+    {
+      "id": "conv_mismatch_1",
+      "question": "What is the first or starting index of an array in the tutorial exercises compared to the lecture pseudocode?",
+      "type": "conflicting",
+      "expected": "Conflict between ['tutorial_02_arrays.pdf', 'lecture_algorithms_math_code.pdf']; Sources: [tutorial_02_arrays.pdf p.1, lecture_algorithms_math_code.pdf p.1]",
+      "retrieved_pages": "tutorial_02_arrays.pdf p.1, assignment_1.pdf p.3, assignment_2.pdf p.4, EECS2031_syllabus_F26_0907.pdf p.1, EECS2031_syllabus_F26_0914.pdf p.1",
+      "model_answer": "In all tutorial pseudocode, exercises, and algorithm walkthroughs, arrays are 1-indexed (indices range from 1 to n) [tutorial_02_arrays.pdf p.1]. (citations: [tutorial_02_arrays.pdf p.1])",
+      "failure_reasons": [
+        "Failed to detect conflict between sources.",
+        "Expected convention mismatch for 'array_indexing', got: []",
+        "Answer missing expected phrase(s): ['0-indexed']"
+      ],
+      "failures": [
+        "Failed to detect conflict between sources.",
+        "Expected convention mismatch for 'array_indexing', got: []",
+        "Answer missing expected phrase(s): ['0-indexed']"
+      ],
+      "answer": "In all tutorial pseudocode, exercises, and algorithm walkthroughs, arrays are 1-indexed (indices range from 1 to n) [tutorial_02_arrays.pdf p.1].",
+      "citations": [
+        {
+          "file": "tutorial_02_arrays.pdf",
+          "page": 1
+        }
+      ],
+      "abstained": false,
+      "abstain_reason": null
+    }
+  ]
+}
