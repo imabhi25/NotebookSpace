@@ -302,7 +302,7 @@ describe('SubjectWorkspaceView component', () => {
       />
     );
 
-    expect(screen.getByText('Syllabus.pdf')).toBeInTheDocument();
+    expect(screen.getByText('Syllabus.pdf', { selector: '.source-title-text' })).toBeInTheDocument();
     expect(screen.getByText('Lecture 1.pdf')).toBeInTheDocument();
     expect(screen.getByText(/1 of 2 selected/i)).toBeInTheDocument();
 

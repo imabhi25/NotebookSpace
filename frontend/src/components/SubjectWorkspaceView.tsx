@@ -202,6 +202,32 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen]);
 
+  // Sources the answers in this conversation marked as current, and how often each source is cited.
+  const currentSourceNames = React.useMemo(() => {
+    const names = new Set<string>();
+    for (const m of messages) {
+      for (const conf of m.conflicts || []) {
+        if (conf.resolution?.current_file) names.add(normalizeFileName(conf.resolution.current_file));
+      }
+    }
+    return names;
+  }, [messages]);
+
+  const citationCounts = React.useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const m of messages) {
+      const seen = new Set<string>();
+      for (const c of m.citations || []) {
+        const key = normalizeFileName(c.file);
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          counts[key] = (counts[key] || 0) + 1;
+        }
+      }
+    }
+    return counts;
+  }, [messages]);
+
   // Compute superseded sources map from conversation messages
   const supersededSourcesMap = React.useMemo(() => {
     const map: Record<string, { supersededBy: string; topic: string }> = {};
@@ -752,11 +778,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 );
                               })()}
                             </div>
-                            <div className={`source-meta-row ${isReady ? "is-ready" : ""}`}>
-                              <span className="source-type-tag">{s.source_type}</span>
+                            <div className="source-meta-row">
+                              <span className="source-type-tag">{s.source_type === 'url' ? 'Web' : s.source_type === 'pdf' ? 'PDF' : 'Text'}</span>
                               {isReady ? (
                                 <span>
-                                  {s.page_count} {s.page_count === 1 ? 'page' : 'pages'} &bull; Ready
+                                  {s.page_count} {s.page_count === 1 ? 'page' : 'pages'}
+                                  {(citationCounts[normalizeFileName(s.title)] || citationCounts[normalizeFileName(s.file_name)])
+                                    ? ` · cited ${citationCounts[normalizeFileName(s.title)] || citationCounts[normalizeFileName(s.file_name)]}×`
+                                    : ''}
                                 </span>
                               ) : s.status === 'processing' ? (
                                 <span className="status-processing">Processing...</span>
@@ -1503,6 +1532,45 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   </div>
                                 )}
 
+                                {/* Source strip: the sources this answer used, numbered like its footnotes */}
+                                {msg.citations && msg.citations.length > 0 && (
+                                  <div className="source-strip" role="group" aria-label="Sources used in this answer">
+                                    {msg.citations.map((cit, cIdx) => {
+                                      const isActive =
+                                        selectedCitation?.messageId === msg.id &&
+                                        normalizeFileName(selectedCitation.file) ===
+                                          normalizeFileName(cit.file) &&
+                                        selectedCitation.page === cit.page;
+                                      const key = normalizeFileName(cit.file);
+                                      const status = supersededSourcesMap[key]
+                                        ? 'superseded'
+                                        : currentSourceNames.has(key)
+                                        ? 'current'
+                                        : null;
+
+                                      return (
+                                        <button
+                                          key={cIdx}
+                                          type="button"
+                                          className={`source-strip-card ${isActive ? 'active' : ''}`}
+                                          onClick={() => handleSelectCitation(cit, msg.id)}
+                                          data-testid={`citation-chip-${cIdx}`}
+                                          aria-label={`${formatSourceTitle(cit.file, sources)} p.${cit.page}${status ? `, ${status}` : ''}`}
+                                        >
+                                          <span className="source-strip-num" aria-hidden="true">{cIdx + 1}</span>
+                                          <span className="source-strip-text">
+                                            <span className="source-strip-title">{formatSourceTitle(cit.file, sources)}</span>
+                                            <span className="source-strip-meta">
+                                              p. {cit.page}
+                                              {status && <span className={`source-strip-status is-${status}`}> · {status}</span>}
+                                            </span>
+                                          </span>
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+
                                 {/* Grounded Answer Body */}
                                 <div className="answer-text">
                                   <MarkdownRenderer
@@ -1513,36 +1581,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     onSelectCitation={(cit) => handleSelectCitation(cit, msg.id)}
                                   />
                                 </div>
-
-                                {/* Citation Chips Row */}
-                                {msg.citations && msg.citations.length > 0 && (
-                                  <div className="citations-section">
-                                    <div className="chips-row">
-                                      {msg.citations.map((cit, cIdx) => {
-                                        const isActive =
-                                          selectedCitation?.messageId === msg.id &&
-                                          normalizeFileName(selectedCitation.file) ===
-                                            normalizeFileName(cit.file) &&
-                                          selectedCitation.page === cit.page;
-
-                                        return (
-                                          <button
-                                            key={cIdx}
-                                            type="button"
-                                            className={`chip ${isActive ? 'active' : ''}`}
-                                            onClick={() => handleSelectCitation(cit, msg.id)}
-                                            data-testid={`citation-chip-${cIdx}`}
-                                          >
-                                            <span className="chip-badge">[{cIdx + 1}]</span>
-                                            <span>
-                                              {cit.file} p.{cit.page}
-                                            </span>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
 
                                 {/* Restrained Answer Actions (Copy, Save to Note, Retry) */}
                                 <div className="answer-action-toolbar">
@@ -1770,7 +1808,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           {rightPanelTab === 'tools' && (
             <div className="right-panel-body tools-home">
               <div className="tools-grid" role="list">
-                <button type="button" role="listitem" className="tool-tile" onClick={() => setRightPanelTab('passage')}>
+                <button type="button" role="listitem" className="tool-tile tool-passage" onClick={() => setRightPanelTab('passage')}>
                   <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
                     <polyline points="14 2 14 8 20 8" />
@@ -1779,7 +1817,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </svg>
                   <span className="tool-tile-label">Passage</span>
                 </button>
-                <button type="button" role="listitem" className="tool-tile" onClick={() => setRightPanelTab('notes')}>
+                <button type="button" role="listitem" className="tool-tile tool-notes" onClick={() => setRightPanelTab('notes')}>
                   <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                     <path d="M12 20h9" />
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
@@ -1790,7 +1828,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 <button
                   type="button"
                   role="listitem"
-                  className="tool-tile tool-tile-warning"
+                  className="tool-tile tool-conflict"
                   onClick={() => scrollToFirst('[data-testid="conflict-view"]')}
                   disabled={conflictMessageCount === 0}
                   title={conflictMessageCount === 0 ? 'No conflicting sources in this chat yet' : 'Jump to the first conflict'}
@@ -1806,7 +1844,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 <button
                   type="button"
                   role="listitem"
-                  className="tool-tile tool-tile-info"
+                  className="tool-tile tool-convention"
                   onClick={() => scrollToFirst('[data-testid="convention-mismatch-view"]')}
                   disabled={conventionMessageCount === 0}
                   title={conventionMessageCount === 0 ? 'No notation differences in this chat yet' : 'Jump to the first notation difference'}
@@ -1821,7 +1859,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <span className="tool-tile-label">Conventions</span>
                   {conventionMessageCount > 0 && <span className="tool-tile-count">{conventionMessageCount}</span>}
                 </button>
-                <button type="button" role="listitem" className="tool-tile" disabled title="Coming soon">
+                <button type="button" role="listitem" className="tool-tile tool-proof" disabled title="Coming soon">
                   <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                     <polyline points="9 11 12 14 22 4" />
                     <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
@@ -1829,7 +1867,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <span className="tool-tile-label">Proof check</span>
                   <span className="tool-tile-soon">Soon</span>
                 </button>
-                <button type="button" role="listitem" className="tool-tile" disabled title="Coming soon">
+                <button type="button" role="listitem" className="tool-tile tool-trace" disabled title="Coming soon">
                   <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
                     <rect x="2" y="7" width="5" height="10" rx="1" />
                     <rect x="9.5" y="7" width="5" height="10" rx="1" />

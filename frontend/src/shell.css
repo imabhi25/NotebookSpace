@@ -264,11 +264,6 @@ body {
   color: var(--color-text-primary);
 }
 
-/* Ready sources stay one line; processing and failed sources keep their status line. */
-.source-meta-row.is-ready {
-  display: none;
-}
-
 .source-superseded-tag {
   background: var(--color-surface-active);
   border: none;
@@ -498,7 +493,7 @@ body {
   position: relative;
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: var(--space-2);
   min-height: var(--size-56);
   padding: var(--space-3);
   border: none;
@@ -1254,4 +1249,234 @@ html.theme-switching *::after {
 
 .notebook-card-cta {
   color: var(--color-accent);
+}
+
+/* ---------- Colour-coded tools (Soft tonal) ---------- */
+.tool-tile .tool-tile-icon {
+  box-sizing: content-box;
+  padding: var(--size-6);
+  border-radius: var(--radius-control);
+}
+
+.tool-passage .tool-tile-icon {
+  background: color-mix(in oklab, var(--tool-passage) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-passage);
+}
+
+.tool-notes .tool-tile-icon {
+  background: color-mix(in oklab, var(--tool-notes) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-notes);
+}
+
+.tool-conflict .tool-tile-icon {
+  background: color-mix(in oklab, var(--tool-conflict) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-conflict);
+}
+
+.tool-convention .tool-tile-icon {
+  background: color-mix(in oklab, var(--tool-convention) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-convention);
+}
+
+.tool-proof .tool-tile-icon {
+  background: color-mix(in oklab, var(--tool-proof) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-proof);
+}
+
+.tool-trace .tool-tile-icon {
+  background: color-mix(in oklab, var(--tool-trace) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-trace);
+}
+
+.tool-tile:disabled .tool-tile-icon {
+  background: var(--color-surface-active);
+  color: var(--color-text-muted);
+}
+
+/* The same hue marks the matching card in the chat. */
+.conflict-container .conflict-icon-svg,
+.conflict-heading {
+  color: var(--tool-conflict);
+}
+
+.convention-mismatch-header svg,
+.convention-mismatch-heading {
+  color: var(--tool-convention);
+}
+
+/* Tinted desk details: accent-tinted Heads-up, glowing composer, gradient brand. */
+.conflict-summary-banner {
+  background: color-mix(in oklab, var(--color-accent) 12%, var(--color-surface));
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+}
+
+.composer-box:focus-within {
+  border-color: var(--color-accent-border);
+  box-shadow: 0 0 0 var(--size-3) color-mix(in oklab, var(--color-accent) 22%, transparent);
+}
+
+.brand-logo-letter,
+.brand-logo-letter-small {
+  background: var(--brand-gradient);
+  box-shadow: none;
+}
+
+.composer-send-btn:not(:disabled) {
+  background: var(--brand-gradient);
+}
+
+/* ---------- Source strip above each answer (Reader) ---------- */
+.source-strip {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-1) 0 var(--space-4);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.source-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.source-strip-card {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  width: var(--size-200);
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) solid var(--color-transparent);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
+  color: var(--color-text-primary);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.source-strip-card:hover {
+  background: var(--color-surface-hover);
+}
+
+.source-strip-card.active {
+  border-color: var(--color-accent-border);
+}
+
+.source-strip-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--size-18);
+  height: var(--size-18);
+  margin-top: var(--size-1);
+  border-radius: var(--radius-xs);
+  background: color-mix(in oklab, var(--tool-passage) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-passage);
+  font-size: var(--type-caption);
+  font-weight: var(--weight-semibold);
+}
+
+.source-strip-text {
+  display: grid;
+  min-width: 0;
+}
+
+.source-strip-title {
+  font-size: var(--type-small);
+  font-weight: var(--weight-medium);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.source-strip-meta {
+  font-size: var(--type-caption);
+  color: var(--color-text-muted);
+}
+
+.source-strip-status.is-current {
+  color: var(--color-success);
+}
+
+/* ---------- Type-coloured source rows ---------- */
+.workspace-source-item .source-type-badge-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-28);
+  height: var(--size-28);
+  flex: none;
+  border-radius: var(--radius-sm);
+  background: color-mix(in oklab, var(--source-text) var(--tool-well-mix), var(--color-surface));
+  color: var(--source-text);
+}
+
+.workspace-source-item .source-type-badge-icon.badge-pdf {
+  background: color-mix(in oklab, var(--source-pdf) var(--tool-well-mix), var(--color-surface));
+  color: var(--source-pdf);
+}
+
+.workspace-source-item .source-type-badge-icon.badge-url {
+  background: color-mix(in oklab, var(--source-url) var(--tool-well-mix), var(--color-surface));
+  color: var(--source-url);
+}
+
+.workspace-source-item .source-type-badge-icon svg {
+  width: var(--icon-size-sm);
+  height: var(--icon-size-sm);
+}
+
+.workspace-source-item .source-meta-row {
+  display: flex;
+  gap: var(--space-1);
+  font-size: var(--type-caption);
+  color: var(--color-text-muted);
+}
+
+.workspace-source-item .source-type-tag {
+  padding: 0;
+  border: none;
+  background: var(--color-transparent);
+  color: var(--color-text-muted);
+  font-size: var(--type-caption);
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.workspace-source-item .source-type-tag::after {
+  content: " ·";
+}
+
+/* ---------- Passage view: the cited text reads as a highlighted quote ---------- */
+.passage-content-banner {
+  background: var(--color-transparent);
+  border: none;
+  padding: 0;
+  color: var(--color-text-muted);
+  font-size: var(--type-small);
+}
+
+.passage-chunk {
+  border: none;
+  background: var(--color-transparent);
+  color: var(--color-text-muted);
+}
+
+.passage-chunk.passage-chunk-highlighted {
+  padding: var(--space-3) var(--space-4);
+  border: none;
+  border-radius: var(--radius-md);
+  background: var(--color-marker);
+  color: var(--color-text-primary);
+  box-shadow: none;
+}
+
+.passage-chunk-highlighted .chunk-highlight-badge {
+  background: var(--color-transparent);
+  border: none;
+  padding: 0;
+  color: var(--color-warning-text);
 }
