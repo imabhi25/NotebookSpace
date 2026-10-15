@@ -1,5 +1,5 @@
 import React from 'react';
-import { Citation, PassageItem, Source, normalizeFileName } from '../types';
+import { Citation, PassageItem, Source, normalizeFileName, formatSourceTitle } from '../types';
 
 interface SourcePanelProps {
   selectedCitation: {
@@ -27,6 +27,7 @@ interface SourcePanelProps {
   onSelectCitation: (cit: Citation) => void;
   onClose: () => void;
   isOpen: boolean;
+  supersededMap?: Record<string, { supersededBy: string; topic: string }>;
 }
 
 export const SourcePanel: React.FC<SourcePanelProps> = ({
@@ -39,10 +40,15 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
   onSelectCitation,
   onClose,
   isOpen,
+  supersededMap,
 }) => {
   if (!isOpen && !selectedCitation) {
     return null;
   }
+
+  const supersededInfo = supersededMap && selectedCitation
+    ? supersededMap[normalizeFileName(selectedCitation.file)]
+    : undefined;
 
   // Find index of current citation in the answer's citations list
   const currentIndex = selectedCitation
@@ -126,7 +132,18 @@ export const SourcePanel: React.FC<SourcePanelProps> = ({
     >
       <div className="source-panel-header">
         <div className="source-panel-title-area">
-          <h2 className="source-panel-heading">Cited Document Passage</h2>
+          <div className="source-panel-heading-row">
+            <h2 className="source-panel-heading">Cited Document Passage</h2>
+            {supersededInfo && (
+              <span
+                className="panel-superseded-tag"
+                data-testid="panel-superseded-badge"
+                title={`Superseded by ${formatSourceTitle(supersededInfo.supersededBy, sources)}`}
+              >
+                Superseded
+              </span>
+            )}
+          </div>
           {selectedCitation && (
             <span className="source-panel-subheading">
               {selectedCitation.file} &bull; Page {selectedCitation.page}

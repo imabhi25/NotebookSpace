@@ -526,3 +526,208 @@ def test_conflict_and_citation_stable_source_id_after_rename(auth_headers):
     assert src_1_id in cit_source_ids
     assert src_2_id in cit_source_ids
 
+
+def test_notebook_conflict_resolution_and_conventions(auth_headers):
+    # Setup subject and sources
+    subj = client.post("/subjects", json={"name": "EECS Conventions Course"}, headers=auth_headers).json()
+    subj_id = subj["id"]
+
+    pdf_1 = make_pdf(["Lecture notes: Midterm is 40% and arrays are 1-indexed."])
+    pdf_2 = make_pdf(["Tutorial notes: Midterm is 50% per updated syllabus, and arrays are 0-indexed in C."])
+
+    src_1 = client.post(
+        f"/subjects/{subj_id}/sources/upload",
+        files={"file": ("lecture_01.pdf", pdf_1, "application/pdf")},
+        headers=auth_headers,
+    ).json()
+    src_2 = client.post(
+        f"/subjects/{subj_id}/sources/upload",
+        files={"file": ("tutorial_01.pdf", pdf_2, "application/pdf")},
+        headers=auth_headers,
+    ).json()
+
+    conv_res = client.post(f"/subjects/{subj_id}/conversations", json={"title": "Conventions test"}, headers=auth_headers).json()
+    conv_id = conv_res["id"]
+
+    from answering.llm import LLMResponse
+    class MockLLM:
+        def generate(self, system: str, user: str) -> LLMResponse:
+            return LLMResponse(
+                text="""{
+                    "supported": true,
+                    "answer": "Lecture says 40% [lecture_01.pdf p.1], tutorial updates to 50% [tutorial_01.pdf p.1].",
+                    "citations": [
+                        {"file": "lecture_01.pdf", "page": 1},
+                        {"file": "tutorial_01.pdf", "page": 1}
+                    ],
+                    "conflicts": [
+                        {
+                            "topic": "Midterm weight",
+                            "claims": [
+                                {"file": "lecture_01.pdf", "page": 1, "value": "40 percent"},
+                                {"file": "tutorial_01.pdf", "page": 1, "value": "50 percent"}
+                            ],
+                            "resolution": {
+                                "current_file": "tutorial_01.pdf",
+                                "current_page": 1,
+                                "basis": "explicit_supersede",
+                                "evidence": "Tutorial notes state updated syllabus"
+                            }
+                        }
+                    ],
+                    "conventions": [
+                        {
+                            "topic": "array_indexing",
+                            "value": "1-indexed",
+                            "file": "lecture_01.pdf",
+                            "page": 1,
+                            "adopted": false
+                        },
+                        {
+                            "topic": "array_indexing",
+                            "value": "0-indexed",
+                            "file": "tutorial_01.pdf",
+                            "page": 1,
+                            "adopted": true
+                        }
+                    ]
+                }""",
+                input_tokens=100,
+                output_tokens=60,
+                latency_seconds=0.1,
+            )
+
+    from answering.notebook_answer import answer_notebook_question
+    user_me = client.get("/auth/me", headers=auth_headers).json()
+    ans = answer_notebook_question(
+        question="What is the midterm weight and array convention?",
+        conversation_id=conv_id,
+        user_id=user_me["id"],
+        subject_id=subj_id,
+        selected_source_ids=[src_1["id"], src_2["id"]],
+        llm_client=MockLLM(),
+    )
+
+    assert ans["conflict_detected"] is True
+    assert len(ans["conflicts"]) == 1
+    assert ans["conflicts"][0]["resolution"] is not None
+    assert ans["conflicts"][0]["resolution"]["basis"] == "explicit_supersede"
+    assert "tutorial_01.pdf" in ans["conflicts"][0]["resolution"]["current_file"]
+
+    assert len(ans["conventions"]) == 2
+    assert len(ans["convention_mismatches"]) == 1
+    assert ans["convention_mismatches"][0]["topic"] == "array_indexing"
+    assert "tutorial_01.pdf" in ans["convention_mismatches"][0]["adopted_file"]
+    assert ans["convention_mismatches"][0]["adopted_value"] == "0-indexed"
+
+
+def test_notebook_resolution_page_correction_and_conventions_normalization(auth_headers):
+    # Setup subject and sources
+    subj = client.post("/subjects", json={"name": "EECS Review Fixes"}, headers=auth_headers).json()
+    subj_id = subj["id"]
+
+    pdf_1 = make_pdf(["Lecture notes: Midterm is 40% and arrays are 0-indexed."])
+    pdf_2 = make_pdf(["Tutorial notes: Midterm is 50% per updated syllabus, and arrays are zero-based."])
+
+    src_1 = client.post(
+        f"/subjects/{subj_id}/sources/upload",
+        files={"file": ("lecture_fixes.pdf", pdf_1, "application/pdf")},
+        headers=auth_headers,
+    ).json()
+    src_2 = client.post(
+        f"/subjects/{subj_id}/sources/upload",
+        files={"file": ("tutorial_fixes.pdf", pdf_2, "application/pdf")},
+        headers=auth_headers,
+    ).json()
+
+    conv_res = client.post(f"/subjects/{subj_id}/conversations", json={"title": "Review fixes test"}, headers=auth_headers).json()
+    conv_id = conv_res["id"]
+
+    from answering.llm import LLMResponse
+    class MockLLM:
+        def generate(self, system: str, user: str) -> LLMResponse:
+            return LLMResponse(
+                text="""{
+                    "supported": true,
+                    "answer": "Lecture says 40% [lecture_fixes.pdf p.1], tutorial updates to 50% [tutorial_fixes.pdf p.1].",
+                    "citations": [
+                        {"file": "lecture_fixes.pdf", "page": 1},
+                        {"file": "tutorial_fixes.pdf", "page": 1}
+                    ],
+                    "conflicts": [
+                        {
+                            "topic": "Midterm weight",
+                            "claims": [
+                                {"file": "lecture_fixes.pdf", "page": 1, "value": "40 percent"},
+                                {"file": "tutorial_fixes.pdf", "page": 1, "value": "50 percent"}
+                            ],
+                            "resolution": {
+                                "current_file": "tutorial_fixes.pdf",
+                                "current_page": 999,
+                                "basis": "explicit_supersede",
+                                "evidence": "Tutorial notes state updated syllabus"
+                            }
+                        }
+                    ],
+                    "conventions": [
+                        {
+                            "topic": "array_indexing",
+                            "value": "0-indexed",
+                            "file": "lecture_fixes.pdf",
+                            "page": 1,
+                            "adopted": false
+                        },
+                        {
+                            "topic": "array_indexing",
+                            "value": "zero-based",
+                            "file": "tutorial_fixes.pdf",
+                            "page": 1,
+                            "adopted": true
+                        },
+                        {
+                            "topic": "other",
+                            "value": "Naming conv A",
+                            "file": "lecture_fixes.pdf",
+                            "page": 1,
+                            "adopted": false
+                        },
+                        {
+                            "topic": "other",
+                            "value": "Naming conv B",
+                            "file": "tutorial_fixes.pdf",
+                            "page": 1,
+                            "adopted": true
+                        }
+                    ]
+                }""",
+                input_tokens=100,
+                output_tokens=60,
+                latency_seconds=0.1,
+            )
+
+    from answering.notebook_answer import answer_notebook_question
+    user_me = client.get("/auth/me", headers=auth_headers).json()
+    ans = answer_notebook_question(
+        question="What is the midterm weight and array convention?",
+        conversation_id=conv_id,
+        user_id=user_me["id"],
+        subject_id=subj_id,
+        selected_source_ids=[src_1["id"], src_2["id"]],
+        llm_client=MockLLM(),
+    )
+
+    assert ans["conflict_detected"] is True
+    res = ans["conflicts"][0]["resolution"]
+    assert res is not None
+    # Check that resolution current_page was corrected from 999 to 1 (matching claim's page)
+    assert res["current_page"] == 1
+    assert "tutorial_fixes.pdf" in res["current_file"]
+
+    # Conventions:
+    # 0-indexed vs zero-based normalize to same value ("0") -> no mismatch
+    # topic "other" is skipped -> no mismatch
+    assert len(ans["conventions"]) == 4
+    assert len(ans["convention_mismatches"]) == 0
+
+
+

@@ -855,6 +855,30 @@ export function App({
 
   const demoActiveRetrieved = demoActiveMessage?.result?.retrieved || [];
 
+  const demoSupersededMap = React.useMemo(() => {
+    const map: Record<string, { supersededBy: string; topic: string }> = {};
+    for (const m of demoMessages) {
+      const conflicts = m.result?.conflicts;
+      if (Array.isArray(conflicts)) {
+        for (const conf of conflicts) {
+          if (conf.resolution?.current_file) {
+            const currentNorm = normalizeFileName(conf.resolution.current_file);
+            for (const claim of conf.claims || []) {
+              const claimNorm = normalizeFileName(claim.file);
+              if (claimNorm && claimNorm !== currentNorm) {
+                map[claimNorm] = {
+                  supersededBy: conf.resolution.current_file,
+                  topic: conf.topic,
+                };
+              }
+            }
+          }
+        }
+      }
+    }
+    return map;
+  }, [demoMessages]);
+
   return (
     <div className="app-shell">
       {/* RENDER ACTIVE ROUTE VIEW */}
@@ -880,6 +904,7 @@ export function App({
             uploadMsg={demoUploadMsg}
             isOpenMobile={isDemoSidebarOpenMobile}
             onCloseMobile={() => setIsDemoSidebarOpenMobile(false)}
+            supersededMap={demoSupersededMap}
           />
 
           <div className="chat-main-area">
@@ -1032,6 +1057,7 @@ export function App({
               setDemoSelectedCitation(null);
             }}
             isOpen={isDemoSourceOpen}
+            supersededMap={demoSupersededMap}
           />
         </div>
       ) : (

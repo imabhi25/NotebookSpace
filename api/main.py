@@ -432,9 +432,34 @@ class ConflictClaim(BaseModel):
     upload_date: str | None = None
 
 
+class ConflictResolution(BaseModel):
+    current_file: str
+    current_page: int
+    basis: str
+    evidence: str
+
+
 class ConflictItem(BaseModel):
     topic: str
     claims: List[ConflictClaim]
+    resolution: Optional[ConflictResolution] = None
+
+
+class ConventionItem(BaseModel):
+    topic: str
+    value: str
+    file: str
+    page: int
+    adopted: bool = False
+    source_id: Optional[str] = None
+    source_version: Optional[int] = 1
+
+
+class ConventionMismatchItem(BaseModel):
+    topic: str
+    conventions: List[ConventionItem]
+    adopted_file: Optional[str] = None
+    adopted_value: Optional[str] = None
 
 
 class TokenUsage(BaseModel):
@@ -462,6 +487,8 @@ class AskResponse(BaseModel):
         default=None,
         description="Configured client model identifier used for generation, or null if abstained before model invocation.",
     )
+    conventions: List[ConventionItem] = Field(default_factory=list)
+    convention_mismatches: List[ConventionMismatchItem] = Field(default_factory=list)
 
 
 class UploadResponse(BaseModel):

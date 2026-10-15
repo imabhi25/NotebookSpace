@@ -1,5 +1,12 @@
 import React, { useMemo } from 'react';
-import { AskResponse, Citation, normalizeFileName } from '../types';
+import {
+  AskResponse,
+  Citation,
+  normalizeFileName,
+  formatConventionTopic,
+  formatSourceTitle,
+  Source,
+} from '../types';
 
 export const getPlainAbstainReason = (reason?: string | null): string => {
   switch (reason) {
@@ -95,6 +102,7 @@ interface AssistantMessageProps {
   messageId?: string;
   selectedCitation?: { file: string; page: number; messageId?: string } | null;
   onSelectCitation: (cit: Citation, messageId?: string) => void;
+  sources?: Source[];
 }
 
 export const AssistantMessage: React.FC<AssistantMessageProps> = ({
@@ -105,6 +113,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   messageId = '',
   selectedCitation,
   onSelectCitation,
+  sources,
 }) => {
   // 1. LOADING STATE
   if (loading) {
@@ -153,7 +162,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
     selectedCitation && (!selectedCitation.messageId || selectedCitation.messageId === messageId)
   );
 
-  // Collect all unique validated citations for this message, including conflict claims
+  // Collect all unique validated citations for this message, including conflict claims and conventions
   const allValidCitations = useMemo(() => {
     const list: Citation[] = [];
     const seen = new Set<string>();
@@ -176,6 +185,24 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
       }
     }
 
+    for (const conv of result.conventions || []) {
+      const key = `${normalizeFileName(conv.file)}:${conv.page}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        list.push({ file: conv.file, page: conv.page });
+      }
+    }
+
+    for (const mm of result.convention_mismatches || []) {
+      for (const c of mm.conventions || []) {
+        const key = `${normalizeFileName(c.file)}:${c.page}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          list.push({ file: c.file, page: c.page });
+        }
+      }
+    }
+
     return list;
   }, [result]);
 
@@ -193,6 +220,9 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   const hasModel = typeof result.model === 'string' && result.model.trim().length > 0;
   const hasRetrievedCount = Array.isArray(result.retrieved);
   const showStatusStrip = hasLatency || hasModel || hasRetrievedCount;
+
+  // Filter resolved conflicts for the summary line above the answer
+  const resolvedConflicts = (result.conflicts || []).filter((c) => Boolean(c.resolution));
 
   return (
     <div className="assistant-message">
@@ -231,6 +261,47 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
         </div>
       ) : null}
 
+      {/* Resolved conflict summary banner above answer */}
+      {!result.abstained && resolvedConflicts.length > 0 && (
+        <div className="conflict-summary-banner" data-testid="conflict-summary-banner" role="status">
+          <span className="summary-banner-icon" aria-hidden="true">💡</span>
+          <span className="summary-banner-text">
+            <strong>Heads up:</strong>{' '}
+            {resolvedConflicts.map((c, i) => (
+              <span key={i}>
+                {formatSourceTitle(c.resolution!.current_file, sources)} updates the {c.topic}.{' '}
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+
+      {/* Convention Pills at top of answer */}
+      {!result.abstained && result.conventions && result.conventions.length > 0 && (
+        <div className="conventions-pills-row" data-testid="conventions-pills">
+          {result.conventions.map((conv, idx) => {
+            const isConvActive =
+              isThisMessageSelected &&
+              normalizeFileName(selectedCitation?.file) === normalizeFileName(conv.file) &&
+              selectedCitation?.page === conv.page;
+
+            return (
+              <button
+                key={idx}
+                type="button"
+                className={`convention-pill ${conv.adopted ? 'adopted' : ''} ${isConvActive ? 'active' : ''}`}
+                onClick={() => handleSelect({ file: conv.file, page: conv.page })}
+                data-testid={`convention-pill-${idx}`}
+                aria-label={`Convention: ${conv.value} in ${formatSourceTitle(conv.file, sources)}`}
+              >
+                <span className="convention-pill-icon" aria-hidden="true">✦</span>
+                <span>{conv.value} &middot; {formatSourceTitle(conv.file, sources)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* 4. CONFLICT STATE */}
       {!result.abstained && result.conflict_detected && result.conflicts && result.conflicts.length > 0 && (
         <div className="conflict-container" data-testid="conflict-view">
@@ -263,10 +334,17 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
                     normalizeFileName(selectedCitation?.file) === normalizeFileName(claim.file) &&
                     selectedCitation?.page === claim.page;
 
+                  const isCurrent =
+                    conf.resolution &&
+                    normalizeFileName(claim.file) === normalizeFileName(conf.resolution.current_file);
+                  const isSuperseded =
+                    conf.resolution &&
+                    normalizeFileName(claim.file) !== normalizeFileName(conf.resolution.current_file);
+
                   return (
                     <div
                       key={clIdx}
-                      className={`conflict-source-card ${isClaimActive ? 'active' : ''}`}
+                      className={`conflict-source-card ${isCurrent ? 'claim-current' : ''} ${isSuperseded ? 'claim-superseded' : ''} ${isClaimActive ? 'active' : ''}`}
                       onClick={() => handleSelect({ file: claim.file, page: claim.page })}
                       role="button"
                       tabIndex={0}
@@ -278,23 +356,137 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
                       }}
                       aria-label={`Claim: ${claim.value} in ${claim.file} page ${claim.page}`}
                     >
+                      <div className="conflict-card-badges">
+                        {isCurrent && (
+                          <span className="conflict-badge conflict-badge-current" data-testid="badge-current">
+                            <span className="badge-dot" aria-hidden="true" />
+                            Current
+                          </span>
+                        )}
+                        {isSuperseded && (
+                          <span className="conflict-badge conflict-badge-superseded" data-testid="badge-superseded">
+                            Superseded
+                          </span>
+                        )}
+                      </div>
                       <div className="source-value">&ldquo;{claim.value}&rdquo;</div>
+                      {isCurrent && conf.resolution?.evidence && (
+                        <div className="conflict-evidence" data-testid="conflict-evidence">
+                          <span className="evidence-label">Evidence:</span> {conf.resolution.evidence}
+                        </div>
+                      )}
                       <div className="source-meta">
-                        <div><strong>File:</strong> {claim.file} (Page {claim.page})</div>
+                        <div>{formatSourceTitle(claim.file, sources)} &middot; p. {claim.page}</div>
                         {claim.upload_date && <div><strong>Uploaded:</strong> {claim.upload_date}</div>}
                       </div>
                     </div>
                   );
                 })}
               </div>
+              {!conf.resolution && (
+                <div className="conflict-unresolved-note" data-testid="conflict-unresolved-note">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="12" y1="16" x2="12" y2="12" />
+                    <line x1="12" y1="8" x2="12.01" y2="8" />
+                  </svg>
+                  <span>The sources don&rsquo;t say which is newer. Check with your instructor.</span>
+                </div>
+              )}
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 4b. CONVENTION MISMATCH STATE */}
+      {!result.abstained && result.convention_mismatches && result.convention_mismatches.length > 0 && (
+        <div className="convention-mismatch-container" data-testid="convention-mismatch-view">
+          <div className="convention-mismatch-header">
+            <svg
+              className="convention-icon-svg"
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            <h2 className="convention-mismatch-heading">Convention Mismatch Noted</h2>
+          </div>
+          {result.convention_mismatches.map((mismatch, mIdx) => {
+            const summaryParts = mismatch.conventions.map(
+              (c) => `${formatSourceTitle(c.file, sources)} uses ${c.value}`
+            );
+            const summaryText =
+              summaryParts.join('; ') +
+              (mismatch.adopted_file
+                ? `. This answer follows ${formatSourceTitle(mismatch.adopted_file, sources)}.`
+                : '.');
+
+            return (
+              <div key={mIdx} className="convention-mismatch-group">
+                <div className="convention-mismatch-topic">
+                  Topic: {formatConventionTopic(mismatch.topic)}
+                </div>
+                <p className="convention-mismatch-summary" data-testid="convention-mismatch-summary">
+                  {summaryText}
+                </p>
+                <div className="convention-cards-row">
+                  {mismatch.conventions.map((conv, cIdx) => {
+                    const isConvActive =
+                      isThisMessageSelected &&
+                      normalizeFileName(selectedCitation?.file) === normalizeFileName(conv.file) &&
+                      selectedCitation?.page === conv.page;
+
+                    return (
+                      <div
+                        key={cIdx}
+                        className={`convention-card ${conv.adopted ? 'adopted' : ''} ${isConvActive ? 'active' : ''}`}
+                        onClick={() => handleSelect({ file: conv.file, page: conv.page })}
+                        role="button"
+                        tabIndex={0}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.preventDefault();
+                            handleSelect({ file: conv.file, page: conv.page });
+                          }
+                        }}
+                        aria-label={`Convention: ${conv.value} in ${formatSourceTitle(conv.file, sources)} page ${conv.page}`}
+                      >
+                        <div className="convention-badge-row">
+                          {conv.adopted ? (
+                            <span className="badge-adopted" data-testid="badge-adopted">
+                              ✓ Followed in answer
+                            </span>
+                          ) : (
+                            <span className="badge-alternative">Alternative</span>
+                          )}
+                        </div>
+                        <div className="convention-value">&ldquo;{conv.value}&rdquo;</div>
+                        <div className="convention-meta">
+                          {formatSourceTitle(conv.file, sources)} &middot; p. {conv.page}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* 5. ANSWERED STATE */}
       {!result.abstained && (
         <div className="answer-view-container" data-testid="answer-view">
+
           <div className="answer-text">
             {renderFormattedAnswer(
               result.answer,

@@ -340,3 +340,432 @@ def test_conflict_dropped_when_values_do_not_differ(monkeypatch, tmp_path, v1, v
     res = ans.answer_question("q", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
     assert res["conflict_detected"] is False
     assert res["conflicts"] == []
+
+
+def test_conflict_resolution_valid_kept(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "syllabus.pdf", "page_number": 1, "text": "Oct 10", "score": 0.9},
+        {"file_name": "announcement.pdf", "page_number": 1, "text": "Oct 15", "score": 0.88},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Syllabus says Oct 10 [syllabus.pdf p.1], announcement updates to Oct 15 [announcement.pdf p.1].",
+        "citations": [{"file": "announcement.pdf", "page": 1}],
+        "conflicts": [
+            {
+                "topic": "Due Date",
+                "claims": [
+                    {"file": "syllabus.pdf", "page": 1, "value": "October 10"},
+                    {"file": "announcement.pdf", "page": 1, "value": "October 15"}
+                ],
+                "resolution": {
+                    "current_file": "announcement.pdf",
+                    "current_page": 1,
+                    "basis": "explicit_supersede",
+                    "evidence": "Announcement updates the deadline to October 15"
+                }
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("When is it due?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert res["conflict_detected"] is True
+    assert len(res["conflicts"]) == 1
+    conf = res["conflicts"][0]
+    assert conf["resolution"] is not None
+    assert conf["resolution"]["current_file"] == "announcement.pdf"
+    assert conf["resolution"]["basis"] == "explicit_supersede"
+    assert "updates" in conf["resolution"]["evidence"]
+
+
+def test_conflict_resolution_unrelated_file_dropped(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "syllabus.pdf", "page_number": 1, "text": "Oct 10", "score": 0.9},
+        {"file_name": "announcement.pdf", "page_number": 1, "text": "Oct 15", "score": 0.88},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Syllabus says Oct 10 [syllabus.pdf p.1], announcement says Oct 15 [announcement.pdf p.1].",
+        "citations": [{"file": "announcement.pdf", "page": 1}],
+        "conflicts": [
+            {
+                "topic": "Due Date",
+                "claims": [
+                    {"file": "syllabus.pdf", "page": 1, "value": "October 10"},
+                    {"file": "announcement.pdf", "page": 1, "value": "October 15"}
+                ],
+                "resolution": {
+                    "current_file": "unrelated_doc.pdf",
+                    "current_page": 1,
+                    "basis": "explicit_supersede",
+                    "evidence": "Fake evidence"
+                }
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("When is it due?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert res["conflict_detected"] is True
+    assert len(res["conflicts"]) == 1
+    conf = res["conflicts"][0]
+    assert conf["resolution"] is None
+
+
+def test_conflict_resolution_null_ok(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "syllabus.pdf", "page_number": 1, "text": "Oct 10", "score": 0.9},
+        {"file_name": "announcement.pdf", "page_number": 1, "text": "Oct 15", "score": 0.88},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Syllabus says Oct 10 [syllabus.pdf p.1], announcement says Oct 15 [announcement.pdf p.1].",
+        "citations": [{"file": "announcement.pdf", "page": 1}],
+        "conflicts": [
+            {
+                "topic": "Due Date",
+                "claims": [
+                    {"file": "syllabus.pdf", "page": 1, "value": "October 10"},
+                    {"file": "announcement.pdf", "page": 1, "value": "October 15"}
+                ],
+                "resolution": null
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("When is it due?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert res["conflict_detected"] is True
+    assert len(res["conflicts"]) == 1
+    assert res["conflicts"][0]["resolution"] is None
+
+
+def test_conflict_resolution_bad_basis_dropped(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "syllabus.pdf", "page_number": 1, "text": "Oct 10", "score": 0.9},
+        {"file_name": "announcement.pdf", "page_number": 1, "text": "Oct 15", "score": 0.88},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Syllabus says Oct 10 [syllabus.pdf p.1], announcement says Oct 15 [announcement.pdf p.1].",
+        "citations": [{"file": "announcement.pdf", "page": 1}],
+        "conflicts": [
+            {
+                "topic": "Due Date",
+                "claims": [
+                    {"file": "syllabus.pdf", "page": 1, "value": "October 10"},
+                    {"file": "announcement.pdf", "page": 1, "value": "October 15"}
+                ],
+                "resolution": {
+                    "current_file": "announcement.pdf",
+                    "current_page": 1,
+                    "basis": "guessing_randomly",
+                    "evidence": "I guessed"
+                }
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("When is it due?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert res["conflict_detected"] is True
+    assert len(res["conflicts"]) == 1
+    assert res["conflicts"][0]["resolution"] is None
+
+
+def test_conventions_valid_and_mismatch_detected(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "lecture_03.pdf", "page_number": 1, "text": "Arrays start at 1.", "score": 0.9},
+        {"file_name": "tutorial_02.pdf", "page_number": 2, "text": "Arrays start at 0.", "score": 0.88},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Tutorial uses 0-indexed arrays [tutorial_02.pdf p.2] while lecture uses 1-indexed [lecture_03.pdf p.1].",
+        "citations": [{"file": "tutorial_02.pdf", "page": 2}],
+        "conflicts": [],
+        "conventions": [
+            {
+                "topic": "array_indexing",
+                "value": "1-indexed",
+                "file": "lecture_03.pdf",
+                "page": 1,
+                "adopted": false
+            },
+            {
+                "topic": "array_indexing",
+                "value": "0-indexed",
+                "file": "tutorial_02.pdf",
+                "page": 2,
+                "adopted": true
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("How are arrays indexed?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert len(res["conventions"]) == 2
+    assert len(res["convention_mismatches"]) == 1
+    mismatch = res["convention_mismatches"][0]
+    assert mismatch["topic"] == "array_indexing"
+    assert mismatch["adopted_file"] == "tutorial_02.pdf"
+    assert mismatch["adopted_value"] == "0-indexed"
+
+
+def test_conventions_unretrieved_file_dropped(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "lecture_03.pdf", "page_number": 1, "text": "Arrays start at 1.", "score": 0.9},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Arrays start at 1 [lecture_03.pdf p.1].",
+        "citations": [{"file": "lecture_03.pdf", "page": 1}],
+        "conflicts": [],
+        "conventions": [
+            {
+                "topic": "array_indexing",
+                "value": "0-indexed",
+                "file": "phantom_file.pdf",
+                "page": 99,
+                "adopted": true
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("How are arrays indexed?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert len(res["conventions"]) == 0
+    assert len(res["convention_mismatches"]) == 0
+
+
+def test_normalize_convention_value_helper():
+    from answering.notebook_answer import normalize_convention_value
+
+    # array_indexing
+    for zero_val in ["0-indexed", "0-based", "zero-indexed", "zero-based", "0", "zero", "0_indexed"]:
+        assert normalize_convention_value("array_indexing", zero_val) == "0"
+    for one_val in ["1-indexed", "1-based", "one-indexed", "one-based", "1", "one", "1_indexed"]:
+        assert normalize_convention_value("array_indexing", one_val) == "1"
+
+    # log_base
+    for base2_val in ["2", "base 2", "log2", "log_2", "lg", "binary", "binary logarithm"]:
+        assert normalize_convention_value("log_base", base2_val) == "2"
+    for base_e_val in ["e", "base e", "ln", "natural", "natural log"]:
+        assert normalize_convention_value("log_base", base_e_val) == "e"
+    for base10_val in ["10", "base 10", "log10", "common", "decimal"]:
+        assert normalize_convention_value("log_base", base10_val) == "10"
+
+    # other topics normalized with whitespace/case
+    assert normalize_convention_value("other", "Some convention") == "some convention"
+
+
+def test_conventions_normalization_avoids_false_mismatch(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "lecture_03.pdf", "page_number": 1, "text": "Arrays start at 0.", "score": 0.9},
+        {"file_name": "tutorial_02.pdf", "page_number": 2, "text": "Arrays are zero-based.", "score": 0.88},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Arrays are 0-indexed [lecture_03.pdf p.1] [tutorial_02.pdf p.2].",
+        "citations": [{"file": "lecture_03.pdf", "page": 1}, {"file": "tutorial_02.pdf", "page": 2}],
+        "conflicts": [],
+        "conventions": [
+            {
+                "topic": "array_indexing",
+                "value": "0-indexed",
+                "file": "lecture_03.pdf",
+                "page": 1,
+                "adopted": false
+            },
+            {
+                "topic": "array_indexing",
+                "value": "zero-based",
+                "file": "tutorial_02.pdf",
+                "page": 2,
+                "adopted": true
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("How are arrays indexed?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert len(res["conventions"]) == 2
+    # Because "0-indexed" and "zero-based" normalize to "0", NO mismatch should be flagged
+    assert len(res["convention_mismatches"]) == 0
+    # Original values are preserved in conventions for display
+    assert res["conventions"][0]["value"] == "0-indexed"
+    assert res["conventions"][1]["value"] == "zero-based"
+
+
+def test_conventions_normalization_triggers_mismatch_and_preserves_display(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "lecture_03.pdf", "page_number": 1, "text": "Use log2.", "score": 0.9},
+        {"file_name": "tutorial_02.pdf", "page_number": 2, "text": "Use ln.", "score": 0.88},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Lecture uses log2 [lecture_03.pdf p.1], tutorial uses natural log ln [tutorial_02.pdf p.2].",
+        "citations": [{"file": "lecture_03.pdf", "page": 1}, {"file": "tutorial_02.pdf", "page": 2}],
+        "conflicts": [],
+        "conventions": [
+            {
+                "topic": "log_base",
+                "value": "log2 (binary)",
+                "file": "lecture_03.pdf",
+                "page": 1,
+                "adopted": false
+            },
+            {
+                "topic": "log_base",
+                "value": "natural ln",
+                "file": "tutorial_02.pdf",
+                "page": 2,
+                "adopted": true
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("What log base is used?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert len(res["conventions"]) == 2
+    assert len(res["convention_mismatches"]) == 1
+    mismatch = res["convention_mismatches"][0]
+    assert mismatch["topic"] == "log_base"
+    # Original values preserved for display
+    assert mismatch["adopted_file"] == "tutorial_02.pdf"
+    assert mismatch["adopted_value"] == "natural ln"
+    assert res["conventions"][0]["value"] == "log2 (binary)"
+    assert res["conventions"][1]["value"] == "natural ln"
+
+
+def test_conventions_topic_other_skips_mismatch(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "lecture_03.pdf", "page_number": 1, "text": "Style guide A.", "score": 0.9},
+        {"file_name": "tutorial_02.pdf", "page_number": 2, "text": "Style guide B.", "score": 0.88},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Lecture uses style A [lecture_03.pdf p.1], tutorial uses style B [tutorial_02.pdf p.2].",
+        "citations": [{"file": "lecture_03.pdf", "page": 1}, {"file": "tutorial_02.pdf", "page": 2}],
+        "conflicts": [],
+        "conventions": [
+            {
+                "topic": "other",
+                "value": "Style A",
+                "file": "lecture_03.pdf",
+                "page": 1,
+                "adopted": false
+            },
+            {
+                "topic": "other",
+                "value": "Style B",
+                "file": "tutorial_02.pdf",
+                "page": 2,
+                "adopted": true
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("What style is used?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    # Conventions are preserved
+    assert len(res["conventions"]) == 2
+    # But mismatch detection is skipped for topic "other"
+    assert len(res["convention_mismatches"]) == 0
+
+
+def test_conflict_resolution_page_corrected_to_claim_page(monkeypatch, tmp_path):
+    from answering import answer as ans
+    from answering.llm import LLMResponse
+
+    retrieved = [
+        {"file_name": "syllabus.pdf", "page_number": 1, "text": "Midterm is 30%", "score": 0.9},
+        {"file_name": "announcement.pdf", "page_number": 2, "text": "Midterm is 40% per update.", "score": 0.9},
+    ]
+    monkeypatch.setattr(ans, "search", lambda q, k=5, db_url=None: retrieved)
+    payload = """{
+        "supported": true,
+        "answer": "Syllabus says 30% [syllabus.pdf p.1], announcement says 40% [announcement.pdf p.2].",
+        "citations": [{"file": "syllabus.pdf", "page": 1}, {"file": "announcement.pdf", "page": 2}],
+        "conflicts": [
+            {
+                "topic": "Midterm Weight",
+                "claims": [
+                    {"file": "syllabus.pdf", "page": 1, "value": "30%"},
+                    {"file": "announcement.pdf", "page": 2, "value": "40%"}
+                ],
+                "resolution": {
+                    "current_file": "announcement.pdf",
+                    "current_page": 99,
+                    "basis": "explicit_supersede",
+                    "evidence": "Announcement says per update."
+                }
+            }
+        ]
+    }"""
+    class Stub:
+        def generate(self, system, user):
+            return LLMResponse(text=payload, input_tokens=10, output_tokens=10, latency_seconds=0.1)
+
+    res = ans.answer_question("What is the midterm weight?", llm_client=Stub(), log_file=tmp_path / "log.jsonl")
+    assert len(res["conflicts"]) == 1
+    res_obj = res["conflicts"][0]["resolution"]
+    assert res_obj is not None
+    assert res_obj["current_file"] == "announcement.pdf"
+    # Even though LLM returned current_page: 99, it should be corrected to matching claim's page (2)
+    assert res_obj["current_page"] == 2
+
