@@ -120,7 +120,7 @@ describe('DashboardView component', () => {
     const nameInput = screen.getByLabelText(/Subject Name/i);
     fireEvent.change(nameInput, { target: { value: 'EECS 3311 — Software Design' } });
 
-    const submitBtn = screen.getByRole('button', { name: /^Create Notebook$/i });
+    const submitBtn = screen.getByRole('button', { name: /^Create$/i });
     fireEvent.click(submitBtn);
 
     await waitFor(() => {

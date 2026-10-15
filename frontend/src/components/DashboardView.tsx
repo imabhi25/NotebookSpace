@@ -567,14 +567,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {formError && <div className="form-error-banner">{formError}</div>}
               <div className="form-group">
                 <label htmlFor="create-subj-name">
-                  Notebook name *
+                  Notebook name
                   <span className="sr-only">Subject Name</span>
                 </label>
                 <input
                   id="create-subj-name"
                   type="text"
                   required
-                  placeholder="e.g. EECS 3101 — Algorithms"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   disabled={submitting}
@@ -586,20 +585,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <input
                   id="create-subj-code"
                   type="text"
-                  placeholder="e.g. EECS 3101"
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value)}
-                  disabled={submitting}
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="create-subj-desc">Description (optional)</label>
-                <textarea
-                  id="create-subj-desc"
-                  rows={3}
-                  placeholder="e.g. Design and analysis of efficient algorithms, graphs, and dynamic programming."
-                  value={formDesc}
-                  onChange={(e) => setFormDesc(e.target.value)}
                   disabled={submitting}
                 />
               </div>
@@ -613,7 +600,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   Cancel
                 </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
-                  {submitting ? 'Creating...' : 'Create Notebook'}
+                  {submitting ? 'Creating…' : 'Create'}
                 </button>
               </div>
             </form>
@@ -640,7 +627,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {formError && <div className="form-error-banner">{formError}</div>}
               <div className="form-group">
                 <label htmlFor="edit-subj-name">
-                  Notebook name *
+                  Notebook name
                   <span className="sr-only">Subject Name</span>
                 </label>
                 <input

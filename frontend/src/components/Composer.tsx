@@ -17,7 +17,7 @@ export const Composer: React.FC<ComposerProps> = ({
   loading,
   onStop,
   selectedSourceCount,
-  placeholder = "Start typing, or ask a question (e.g., When is the final exam?)...",
+  placeholder = "Ask about your sources…",
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 

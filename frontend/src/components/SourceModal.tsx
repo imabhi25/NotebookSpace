@@ -368,7 +368,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                   id="paste-source-title"
                   type="text"
                   required
-                  placeholder="e.g. Lecture 3 Notes or Assignment Guidelines"
                   value={pasteTitle}
                   onChange={(e) => setPasteTitle(e.target.value)}
                   disabled={loading}
@@ -409,7 +408,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                 <input
                   id="url-source-title"
                   type="text"
-                  placeholder="e.g. Official Course Webpage"
                   value={urlTitle}
                   onChange={(e) => setUrlTitle(e.target.value)}
                   disabled={loading}

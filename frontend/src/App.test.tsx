@@ -51,7 +51,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    const input = screen.getByPlaceholderText(/When is the final exam/i);
+    const input = screen.getByPlaceholderText(/Ask about your sources/i);
     fireEvent.change(input, { target: { value: 'When are office hours?' } });
 
     const askButton = screen.getByRole('button', { name: /Ask Question/i });
@@ -91,7 +91,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    const input = screen.getByPlaceholderText(/When is the final exam/i);
+    const input = screen.getByPlaceholderText(/Ask about your sources/i);
     fireEvent.change(input, { target: { value: 'What is the professor phone number?' } });
 
     const askButton = screen.getByRole('button', { name: /Ask Question/i });
@@ -159,7 +159,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    const input = screen.getByPlaceholderText(/When is the final exam/i);
+    const input = screen.getByPlaceholderText(/Ask about your sources/i);
     fireEvent.change(input, { target: { value: 'When is assignment 1 due?' } });
 
     const askButton = screen.getByRole('button', { name: /Ask Question/i });
@@ -191,7 +191,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    const input = screen.getByPlaceholderText(/When is the final exam/i);
+    const input = screen.getByPlaceholderText(/Ask about your sources/i);
     fireEvent.change(input, { target: { value: 'Trigger an error?' } });
 
     const askButton = screen.getByRole('button', { name: /Ask Question/i });
@@ -224,7 +224,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    const input = screen.getByPlaceholderText(/When is the final exam/i);
+    const input = screen.getByPlaceholderText(/Ask about your sources/i);
     fireEvent.change(input, { target: { value: 'Rate limited query?' } });
 
     const askButton = screen.getByRole('button', { name: /Ask Question/i });
@@ -305,7 +305,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    const input = screen.getByPlaceholderText(/When is the final exam/i);
+    const input = screen.getByPlaceholderText(/Ask about your sources/i);
     fireEvent.change(input, { target: { value: 'How is the course structured?' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
@@ -365,7 +365,7 @@ describe('NotebookSpace UI', () => {
     });
 
     render(<App />);
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), {
       target: { value: 'q' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
@@ -417,7 +417,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    const input = screen.getByPlaceholderText(/When is the final exam/i);
+    const input = screen.getByPlaceholderText(/Ask about your sources/i);
     fireEvent.change(input, { target: { value: 'What is the syllabus?' } });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
 
@@ -473,7 +473,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), {
       target: { value: 'Multi citation query' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
@@ -543,7 +543,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), {
       target: { value: 'Metadata test query' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
@@ -789,7 +789,7 @@ describe('NotebookSpace UI', () => {
     render(<App />);
 
     // First question
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), {
       target: { value: 'When are office hours?' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
@@ -799,7 +799,7 @@ describe('NotebookSpace UI', () => {
     });
 
     // Second question
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), {
       target: { value: 'What is the grading scale?' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
@@ -877,12 +877,12 @@ describe('NotebookSpace UI', () => {
     render(<App />);
 
     // Q1
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), { target: { value: 'Q1' } });
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), { target: { value: 'Q1' } });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
     await waitFor(() => expect(screen.getByText(/First question answered/i)).toBeInTheDocument());
 
     // Q2
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), { target: { value: 'Q2' } });
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), { target: { value: 'Q2' } });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
     await waitFor(() => expect(screen.getByText(/Second question answered/i)).toBeInTheDocument());
 
@@ -933,7 +933,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), { target: { value: 'When is midterm?' } });
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), { target: { value: 'When is midterm?' } });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
 
     await waitFor(() => {
@@ -997,7 +997,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), { target: { value: 'Conflict query' } });
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), { target: { value: 'Conflict query' } });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
 
     await waitFor(() => {
@@ -1059,7 +1059,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), {
       target: { value: 'What are the course policies?' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
@@ -1122,7 +1122,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), {
       target: { value: 'Plan de cours?' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));
@@ -1176,7 +1176,7 @@ describe('NotebookSpace UI', () => {
 
     render(<App />);
 
-    fireEvent.change(screen.getByPlaceholderText(/When is the final exam/i), {
+    fireEvent.change(screen.getByPlaceholderText(/Ask about your sources/i), {
       target: { value: 'Check unmatched markers' },
     });
     fireEvent.click(screen.getByRole('button', { name: /Ask Question/i }));

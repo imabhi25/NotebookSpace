@@ -2225,7 +2225,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   id="note-title-input"
                   type="text"
                   required
-                  placeholder="e.g. Dijkstra vs Bellman-Ford Summary"
                   value={noteFormTitle}
                   onChange={(e) => setNoteFormTitle(e.target.value)}
                   autoFocus
