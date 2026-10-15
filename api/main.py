@@ -86,9 +86,14 @@ if env_origins:
         if cleaned and cleaned not in allowed_origins:
             allowed_origins.append(cleaned)
 
+# Optional pattern for origins that change per deploy, e.g. every Vercel preview URL:
+# ALLOWED_ORIGIN_REGEX=https://notebookspace-[a-z0-9-]+-sabhaypartap18-4175s-projects\.vercel\.app
+allowed_origin_regex = os.getenv("ALLOWED_ORIGIN_REGEX", "").strip() or None
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins if allowed_origins else ["*"],
+    allow_origin_regex=allowed_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
