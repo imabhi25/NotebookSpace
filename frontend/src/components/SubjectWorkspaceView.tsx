@@ -92,8 +92,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   messages,
   chatLoading,
   onStopGeneration,
-  onResetWorkspace,
-  onToggleNotebooksDrawer,
 }) => {
   // --------------------------------------------------------------------------
   // LAYOUT STATE: Independently Collapsible Side Panels
@@ -107,7 +105,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [sidebarTab, setSidebarTab] = useState<'sources' | 'conversations'>('sources');
 
   // Right contextual panel tab: 'passage' | 'notes'
-  const [rightPanelTab, setRightPanelTab] = useState<'passage' | 'notes'>('passage');
+  const [rightPanelTab, setRightPanelTab] = useState<'tools' | 'passage' | 'notes'>('tools');
 
   // Search queries
   const [sourceSearch, setSourceSearch] = useState('');
@@ -418,6 +416,21 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
   };
 
+  // Tool tile counts, derived from the answers in the open conversation
+  const conflictMessageCount = messages.filter(
+    (m) => m.role === 'assistant' && (m.conflicts?.length ?? 0) > 0
+  ).length;
+  const conventionMessageCount = messages.filter(
+    (m) => m.role === 'assistant' && (m.convention_mismatches?.length ?? 0) > 0
+  ).length;
+  const scrollToFirst = (selector: string) => {
+    const el = document.querySelector(selector);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      setIsRightOpenMobile(false);
+    }
+  };
+
   // Filtered sources & notes
   const filteredSources = sources.filter((s) => {
     if (!sourceSearch.trim()) return true;
@@ -431,7 +444,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     return n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q);
   });
 
-  const activeConversation = conversations.find((c) => c.id === activeConversationId);
 
   return (
     <div className="workspace-root">
@@ -462,97 +474,47 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <div className="workspace-top-left">
           <button
             type="button"
-            className="workspace-back-btn"
-            onClick={onToggleNotebooksDrawer || onBackToDashboard}
-            title={onToggleNotebooksDrawer ? "Toggle notebooks list" : "Back to notebooks dashboard"}
-            aria-label="Notebooks"
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="3" y1="12" x2="21" y2="12" />
-              <line x1="3" y1="6" x2="21" y2="6" />
-              <line x1="3" y1="18" x2="21" y2="18" />
-            </svg>
-            <span>Notebooks</span>
-          </button>
-
-          <span className="workspace-header-divider" aria-hidden="true" />
-
-          <button
-            type="button"
             className="workspace-brand-link"
             onClick={onBackToDashboard}
-            title="NotebookSpace Home"
+            title="All notebooks"
+            aria-label="Back to all notebooks"
           >
             <span className="brand-logo-letter-small" aria-hidden="true">N</span>
-            <span className="workspace-brand-name">NotebookSpace</span>
           </button>
-
-          <span className="workspace-header-divider" aria-hidden="true" />
-
-          <div className="workspace-subject-pill" title={subject.name}>
-            <span className="workspace-subject-pill-name">{subject.name}</span>
-            {subject.course_code && (
-              <span className="workspace-subject-pill-code">{subject.course_code}</span>
-            )}
-          </div>
-        </div>
-
-        <div className="workspace-top-center">
-          <span className="workspace-active-chat-title">
-            {activeConversation ? activeConversation.title : 'Chat'}
-          </span>
-          <span className="selected-sources-pill" data-testid="selected-sources-pill">
-            {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
-          </span>
+          <h1 className="workspace-notebook-title" title={subject.name}>
+            {subject.name}
+          </h1>
         </div>
 
         <div className="workspace-top-right">
-          {/* Panel Toggle Buttons */}
+          {/* Panel toggles: only shown where the side panels become drawers */}
           <button
             type="button"
-            className={`workspace-toggle-btn ${(!isLeftCollapsed && (typeof window === 'undefined' || window.innerWidth > 960)) || isSidebarOpenMobile ? 'active' : ''}`}
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.innerWidth <= 960) {
-                setIsSidebarOpenMobile(!isSidebarOpenMobile);
-              } else {
-                setIsLeftCollapsed(!isLeftCollapsed);
-              }
-            }}
-            title={isLeftCollapsed ? 'Show sources panel' : 'Hide sources panel'}
+            className={`workspace-toggle-btn ${isSidebarOpenMobile ? 'active' : ''}`}
+            onClick={() => setIsSidebarOpenMobile(!isSidebarOpenMobile)}
+            title="Sources"
             aria-label="Toggle sources panel"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
               <line x1="9" y1="3" x2="9" y2="21" />
             </svg>
-            <span className="toggle-label">Sources</span>
             <span className="toggle-badge">{sources.length}</span>
           </button>
 
           <button
             type="button"
-            className={`workspace-toggle-btn ${(!isRightCollapsed && (typeof window === 'undefined' || window.innerWidth > 960)) || isRightOpenMobile ? 'active' : ''}`}
-            onClick={() => {
-              if (typeof window !== 'undefined' && window.innerWidth <= 960) {
-                setIsRightOpenMobile(!isRightOpenMobile);
-              } else {
-                setIsRightCollapsed(!isRightCollapsed);
-              }
-            }}
-            title={isRightCollapsed ? 'Show notes & passage inspector' : 'Hide notes & passage inspector'}
-            aria-label="Toggle inspector panel"
+            className={`workspace-toggle-btn ${isRightOpenMobile ? 'active' : ''}`}
+            onClick={() => setIsRightOpenMobile(!isRightOpenMobile)}
+            title="Tools"
+            aria-label="Toggle tools panel"
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
               <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
               <line x1="15" y1="3" x2="15" y2="21" />
             </svg>
-            <span className="toggle-label">
-              {rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}
-            </span>
-            {notes.length > 0 && <span className="toggle-badge">{notes.length}</span>}
           </button>
 
-          {/* New Chat Button */}
           <button
             type="button"
             className="btn-icon workspace-top-icon-btn"
@@ -561,13 +523,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             aria-label="New conversation"
             data-testid="top-new-chat-btn"
           >
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <line x1="12" y1="5" x2="12" y2="19" />
               <line x1="5" y1="12" x2="19" y2="12" />
             </svg>
           </button>
 
-          {/* Settings Trigger */}
           <button
             type="button"
             className="btn-icon workspace-top-icon-btn"
@@ -575,35 +536,27 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             title="Notebook settings"
             aria-label="Notebook settings"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
               <circle cx="12" cy="12" r="3" />
               <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
             </svg>
           </button>
 
-          {/* Demo Mode Badge */}
           {isDemoMode && (
             <span className="demo-pill" data-testid="demo-pill">
               Public demo
             </span>
           )}
 
-          {/* Guest Workspace Badge */}
-          <div
-            className="guest-workspace-indicator"
+          <span
+            className="workspace-avatar"
             data-testid="guest-workspace-badge"
-            title="Your notebook workspace is private to this browser."
-            onClick={() => {
-              if (onResetWorkspace) {
-                onResetWorkspace();
-              }
-            }}
+            title={currentUser?.email ? `Signed in as ${currentUser.email}` : 'Guest workspace, private to this browser'}
+            aria-label={currentUser?.email ? `Signed in as ${currentUser.email}` : 'Guest workspace'}
+            role="img"
           >
-            <span className="guest-status-indicator-dot" />
-            <span className="guest-status-label">
-              {currentUser?.email || 'Guest Workspace'}
-            </span>
-          </div>
+            {(currentUser?.email || 'G').charAt(0).toUpperCase()}
+          </span>
         </div>
       </header>
 
@@ -658,6 +611,36 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           {/* TAB 1: SOURCES (NotebookLM Workflow) */}
           {sidebarTab === 'sources' && (
             <div className="sidebar-tab-content">
+              <div className="sources-action-row">
+                <button
+                  type="button"
+                  className="btn-pill btn-add-sources"
+                  onClick={() => setIsAddSourceOpen(true)}
+                  data-testid="add-source-btn"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>Add sources</span>
+                </button>
+                <button
+                  type="button"
+                  className="btn-pill"
+                  onClick={() => {
+                    setNoteFormTitle('');
+                    setNoteFormContent('');
+                    setEditingNote(null);
+                    setIsCreateNoteOpen(true);
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>Create note</span>
+                </button>
+              </div>
               <div className="sources-header-bar">
                 <span className="selection-badge">
                   {selectedSourceIds.length} of {readySources.length} selected
@@ -683,18 +666,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="btn btn-primary btn-full btn-add-sources"
-                onClick={() => setIsAddSourceOpen(true)}
-                data-testid="add-source-btn"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Add sources</span>
-              </button>
 
               {sources.length > 2 && (
                 <div className="source-search-container">
@@ -781,7 +752,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 );
                               })()}
                             </div>
-                            <div className="source-meta-row">
+                            <div className={`source-meta-row ${isReady ? "is-ready" : ""}`}>
                               <span className="source-type-tag">{s.source_type}</span>
                               {isReady ? (
                                 <span>
@@ -1064,10 +1035,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               type="button"
               className="floating-reopen-btn right-reopen"
               onClick={() => setIsRightCollapsed(false)}
-              title="Open notes & passage inspector"
-              aria-label="Open notes & passage inspector"
+              title="Open tools panel"
+              aria-label="Open tools panel"
             >
-              <span>{rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}</span>
+              <span>Tools</span>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <polyline points="15 18 9 12 15 6" />
               </svg>
@@ -1718,24 +1689,29 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           data-testid="passage-pane"
           aria-label="Inspector and Notes Panel"
         >
-          {/* Right Panel Header with Dual Mode Switcher */}
+          {/* Right Panel Header: "Tools" home, or a back arrow into a tool */}
           <div className="right-panel-header">
-            <div className="sidebar-segment-switcher">
-              <button
-                type="button"
-                className={`segment-btn ${rightPanelTab === 'passage' ? 'active' : ''}`}
-                onClick={() => setRightPanelTab('passage')}
-              >
-                Passage
-              </button>
-              <button
-                type="button"
-                className={`segment-btn ${rightPanelTab === 'notes' ? 'active' : ''}`}
-                onClick={() => setRightPanelTab('notes')}
-              >
-                Notes ({notes.length})
-              </button>
-            </div>
+            {rightPanelTab === 'tools' ? (
+              <h2 className="right-panel-title">Tools</h2>
+            ) : (
+              <div className="right-panel-title-row">
+                <button
+                  type="button"
+                  className="panel-back-btn"
+                  onClick={() => setRightPanelTab('tools')}
+                  aria-label="Back to tools"
+                  title="Back to tools"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <line x1="19" y1="12" x2="5" y2="12" />
+                    <polyline points="12 19 5 12 12 5" />
+                  </svg>
+                </button>
+                <h2 className="right-panel-title">
+                  {rightPanelTab === 'passage' ? 'Passage' : `Notes (${notes.length})`}
+                </h2>
+              </div>
+            )}
 
             <div className="right-header-actions">
               {/* Citation Step Controls when in Passage mode */}
@@ -1789,6 +1765,116 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               </button>
             </div>
           </div>
+
+          {/* RIGHT PANEL CONTENT: TOOLS HOME */}
+          {rightPanelTab === 'tools' && (
+            <div className="right-panel-body tools-home">
+              <div className="tools-grid" role="list">
+                <button type="button" role="listitem" className="tool-tile" onClick={() => setRightPanelTab('passage')}>
+                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                    <polyline points="14 2 14 8 20 8" />
+                    <line x1="16" y1="13" x2="8" y2="13" />
+                    <line x1="16" y1="17" x2="8" y2="17" />
+                  </svg>
+                  <span className="tool-tile-label">Passage</span>
+                </button>
+                <button type="button" role="listitem" className="tool-tile" onClick={() => setRightPanelTab('notes')}>
+                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                    <path d="M12 20h9" />
+                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                  </svg>
+                  <span className="tool-tile-label">Notes</span>
+                  {notes.length > 0 && <span className="tool-tile-count">{notes.length}</span>}
+                </button>
+                <button
+                  type="button"
+                  role="listitem"
+                  className="tool-tile tool-tile-warning"
+                  onClick={() => scrollToFirst('[data-testid="conflict-view"]')}
+                  disabled={conflictMessageCount === 0}
+                  title={conflictMessageCount === 0 ? 'No conflicting sources in this chat yet' : 'Jump to the first conflict'}
+                >
+                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+                    <line x1="12" y1="9" x2="12" y2="13" />
+                    <line x1="12" y1="17" x2="12.01" y2="17" />
+                  </svg>
+                  <span className="tool-tile-label">Conflicts</span>
+                  {conflictMessageCount > 0 && <span className="tool-tile-count">{conflictMessageCount}</span>}
+                </button>
+                <button
+                  type="button"
+                  role="listitem"
+                  className="tool-tile tool-tile-info"
+                  onClick={() => scrollToFirst('[data-testid="convention-mismatch-view"]')}
+                  disabled={conventionMessageCount === 0}
+                  title={conventionMessageCount === 0 ? 'No notation differences in this chat yet' : 'Jump to the first notation difference'}
+                >
+                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                    <polyline points="16 3 21 3 21 8" />
+                    <line x1="4" y1="20" x2="21" y2="3" />
+                    <polyline points="21 16 21 21 16 21" />
+                    <line x1="15" y1="15" x2="21" y2="21" />
+                    <line x1="4" y1="4" x2="9" y2="9" />
+                  </svg>
+                  <span className="tool-tile-label">Conventions</span>
+                  {conventionMessageCount > 0 && <span className="tool-tile-count">{conventionMessageCount}</span>}
+                </button>
+                <button type="button" role="listitem" className="tool-tile" disabled title="Coming soon">
+                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                    <polyline points="9 11 12 14 22 4" />
+                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                  </svg>
+                  <span className="tool-tile-label">Proof check</span>
+                  <span className="tool-tile-soon">Soon</span>
+                </button>
+                <button type="button" role="listitem" className="tool-tile" disabled title="Coming soon">
+                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                    <rect x="2" y="7" width="5" height="10" rx="1" />
+                    <rect x="9.5" y="7" width="5" height="10" rx="1" />
+                    <rect x="17" y="7" width="5" height="10" rx="1" />
+                  </svg>
+                  <span className="tool-tile-label">Trace</span>
+                  <span className="tool-tile-soon">Soon</span>
+                </button>
+              </div>
+
+              {notes.length > 0 ? (
+                <div className="tools-recent">
+                  <h3 className="tools-recent-heading">Saved notes</h3>
+                  <ul className="tools-recent-list">
+                    {notes.slice(0, 5).map((n) => (
+                      <li key={n.id}>
+                        <button
+                          type="button"
+                          className="tools-recent-item"
+                          onClick={() => {
+                            setEditingNote(n);
+                            setNoteFormTitle(n.title);
+                            setNoteFormContent(n.content);
+                            setIsCreateNoteOpen(true);
+                          }}
+                        >
+                          <span className="tools-recent-title">{n.title}</span>
+                          <span className="tools-recent-meta">
+                            {n.is_saved_answer ? 'Saved answer' : 'Note'} · {new Date(n.updated_at).toLocaleDateString()}
+                          </span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ) : (
+                <div className="tools-empty">
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                    <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
+                  </svg>
+                  <p>Saved notes and tool results appear here.</p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* RIGHT PANEL CONTENT: PASSAGE VIEW */}
           {rightPanelTab === 'passage' && (
