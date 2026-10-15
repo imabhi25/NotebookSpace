@@ -90,7 +90,7 @@ describe('DashboardView component', () => {
     expect(screen.getByText('EECS 2031 — Software Tools')).toBeInTheDocument();
     expect(screen.getByText(/3\s+sources/i)).toBeInTheDocument();
 
-    const searchInput = screen.getByPlaceholderText(/search subjects/i);
+    const searchInput = screen.getByPlaceholderText(/search notebooks/i);
     fireEvent.change(searchInput, { target: { value: 'Software' } });
 
     expect(screen.queryByText('EECS 3101 — Algorithms')).not.toBeInTheDocument();
@@ -383,8 +383,8 @@ describe('Guest Workspace & Access Flow', () => {
 
     const banner = screen.getByTestId('guest-workspace-banner');
     expect(banner).toBeInTheDocument();
-    expect(banner).toHaveTextContent(/Private Browser Workspace/i);
-    expect(banner).toHaveTextContent(/private to this browser session/i);
+    expect(banner).toHaveTextContent(/private to this browser/i);
+    expect(banner).toHaveTextContent(/No sign-in needed/i);
   });
 });
 
@@ -551,7 +551,7 @@ describe('Phase 2: Conventions & Convention Mismatch', () => {
 
     const pill = screen.getByTestId('convention-pill-0');
     expect(pill).toBeInTheDocument();
-    expect(pill).toHaveTextContent(/1-indexed array indexing • Tutorial 02 Arrays/i);
+    expect(pill).toHaveTextContent(/1-indexed · Tutorial 02 Arrays/i);
 
     fireEvent.click(pill);
     expect(handleSelect).toHaveBeenCalledWith(
@@ -650,3 +650,4 @@ describe('Superseded Badges in Sidebar and SourcePanel', () => {
     expect(panelBadge).toHaveTextContent('Superseded');
   });
 });
+

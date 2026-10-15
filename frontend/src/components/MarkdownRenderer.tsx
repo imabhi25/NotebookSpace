@@ -155,6 +155,8 @@ export function renderTextWithCitations(
         isThisMessageSelected &&
         normalizeFileName(selectedCitation?.file) === normalizeFileName(matchedCitation.file) &&
         selectedCitation?.page === matchedCitation.page;
+      // Shown as a small footnote number that matches the citation list; the full marker stays for copy and tests.
+      const citationNumber = availableCitations.indexOf(matchedCitation as Citation) + 1;
 
       elements.push(
         <button
@@ -164,8 +166,12 @@ export function renderTextWithCitations(
           onClick={() => onSelectCitation(matchedCitation)}
           data-testid="inline-citation"
           aria-label={`Citation: ${matchedCitation.file} page ${matchedCitation.page}`}
+          title={`${matchedCitation.file} · p. ${matchedCitation.page}`}
         >
-          {rawMatchedText}
+          <span className="inline-citation-num" aria-hidden="true">
+            {citationNumber > 0 ? citationNumber : '↗'}
+          </span>
+          <span className="sr-only">{rawMatchedText}</span>
         </button>
       );
     } else {

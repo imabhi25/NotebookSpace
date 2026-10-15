@@ -179,11 +179,6 @@ export function App({
       if (!authed) return;
       const data = await api.getSubjects(true);
       setSubjects(data);
-      if (route.view === 'notebooks' && !route.subjectId && data.length > 0) {
-        const first = data.find((s) => !s.is_archived) || data[0];
-        navigateTo('workspace', first.id);
-        loadSubjectData(first.id);
-      }
     } catch {
       // ignore
     } finally {
@@ -1077,7 +1072,7 @@ export function App({
           isMobileSidebarOpen={isMobileNotebooksOpen}
           onSetMobileSidebarOpen={setIsMobileNotebooksOpen}
         >
-          {activeSubject ? (
+          {route.view === 'workspace' && activeSubject ? (
             /* Selected Notebook Workspace View */
             <SubjectWorkspaceView
               subject={activeSubject}
@@ -1114,7 +1109,7 @@ export function App({
               onStopGeneration={handleStopGeneration}
               onResetWorkspace={handleResetWorkspace}
             />
-          ) : subjectsLoading ? (
+          ) : route.view === 'workspace' ? (
             <WorkspaceSkeleton />
           ) : null}
         </DashboardView>

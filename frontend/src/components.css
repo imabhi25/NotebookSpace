@@ -433,6 +433,7 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: v
 }
 @media (max-width: 768px) {
   .notebooks-sidebar.mobile-open { box-shadow: var(--shadow-4); }
+  .thread-scroll-container { padding-bottom: var(--size-100); }
   button, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, [role="button"] { min-height: var(--target-mobile) !important; }
   button, [role="button"] { min-width: var(--target-mobile) !important; }
   .source-checkbox-col input[type="checkbox"] {
@@ -744,9 +745,9 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
 .conflict-topic { font-size: var(--type-caption); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-label); text-transform: uppercase; color: var(--color-warning-text); }
 .conflict-topic-group { gap: var(--space-3); }
 .conflict-cards-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--size-180), 1fr)); gap: var(--space-3); }
-.conflict-source-card { min-width: 0; display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-3); padding: var(--space-4); border-color: var(--color-border-sheet); box-shadow: var(--shadow-1); }
+.conflict-source-card { min-width: 0; display: flex; flex-direction: column; justify-content: flex-start; gap: var(--space-3); padding: var(--space-4); border-color: var(--color-border-sheet); box-shadow: var(--shadow-1); height: 100%; }
 .conflict-source-card .source-value { margin: 0; font-weight: var(--weight-medium); text-wrap: pretty; }
-.conflict-source-card .source-meta { font-size: var(--type-small); color: var(--color-text-secondary); padding-top: var(--space-3); border-top: var(--border-width) solid var(--color-border); overflow-wrap: anywhere; }
+.conflict-source-card .source-meta { margin-top: auto; font-size: var(--type-small); color: var(--color-text-secondary); padding-top: var(--space-3); border-top: var(--border-width) solid var(--color-border); overflow-wrap: anywhere; }
 .conflict-source-card .source-meta strong { font-weight: var(--weight-medium); }
 
 /* Sources panel */

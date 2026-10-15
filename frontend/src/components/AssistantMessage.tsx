@@ -261,6 +261,47 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
         </div>
       ) : null}
 
+      {/* Resolved conflict summary banner above answer */}
+      {!result.abstained && resolvedConflicts.length > 0 && (
+        <div className="conflict-summary-banner" data-testid="conflict-summary-banner" role="status">
+          <span className="summary-banner-icon" aria-hidden="true">💡</span>
+          <span className="summary-banner-text">
+            <strong>Heads up:</strong>{' '}
+            {resolvedConflicts.map((c, i) => (
+              <span key={i}>
+                {formatSourceTitle(c.resolution!.current_file, sources)} updates the {c.topic}.{' '}
+              </span>
+            ))}
+          </span>
+        </div>
+      )}
+
+      {/* Convention Pills at top of answer */}
+      {!result.abstained && result.conventions && result.conventions.length > 0 && (
+        <div className="conventions-pills-row" data-testid="conventions-pills">
+          {result.conventions.map((conv, idx) => {
+            const isConvActive =
+              isThisMessageSelected &&
+              normalizeFileName(selectedCitation?.file) === normalizeFileName(conv.file) &&
+              selectedCitation?.page === conv.page;
+
+            return (
+              <button
+                key={idx}
+                type="button"
+                className={`convention-pill ${conv.adopted ? 'adopted' : ''} ${isConvActive ? 'active' : ''}`}
+                onClick={() => handleSelect({ file: conv.file, page: conv.page })}
+                data-testid={`convention-pill-${idx}`}
+                aria-label={`Convention: ${conv.value} in ${formatSourceTitle(conv.file, sources)}`}
+              >
+                <span className="convention-pill-icon" aria-hidden="true">✦</span>
+                <span>{conv.value} &middot; {formatSourceTitle(conv.file, sources)}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
       {/* 4. CONFLICT STATE */}
       {!result.abstained && result.conflict_detected && result.conflicts && result.conflicts.length > 0 && (
         <div className="conflict-container" data-testid="conflict-view">
@@ -335,7 +376,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
                         </div>
                       )}
                       <div className="source-meta">
-                        <div><strong>File:</strong> {formatSourceTitle(claim.file, sources)} (Page {claim.page})</div>
+                        <div>{formatSourceTitle(claim.file, sources)} &middot; p. {claim.page}</div>
                         {claim.upload_date && <div><strong>Uploaded:</strong> {claim.upload_date}</div>}
                       </div>
                     </div>
@@ -430,7 +471,7 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
                         </div>
                         <div className="convention-value">&ldquo;{conv.value}&rdquo;</div>
                         <div className="convention-meta">
-                          <strong>Source:</strong> {formatSourceTitle(conv.file, sources)} (Page {conv.page})
+                          {formatSourceTitle(conv.file, sources)} &middot; p. {conv.page}
                         </div>
                       </div>
                     );
@@ -445,46 +486,6 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
       {/* 5. ANSWERED STATE */}
       {!result.abstained && (
         <div className="answer-view-container" data-testid="answer-view">
-          {/* Resolved conflict summary banner above answer */}
-          {resolvedConflicts.length > 0 && (
-            <div className="conflict-summary-banner" data-testid="conflict-summary-banner" role="status">
-              <span className="summary-banner-icon" aria-hidden="true">💡</span>
-              <span className="summary-banner-text">
-                <strong>Heads up:</strong>{' '}
-                {resolvedConflicts.map((c, i) => (
-                  <span key={i}>
-                    {formatSourceTitle(c.resolution!.current_file, sources)} updates the {c.topic}.{' '}
-                  </span>
-                ))}
-              </span>
-            </div>
-          )}
-
-          {/* Convention Pills at top of answer */}
-          {result.conventions && result.conventions.length > 0 && (
-            <div className="conventions-pills-row" data-testid="conventions-pills">
-              {result.conventions.map((conv, idx) => {
-                const isConvActive =
-                  isThisMessageSelected &&
-                  normalizeFileName(selectedCitation?.file) === normalizeFileName(conv.file) &&
-                  selectedCitation?.page === conv.page;
-
-                return (
-                  <button
-                    key={idx}
-                    type="button"
-                    className={`convention-pill ${conv.adopted ? 'adopted' : ''} ${isConvActive ? 'active' : ''}`}
-                    onClick={() => handleSelect({ file: conv.file, page: conv.page })}
-                    data-testid={`convention-pill-${idx}`}
-                    aria-label={`Convention: ${conv.value} ${formatConventionTopic(conv.topic)} in ${formatSourceTitle(conv.file, sources)}`}
-                  >
-                    <span className="convention-pill-icon" aria-hidden="true">✦</span>
-                    <span>{conv.value} {formatConventionTopic(conv.topic)} &bull; {formatSourceTitle(conv.file, sources)}</span>
-                  </button>
-                );
-              })}
-            </div>
-          )}
 
           <div className="answer-text">
             {renderFormattedAnswer(
