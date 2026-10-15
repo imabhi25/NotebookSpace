@@ -127,6 +127,22 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [sidebarTab, setSidebarTab] = useState<'sources' | 'conversations'>('sources');
 
   // Right contextual panel tab: 'passage' | 'notes'
+  // The ⋯ menu on a source row; one open at a time, closed by an outside click or Escape.
+  const [sourceMenuId, setSourceMenuId] = useState<string | null>(null);
+  useEffect(() => {
+    if (!sourceMenuId) return;
+    const close = () => setSourceMenuId(null);
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    window.addEventListener('click', close);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('click', close);
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [sourceMenuId]);
+
   // Dropping files anywhere on the Sources panel uploads them.
   const [isDraggingFiles, setIsDraggingFiles] = useState(false);
   const dragDepth = useRef(0);
@@ -700,7 +716,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <div className="sources-action-row">
                 <button
                   type="button"
-                  className="btn-pill btn-add-sources"
+                  className="btn-pill"
                   onClick={() => setIsAddSourceOpen(true)}
                   data-testid="add-source-btn"
                 >
@@ -888,89 +904,85 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 </span>
                               )}
 
-                              <div className="source-actions-col">
+                            </div>
+                          </div>
+
+                          <div className="source-menu-wrap" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              type="button"
+                              className={`source-menu-btn ${sourceMenuId === s.id ? 'is-open' : ''}`}
+                              onClick={() => setSourceMenuId(sourceMenuId === s.id ? null : s.id)}
+                              aria-label={`More actions for ${s.title}`}
+                              aria-haspopup="menu"
+                              aria-expanded={sourceMenuId === s.id}
+                            >
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
+                                <circle cx="5" cy="12" r="1.6" />
+                                <circle cx="12" cy="12" r="1.6" />
+                                <circle cx="19" cy="12" r="1.6" />
+                              </svg>
+                            </button>
+                            {sourceMenuId === s.id && (
+                              <div className="source-menu" role="menu">
                                 <button
                                   type="button"
-                                  className="source-item-btn"
-                                  title="View content"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                  role="menuitem"
+                                  onClick={() => {
+                                    setSourceMenuId(null);
                                     handleOpenSourceViewer(s);
                                   }}
-                                  aria-label={`View ${s.title}`}
                                 >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                    <circle cx="12" cy="12" r="3" />
-                                  </svg>
+                                  View
                                 </button>
                                 <button
                                   type="button"
-                                  className="source-item-btn"
-                                  title="Rename source"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                  role="menuitem"
+                                  onClick={() => {
+                                    setSourceMenuId(null);
                                     setRenamingSource(s);
                                     setNewSourceTitle(s.title);
                                   }}
-                                  aria-label={`Rename ${s.title}`}
                                 >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                                  </svg>
+                                  Rename
                                 </button>
                                 {s.status === 'failed' && (s.source_type === 'url' || s.source_type === 'pasted') ? (
                                   <button
                                     type="button"
-                                    className="source-item-btn"
-                                    title="Retry ingestion"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
+                                    role="menuitem"
+                                    onClick={() => {
+                                      setSourceMenuId(null);
                                       onRetrySource(s.id);
                                     }}
-                                    aria-label={`Retry ${s.title}`}
                                   >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="1 4 1 10 7 10" />
-                                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                                    </svg>
+                                    Retry
                                   </button>
                                 ) : (
                                   <button
                                     type="button"
-                                    className="source-item-btn"
-                                    title="Replace file"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
+                                    role="menuitem"
+                                    onClick={() => {
+                                      setSourceMenuId(null);
                                       handleTriggerReplace(s.id);
                                     }}
-                                    aria-label={`Replace ${s.title}`}
                                   >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="23 4 23 10 17 10" />
-                                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                                    </svg>
+                                    Replace file
                                   </button>
                                 )}
                                 <button
                                   type="button"
-                                  className="source-item-btn source-delete-btn"
-                                  title="Remove source"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
+                                  role="menuitem"
+                                  className="is-danger"
+                                  onClick={() => {
+                                    setSourceMenuId(null);
                                     if (window.confirm(`Remove source "${s.title}" from this notebook?`)) {
                                       onDeleteSource(s.id);
                                     }
                                   }}
-                                  aria-label={`Delete ${s.title}`}
                                 >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polyline points="3 6 5 6 21 6" />
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                  </svg>
+                                  Remove
                                 </button>
                               </div>
-                            </div>
+                            )}
                           </div>
 
                           <label className="source-checkbox-col">
