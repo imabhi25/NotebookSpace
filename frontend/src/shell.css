@@ -831,32 +831,6 @@ body {
   background: var(--color-surface-raised);
 }
 
-.notebook-card-new {
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-  border: var(--border-width-dash) dashed var(--color-border-strong);
-  background: var(--color-transparent);
-  color: var(--color-text-secondary);
-  font-size: var(--type-body);
-}
-
-.notebook-card-new:hover {
-  background: var(--color-surface);
-  color: var(--color-text-primary);
-}
-
-.notebook-card-new-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: var(--size-56);
-  height: var(--size-56);
-  border-radius: var(--radius-circle);
-  background: var(--color-accent-soft-strong);
-  color: var(--color-accent-bright);
-}
-
 .notebook-card-top {
   display: flex;
   align-items: flex-start;
@@ -1480,3 +1454,35 @@ html.theme-switching *::after {
   padding: 0;
   color: var(--color-warning-text);
 }
+
+/* Notebook marks: each notebook keeps one of the tool hues, picked from its id. */
+.notebook-card-mark.mark-hue-0 {
+  background: color-mix(in oklab, var(--tool-passage) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-passage);
+}
+
+.notebook-card-mark.mark-hue-1 {
+  background: color-mix(in oklab, var(--tool-notes) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-notes);
+}
+
+.notebook-card-mark.mark-hue-2 {
+  background: color-mix(in oklab, var(--tool-conflict) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-conflict);
+}
+
+.notebook-card-mark.mark-hue-3 {
+  background: color-mix(in oklab, var(--tool-convention) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-convention);
+}
+
+.notebook-card-mark.mark-hue-4 {
+  background: color-mix(in oklab, var(--tool-proof) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-proof);
+}
+
+.notebook-card-mark.mark-hue-5 {
+  background: color-mix(in oklab, var(--tool-trace) var(--tool-well-mix), var(--color-surface));
+  color: var(--tool-trace);
+}
+

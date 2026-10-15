@@ -225,6 +225,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
+  // Each notebook keeps the same mark colour: a small stable hash of its id picks one of six hues.
+  const markHue = (id: string) => {
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+    return h % 6;
+  };
+
   // A short mark for each notebook card: the course number when there is one, else initials.
   const notebookMark = (s: Subject) => {
     const code = (s.course_code || '').trim();
@@ -479,25 +486,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     ? `No notebooks match "${search}". Try adjusting your search query.`
                     : 'Organize course syllabi, lecture notes, and assignments into notebooks.'}
                 </p>
+                {tab === 'active' && !search && (
+                  <button type="button" className="btn-new-notebook" onClick={openCreateModal}>
+                    Create your first notebook
+                  </button>
+                )}
               </div>
             ) : (
               <div className="notebook-grid" role="list" key={`${tab}-${sortBy}`}>
-                {tab === 'active' && !search && (
-                  <button
-                    type="button"
-                    role="listitem"
-                    className="notebook-card notebook-card-new"
-                    onClick={openCreateModal}
-                  >
-                    <span className="notebook-card-new-icon" aria-hidden="true">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </span>
-                    <span>Create new notebook</span>
-                  </button>
-                )}
                 {filtered.map((s) => (
                   <div
                     key={s.id}
@@ -511,7 +507,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     data-testid={`subject-card-${s.id}`}
                   >
                     <div className="notebook-card-top">
-                      <span className="notebook-card-mark" aria-hidden="true">
+                      <span className={`notebook-card-mark mark-hue-${markHue(s.id)}`} aria-hidden="true">
                         {notebookMark(s)}
                       </span>
                       {renderCardMenu(s)}
