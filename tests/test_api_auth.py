@@ -452,3 +452,28 @@ def test_notebook_and_source_caps_are_enforced(world, monkeypatch):
     eleventh = client.post("/subjects", json={"name": "SYNTHETIC cap subject over"}, headers=h)
     assert eleventh.status_code == 400
     assert "maximum 10 subjects" in eleventh.json()["detail"]
+
+
+def test_upload_ingestion_runs_off_the_event_loop(world, monkeypatch):
+    """Parsing and embedding must not block the event loop, or the host's health check
+    times out mid-upload and the server is restarted."""
+    import asyncio
+
+    h, sid = world["headers"], world["ids"]["subject_id"]
+    seen = []
+
+    def record_loop_state(**kwargs):
+        try:
+            asyncio.get_running_loop()
+            seen.append("event loop")
+        except RuntimeError:
+            seen.append("worker thread")
+
+    monkeypatch.setattr("api.main._process_and_store_source", record_loop_state)
+    res = client.post(
+        f"/subjects/{sid}/sources/upload",
+        files={"file": (f"SYNTHETIC-offloop-{uuid.uuid4().hex[:8]}.txt", b"SYNTHETIC upload text.", "text/plain")},
+        headers=h,
+    )
+    assert res.status_code == 200
+    assert seen == ["worker thread"]
