@@ -63,49 +63,117 @@ function renderInlineFormatting(text: string): React.ReactNode[] {
   return parts;
 }
 
+interface MathSpan {
+  start: number;
+  end: number;
+  tex: string;
+  display: boolean;
+}
+
+const isSpace = (ch: string | undefined) => ch === undefined || /\s/.test(ch);
+const isDigit = (ch: string | undefined) => ch !== undefined && /\d/.test(ch);
+
 /**
- * Safely parse and render math expressions ($...$ and $$...$$).
+ * Find $...$ and $$...$$ spans, pairing delimiters left to right. An inline span opens only
+ * on a "$" followed by a non-space and closes only on a "$" preceded by a non-space and not
+ * followed by a digit, so prices like "$5 and $10" stay text. "\$" is a literal dollar,
+ * backtick code is never math, and inline math never crosses a line break.
+ */
+function findMathSpans(text: string): MathSpan[] {
+  const spans: MathSpan[] = [];
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === '\\' && text[i + 1] === '$') {
+      i += 2;
+      continue;
+    }
+    if (ch === '`') {
+      const close = text.indexOf('`', i + 1);
+      i = close === -1 ? i + 1 : close + 1;
+      continue;
+    }
+    if (ch !== '$') {
+      i++;
+      continue;
+    }
+    if (text[i + 1] === '$') {
+      const close = text.indexOf('$$', i + 2);
+      if (close > i + 2) {
+        spans.push({ start: i, end: close + 2, tex: text.slice(i + 2, close), display: true });
+        i = close + 2;
+      } else {
+        i += 2;
+      }
+      continue;
+    }
+    if (isSpace(text[i + 1])) {
+      i++;
+      continue;
+    }
+    let close = -1;
+    for (let j = i + 1; j < text.length && text[j] !== '\n'; j++) {
+      if (text[j] === '\\') {
+        j++;
+        continue;
+      }
+      if (text[j] === '$' && !isSpace(text[j - 1]) && !isDigit(text[j + 1])) {
+        close = j;
+        break;
+      }
+    }
+    if (close === -1) {
+      i++;
+      continue;
+    }
+    spans.push({ start: i, end: close + 1, tex: text.slice(i + 1, close), display: false });
+    i = close + 1;
+  }
+  return spans;
+}
+
+function renderPlainText(text: string): React.ReactNode[] {
+  return renderInlineFormatting(text).map((part) =>
+    typeof part === 'string' ? part.replace(/\\\$/g, '$') : part
+  );
+}
+
+/**
+ * Render $...$ and $$...$$ with KaTeX. HTML output only, so the hidden MathML copy can never
+ * show up as duplicated text; the TeX source is the accessible name instead. If KaTeX cannot
+ * parse an expression, its source is shown as plain text.
  */
 function renderMath(text: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
-  // Match $$...$$ or $...$
-  const mathRegex = /(\$\$[\s\S]+?\$\$|\$[^\$\n]+?\$)/g;
   let lastIdx = 0;
-  let match: RegExpExecArray | null;
 
-  while ((match = mathRegex.exec(text)) !== null) {
-    const start = match.index;
-    const end = mathRegex.lastIndex;
-    const raw = match[0];
-
-    if (start > lastIdx) {
-      parts.push(...renderInlineFormatting(text.slice(lastIdx, start)));
+  for (const span of findMathSpans(text)) {
+    if (span.start > lastIdx) {
+      parts.push(...renderPlainText(text.slice(lastIdx, span.start)));
     }
-
-    const isDisplay = raw.startsWith('$$');
-    const mathContent = isDisplay ? raw.slice(2, -2) : raw.slice(1, -1);
-
     try {
-      const html = katex.renderToString(mathContent, {
-        displayMode: isDisplay,
-        throwOnError: false,
+      const html = katex.renderToString(span.tex, {
+        displayMode: span.display,
+        throwOnError: true,
+        output: 'html',
       });
       parts.push(
         <span
-          key={`math-${start}`}
-          className={isDisplay ? 'math-display' : 'math-inline'}
+          key={`math-${span.start}`}
+          className={span.display ? 'math-display' : 'math-inline'}
+          role="math"
+          aria-label={span.tex}
           dangerouslySetInnerHTML={{ __html: html }}
         />
       );
     } catch {
-      parts.push(raw);
+      parts.push(text.slice(span.start, span.end));
     }
-
-    lastIdx = end;
+    lastIdx = span.end;
   }
 
   if (lastIdx < text.length) {
-    parts.push(...renderInlineFormatting(text.slice(lastIdx)));
+    parts.push(...renderPlainText(text.slice(lastIdx)));
   }
 
   return parts;
