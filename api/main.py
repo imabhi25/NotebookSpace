@@ -6,12 +6,14 @@ import math
 import os
 import re
 from pathlib import Path
+import threading
 import time
 from typing import Any, List, Optional
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from answering.answer import answer_question
@@ -569,8 +571,7 @@ async def upload_endpoint(
                 detail=f"File size exceeds the {limit_mb} MB limit.",
             )
 
-        stream = io.BytesIO(content)
-        chunk_count = ingest_pdf(source=stream, file_name=file.filename)
+        chunk_count = await run_in_threadpool(_ingest_pdf_locked, content, file.filename)
         return UploadResponse(
             file_name=file.filename,
             chunks_stored=chunk_count,
@@ -825,6 +826,44 @@ def get_starter_questions_endpoint(
 # SOURCE MANAGEMENT ENDPOINTS
 # ============================================================================
 
+# Parsing and embedding are CPU-heavy. On a small instance, running them on the event
+# loop starves the health check and the host restarts the server mid-upload, so the
+# async upload routes hand this work to a worker thread, and one file is ingested at a
+# time. Re-entrant because the parse helpers below call _process_and_store_source.
+_INGEST_LOCK = threading.RLock()
+
+
+def _ingest_pdf_locked(content: bytes, file_name: str) -> int:
+    with _INGEST_LOCK:
+        return ingest_pdf(source=io.BytesIO(content), file_name=file_name)
+
+
+def _parse_uploaded_pages(content: bytes, ext: str, file_name: str) -> list[tuple[str, int, str]]:
+    if ext == ".pdf":
+        return parse_pdf_source(source=io.BytesIO(content), file_name=file_name)
+    return parse_text_source(content=content.decode("utf-8", errors="replace"), file_name=file_name)
+
+
+def _parse_and_store_upload(
+    user_id: str,
+    subject_id: str,
+    source_id: str,
+    version: int,
+    content: bytes,
+    ext: str,
+    file_name: str,
+) -> None:
+    with _INGEST_LOCK:
+        pages = _parse_uploaded_pages(content, ext, file_name)
+        _process_and_store_source(
+            user_id=user_id,
+            subject_id=subject_id,
+            source_id=source_id,
+            version=version,
+            pages=pages,
+        )
+
+
 def _process_and_store_source(
     user_id: str,
     subject_id: str,
@@ -832,27 +871,28 @@ def _process_and_store_source(
     version: int,
     pages: list[tuple[str, int, str]],
 ) -> None:
-    chunks = chunk_pages(pages)
-    chunk_texts = [c.text for c in chunks]
-    embeddings = embed_batch(chunk_texts)
-    store_source_chunks(
-        user_id=user_id,
-        subject_id=subject_id,
-        source_id=source_id,
-        source_version=version,
-        chunks=chunks,
-        embeddings=embeddings,
-    )
-    total_words = sum(c.word_count for c in chunks)
-    full_content = "\n\n".join(f"--- Page {p[1]} ---\n{p[2]}" for p in pages)
-    update_source_status(
-        source_id=source_id,
-        status="ready",
-        page_count=len(pages),
-        word_count=total_words,
-        raw_content=full_content,
-        version=version,
-    )
+    with _INGEST_LOCK:
+        chunks = chunk_pages(pages)
+        chunk_texts = [c.text for c in chunks]
+        embeddings = embed_batch(chunk_texts)
+        store_source_chunks(
+            user_id=user_id,
+            subject_id=subject_id,
+            source_id=source_id,
+            source_version=version,
+            chunks=chunks,
+            embeddings=embeddings,
+        )
+        total_words = sum(c.word_count for c in chunks)
+        full_content = "\n\n".join(f"--- Page {p[1]} ---\n{p[2]}" for p in pages)
+        update_source_status(
+            source_id=source_id,
+            status="ready",
+            page_count=len(pages),
+            word_count=total_words,
+            raw_content=full_content,
+            version=version,
+        )
 
 
 def _stale_processing_minutes() -> int:
@@ -955,19 +995,15 @@ async def upload_source_endpoint(
     )
 
     try:
-        if ext == ".pdf":
-            stream = io.BytesIO(content)
-            pages = parse_pdf_source(source=stream, file_name=filename)
-        else:
-            text_str = content.decode("utf-8", errors="replace")
-            pages = parse_text_source(content=text_str, file_name=filename)
-
-        _process_and_store_source(
+        await run_in_threadpool(
+            _parse_and_store_upload,
             user_id=current_user["id"],
             subject_id=subject_id,
             source_id=src["id"],
             version=1,
-            pages=pages,
+            content=content,
+            ext=ext,
+            file_name=filename,
         )
         return get_source_by_id(user_id=current_user["id"], source_id=src["id"])
     except Exception as e:
@@ -1211,19 +1247,15 @@ async def replace_source_endpoint(
     update_source_status(source_id=source_id, status="processing", error_message=None)
 
     try:
-        if ext == ".pdf":
-            stream = io.BytesIO(content)
-            pages = parse_pdf_source(source=stream, file_name=filename)
-        else:
-            text_str = content.decode("utf-8", errors="replace")
-            pages = parse_text_source(content=text_str, file_name=filename)
-
-        _process_and_store_source(
+        await run_in_threadpool(
+            _parse_and_store_upload,
             user_id=current_user["id"],
             subject_id=subject_id,
             source_id=source_id,
             version=new_version,
-            pages=pages,
+            content=content,
+            ext=ext,
+            file_name=filename,
         )
         update_source_status(
             source_id=source_id,
