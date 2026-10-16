@@ -1,3 +1,4 @@
+import asyncio
 from collections import defaultdict
 import hashlib
 import io
@@ -491,7 +492,7 @@ class PassageItem(BaseModel):
 # ============================================================================
 
 @app.get("/health")
-def health_check():
+async def health_check():
     return {"status": "ok"}
 
 
@@ -571,7 +572,8 @@ async def upload_endpoint(
                 detail=f"File size exceeds the {limit_mb} MB limit.",
             )
 
-        chunk_count = await run_in_threadpool(_ingest_pdf_locked, content, file.filename)
+        async with _INGEST_SLOT:
+            chunk_count = await run_in_threadpool(_ingest_pdf_locked, content, file.filename)
         return UploadResponse(
             file_name=file.filename,
             chunks_stored=chunk_count,
@@ -830,7 +832,10 @@ def get_starter_questions_endpoint(
 # loop starves the health check and the host restarts the server mid-upload, so the
 # async upload routes hand this work to a worker thread, and one file is ingested at a
 # time. Re-entrant because the parse helpers below call _process_and_store_source.
+# Async routes also wait for _INGEST_SLOT on the event loop before taking a worker
+# thread, so queued uploads don't tie up the threadpool that sync routes share.
 _INGEST_LOCK = threading.RLock()
+_INGEST_SLOT = asyncio.Semaphore(1)
 
 
 def _ingest_pdf_locked(content: bytes, file_name: str) -> int:
@@ -995,16 +1000,17 @@ async def upload_source_endpoint(
     )
 
     try:
-        await run_in_threadpool(
-            _parse_and_store_upload,
-            user_id=current_user["id"],
-            subject_id=subject_id,
-            source_id=src["id"],
-            version=1,
-            content=content,
-            ext=ext,
-            file_name=filename,
-        )
+        async with _INGEST_SLOT:
+            await run_in_threadpool(
+                _parse_and_store_upload,
+                user_id=current_user["id"],
+                subject_id=subject_id,
+                source_id=src["id"],
+                version=1,
+                content=content,
+                ext=ext,
+                file_name=filename,
+            )
         return get_source_by_id(user_id=current_user["id"], source_id=src["id"])
     except Exception as e:
         logger.error(f"Failed to ingest source {filename}: {e}", exc_info=True)
@@ -1242,28 +1248,35 @@ async def replace_source_endpoint(
         raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size ({limit_mb} MB).")
 
     file_hash = hashlib.sha256(content).hexdigest()
-    new_version = src["version"] + 1
 
     update_source_status(source_id=source_id, status="processing", error_message=None)
 
+    def replace_locked() -> None:
+        # Read the version under the lock so overlapping replacements of the same
+        # source can't store one upload's chunks under the other's metadata.
+        with _INGEST_LOCK:
+            current = get_source_by_id(user_id=current_user["id"], source_id=source_id)
+            new_version = current["version"] + 1
+            _parse_and_store_upload(
+                user_id=current_user["id"],
+                subject_id=subject_id,
+                source_id=source_id,
+                version=new_version,
+                content=content,
+                ext=ext,
+                file_name=filename,
+            )
+            update_source_status(
+                source_id=source_id,
+                status="ready",
+                file_hash=file_hash,
+                version=new_version,
+                file_name=filename,
+            )
+
     try:
-        await run_in_threadpool(
-            _parse_and_store_upload,
-            user_id=current_user["id"],
-            subject_id=subject_id,
-            source_id=source_id,
-            version=new_version,
-            content=content,
-            ext=ext,
-            file_name=filename,
-        )
-        update_source_status(
-            source_id=source_id,
-            status="ready",
-            file_hash=file_hash,
-            version=new_version,
-            file_name=filename,
-        )
+        async with _INGEST_SLOT:
+            await run_in_threadpool(replace_locked)
         return get_source_by_id(user_id=current_user["id"], source_id=source_id)
     except Exception as e:
         logger.error(f"Failed to replace source {source_id}: {e}", exc_info=True)
