@@ -201,3 +201,79 @@ def test_retried_follow_up_searches_with_the_earlier_question(nb, monkeypatch):
     )
     assert searched[1] == "explain it simpler What is a binary heap?"
     assert searched[2] == searched[1]
+
+
+# --- A retry asks the model again instead of replaying the cached answer ------------------
+
+def test_retry_bypasses_the_llm_response_cache(tmp_path):
+    from answering.llm import FakeLLMClient
+
+    cache = tmp_path / "cache"
+    FakeLLMClient(default_response="SYNTHETIC first", cache_dir=cache).generate("s", "u")
+    replay = FakeLLMClient(default_response="SYNTHETIC second", cache_dir=cache)
+    assert replay.generate("s", "u").text == "SYNTHETIC first"
+    replay.read_cache = False
+    assert replay.generate("s", "u").text == "SYNTHETIC second"
+    assert replay.call_count == 1
+
+
+def test_notebook_retry_calls_the_model_even_for_a_cached_prompt(nb, monkeypatch):
+    import answering.notebook_answer as na
+    from answering.llm import FakeLLMClient
+
+    model_calls: list[str] = []
+
+    class _Counting(FakeLLMClient):
+        def _raw_generate(self, system, user):
+            model_calls.append(user)
+            return "not json", 1, 1
+
+    monkeypatch.setattr(na, "get_llm_client", lambda *a, **k: _Counting())
+    url = f"/subjects/{nb['sid']}/conversations/{nb['conv']}/messages"
+    body = {"selected_source_ids": [nb["src"]], "question": "What is a binary heap?"}
+    first = client.post(url, json=body, headers=nb["h"]).json()
+    retry = {**body, "is_retry": True}
+    second = client.post(url, json={**retry, "retry_message_id": first["id"]}, headers=nb["h"]).json()
+    calls_before = len(model_calls)
+    # The second retry sends exactly the prompt the first retry sent.
+    client.post(url, json={**retry, "retry_message_id": second["id"]}, headers=nb["h"])
+    assert model_calls[calls_before] == model_calls[calls_before - 2]
+    assert len(model_calls) > calls_before
+
+
+# --- Reserved addresses can't be registered -------------------------------------------------
+
+@pytest.mark.parametrize("email", ["guest_abcdef123456@notebookspace.local", "Student@NotebookSpace.local"])
+def test_reserved_email_domain_cannot_register(clean_limits, email):
+    resp = client.post("/auth/register", json={"email": email, "password": "SYNTHETIC-pass"})
+    assert resp.status_code == 400
+
+
+# --- Replacing a source with a file makes it a file source ----------------------------------
+
+def test_replacing_a_pasted_source_with_a_file_drops_the_old_text(nb):
+    base = f"/subjects/{nb['sid']}/sources/{nb['src']}"
+    resp = client.post(
+        f"{base}/replace",
+        files={"file": ("SYNTHETIC notes.md", b"SYNTHETIC TEST TEXT about tries and heaps.", "text/markdown")},
+        headers=nb["h"],
+    )
+    assert resp.status_code == 200
+    src = client.get(base, headers=nb["h"]).json()
+    assert src["source_type"] == "markdown"
+    assert "tries" in src["raw_content"]
+
+
+def test_failed_replace_does_not_retry_from_the_old_text(nb, monkeypatch):
+    def broken(*args, **kwargs):
+        raise ValueError("SYNTHETIC parse failure")
+
+    monkeypatch.setattr(main, "_parse_uploaded_pages", broken)
+    base = f"/subjects/{nb['sid']}/sources/{nb['src']}"
+    failed = client.post(
+        f"{base}/replace", files={"file": ("SYNTHETIC new.txt", b"SYNTHETIC new text", "text/plain")}, headers=nb["h"]
+    ).json()
+    assert failed["status"] == "failed"
+    assert failed["source_type"] == "txt"
+    # Retrying would otherwise mark the source ready again with the text it was replaced from.
+    assert client.post(f"{base}/retry", headers=nb["h"]).status_code == 400

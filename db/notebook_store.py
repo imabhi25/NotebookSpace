@@ -573,6 +573,7 @@ def update_source_status(
     version: int | None = None,
     file_hash: str | None = None,
     file_name: str | None = None,
+    source_type: str | None = None,
     db_url: str | None = None,
 ) -> None:
     with get_connection(db_url) as conn:
@@ -599,6 +600,9 @@ def update_source_status(
                 if file_name is not None:
                     updates.append("file_name = %s")
                     params.append(file_name)
+                if source_type is not None:
+                    updates.append("source_type = %s")
+                    params.append(source_type)
 
                 params.append(str(source_id))
                 query = f"UPDATE sources SET {', '.join(updates)} WHERE id = %s;"
