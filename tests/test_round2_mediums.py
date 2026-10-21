@@ -42,6 +42,17 @@ class _FakeResponse:
     def text(self) -> str:
         return self.content.decode("utf-8", errors="replace")
 
+    charset_encoding = None
+
+    def iter_bytes(self):
+        yield self.content
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
 
 def fake_fetch(monkeypatch, content: bytes, content_type: str, status_code: int = 200):
     """Serve `content` for any URL without touching the network or the SSRF resolver."""
@@ -57,6 +68,9 @@ def fake_fetch(monkeypatch, content: bytes, content_type: str, status_code: int 
             return False
 
         def get(self, url, headers=None):
+            return _FakeResponse(content, content_type, status_code)
+
+        def stream(self, method, url, headers=None):
             return _FakeResponse(content, content_type, status_code)
 
     monkeypatch.setattr("ingestion.parsers.validate_url_safe", lambda url: None)

@@ -6,7 +6,7 @@ from pathlib import Path
 import re
 import socket
 from typing import BinaryIO
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 import httpx
 import pypdf
 
@@ -49,8 +49,13 @@ class _HTMLContentExtractor(HTMLParser):
 
 
 def is_ip_private_or_restricted(ip_obj: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    # An IPv4 address written as IPv6 (::ffff:127.0.0.1) is judged as the IPv4 address.
+    mapped = getattr(ip_obj, "ipv4_mapped", None)
+    if mapped is not None:
+        ip_obj = mapped
     return (
-        ip_obj.is_private
+        not ip_obj.is_global
+        or ip_obj.is_private
         or ip_obj.is_loopback
         or ip_obj.is_link_local
         or ip_obj.is_reserved
@@ -156,33 +161,31 @@ def fetch_and_parse_url(
     current_url = url
     try:
         with httpx.Client(timeout=10.0, follow_redirects=False) as client:
-            resp = None
             for _ in range(5):
                 validate_url_safe(current_url)
-                resp = client.get(current_url, headers=headers)
-                if resp.is_redirect:
-                    next_url = resp.headers.get("location")
-                    if not next_url:
-                        break
-                    from urllib.parse import urljoin
-                    current_url = urljoin(current_url, next_url)
-                    continue
+                with client.stream("GET", current_url, headers=headers) as resp:
+                    if resp.is_redirect:
+                        next_url = resp.headers.get("location")
+                        if not next_url:
+                            raise ValueError("The link redirected without a destination.")
+                        current_url = urljoin(current_url, next_url)
+                        continue
+
+                    if resp.status_code >= 400:
+                        raise ValueError(f"HTTP error {resp.status_code} when fetching URL.")
+
+                    # Read at most max_bytes so a huge response can't exhaust memory.
+                    body = bytearray()
+                    for piece in resp.iter_bytes():
+                        body.extend(piece)
+                        if len(body) > max_bytes:
+                            raise ValueError("Webpage content exceeds maximum allowed size limit (5 MB).")
+                    content_bytes = bytes(body)
+                    content_type = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
+                    html_text = content_bytes.decode(resp.charset_encoding or "utf-8", errors="replace")
                 break
             else:
                 raise ValueError("Too many redirects (exceeded 5 redirect limit).")
-
-            if resp is None:
-                raise ValueError("Failed to retrieve URL.")
-
-            if resp.status_code >= 400:
-                raise ValueError(f"HTTP error {resp.status_code} when fetching URL.")
-
-            content_bytes = resp.content
-            if len(content_bytes) > max_bytes:
-                raise ValueError("Webpage content exceeds maximum allowed size limit (5 MB).")
-
-            content_type = (resp.headers.get("content-type") or "").split(";")[0].strip().lower()
-            html_text = resp.text
     except httpx.TimeoutException:
         raise ValueError("Request timed out while fetching the webpage (10s limit).")
     except httpx.RequestError as e:

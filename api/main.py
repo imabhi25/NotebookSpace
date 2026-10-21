@@ -13,6 +13,8 @@ from typing import Any, List, Optional
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.responses import JSONResponse
+import psycopg
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -78,6 +80,13 @@ app = FastAPI(
     description="Vector search retrieval, notebook management, and grounded conversational assistant.",
     version="2.0.0",
 )
+
+@app.exception_handler(psycopg.errors.InvalidTextRepresentation)
+async def _malformed_id_handler(request: Request, exc: psycopg.errors.InvalidTextRepresentation) -> JSONResponse:
+    """A malformed id in a path (for example not a UUID) names nothing that exists, so it
+    answers the same 404 as an unknown or foreign resource instead of a 500."""
+    return JSONResponse(status_code=404, content={"detail": "Not found."})
+
 
 allowed_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 env_origins = os.getenv("ALLOWED_ORIGINS", "")
@@ -158,7 +167,11 @@ def get_client_ip(request: Request) -> str:
 def _enforce_rate_limit(history: dict[str, list[float]], key: str, limit: int, detail: str) -> None:
     """Sliding 60-second window. Raises 429 with a Retry-After header once the limit is reached."""
     now = time.time()
-    timestamps = [ts for ts in history[key] if now - ts < RATE_LIMIT_WINDOW_SECONDS]
+    timestamps = [ts for ts in history.get(key, []) if now - ts < RATE_LIMIT_WINDOW_SECONDS]
+    if len(history) > 10_000:
+        # Drop keys whose window has passed so one-off clients don't accumulate forever.
+        for stale in [k for k, ts in history.items() if not ts or now - ts[-1] >= RATE_LIMIT_WINDOW_SECONDS]:
+            del history[stale]
     if len(timestamps) >= limit:
         history[key] = timestamps
         oldest = timestamps[0] if timestamps else now
@@ -237,18 +250,26 @@ def validate_subject_settings(settings: Any) -> Optional[dict[str, str]]:
     return dict(settings)
 
 
+def _is_uuid(value: Any) -> bool:
+    try:
+        UUID(str(value))
+        return True
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 # ============================================================================
 # SCHEMAS
 # ============================================================================
 
 class RegisterRequest(BaseModel):
-    email: str
-    password: str = Field(..., min_length=6)
+    email: str = Field(..., max_length=320)
+    password: str = Field(..., min_length=6, max_length=256)
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(..., max_length=320)
+    password: str = Field(..., max_length=256)
 
 
 class AuthResponse(BaseModel):
@@ -370,6 +391,18 @@ class MessageSendRequest(BaseModel):
         if not s:
             raise ValueError("Question cannot be empty or whitespace.")
         return s
+
+    @field_validator("selected_source_ids")
+    @classmethod
+    def keep_valid_source_ids(cls, v: list[str]) -> list[str]:
+        # An id that is not a UUID can't name a source; dropping it keeps the database
+        # cast from failing after the question has already been saved.
+        return [sid for sid in v if _is_uuid(sid)]
+
+    @field_validator("retry_message_id")
+    @classmethod
+    def keep_valid_retry_id(cls, v: Optional[str]) -> Optional[str]:
+        return v if v and _is_uuid(v) else None
 
 
 class NoteCreateRequest(BaseModel):
@@ -1151,6 +1184,9 @@ def rename_source_endpoint(
     payload: SourceRenameRequest,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_source_by_id(user_id=current_user["id"], source_id=source_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Source not found.")
     updated = update_source_title(
         user_id=current_user["id"],
         source_id=source_id,
@@ -1167,6 +1203,9 @@ def delete_source_endpoint(
     source_id: str,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_source_by_id(user_id=current_user["id"], source_id=source_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Source not found.")
     deleted = delete_source(user_id=current_user["id"], source_id=source_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Source not found.")
@@ -1331,6 +1370,9 @@ def rename_conversation_endpoint(
     payload: ConversationRenameRequest,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_conversation_by_id(user_id=current_user["id"], conversation_id=conversation_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
     updated = update_conversation_title(
         user_id=current_user["id"],
         conversation_id=conversation_id,
@@ -1347,6 +1389,9 @@ def delete_conversation_endpoint(
     conversation_id: str,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_conversation_by_id(user_id=current_user["id"], conversation_id=conversation_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
     deleted = delete_conversation(user_id=current_user["id"], conversation_id=conversation_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Conversation not found.")
@@ -1463,6 +1508,9 @@ def update_note_endpoint(
     payload: NoteUpdateRequest,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_note_by_id(user_id=current_user["id"], note_id=note_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Note not found.")
     updated = update_note(
         user_id=current_user["id"],
         note_id=note_id,
@@ -1480,6 +1528,9 @@ def delete_note_endpoint(
     note_id: str,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_note_by_id(user_id=current_user["id"], note_id=note_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Note not found.")
     deleted = delete_note(user_id=current_user["id"], note_id=note_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Note not found.")
