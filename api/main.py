@@ -107,6 +107,20 @@ app.add_middleware(
 
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(50 * 1024 * 1024)))  # 50 MB for PDF
 MAX_TEXT_SIZE_BYTES = int(os.getenv("MAX_TEXT_SIZE_BYTES", str(10 * 1024 * 1024)))      # 10 MB for TXT/MD
+_UPLOAD_READ_CHUNK = 1024 * 1024
+
+
+async def _read_upload_capped(file: UploadFile, max_bytes: int) -> bytes | None:
+    """Read an upload a piece at a time. Returns None as soon as it passes max_bytes, so an
+    oversized file is never held in memory whole."""
+    content = bytearray()
+    while True:
+        piece = await file.read(_UPLOAD_READ_CHUNK)
+        if not piece:
+            return bytes(content)
+        content.extend(piece)
+        if len(content) > max_bytes:
+            return None
 
 # Demo mode in-memory rate limiter tracking timestamps per IP
 ask_rate_limit_history: dict[str, list[float]] = defaultdict(list)
@@ -210,10 +224,35 @@ def check_user_ask_rate_limit(user_id: str, limit: int = 15) -> None:
     )
 
 
+guest_session_history: dict[str, list[float]] = defaultdict(list)
+
+
+def get_guest_sessions_limit() -> int:
+    try:
+        return int(os.getenv("GUEST_SESSIONS_PER_MINUTE", "10"))
+    except ValueError:
+        return 10
+
+
+def check_guest_session_rate_limit(client_ip: str) -> None:
+    """Each guest session has its own question limit, so in demo mode the number of new
+    guests per address is limited too; otherwise a fresh guest per question gets around it."""
+    if not is_demo_mode():
+        return
+    limit = get_guest_sessions_limit()
+    _enforce_rate_limit(
+        guest_session_history,
+        client_ip,
+        limit,
+        f"Too many new workspaces. Demo allows up to {limit} per minute.",
+    )
+
+
 def reset_rate_limits() -> None:
     """Helper for testing to clear in-memory rate limit counts."""
     ask_rate_limit_history.clear()
     user_ask_history.clear()
+    guest_session_history.clear()
 
 
 # Response settings a notebook may store. Anything else is rejected.
@@ -409,7 +448,7 @@ class NoteCreateRequest(BaseModel):
     title: str = Field(..., max_length=200)
     content: str = Field(..., max_length=100000)
     is_saved_answer: bool = False
-    citations: list[dict[str, Any]] = Field(default_factory=list)
+    citations: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
 
     @field_validator("title", "content")
     @classmethod
@@ -597,8 +636,8 @@ async def upload_endpoint(
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
     try:
-        content = await file.read()
-        if len(content) > MAX_UPLOAD_SIZE_BYTES:
+        content = await _read_upload_capped(file, MAX_UPLOAD_SIZE_BYTES)
+        if content is None:
             limit_mb = MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)
             raise HTTPException(
                 status_code=413,
@@ -637,7 +676,11 @@ def register_endpoint(payload: RegisterRequest):
         raise HTTPException(status_code=409, detail="An account with this email already exists.")
 
     pw_hash = hash_password(payload.password)
-    user = create_user(email=email, password_hash=pw_hash)
+    try:
+        user = create_user(email=email, password_hash=pw_hash)
+    except psycopg.errors.UniqueViolation:
+        # Two sign-ups for one address at once: the second loses the insert race.
+        raise HTTPException(status_code=409, detail="An account with this email already exists.")
     token = create_user_session(user["id"])
     return AuthResponse(token=token, user=user)
 
@@ -681,8 +724,9 @@ def auth_config_endpoint():
 
 
 @app.post("/auth/guest-session", response_model=AuthResponse)
-def guest_session_endpoint():
+def guest_session_endpoint(request: Request):
     """Automatically creates an isolated private guest workspace session for this browser."""
+    check_guest_session_rate_limit(get_client_ip(request))
     user, token = create_guest_user_and_session()
     return AuthResponse(token=token, user={"id": user["id"], "email": "Guest Workspace"})
 
@@ -998,9 +1042,9 @@ async def upload_source_endpoint(
             detail="Unsupported format. Only PDF, TXT, and Markdown (.md) files are supported.",
         )
 
-    content = await file.read()
     max_size = MAX_UPLOAD_SIZE_BYTES if ext == ".pdf" else MAX_TEXT_SIZE_BYTES
-    if len(content) > max_size:
+    content = await _read_upload_capped(file, max_size)
+    if content is None:
         limit_mb = max_size // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size ({limit_mb} MB).")
 
@@ -1280,9 +1324,9 @@ async def replace_source_endpoint(
     if ext not in (".pdf", ".txt", ".md", ".markdown"):
         raise HTTPException(status_code=400, detail="Only PDF, TXT, and Markdown files are supported.")
 
-    content = await file.read()
     max_size = MAX_UPLOAD_SIZE_BYTES if ext == ".pdf" else MAX_TEXT_SIZE_BYTES
-    if len(content) > max_size:
+    content = await _read_upload_capped(file, max_size)
+    if content is None:
         limit_mb = max_size // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size ({limit_mb} MB).")
 
@@ -1415,6 +1459,7 @@ def send_message_endpoint(
     subject_id: str,
     conversation_id: str,
     payload: MessageSendRequest,
+    request: Request,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
@@ -1426,6 +1471,9 @@ def send_message_endpoint(
         raise HTTPException(status_code=404, detail="Conversation not found.")
 
     check_user_ask_rate_limit(current_user["id"])
+    # The per-user limit alone resets with every new guest session; the per-address demo
+    # limit that /ask uses covers notebook questions too.
+    check_ask_rate_limit(get_client_ip(request))
 
     settings = subj.get("settings", {})
 
