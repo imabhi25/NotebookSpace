@@ -44,6 +44,59 @@ describe('MarkdownRenderer component', () => {
     const { container } = render(<MarkdownRenderer content={markdown} />);
     expect(container.querySelector('.katex')).not.toBeNull();
   });
+
+  it('keeps the leading symbol and leaves no stray dollar sign', () => {
+    const { container } = render(<MarkdownRenderer content={'So $T(n) = O(n \\log n)$ overall.'} />);
+    const math = container.querySelectorAll('.math-inline');
+    expect(math).toHaveLength(1);
+    expect(math[0]).toHaveAttribute('aria-label', 'T(n) = O(n \\log n)');
+    expect(container.textContent).not.toContain('$');
+  });
+
+  it('pairs dollar signs so plain words between two expressions stay text', () => {
+    const { container } = render(
+      <MarkdownRenderer content={'Split an array of size $n$ into two halves of size $n/2$.'} />
+    );
+    const math = container.querySelectorAll('.math-inline');
+    expect(math).toHaveLength(2);
+    expect(math[0]).toHaveAttribute('aria-label', 'n');
+    expect(math[1]).toHaveAttribute('aria-label', 'n/2');
+    expect(container.textContent).toContain(' into two halves of size ');
+  });
+
+  it('renders KaTeX as HTML only, so no hidden MathML copy can duplicate the text', () => {
+    const { container } = render(<MarkdownRenderer content={'Size $n$.'} />);
+    expect(container.querySelector('.katex-mathml')).toBeNull();
+    expect(container.querySelector('.katex-html')).not.toBeNull();
+  });
+
+  it('leaves prices and escaped dollars as text', () => {
+    const { container } = render(<MarkdownRenderer content={'It costs $5 and $10. Literal \\$x\\$ here.'} />);
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.textContent).toContain('It costs $5 and $10.');
+    expect(container.textContent).toContain('Literal $x$ here.');
+  });
+
+  it('never treats dollar signs inside inline code as math', () => {
+    const { container } = render(<MarkdownRenderer content={'Run `echo $a $b` now.'} />);
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.querySelector('code')).toHaveTextContent('echo $a $b');
+  });
+
+  it('keeps citations clickable next to math', () => {
+    const onSelect = vi.fn();
+    const { container } = render(
+      <MarkdownRenderer content={'Merge sort is $O(n \\log n)$ [eecs3101.pdf p.3].'} onSelectCitation={onSelect} />
+    );
+    expect(container.querySelectorAll('.math-inline')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Citation:\s*eecs3101\.pdf\s+page\s+3/i })).toBeInTheDocument();
+  });
+
+  it('renders display math and shows unparseable math as its source', () => {
+    const { container } = render(<MarkdownRenderer content={'$$x^2 + y^2$$\n\nBad $\\frac{1$ input.'} />);
+    expect(container.querySelectorAll('.math-display')).toHaveLength(1);
+    expect(container.textContent).toContain('$\\frac{1$');
+  });
 });
 
 describe('DashboardView component', () => {

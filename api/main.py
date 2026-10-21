@@ -13,6 +13,8 @@ from typing import Any, List, Optional
 from uuid import UUID
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.responses import JSONResponse
+import psycopg
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.concurrency import run_in_threadpool
 from pydantic import BaseModel, EmailStr, Field, field_validator
@@ -79,6 +81,13 @@ app = FastAPI(
     version="2.0.0",
 )
 
+@app.exception_handler(psycopg.errors.InvalidTextRepresentation)
+async def _malformed_id_handler(request: Request, exc: psycopg.errors.InvalidTextRepresentation) -> JSONResponse:
+    """A malformed id in a path (for example not a UUID) names nothing that exists, so it
+    answers the same 404 as an unknown or foreign resource instead of a 500."""
+    return JSONResponse(status_code=404, content={"detail": "Not found."})
+
+
 allowed_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
 env_origins = os.getenv("ALLOWED_ORIGINS", "")
 if env_origins:
@@ -98,6 +107,20 @@ app.add_middleware(
 
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(50 * 1024 * 1024)))  # 50 MB for PDF
 MAX_TEXT_SIZE_BYTES = int(os.getenv("MAX_TEXT_SIZE_BYTES", str(10 * 1024 * 1024)))      # 10 MB for TXT/MD
+_UPLOAD_READ_CHUNK = 1024 * 1024
+
+
+async def _read_upload_capped(file: UploadFile, max_bytes: int) -> bytes | None:
+    """Read an upload a piece at a time. Returns None as soon as it passes max_bytes, so an
+    oversized file is never held in memory whole."""
+    content = bytearray()
+    while True:
+        piece = await file.read(_UPLOAD_READ_CHUNK)
+        if not piece:
+            return bytes(content)
+        content.extend(piece)
+        if len(content) > max_bytes:
+            return None
 
 # Demo mode in-memory rate limiter tracking timestamps per IP
 ask_rate_limit_history: dict[str, list[float]] = defaultdict(list)
@@ -158,7 +181,11 @@ def get_client_ip(request: Request) -> str:
 def _enforce_rate_limit(history: dict[str, list[float]], key: str, limit: int, detail: str) -> None:
     """Sliding 60-second window. Raises 429 with a Retry-After header once the limit is reached."""
     now = time.time()
-    timestamps = [ts for ts in history[key] if now - ts < RATE_LIMIT_WINDOW_SECONDS]
+    timestamps = [ts for ts in history.get(key, []) if now - ts < RATE_LIMIT_WINDOW_SECONDS]
+    if len(history) > 10_000:
+        # Drop keys whose window has passed so one-off clients don't accumulate forever.
+        for stale in [k for k, ts in history.items() if not ts or now - ts[-1] >= RATE_LIMIT_WINDOW_SECONDS]:
+            del history[stale]
     if len(timestamps) >= limit:
         history[key] = timestamps
         oldest = timestamps[0] if timestamps else now
@@ -197,10 +224,35 @@ def check_user_ask_rate_limit(user_id: str, limit: int = 15) -> None:
     )
 
 
+guest_session_history: dict[str, list[float]] = defaultdict(list)
+
+
+def get_guest_sessions_limit() -> int:
+    try:
+        return int(os.getenv("GUEST_SESSIONS_PER_MINUTE", "10"))
+    except ValueError:
+        return 10
+
+
+def check_guest_session_rate_limit(client_ip: str) -> None:
+    """Each guest session has its own question limit, so in demo mode the number of new
+    guests per address is limited too; otherwise a fresh guest per question gets around it."""
+    if not is_demo_mode():
+        return
+    limit = get_guest_sessions_limit()
+    _enforce_rate_limit(
+        guest_session_history,
+        client_ip,
+        limit,
+        f"Too many new workspaces. Demo allows up to {limit} per minute.",
+    )
+
+
 def reset_rate_limits() -> None:
     """Helper for testing to clear in-memory rate limit counts."""
     ask_rate_limit_history.clear()
     user_ask_history.clear()
+    guest_session_history.clear()
 
 
 # Response settings a notebook may store. Anything else is rejected.
@@ -237,18 +289,26 @@ def validate_subject_settings(settings: Any) -> Optional[dict[str, str]]:
     return dict(settings)
 
 
+def _is_uuid(value: Any) -> bool:
+    try:
+        UUID(str(value))
+        return True
+    except (ValueError, TypeError, AttributeError):
+        return False
+
+
 # ============================================================================
 # SCHEMAS
 # ============================================================================
 
 class RegisterRequest(BaseModel):
-    email: str
-    password: str = Field(..., min_length=6)
+    email: str = Field(..., max_length=320)
+    password: str = Field(..., min_length=6, max_length=256)
 
 
 class LoginRequest(BaseModel):
-    email: str
-    password: str
+    email: str = Field(..., max_length=320)
+    password: str = Field(..., max_length=256)
 
 
 class AuthResponse(BaseModel):
@@ -371,12 +431,24 @@ class MessageSendRequest(BaseModel):
             raise ValueError("Question cannot be empty or whitespace.")
         return s
 
+    @field_validator("selected_source_ids")
+    @classmethod
+    def keep_valid_source_ids(cls, v: list[str]) -> list[str]:
+        # An id that is not a UUID can't name a source; dropping it keeps the database
+        # cast from failing after the question has already been saved.
+        return [sid for sid in v if _is_uuid(sid)]
+
+    @field_validator("retry_message_id")
+    @classmethod
+    def keep_valid_retry_id(cls, v: Optional[str]) -> Optional[str]:
+        return v if v and _is_uuid(v) else None
+
 
 class NoteCreateRequest(BaseModel):
     title: str = Field(..., max_length=200)
     content: str = Field(..., max_length=100000)
     is_saved_answer: bool = False
-    citations: list[dict[str, Any]] = Field(default_factory=list)
+    citations: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
 
     @field_validator("title", "content")
     @classmethod
@@ -564,8 +636,8 @@ async def upload_endpoint(
         raise HTTPException(status_code=400, detail="Only PDF files are supported.")
 
     try:
-        content = await file.read()
-        if len(content) > MAX_UPLOAD_SIZE_BYTES:
+        content = await _read_upload_capped(file, MAX_UPLOAD_SIZE_BYTES)
+        if content is None:
             limit_mb = MAX_UPLOAD_SIZE_BYTES // (1024 * 1024)
             raise HTTPException(
                 status_code=413,
@@ -598,13 +670,20 @@ def register_endpoint(payload: RegisterRequest):
     email = payload.email.lower().strip()
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email address is required.")
+    if email.endswith("@notebookspace.local"):
+        # Reserved for guest workspaces and the demo account, which the app recognises by address.
+        raise HTTPException(status_code=400, detail="This email domain is reserved. Please use your own email address.")
 
     existing = get_user_by_email(email)
     if existing:
         raise HTTPException(status_code=409, detail="An account with this email already exists.")
 
     pw_hash = hash_password(payload.password)
-    user = create_user(email=email, password_hash=pw_hash)
+    try:
+        user = create_user(email=email, password_hash=pw_hash)
+    except psycopg.errors.UniqueViolation:
+        # Two sign-ups for one address at once: the second loses the insert race.
+        raise HTTPException(status_code=409, detail="An account with this email already exists.")
     token = create_user_session(user["id"])
     return AuthResponse(token=token, user=user)
 
@@ -648,8 +727,9 @@ def auth_config_endpoint():
 
 
 @app.post("/auth/guest-session", response_model=AuthResponse)
-def guest_session_endpoint():
+def guest_session_endpoint(request: Request):
     """Automatically creates an isolated private guest workspace session for this browser."""
+    check_guest_session_rate_limit(get_client_ip(request))
     user, token = create_guest_user_and_session()
     return AuthResponse(token=token, user={"id": user["id"], "email": "Guest Workspace"})
 
@@ -838,6 +918,10 @@ _INGEST_LOCK = threading.RLock()
 _INGEST_SLOT = asyncio.Semaphore(1)
 
 
+def _upload_source_type(ext: str) -> str:
+    return "pdf" if ext == ".pdf" else "markdown" if ext in (".md", ".markdown") else "txt"
+
+
 def _ingest_pdf_locked(content: bytes, file_name: str) -> int:
     with _INGEST_LOCK:
         return ingest_pdf(source=io.BytesIO(content), file_name=file_name)
@@ -965,9 +1049,9 @@ async def upload_source_endpoint(
             detail="Unsupported format. Only PDF, TXT, and Markdown (.md) files are supported.",
         )
 
-    content = await file.read()
     max_size = MAX_UPLOAD_SIZE_BYTES if ext == ".pdf" else MAX_TEXT_SIZE_BYTES
-    if len(content) > max_size:
+    content = await _read_upload_capped(file, max_size)
+    if content is None:
         limit_mb = max_size // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size ({limit_mb} MB).")
 
@@ -986,7 +1070,7 @@ async def upload_source_endpoint(
             detail=f"A source with this name or content ('{dup['title']}') already exists in this subject.",
         )
 
-    source_type = "pdf" if ext == ".pdf" else "markdown" if ext in (".md", ".markdown") else "txt"
+    source_type = _upload_source_type(ext)
 
     # Create source in 'processing' state
     src = create_source(
@@ -1151,6 +1235,9 @@ def rename_source_endpoint(
     payload: SourceRenameRequest,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_source_by_id(user_id=current_user["id"], source_id=source_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Source not found.")
     updated = update_source_title(
         user_id=current_user["id"],
         source_id=source_id,
@@ -1167,6 +1254,9 @@ def delete_source_endpoint(
     source_id: str,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_source_by_id(user_id=current_user["id"], source_id=source_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Source not found.")
     deleted = delete_source(user_id=current_user["id"], source_id=source_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Source not found.")
@@ -1241,15 +1331,23 @@ async def replace_source_endpoint(
     if ext not in (".pdf", ".txt", ".md", ".markdown"):
         raise HTTPException(status_code=400, detail="Only PDF, TXT, and Markdown files are supported.")
 
-    content = await file.read()
     max_size = MAX_UPLOAD_SIZE_BYTES if ext == ".pdf" else MAX_TEXT_SIZE_BYTES
-    if len(content) > max_size:
+    content = await _read_upload_capped(file, max_size)
+    if content is None:
         limit_mb = max_size // (1024 * 1024)
         raise HTTPException(status_code=413, detail=f"File exceeds maximum allowed size ({limit_mb} MB).")
 
     file_hash = hashlib.sha256(content).hexdigest()
 
-    update_source_status(source_id=source_id, status="processing", error_message=None)
+    # The source is now this uploaded file. Dropping the old type and saved text means a
+    # retry after a failed replace can't fetch the old link or reprocess the old text.
+    update_source_status(
+        source_id=source_id,
+        status="processing",
+        error_message=None,
+        raw_content="",
+        source_type=_upload_source_type(ext),
+    )
 
     def replace_locked() -> None:
         # Read the version under the lock so overlapping replacements of the same
@@ -1331,6 +1429,9 @@ def rename_conversation_endpoint(
     payload: ConversationRenameRequest,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_conversation_by_id(user_id=current_user["id"], conversation_id=conversation_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
     updated = update_conversation_title(
         user_id=current_user["id"],
         conversation_id=conversation_id,
@@ -1347,6 +1448,9 @@ def delete_conversation_endpoint(
     conversation_id: str,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_conversation_by_id(user_id=current_user["id"], conversation_id=conversation_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Conversation not found.")
     deleted = delete_conversation(user_id=current_user["id"], conversation_id=conversation_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Conversation not found.")
@@ -1370,6 +1474,7 @@ def send_message_endpoint(
     subject_id: str,
     conversation_id: str,
     payload: MessageSendRequest,
+    request: Request,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
@@ -1381,6 +1486,9 @@ def send_message_endpoint(
         raise HTTPException(status_code=404, detail="Conversation not found.")
 
     check_user_ask_rate_limit(current_user["id"])
+    # The per-user limit alone resets with every new guest session; the per-address demo
+    # limit that /ask uses covers notebook questions too.
+    check_ask_rate_limit(get_client_ip(request))
 
     settings = subj.get("settings", {})
 
@@ -1463,6 +1571,9 @@ def update_note_endpoint(
     payload: NoteUpdateRequest,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_note_by_id(user_id=current_user["id"], note_id=note_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Note not found.")
     updated = update_note(
         user_id=current_user["id"],
         note_id=note_id,
@@ -1480,6 +1591,9 @@ def delete_note_endpoint(
     note_id: str,
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
+    existing = get_note_by_id(user_id=current_user["id"], note_id=note_id)
+    if not existing or existing["subject_id"] != subject_id:
+        raise HTTPException(status_code=404, detail="Note not found.")
     deleted = delete_note(user_id=current_user["id"], note_id=note_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Note not found.")

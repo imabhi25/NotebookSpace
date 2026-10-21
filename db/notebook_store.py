@@ -9,6 +9,11 @@ from ingestion.chunker import Chunk
 logger = logging.getLogger("course_assistant.db.notebook_store")
 
 
+def _escape_like(term: str) -> str:
+    """Escape LIKE wildcards so a term such as "max_len" or "50%" matches literally."""
+    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 # ============================================================================
 # USER & SESSION OPERATIONS
 # ============================================================================
@@ -183,7 +188,7 @@ def get_subjects_for_user(
 
             if search and search.strip():
                 query += " AND (s.name ILIKE %s OR s.course_code ILIKE %s OR s.description ILIKE %s)"
-                s_pattern = f"%{search.strip()}%"
+                s_pattern = f"%{_escape_like(search.strip())}%"
                 params.extend([s_pattern, s_pattern, s_pattern])
 
             query += " GROUP BY s.id, s.name, s.course_code, s.description, s.is_archived, s.settings, s.created_at, s.updated_at"
@@ -450,7 +455,7 @@ def get_sources_for_subject(
             params: list[Any] = [str(subject_id), str(user_id)]
             if search and search.strip():
                 query += " AND (title ILIKE %s OR file_name ILIKE %s)"
-                pattern = f"%{search.strip()}%"
+                pattern = f"%{_escape_like(search.strip())}%"
                 params.extend([pattern, pattern])
 
             query += " ORDER BY created_at DESC;"
@@ -568,6 +573,7 @@ def update_source_status(
     version: int | None = None,
     file_hash: str | None = None,
     file_name: str | None = None,
+    source_type: str | None = None,
     db_url: str | None = None,
 ) -> None:
     with get_connection(db_url) as conn:
@@ -594,6 +600,9 @@ def update_source_status(
                 if file_name is not None:
                     updates.append("file_name = %s")
                     params.append(file_name)
+                if source_type is not None:
+                    updates.append("source_type = %s")
+                    params.append(source_type)
 
                 params.append(str(source_id))
                 query = f"UPDATE sources SET {', '.join(updates)} WHERE id = %s;"
@@ -849,7 +858,7 @@ def search_scoped(
 
             # 2. Exact keyword search for key terms (e.g. "Ksi", "Eq. 3")
             if key_terms:
-                like_patterns = [f"%{term}%" for term in key_terms]
+                like_patterns = [f"%{_escape_like(term)}%" for term in key_terms]
                 cur.execute(
                     """
                     SELECT 
@@ -871,6 +880,7 @@ def search_scoped(
                     AND s.id = ANY(%s::uuid[])
                     AND s.status = 'ready'
                     AND (c.chunk_text ILIKE ANY(%s))
+                    ORDER BY c.embedding <=> %s::vector
                     LIMIT %s;
                     """,
                     (
@@ -879,6 +889,7 @@ def search_scoped(
                         str(subject_id),
                         selected_ids_str,
                         like_patterns,
+                        query_vector,
                         k * 2,
                     ),
                 )
@@ -1064,15 +1075,22 @@ def delete_conversation(
 def delete_message(
     user_id: str | UUID,
     message_id: str | UUID,
+    conversation_id: str | UUID | None = None,
+    role: str | None = None,
     db_url: str | None = None,
 ) -> bool:
+    query = "DELETE FROM messages WHERE id = %s AND user_id = %s"
+    params: list[Any] = [str(message_id), str(user_id)]
+    if conversation_id is not None:
+        query += " AND conversation_id = %s"
+        params.append(str(conversation_id))
+    if role is not None:
+        query += " AND role = %s"
+        params.append(role)
     with get_connection(db_url) as conn:
         with conn.transaction():
             with conn.cursor() as cur:
-                cur.execute(
-                    "DELETE FROM messages WHERE id = %s AND user_id = %s;",
-                    (str(message_id), str(user_id)),
-                )
+                cur.execute(query + ";", tuple(params))
                 return cur.rowcount > 0
 
 
@@ -1266,7 +1284,7 @@ def get_notes_for_subject(
             params: list[Any] = [str(subject_id), str(user_id)]
             if search and search.strip():
                 query += " AND (title ILIKE %s OR content ILIKE %s)"
-                pattern = f"%{search.strip()}%"
+                pattern = f"%{_escape_like(search.strip())}%"
                 params.extend([pattern, pattern])
 
             query += " ORDER BY updated_at DESC;"
