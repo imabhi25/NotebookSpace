@@ -31,6 +31,10 @@ class LLMClient(Protocol):
 class BaseCachedLLMClient:
     """Base class providing on-disk response caching keyed by hash of (model, system, user)."""
 
+    # False makes generate() ask the model again even when a cached answer exists; the fresh
+    # answer still replaces the cached one.
+    read_cache = True
+
     def __init__(self, model: str, cache_dir: Path | str | None = None):
         self.model = model
         cache_path = cache_dir or os.getenv("LLM_CACHE_DIR", ".cache/llm")
@@ -71,7 +75,7 @@ class BaseCachedLLMClient:
             pass
 
     def generate(self, system: str, user: str) -> LLMResponse:
-        cached = self._read_cache(system, user)
+        cached = self._read_cache(system, user) if self.read_cache else None
         if cached is not None:
             return cached
 

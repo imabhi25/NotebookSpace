@@ -8,7 +8,9 @@ import time
 from typing import Any
 from uuid import UUID
 
-from answering.llm import LLMClient, get_llm_client
+import copy
+
+from answering.llm import BaseCachedLLMClient, LLMClient, get_llm_client
 from db.notebook_store import (
     search_scoped,
     save_message,
@@ -268,6 +270,11 @@ def answer_notebook_question(
 
     # 5. Call LLM Client
     client = llm_client or get_llm_client()
+    if is_retry and isinstance(client, BaseCachedLLMClient):
+        # A retry repeats the previous prompt, so a cached answer would only replay the
+        # answer the user is retrying.
+        client = copy.copy(client)
+        client.read_cache = False
     model_name = getattr(client, "model", "gemini")
 
     try:

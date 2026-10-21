@@ -670,6 +670,9 @@ def register_endpoint(payload: RegisterRequest):
     email = payload.email.lower().strip()
     if not email or "@" not in email:
         raise HTTPException(status_code=400, detail="Valid email address is required.")
+    if email.endswith("@notebookspace.local"):
+        # Reserved for guest workspaces and the demo account, which the app recognises by address.
+        raise HTTPException(status_code=400, detail="This email domain is reserved. Please use your own email address.")
 
     existing = get_user_by_email(email)
     if existing:
@@ -915,6 +918,10 @@ _INGEST_LOCK = threading.RLock()
 _INGEST_SLOT = asyncio.Semaphore(1)
 
 
+def _upload_source_type(ext: str) -> str:
+    return "pdf" if ext == ".pdf" else "markdown" if ext in (".md", ".markdown") else "txt"
+
+
 def _ingest_pdf_locked(content: bytes, file_name: str) -> int:
     with _INGEST_LOCK:
         return ingest_pdf(source=io.BytesIO(content), file_name=file_name)
@@ -1063,7 +1070,7 @@ async def upload_source_endpoint(
             detail=f"A source with this name or content ('{dup['title']}') already exists in this subject.",
         )
 
-    source_type = "pdf" if ext == ".pdf" else "markdown" if ext in (".md", ".markdown") else "txt"
+    source_type = _upload_source_type(ext)
 
     # Create source in 'processing' state
     src = create_source(
@@ -1332,7 +1339,15 @@ async def replace_source_endpoint(
 
     file_hash = hashlib.sha256(content).hexdigest()
 
-    update_source_status(source_id=source_id, status="processing", error_message=None)
+    # The source is now this uploaded file. Dropping the old type and saved text means a
+    # retry after a failed replace can't fetch the old link or reprocess the old text.
+    update_source_status(
+        source_id=source_id,
+        status="processing",
+        error_message=None,
+        raw_content="",
+        source_type=_upload_source_type(ext),
+    )
 
     def replace_locked() -> None:
         # Read the version under the lock so overlapping replacements of the same
