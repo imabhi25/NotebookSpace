@@ -9,6 +9,11 @@ from ingestion.chunker import Chunk
 logger = logging.getLogger("course_assistant.db.notebook_store")
 
 
+def _escape_like(term: str) -> str:
+    """Escape LIKE wildcards so a term such as "max_len" or "50%" matches literally."""
+    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 # ============================================================================
 # USER & SESSION OPERATIONS
 # ============================================================================
@@ -183,7 +188,7 @@ def get_subjects_for_user(
 
             if search and search.strip():
                 query += " AND (s.name ILIKE %s OR s.course_code ILIKE %s OR s.description ILIKE %s)"
-                s_pattern = f"%{search.strip()}%"
+                s_pattern = f"%{_escape_like(search.strip())}%"
                 params.extend([s_pattern, s_pattern, s_pattern])
 
             query += " GROUP BY s.id, s.name, s.course_code, s.description, s.is_archived, s.settings, s.created_at, s.updated_at"
@@ -450,7 +455,7 @@ def get_sources_for_subject(
             params: list[Any] = [str(subject_id), str(user_id)]
             if search and search.strip():
                 query += " AND (title ILIKE %s OR file_name ILIKE %s)"
-                pattern = f"%{search.strip()}%"
+                pattern = f"%{_escape_like(search.strip())}%"
                 params.extend([pattern, pattern])
 
             query += " ORDER BY created_at DESC;"
@@ -743,11 +748,6 @@ def get_source_passages(
 # ============================================================================
 # SCOPED VECTOR RETRIEVAL
 # ============================================================================
-
-def _escape_like(term: str) -> str:
-    """Escape LIKE wildcards so a term such as "max_len" or "50%" matches literally."""
-    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
-
 
 def extract_key_terms(query: str) -> list[str]:
     terms = set()
@@ -1280,7 +1280,7 @@ def get_notes_for_subject(
             params: list[Any] = [str(subject_id), str(user_id)]
             if search and search.strip():
                 query += " AND (title ILIKE %s OR content ILIKE %s)"
-                pattern = f"%{search.strip()}%"
+                pattern = f"%{_escape_like(search.strip())}%"
                 params.extend([pattern, pattern])
 
             query += " ORDER BY updated_at DESC;"

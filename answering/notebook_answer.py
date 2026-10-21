@@ -190,6 +190,10 @@ def answer_notebook_question(
     if is_followup_query(question) and history:
         # Find last user question
         last_user_questions = [m["content"] for m in history if m["role"] == "user"]
+        # A retry's question is already saved as the latest user message; the follow-up
+        # refers to the one before it.
+        if is_retry and last_user_questions and last_user_questions[-1] == question:
+            last_user_questions.pop()
         if last_user_questions:
             search_query = f"{question} {last_user_questions[-1]}"
 
