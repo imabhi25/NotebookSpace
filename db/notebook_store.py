@@ -744,6 +744,11 @@ def get_source_passages(
 # SCOPED VECTOR RETRIEVAL
 # ============================================================================
 
+def _escape_like(term: str) -> str:
+    """Escape LIKE wildcards so a term such as "max_len" or "50%" matches literally."""
+    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
 def extract_key_terms(query: str) -> list[str]:
     terms = set()
     # Match equation patterns: "Eq. 3", "Eq 3", "Equation 3"
@@ -849,7 +854,7 @@ def search_scoped(
 
             # 2. Exact keyword search for key terms (e.g. "Ksi", "Eq. 3")
             if key_terms:
-                like_patterns = [f"%{term}%" for term in key_terms]
+                like_patterns = [f"%{_escape_like(term)}%" for term in key_terms]
                 cur.execute(
                     """
                     SELECT 
@@ -871,6 +876,7 @@ def search_scoped(
                     AND s.id = ANY(%s::uuid[])
                     AND s.status = 'ready'
                     AND (c.chunk_text ILIKE ANY(%s))
+                    ORDER BY c.embedding <=> %s::vector
                     LIMIT %s;
                     """,
                     (
@@ -879,6 +885,7 @@ def search_scoped(
                         str(subject_id),
                         selected_ids_str,
                         like_patterns,
+                        query_vector,
                         k * 2,
                     ),
                 )
@@ -1064,15 +1071,22 @@ def delete_conversation(
 def delete_message(
     user_id: str | UUID,
     message_id: str | UUID,
+    conversation_id: str | UUID | None = None,
+    role: str | None = None,
     db_url: str | None = None,
 ) -> bool:
+    query = "DELETE FROM messages WHERE id = %s AND user_id = %s"
+    params: list[Any] = [str(message_id), str(user_id)]
+    if conversation_id is not None:
+        query += " AND conversation_id = %s"
+        params.append(str(conversation_id))
+    if role is not None:
+        query += " AND role = %s"
+        params.append(role)
     with get_connection(db_url) as conn:
         with conn.transaction():
             with conn.cursor() as cur:
-                cur.execute(
-                    "DELETE FROM messages WHERE id = %s AND user_id = %s;",
-                    (str(message_id), str(user_id)),
-                )
+                cur.execute(query + ";", tuple(params))
                 return cur.rowcount > 0
 
 

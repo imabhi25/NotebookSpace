@@ -148,7 +148,13 @@ def answer_notebook_question(
     if is_retry and retry_message_id:
         try:
             from db.notebook_store import delete_message
-            delete_message(user_id=user_id, message_id=retry_message_id, db_url=db_url)
+            delete_message(
+                user_id=user_id,
+                message_id=retry_message_id,
+                conversation_id=conversation_id,
+                role="assistant",
+                db_url=db_url,
+            )
         except Exception as e:
             logger.warning(f"Could not delete message on retry: {e}")
 
