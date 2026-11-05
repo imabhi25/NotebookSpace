@@ -7,6 +7,7 @@ import {
   PassageItem,
   User,
   AskResponse,
+  RetrievalMapResponse,
 } from './types';
 
 export const API_BASE_URL = (
@@ -236,6 +237,13 @@ export const api = {
     });
   },
 
+  async createSampleSubject(): Promise<Subject> {
+    await getOrInitToken();
+    return apiFetch<Subject>('/subjects/sample', {
+      method: 'POST',
+    });
+  },
+
   async getSubject(id: string): Promise<Subject> {
     return apiFetch<Subject>(`/subjects/${id}`);
   },
@@ -416,11 +424,36 @@ export const api = {
     await apiFetch(`/subjects/${subjectId}/notes/${noteId}`, { method: 'DELETE' });
   },
 
-  // Legacy Passages & Ask
-  async getPassages(file: string, page: number): Promise<PassageItem[]> {
+  // Passages & Ask
+  async getRetrievalMap(
+    subjectId: string,
+    options?: {
+      conversationId?: string;
+      messageId?: string;
+      question?: string;
+      selectedSourceIds?: string[];
+    }
+  ): Promise<RetrievalMapResponse> {
+    const params = new URLSearchParams();
+    if (options?.conversationId) params.append('conversation_id', options.conversationId);
+    if (options?.messageId) params.append('message_id', options.messageId);
+    if (options?.question) params.append('question', options.question);
+    if (options?.selectedSourceIds && options.selectedSourceIds.length > 0) {
+      for (const sid of options.selectedSourceIds) {
+        params.append('selected_source_ids', sid);
+      }
+    }
+    const queryStr = params.toString() ? `?${params.toString()}` : '';
+    return await apiFetch<RetrievalMapResponse>(`/subjects/${subjectId}/retrieval-map${queryStr}`);
+  },
+
+  async getPassages(file: string, page: number, subjectId?: string, sourceId?: string): Promise<PassageItem[]> {
     // Passages are served only to a signed-in session. A refusal reads as "nothing to show".
     await getOrInitToken();
-    const res = await fetch(`${API_BASE_URL}/passages?file=${encodeURIComponent(file)}&page=${page}`, {
+    let url = `${API_BASE_URL}/passages?file=${encodeURIComponent(file)}&page=${page}`;
+    if (subjectId) url += `&subject_id=${encodeURIComponent(subjectId)}`;
+    if (sourceId) url += `&source_id=${encodeURIComponent(sourceId)}`;
+    const res = await fetch(url, {
       headers: getAuthHeaders(),
     });
     return res.ok ? await res.json() : [];

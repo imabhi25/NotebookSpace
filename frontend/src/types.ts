@@ -2,6 +2,7 @@ export interface User {
   id: string;
   email: string;
   token?: string;
+  is_guest?: boolean;
 }
 
 export interface SubjectSettings {
@@ -170,4 +171,36 @@ export interface DocumentItem {
   upload_date?: string | null;
   chunk_count: number;
   page_count?: number | null;
+}
+
+export interface ChunkPosition {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface RetrievalMapChunk {
+  id: number;
+  source_id: string;
+  file_name: string;
+  title: string;
+  page_number: number;
+  chunk_index: number;
+  text: string;
+  position: ChunkPosition;
+  raw_cosine?: number | null;
+  score?: number | null;
+  matched_terms: string[];
+  is_retrieved: boolean;
+}
+
+export interface RetrievalMapResponse {
+  subject_id: string;
+  question?: string | null;
+  query_position?: ChunkPosition | null;
+  abstained: boolean;
+  abstain_reason?: string | null;
+  support_min_score: number;
+  chunks: RetrievalMapChunk[];
+  retrieved_chunk_ids: number[];
 }

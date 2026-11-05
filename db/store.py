@@ -129,14 +129,16 @@ def get_passages_for_page(
     file_name: str,
     page_number: int,
     user_id: str | None = None,
+    subject_id: str | None = None,
+    source_id: str | None = None,
     db_url: str | None = None,
 ) -> list[dict[str, Any]]:
     """Return chunks for a document page that the given user may read.
 
-    Chunks of notebook sources carry their owner's user_id and are returned only to that
-    owner. Chunks of the shared demo corpus have no owner and no source, and are the fallback
-    when the user has nothing under that name. Without a user_id only the shared corpus is
-    searched, so this function never returns another user's text.
+    Chunks of notebook sources carry their owner's user_id, subject_id, and source_id.
+    When subject_id and/or source_id is provided, the query scopes strictly to that
+    context to prevent returning duplicate chunks when the same file name exists in
+    multiple notebooks.
     """
     base_name = Path(file_name).name
     select = """
@@ -150,12 +152,18 @@ def get_passages_for_page(
         with conn.cursor() as cur:
             rows: list[Any] = []
             if user_id is not None:
-                cur.execute(
-                    select + " AND user_id = %s" + order,
-                    (file_name, base_name, page_number, str(user_id)),
-                )
+                user_cond = " AND user_id = %s"
+                params: list[Any] = [file_name, base_name, page_number, str(user_id)]
+                if source_id is not None:
+                    user_cond += " AND source_id = %s"
+                    params.append(str(source_id))
+                elif subject_id is not None:
+                    user_cond += " AND subject_id = %s"
+                    params.append(str(subject_id))
+
+                cur.execute(select + user_cond + order, tuple(params))
                 rows = cur.fetchall()
-            if not rows:
+            if not rows and not subject_id and not source_id:
                 cur.execute(
                     select + " AND user_id IS NULL AND source_id IS NULL" + order,
                     (file_name, base_name, page_number),

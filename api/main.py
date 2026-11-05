@@ -21,6 +21,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from answering.answer import answer_question
 from answering.notebook_answer import answer_notebook_question
+from answering.retrieval_map import build_retrieval_map_payload, invalidate_retrieval_map_cache
 from api.auth import (
     DEMO_USER_EMAIL,
     create_guest_user_and_session,
@@ -55,6 +56,8 @@ from db.notebook_store import (
     get_subject_by_id,
     get_subjects_for_user,
     get_user_by_email,
+    save_message,
+    search_scoped,
     store_source_chunks,
     update_conversation_title,
     update_note,
@@ -578,14 +581,22 @@ def get_documents_endpoint():
 def get_passages_endpoint(
     file: str = Query(..., description="Document file name"),
     page: int = Query(..., ge=1, description="Page number"),
+    subject_id: Optional[str] = Query(None, description="Optional subject ID to scope passages"),
+    source_id: Optional[str] = Query(None, description="Optional source ID to scope passages"),
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     """Return chunks for a file and page that the caller is allowed to read.
 
-    A signed-in caller sees their own sources, or the shared demo documents. No credentials,
-    someone else's source and an unknown name all answer the same 404.
+    A signed-in caller sees their own sources (optionally scoped to subject_id or source_id),
+    or the shared demo documents. No credentials, someone else's source and an unknown name all answer the same 404.
     """
-    passages = get_passages_for_page(file_name=file, page_number=page, user_id=current_user["id"])
+    passages = get_passages_for_page(
+        file_name=file,
+        page_number=page,
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        source_id=source_id,
+    )
     if not passages:
         raise HTTPException(status_code=404, detail="Not found.")
     return passages
@@ -904,6 +915,113 @@ def get_starter_questions_endpoint(
     return questions[:4]
 
 
+@app.post("/subjects/sample")
+def create_sample_subject_endpoint(
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
+):
+    """Create a one-click sample notebook with one small source and a suggested question with clickable citation."""
+    existing = get_subjects_for_user(user_id=current_user["id"], include_archived=True)
+    if len(existing) >= 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Portfolio deployment limit reached: maximum 10 subjects per guest workspace.",
+        )
+
+    check_user_ask_rate_limit(current_user["id"], limit=10)
+
+    subj = create_subject(
+        user_id=current_user["id"],
+        name="CS 401: Systems Programming (Sample)",
+        course_code="CS 401",
+        description="Sample course materials with interactive citations and 2D retrieval projection.",
+    )
+    subject_id = subj["id"]
+
+    # 1. Ingest small source (syllabus.pdf or synthetic fallback)
+    sample_pdf = Path(__file__).resolve().parent.parent / "docs" / "sample_docs" / "syllabus.pdf"
+    if sample_pdf.is_file():
+        content = sample_pdf.read_bytes()
+        file_hash = hashlib.sha256(content).hexdigest()
+        stream = io.BytesIO(content)
+        pages = parse_pdf_source(source=stream, file_name="syllabus.pdf")
+    else:
+        synthetic_text = (
+            "--- Page 1 ---\n"
+            "CS 401: Advanced Systems Programming - Course Syllabus\n"
+            "Instructor: Dr. Alex Mercer. Office hours: Tuesdays and Thursdays 2-4 PM.\n\n"
+            "--- Page 2 ---\n"
+            "Grading Breakdown and Course Policies\n"
+            "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.\n"
+            "Midterm Examination: 25 percent of total grade.\n"
+        )
+        content = synthetic_text.encode("utf-8")
+        file_hash = hashlib.sha256(content).hexdigest()
+        pages = _pages_from_saved_content(synthetic_text, "syllabus.pdf")
+
+    src = create_source(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        title="syllabus.pdf",
+        file_name="syllabus.pdf",
+        source_type="pdf",
+        file_hash=file_hash,
+        status="processing",
+    )
+
+    _process_and_store_source(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        source_id=src["id"],
+        version=1,
+        pages=pages,
+    )
+
+    # 2. Suggested question & conversation with clickable citation
+    conv = create_conversation(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        title="Late submission policy",
+    )
+    question = "What is the late submission policy?"
+    save_message(
+        user_id=current_user["id"],
+        conversation_id=conv["id"],
+        role="user",
+        content=question,
+    )
+
+    # Compute real retrieved chunks with real scores, IDs, and positions
+    real_retrieved = search_scoped(
+        question=question,
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        selected_source_ids=[src["id"]],
+        k=3,
+    )
+
+    save_message(
+        user_id=current_user["id"],
+        conversation_id=conv["id"],
+        role="assistant",
+        content="**[Sample Answer]** According to the course syllabus, assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit [syllabus.pdf p.2].",
+        model="Sample",
+        citations=[
+            {
+                "file": "syllabus.pdf",
+                "page": 2,
+                "source_id": src["id"],
+                "source_version": 1,
+                "excerpt": "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.",
+            }
+        ],
+        retrieved=real_retrieved,
+        selected_source_ids=[src["id"]],
+        source_versions={src["id"]: 1},
+    )
+
+    return get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
+
+
 # ============================================================================
 # SOURCE MANAGEMENT ENDPOINTS
 # ============================================================================
@@ -982,6 +1100,7 @@ def _process_and_store_source(
             raw_content=full_content,
             version=version,
         )
+        invalidate_retrieval_map_cache(subject_id)
 
 
 def _stale_processing_minutes() -> int:
@@ -1245,6 +1364,7 @@ def rename_source_endpoint(
     )
     if not updated or updated["subject_id"] != subject_id:
         raise HTTPException(status_code=404, detail="Source not found.")
+    invalidate_retrieval_map_cache(subject_id)
     return updated
 
 
@@ -1260,6 +1380,7 @@ def delete_source_endpoint(
     deleted = delete_source(user_id=current_user["id"], source_id=source_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Source not found.")
+    invalidate_retrieval_map_cache(subject_id)
     return {"message": "Source successfully deleted."}
 
 
@@ -1514,6 +1635,77 @@ def send_message_endpoint(
         retry_message_id=payload.retry_message_id,
     )
     return asst_msg
+
+
+@app.get("/subjects/{subject_id}/retrieval-map")
+def get_retrieval_map_endpoint(
+    subject_id: str,
+    conversation_id: Optional[str] = Query(None),
+    message_id: Optional[str] = Query(None),
+    question: Optional[str] = Query(None),
+    selected_source_ids: Optional[list[str]] = Query(None),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
+):
+    """
+    Project chunks from selected sources into a 3D coordinate space via PCA.
+    Optionally projects a question and computes raw cosine similarity, keyword-boosted score,
+    matched terms, and whether the answer abstained.
+    """
+    check_user_ask_rate_limit(current_user["id"])
+    subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
+    if not subj:
+        raise HTTPException(status_code=404, detail="Subject not found.")
+
+    sources = get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id)
+
+    # If selected_source_ids not explicitly provided, use all ready sources
+    if not selected_source_ids:
+        selected_source_ids = [s["id"] for s in sources if s["status"] == "ready"]
+    else:
+        # validate they belong to this subject
+        valid_ids = {s["id"] for s in sources}
+        selected_source_ids = [sid for sid in selected_source_ids if sid in valid_ids]
+
+    target_msg = None
+    all_msgs = []
+    if conversation_id:
+        all_msgs = get_messages_for_conversation(user_id=current_user["id"], conversation_id=conversation_id)
+
+    if message_id and all_msgs:
+        target_msg = next((m for m in all_msgs if str(m.get("id")) == str(message_id)), None)
+    elif all_msgs:
+        target_msg = next((m for m in reversed(all_msgs) if m.get("role") == "assistant"), None)
+
+    q_text = question
+    msg_retrieved = None
+    abstained = False
+    abstain_reason = None
+
+    if target_msg:
+        msg_retrieved = target_msg.get("retrieved") or []
+        abstained = bool(target_msg.get("abstained", False))
+        abstain_reason = target_msg.get("abstain_reason")
+        if not q_text:
+            # Look for corresponding user question in conversation
+            for m in all_msgs:
+                if m.get("role") == "user" and m.get("created_at") <= target_msg.get("created_at"):
+                    q_text = m.get("content")
+        if target_msg.get("selected_source_ids"):
+            selected_source_ids = target_msg["selected_source_ids"]
+
+    support_min_score = float(os.getenv("SUPPORT_MIN_SCORE", "0.20"))
+
+    return build_retrieval_map_payload(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        selected_source_ids=selected_source_ids,
+        sources=sources,
+        question=q_text,
+        message_retrieved=msg_retrieved,
+        message_abstained=abstained,
+        message_abstain_reason=abstain_reason,
+        support_min_score=support_min_score,
+    )
 
 
 # ============================================================================
