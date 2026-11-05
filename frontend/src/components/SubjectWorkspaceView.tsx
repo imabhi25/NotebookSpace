@@ -26,6 +26,7 @@ import '../proof.css';
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
 import { Composer, ProofDraft, initialProofDraft } from './Composer';
+import { RetrievalMapView } from './RetrievalMapView';
 
 interface SubjectWorkspaceViewProps {
   subject: Subject;
@@ -117,8 +118,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Left sidebar active tab: 'sources' | 'conversations'
   const [sidebarTab, setSidebarTab] = useState<'sources' | 'conversations'>('sources');
 
-  // Right contextual panel tab: 'passage' | 'notes'
-  const [rightPanelTab, setRightPanelTab] = useState<'tools' | 'passage' | 'notes'>('tools');
+  // Right contextual panel tab: 'tools' | 'passage' | 'notes' | 'retrieval'
+  const [rightPanelTab, setRightPanelTab] = useState<'tools' | 'passage' | 'notes' | 'retrieval'>('tools');
+  const [retrievalMessageContext, setRetrievalMessageContext] = useState<{
+    messageId?: string;
+    question?: string;
+  }>({});
 
   // Search queries
   const [sourceSearch, setSourceSearch] = useState('');
@@ -1378,6 +1383,33 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     </svg>
                                     <span>Retry</span>
                                   </button>
+                                  <button
+                                    type="button"
+                                    className="answer-action-btn"
+                                    onClick={() => {
+                                      const prevUserContent = messages
+                                        .slice(0, messages.findIndex((m) => m.id === msg.id))
+                                        .reverse()
+                                        .find((m) => m.role === 'user')?.content;
+                                      setRetrievalMessageContext({
+                                        messageId: msg.id,
+                                        question: prevUserContent,
+                                      });
+                                      setRightPanelTab('retrieval');
+                                      setIsRightCollapsed(false);
+                                      setIsRightOpenMobile(true);
+                                    }}
+                                    title="View retrieval vector map"
+                                    aria-label="View retrieval map"
+                                    data-testid={`retrieval-btn-${msg.id}`}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="12" cy="12" r="3" />
+                                      <circle cx="19" cy="5" r="2" />
+                                      <circle cx="5" cy="19" r="2" />
+                                    </svg>
+                                    <span>Retrieval</span>
+                                  </button>
                                 </div>
 
                                 {msg.retrieved && msg.retrieved.length > 0 && (
@@ -1823,6 +1855,33 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     </svg>
                                     <span>Retry</span>
                                   </button>
+                                  <button
+                                    type="button"
+                                    className="answer-action-btn"
+                                    onClick={() => {
+                                      const prevUserContent = messages
+                                        .slice(0, messages.findIndex((m) => m.id === msg.id))
+                                        .reverse()
+                                        .find((m) => m.role === 'user')?.content;
+                                      setRetrievalMessageContext({
+                                        messageId: msg.id,
+                                        question: prevUserContent,
+                                      });
+                                      setRightPanelTab('retrieval');
+                                      setIsRightCollapsed(false);
+                                      setIsRightOpenMobile(true);
+                                    }}
+                                    title="View retrieval vector map"
+                                    aria-label="View retrieval map"
+                                    data-testid={`retrieval-btn-${msg.id}`}
+                                  >
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                      <circle cx="12" cy="12" r="3" />
+                                      <circle cx="19" cy="5" r="2" />
+                                      <circle cx="5" cy="19" r="2" />
+                                    </svg>
+                                    <span>Retrieval</span>
+                                  </button>
                                 </div>
                               </div>
                             )}
@@ -1940,7 +1999,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </svg>
                 </button>
                 <h2 className="right-panel-title">
-                  {rightPanelTab === 'passage' ? 'Passage' : `Notes (${notes.length})`}
+                  {rightPanelTab === 'passage'
+                    ? 'Passage'
+                    : rightPanelTab === 'retrieval'
+                    ? 'Retrieval map'
+                    : `Notes (${notes.length})`}
                 </h2>
               </div>
             )}
@@ -2070,14 +2133,22 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </svg>
                   <span className="tool-tile-label">Proof check</span>
                 </button>
-                <button type="button" role="listitem" className="tool-tile" disabled title="Coming soon">
+                <button
+                  type="button"
+                  role="listitem"
+                  className="tool-tile"
+                  onClick={() => setRightPanelTab('retrieval')}
+                  title="View 2D semantic embedding projection of course materials"
+                  data-testid="tool-tile-retrieval-map"
+                >
                   <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <rect x="2" y="7" width="5" height="10" rx="1" />
-                    <rect x="9.5" y="7" width="5" height="10" rx="1" />
-                    <rect x="17" y="7" width="5" height="10" rx="1" />
+                    <circle cx="12" cy="12" r="3" />
+                    <circle cx="19" cy="5" r="2" />
+                    <circle cx="5" cy="19" r="2" />
+                    <path d="M10.5 10.5L6.5 17.5" strokeOpacity="0.5" />
+                    <path d="M13.5 10.5L17.5 6.5" strokeOpacity="0.5" />
                   </svg>
-                  <span className="tool-tile-label">Trace</span>
-                  <span className="tool-tile-soon">Soon</span>
+                  <span className="tool-tile-label">Retrieval</span>
                 </button>
               </div>
 
@@ -2368,6 +2439,40 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </ul>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* RIGHT PANEL CONTENT: RETRIEVAL MAP VIEW */}
+          {rightPanelTab === 'retrieval' && (
+            <div className="right-panel-body retrieval-panel-body">
+              <RetrievalMapView
+                subjectId={subject.id}
+                conversationId={activeConversationId}
+                messageId={retrievalMessageContext.messageId || activeMessage?.id}
+                question={
+                  retrievalMessageContext.question ||
+                  (activeMessage
+                    ? messages
+                        .slice(0, messages.findIndex((m) => m.id === activeMessage.id))
+                        .reverse()
+                        .find((m) => m.role === 'user')?.content
+                    : undefined)
+                }
+                selectedSourceIds={selectedSourceIds}
+                sources={sources}
+                onSelectPassage={(file, page) => {
+                  const matchingSrc = sources.find((s) => s.file_name === file || s.title === file);
+                  handleSelectCitation(
+                    {
+                      file,
+                      page,
+                      source_id: matchingSrc?.id,
+                      source_version: matchingSrc?.version,
+                    },
+                    retrievalMessageContext.messageId || activeMessage?.id || ''
+                  );
+                }}
+              />
             </div>
           )}
         </aside>
