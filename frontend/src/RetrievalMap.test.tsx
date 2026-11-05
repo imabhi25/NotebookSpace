@@ -135,4 +135,41 @@ describe('RetrievalMapView', () => {
     });
     expect(screen.getByText(/No embedding chunks available/i)).toBeTruthy();
   });
+
+  it('selects nothing and displays "No passages were retrieved for this answer." when retrieved_chunk_ids is empty', async () => {
+    vi.mocked(api.getRetrievalMap).mockResolvedValueOnce({
+      ...mockResponse,
+      retrieved_chunk_ids: [],
+      abstained: true,
+      abstain_reason: 'not_found',
+    });
+
+    render(
+      <RetrievalMapView
+        subjectId="sub-1"
+        sources={[{ id: 'src-1', file_name: 'lecture1.pdf', title: 'Lecture 1', version: 1 } as any]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('retrieval-map-view')).toBeTruthy();
+    });
+
+    // Inspector card should NOT be rendered initially
+    expect(screen.queryByTestId('retrieval-inspector')).toBeNull();
+
+    // The note should be displayed
+    const noRetrievedNote = screen.getByTestId('no-retrieved-passages-note');
+    expect(noRetrievedNote).toBeTruthy();
+    expect(noRetrievedNote.textContent).toContain('No passages were retrieved for this answer.');
+
+    // Clicking a chunk should still inspect that chunk
+    const chunk1Node = screen.getByLabelText(/chunk 0/i);
+    fireEvent.click(chunk1Node);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('retrieval-inspector')).toBeTruthy();
+      expect(screen.getByTestId('raw-cosine-val').textContent).toBe('0.720');
+    });
+  });
 });
