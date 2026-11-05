@@ -162,6 +162,7 @@ export function App({
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [isMobileNotebooksOpen, setIsMobileNotebooksOpen] = useState(false);
   const chatAbortRef = useRef<AbortController | null>(null);
 
@@ -220,14 +221,20 @@ export function App({
       if (convs.length > 0) {
         const firstConvId = convs[0].id;
         setActiveConversationId(firstConvId);
-        const msgs = await api.getMessages(subjectId, firstConvId);
-        setMessages(applyStoppedFilter(firstConvId, msgs));
+        setHistoryLoading(true);
+        try {
+          const msgs = await api.getMessages(subjectId, firstConvId);
+          setMessages(applyStoppedFilter(firstConvId, msgs));
+        } finally {
+          setHistoryLoading(false);
+        }
       } else {
         // Auto-create initial conversation
         const newConv = await api.createConversation(subjectId, 'New Conversation');
         setConversations([newConv]);
         setActiveConversationId(newConv.id);
         setMessages([]);
+        setHistoryLoading(false);
       }
     } catch {
       // If subject not found or unauthorized, return to dashboard
@@ -265,11 +272,14 @@ export function App({
   const handleSelectConversation = async (convId: string) => {
     if (!activeSubject) return;
     setActiveConversationId(convId);
+    setHistoryLoading(true);
     try {
       const msgs = await api.getMessages(activeSubject.id, convId);
       setMessages(applyStoppedFilter(convId, msgs));
     } catch {
       setMessages([]);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -583,22 +593,74 @@ export function App({
     navigateTo('workspace', subj.id);
   };
 
+  const handleCreateSampleSubject = async () => {
+    try {
+      setSubjectsLoading(true);
+      const subj = await api.createSampleSubject();
+      setSubjects((prev) => [subj, ...prev]);
+      navigateTo('workspace', subj.id);
+    } catch (err: any) {
+      console.error('Failed to create sample notebook:', err);
+    } finally {
+      setSubjectsLoading(false);
+    }
+  };
+
   const handleUpdateSubject = async (
     subjId: string,
     data: { name?: string; course_code?: string; description?: string }
   ) => {
     const updated = await api.updateSubject(subjId, data);
-    setSubjects((prev) => prev.map((s) => (s.id === subjId ? updated : s)));
+    setSubjects((prev) =>
+      prev.map((s) =>
+        s.id === subjId
+          ? { ...s, ...updated, source_count: updated.source_count ?? s.source_count ?? 0 }
+          : s
+      )
+    );
+    if (activeSubject?.id === subjId) {
+      setActiveSubject((prev) =>
+        prev
+          ? { ...prev, ...updated, source_count: updated.source_count ?? prev.source_count ?? 0 }
+          : null
+      );
+    }
   };
 
   const handleArchiveSubject = async (subjId: string) => {
     const updated = await api.archiveSubject(subjId);
-    setSubjects((prev) => prev.map((s) => (s.id === subjId ? updated : s)));
+    setSubjects((prev) =>
+      prev.map((s) =>
+        s.id === subjId
+          ? { ...s, ...updated, source_count: updated.source_count ?? s.source_count ?? 0 }
+          : s
+      )
+    );
+    if (activeSubject?.id === subjId) {
+      setActiveSubject((prev) =>
+        prev
+          ? { ...prev, ...updated, source_count: updated.source_count ?? prev.source_count ?? 0 }
+          : null
+      );
+    }
   };
 
   const handleRestoreSubject = async (subjId: string) => {
     const updated = await api.restoreSubject(subjId);
-    setSubjects((prev) => prev.map((s) => (s.id === subjId ? updated : s)));
+    setSubjects((prev) =>
+      prev.map((s) =>
+        s.id === subjId
+          ? { ...s, ...updated, source_count: updated.source_count ?? s.source_count ?? 0 }
+          : s
+      )
+    );
+    if (activeSubject?.id === subjId) {
+      setActiveSubject((prev) =>
+        prev
+          ? { ...prev, ...updated, source_count: updated.source_count ?? prev.source_count ?? 0 }
+          : null
+      );
+    }
   };
 
   const handleDeleteSubject = async (subjId: string) => {
@@ -1039,6 +1101,7 @@ export function App({
           currentUser={currentUser}
           onOpenSubject={(id) => navigateTo('workspace', id)}
           onCreateSubject={handleCreateSubject}
+          onCreateSampleSubject={handleCreateSampleSubject}
           onUpdateSubject={handleUpdateSubject}
           onArchiveSubject={handleArchiveSubject}
           onRestoreSubject={handleRestoreSubject}
@@ -1080,6 +1143,7 @@ export function App({
               onDeleteNote={handleDeleteNote}
               messages={messages}
               chatLoading={chatLoading}
+              historyLoading={historyLoading}
               onStopGeneration={handleStopGeneration}
               onResetWorkspace={handleResetWorkspace}
             />

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../api';
 import { SubjectSettings, User } from '../types';
+import { useModalFocus } from '../useModalFocus';
 import { ThemeSetting, getThemeSetting, setThemeSetting } from '../theme';
 
 const DEFAULTS_KEY = 'notebookspace_default_response_settings';
@@ -37,6 +38,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   onRequestReset,
   onClose,
 }) => {
+  const modalRef = useModalFocus(true, onClose);
   const [defaults, setDefaults] = useState<SubjectSettings>(
     () => readDefaultResponseSettings() || { response_length: 'default', response_style: 'general' }
   );
@@ -98,6 +100,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
+        ref={modalRef}
         className="modal-content settings-panel"
         role="dialog"
         aria-modal="true"

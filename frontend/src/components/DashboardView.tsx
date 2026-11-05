@@ -15,6 +15,7 @@ export interface DashboardViewProps {
   onArchiveSubject: (subjectId: string) => Promise<void>;
   onRestoreSubject: (subjectId: string) => Promise<void>;
   onDeleteSubject: (subjectId: string) => Promise<void>;
+  onCreateSampleSubject?: () => Promise<void>;
   onResetWorkspace?: () => Promise<void>;
   isMobileSidebarOpen?: boolean;
   onSetMobileSidebarOpen?: (open: boolean) => void;
@@ -33,6 +34,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onArchiveSubject,
   onRestoreSubject,
   onDeleteSubject,
+  onCreateSampleSubject,
   onResetWorkspace,
   isMobileSidebarOpen: controlledMobileOpen,
   onSetMobileSidebarOpen,
@@ -780,13 +782,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   : 'Organize course syllabi, lecture notes, and assignments into notebooks.'}
               </p>
               {homeTab !== 'archived' && !search && (
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  onClick={openCreateModal}
-                >
-                  + New notebook
-                </button>
+                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    onClick={openCreateModal}
+                  >
+                    + New notebook
+                  </button>
+                  {onCreateSampleSubject && (!currentUser || currentUser.is_guest || currentUser.email?.startsWith('guest_') || currentUser.email === 'Guest Workspace') && (
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={onCreateSampleSubject}
+                      data-testid="create-sample-notebook-btn"
+                    >
+                      Explore sample notebook
+                    </button>
+                  )}
+                </div>
               )}
             </div>
               ) : (
