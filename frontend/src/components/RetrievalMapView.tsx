@@ -55,9 +55,24 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
         if (!cancelled) {
           setData(res);
           setLoading(false);
-          // Auto-select first retrieved chunk if available
-          if (res.retrieved_chunk_ids && res.retrieved_chunk_ids.length > 0) {
-            setSelectedChunkId(res.retrieved_chunk_ids[0]);
+          // Auto-select retrieved chunk with highest final score if available
+          const retrievedIds = res.retrieved_chunk_ids || [];
+          if (retrievedIds.length > 0) {
+            const retrievedSet = new Set(retrievedIds);
+            const retrieved = res.chunks.filter((c) => retrievedSet.has(c.id));
+            const ranked = [...retrieved].sort((a, b) => {
+              const scoreA = typeof a.score === 'number' ? a.score : -Infinity;
+              const scoreB = typeof b.score === 'number' ? b.score : -Infinity;
+              if (scoreB !== scoreA) return scoreB - scoreA;
+              const rawA = typeof a.raw_cosine === 'number' ? a.raw_cosine : -Infinity;
+              const rawB = typeof b.raw_cosine === 'number' ? b.raw_cosine : -Infinity;
+              return rawB - rawA;
+            });
+            if (ranked.length > 0) {
+              setSelectedChunkId(ranked[0].id);
+            } else {
+              setSelectedChunkId(null);
+            }
           } else {
             setSelectedChunkId(null);
           }
@@ -142,6 +157,22 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
     if (targetId === null || targetId === undefined) return null;
     return data.chunks.find((c) => c.id === targetId) || null;
   }, [data, hoveredChunkId, selectedChunkId]);
+
+  const rankedRetrievedChunks = useMemo(() => {
+    if (!data) return [];
+    const retrievedIds = data.retrieved_chunk_ids || [];
+    if (retrievedIds.length === 0) return [];
+    const retrievedSet = new Set(retrievedIds);
+    const retrieved = data.chunks.filter((c) => retrievedSet.has(c.id));
+    return [...retrieved].sort((a, b) => {
+      const scoreA = typeof a.score === 'number' ? a.score : -Infinity;
+      const scoreB = typeof b.score === 'number' ? b.score : -Infinity;
+      if (scoreB !== scoreA) return scoreB - scoreA;
+      const rawA = typeof a.raw_cosine === 'number' ? a.raw_cosine : -Infinity;
+      const rawB = typeof b.raw_cosine === 'number' ? b.raw_cosine : -Infinity;
+      return rawB - rawA;
+    });
+  }, [data]);
 
   if (loading) {
     return (
@@ -322,6 +353,65 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
           );
         })}
       </div>
+
+      {/* Ranked Retrieved Passages List */}
+      {rankedRetrievedChunks.length > 0 && (
+        <div className="retrieved-passages-card" data-testid="retrieved-passages-list">
+          <div className="retrieved-passages-header">
+            <h4>Retrieved passages</h4>
+            <span className="retrieved-passages-hint">Ranked by final score &bull; Click to inspect</span>
+          </div>
+          <div className="retrieved-passages-list" role="list">
+            {rankedRetrievedChunks.map((chunk, idx) => {
+              const isSelected = selectedChunkId === chunk.id;
+              const rank = idx + 1;
+              const docTitle = chunk.title || chunk.file_name;
+              const rawCosStr = typeof chunk.raw_cosine === 'number' ? chunk.raw_cosine.toFixed(3) : 'N/A';
+              const scoreStr = typeof chunk.score === 'number' ? chunk.score.toFixed(3) : 'N/A';
+
+              return (
+                <div
+                  key={chunk.id}
+                  className={`retrieved-passage-row ${isSelected ? 'selected' : ''}`}
+                  onClick={() => setSelectedChunkId(chunk.id)}
+                  data-testid={`retrieved-passage-row-${chunk.id}`}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Rank ${rank}: ${docTitle} page ${chunk.page_number}`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedChunkId(chunk.id);
+                    }
+                  }}
+                >
+                  <div className="passage-row-main">
+                    <span className={`rank-badge rank-${rank}`}>#{rank}</span>
+                    <span
+                      className="passage-file-name"
+                      title={chunk.file_name || docTitle}
+                      data-testid={`passage-file-${chunk.id}`}
+                    >
+                      {docTitle}
+                    </span>
+                  </div>
+                  <div className="passage-row-meta">
+                    <span className="passage-page-cell">p. {chunk.page_number}</span>
+                    <div className="passage-scores-cell">
+                      <span className="passage-cosine-cell" data-testid={`passage-raw-${chunk.id}`}>
+                        raw {rawCosStr}
+                      </span>
+                      <span className="passage-score-cell" data-testid={`passage-score-${chunk.id}`}>
+                        score <span className="final-score-val">{scoreStr}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Selected Chunk Details Inspector */}
       {activeChunk ? (
