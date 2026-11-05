@@ -2,6 +2,7 @@ export interface User {
   id: string;
   email: string;
   token?: string;
+  is_guest?: boolean;
 }
 
 export interface SubjectSettings {

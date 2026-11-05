@@ -13,6 +13,7 @@ import {
   SubjectSettings,
   User,
   normalizeFileName,
+  formatProofAsLatex,
 } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { lazyView, preloadWhenIdle } from '../lazyView';
@@ -20,11 +21,12 @@ import { SourceRow } from './SourceRow';
 
 import { useModalFocus } from '../useModalFocus';
 import { RetrievalMapView } from './RetrievalMapView';
+import '../proof.css';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
-import { Composer } from './Composer';
+import { Composer, ProofDraft, initialProofDraft } from './Composer';
 
 interface SubjectWorkspaceViewProps {
   subject: Subject;
@@ -49,7 +51,15 @@ interface SubjectWorkspaceViewProps {
   onDeleteSource: (sourceId: string) => Promise<void>;
   onRetrySource: (sourceId: string) => Promise<void>;
   onReplaceSource: (sourceId: string, file: File) => Promise<void>;
-  onSendMessage: (question: string, options?: { is_retry?: boolean; retry_message_id?: string }) => Promise<void>;
+  onSendMessage: (
+    question: string,
+    options?: {
+      is_retry?: boolean;
+      retry_message_id?: string;
+      mode?: 'ask' | 'proof';
+      proof_submission?: any;
+    }
+  ) => Promise<void>;
   onUpdateSettings: (settings: SubjectSettings) => Promise<void>;
   onCreateNote: (title: string, content: string) => Promise<void>;
   onSaveAnswerAsNote: (msg: MessageItem) => Promise<void>;
@@ -314,7 +324,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Focus trap refs
   const createNoteModalRef = useModalFocus(isCreateNoteOpen, () => setIsCreateNoteOpen(false));
   const settingsModalRef = useModalFocus(isSettingsOpen, () => setIsSettingsOpen(false));
-  const addSourceModalRef = useModalFocus(isAddSourceOpen, () => setIsAddSourceOpen(false));
 
   // Citation inspection state
   const [selectedCitation, setSelectedCitation] = useState<ActiveCitation | null>(null);
@@ -326,6 +335,50 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [savedNoteMsgId, setSavedNoteMsgId] = useState<string | null>(null);
   const [savingNoteMsgId, setSavingNoteMsgId] = useState<string | null>(null);
+
+  // Proof mode state & drafts
+  const [composerMode, setComposerMode] = useState<'ask' | 'proof'>('ask');
+  const [proofDraft, setProofDraft] = useState<ProofDraft>(initialProofDraft);
+  const [expandedHints, setExpandedHints] = useState<Record<string, boolean>>({});
+  const [copiedLatexId, setCopiedLatexId] = useState<string | null>(null);
+
+  const toggleHint = (key: string) => {
+    setExpandedHints((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleCopyLatex = async (msgId: string, proofData: any) => {
+    try {
+      const latex = formatProofAsLatex(proofData);
+      await navigator.clipboard.writeText(latex);
+      setCopiedLatexId(msgId);
+      setTimeout(() => setCopiedLatexId(null), 2000);
+    } catch {
+      // ignore
+    }
+  };
+
+  const handleSubmitProof = async (draft: ProofDraft) => {
+    if (chatLoading) return;
+    let promptText = `What are you proving: ${draft.statement}`;
+    if (draft.format === 'loop_invariant') {
+      if (draft.initialization.trim()) promptText += `\n\n**Initialization:**\n${draft.initialization.trim()}`;
+      if (draft.maintenance.trim()) promptText += `\n\n**Maintenance:**\n${draft.maintenance.trim()}`;
+      if (draft.termination.trim()) promptText += `\n\n**Termination:**\n${draft.termination.trim()}`;
+    } else {
+      promptText += `\n\n**Proof:**\n${draft.body.trim()}`;
+    }
+    await onSendMessage(promptText, {
+      mode: 'proof',
+      proof_submission: {
+        statement: draft.statement,
+        format: draft.format,
+        initialization: draft.format === 'loop_invariant' ? draft.initialization : undefined,
+        maintenance: draft.format === 'loop_invariant' ? draft.maintenance : undefined,
+        termination: draft.format === 'loop_invariant' ? draft.termination : undefined,
+        body: draft.format === 'free_form' ? draft.body : undefined,
+      },
+    });
+  };
 
   // File replacement input ref
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
@@ -469,7 +522,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     setPassageLoading(true);
     try {
       const lookupFile = matchingSource?.file_name || cit.file;
-      const data = await api.getPassages(lookupFile, cit.page, subject.id, matchingSource?.id || cit.source_id || undefined);
+      const data = await api.getPassages(lookupFile, cit.page);
       // Backup guard: deduplicate passages by chunk_index & text
       const seen = new Set<string>();
       const deduped = data.filter((p) => {
@@ -965,14 +1018,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </button>
                 </div>
                 {/* One-click sample notebook for guest mode */}
-                {(!currentUser || currentUser.is_guest) && (
+                {(!currentUser || currentUser.is_guest || currentUser.email?.startsWith('guest_') || currentUser.email === 'Guest Workspace') && (
                   <div style={{ marginTop: '14px' }}>
                     <button
                       type="button"
                       className="btn btn-secondary btn-sm"
                       onClick={async () => {
                         try {
-                          const sampleSubj = await api.createSampleNotebook();
+                          const sampleSubj = await api.createSampleSubject();
                           if (sampleSubj && sampleSubj.id) {
                             window.location.href = `/subject/${sampleSubj.id}`;
                           }
@@ -1056,6 +1109,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   loading={chatLoading}
                   onStop={onStopGeneration}
                   selectedSourceCount={selectedSourceIds.length}
+                  mode={composerMode}
+                  onModeChange={setComposerMode}
+                  proofDraft={proofDraft}
+                  setProofDraft={setProofDraft}
+                  onSubmitProof={handleSubmitProof}
                 />
               </div>
             </div>
@@ -1068,7 +1126,63 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       <div key={msg.id} className={`thread-turn turn-${msg.role}`}>
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
-                            <div className="user-message-bubble">{msg.content}</div>
+                            {msg.proof_check && msg.proof_check.statement ? (
+                              <div className="user-message-bubble user-proof-submission-view" data-testid="user-proof-submission">
+                                <div className="user-proof-statement">
+                                  <strong>What I&rsquo;m proving:</strong> {msg.proof_check.statement}
+                                </div>
+                                {msg.proof_check.format === 'loop_invariant' ? (
+                                  <>
+                                    {msg.proof_check.initialization && (
+                                      <div className="user-proof-section-box">
+                                        <span className="user-proof-section-title">Initialization</span>
+                                        <div className="user-proof-section-body">{msg.proof_check.initialization}</div>
+                                      </div>
+                                    )}
+                                    {msg.proof_check.maintenance && (
+                                      <div className="user-proof-section-box">
+                                        <span className="user-proof-section-title">Maintenance</span>
+                                        <div className="user-proof-section-body">{msg.proof_check.maintenance}</div>
+                                      </div>
+                                    )}
+                                    {msg.proof_check.termination && (
+                                      <div className="user-proof-section-box">
+                                        <span className="user-proof-section-title">Termination</span>
+                                        <div className="user-proof-section-body">{msg.proof_check.termination}</div>
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  msg.proof_check.body && (
+                                    <div className="user-proof-section-box">
+                                      <span className="user-proof-section-title">Proof Body</span>
+                                      <div className="user-proof-section-body">{msg.proof_check.body}</div>
+                                    </div>
+                                  )
+                                )}
+                                <button
+                                  type="button"
+                                  className="proof-copy-latex-btn"
+                                  onClick={() => handleCopyLatex(msg.id, msg.proof_check)}
+                                  data-testid="copy-as-latex-btn"
+                                  aria-label="Copy proof as LaTeX"
+                                >
+                                  {copiedLatexId === msg.id ? (
+                                    <>
+                                      <span aria-hidden="true">✓</span>
+                                      <span>Copied LaTeX</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span aria-hidden="true">📋</span>
+                                      <span>Copy as LaTeX</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="user-message-bubble">{msg.content}</div>
+                            )}
                             {(() => {
                               const msgIdx = messages.findIndex((m) => m.id === msg.id);
                               const nextMsg = messages[msgIdx + 1];
@@ -1233,19 +1347,105 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   </div>
                                 )}
 
-                                {/* Grounded Answer Body */}
-                                <div className="answer-text">
-                                  <MarkdownRenderer
-                                    content={msg.content}
-                                    citations={msg.citations || []}
-                                    isThisMessageSelected={selectedCitation?.messageId === msg.id}
-                                    selectedCitation={selectedCitation}
-                                    onSelectCitation={(cit) => handleSelectCitation(cit, msg.id)}
-                                  />
-                                </div>
+                                {/* Grounded Answer Body or Proof Check */}
+                                {msg.proof_check?.sections && msg.proof_check.sections.length > 0 ? (
+                                  <div className="proof-check-container" data-testid="proof-check-view">
+                                    {msg.proof_check.overall && (
+                                      <div className="proof-check-overall-banner" data-testid="proof-overall-banner">
+                                        {msg.proof_check.overall}
+                                      </div>
+                                    )}
+                                    <div className="proof-sections-list">
+                                      {msg.proof_check.sections.map((sec, sIdx) => {
+                                        const hintKey = `${msg.id}-${sec.part}-${sIdx}`;
+                                        const isHintOpen = Boolean(expandedHints[hintKey]);
+                                        const partLabel =
+                                          sec.part.charAt(0).toUpperCase() + sec.part.slice(1);
+
+                                        return (
+                                          <div key={sIdx} className="proof-section-card" data-testid={`proof-section-${sec.part}`}>
+                                            <div className="proof-section-header">
+                                              <span className="proof-section-part-name">{partLabel}</span>
+                                              <span
+                                                className={`proof-verdict-badge verdict-${sec.verdict}`}
+                                                data-testid={`verdict-${sec.part}`}
+                                              >
+                                                {sec.verdict === 'correct' && '✓ Correct'}
+                                                {sec.verdict === 'partially_correct' && '⚠ Partially Correct'}
+                                                {sec.verdict === 'incorrect' && '✕ Incorrect'}
+                                                {sec.verdict === 'missing' && '○ Missing'}
+                                              </span>
+                                            </div>
+                                            <div className="proof-section-feedback">{sec.feedback}</div>
+                                            {sec.citations && sec.citations.length > 0 && (
+                                              <div className="proof-citations-row">
+                                                {sec.citations.map((cit, cIdx) => {
+                                                  const isActive =
+                                                    selectedCitation?.messageId === msg.id &&
+                                                    normalizeFileName(selectedCitation.file) === normalizeFileName(cit.file) &&
+                                                    selectedCitation.page === cit.page;
+
+                                                  return (
+                                                    <button
+                                                      key={cIdx}
+                                                      type="button"
+                                                      className={`chip ${isActive ? 'active' : ''}`}
+                                                      onClick={() => handleSelectCitation(cit, msg.id)}
+                                                      data-testid={`proof-citation-${sec.part}-${cIdx}`}
+                                                    >
+                                                      <span className="chip-badge">[{cIdx + 1}]</span>
+                                                      <span>
+                                                        {cit.file} p.{cit.page}
+                                                      </span>
+                                                    </button>
+                                                  );
+                                                })}
+                                              </div>
+                                            )}
+                                            {sec.hint && (
+                                              <div className="proof-hint-wrapper">
+                                                <button
+                                                  type="button"
+                                                  className="proof-hint-toggle-btn"
+                                                  onClick={() => toggleHint(hintKey)}
+                                                  data-testid={`hint-toggle-${sec.part}`}
+                                                  aria-expanded={isHintOpen}
+                                                >
+                                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                                    {isHintOpen ? (
+                                                      <polyline points="18 15 12 9 6 15" />
+                                                    ) : (
+                                                      <polyline points="6 9 12 15 18 9" />
+                                                    )}
+                                                  </svg>
+                                                  <span>{isHintOpen ? 'Hide hint' : 'Show hint'}</span>
+                                                </button>
+                                                {isHintOpen && (
+                                                  <div className="proof-hint-content" data-testid={`hint-content-${sec.part}`}>
+                                                    💡 {sec.hint}
+                                                  </div>
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="answer-text">
+                                    <MarkdownRenderer
+                                      content={msg.content}
+                                      citations={msg.citations || []}
+                                      isThisMessageSelected={selectedCitation?.messageId === msg.id}
+                                      selectedCitation={selectedCitation}
+                                      onSelectCitation={(cit) => handleSelectCitation(cit, msg.id)}
+                                    />
+                                  </div>
+                                )}
 
                                 {/* Citation Chips Row */}
-                                {msg.citations && msg.citations.length > 0 && (
+                                {!msg.proof_check?.sections && msg.citations && msg.citations.length > 0 && (
                                   <div className="citations-section">
                                     <div className="chips-row">
                                       {msg.citations.map((cit, cIdx) => {
@@ -1404,6 +1604,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 loading={chatLoading}
                 onStop={onStopGeneration}
                 selectedSourceCount={selectedSourceIds.length}
+                mode={composerMode}
+                onModeChange={setComposerMode}
+                proofDraft={proofDraft}
+                setProofDraft={setProofDraft}
+                onSubmitProof={handleSubmitProof}
               />
             </>
           )}

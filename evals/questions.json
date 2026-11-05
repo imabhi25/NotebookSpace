@@ -231,5 +231,26 @@
     "question": "What minimum score on the midterm exam is required to earn extra credit on Raft assignment 2?",
     "expected_targets": [],
     "is_absent": true
+  },
+  {
+    "id": "q33_distractor_policy",
+    "category": "distractor_policy",
+    "question": "What is the policy on sharing code solutions or discussing algorithms with classmates?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 4}],
+    "is_absent": false
+  },
+  {
+    "id": "q34_distractor_code",
+    "category": "distractor_code",
+    "question": "What programming code standard and C++20 conventions must be followed for the exam technical scope?",
+    "expected_targets": [{"file": "exam_guide.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q35_distractor_rubric",
+    "category": "distractor_rubric",
+    "question": "What is the grading policy and point breakdown for clean code formatting and comments in Assignment 1?",
+    "expected_targets": [{"file": "assignment_1.pdf", "page": 3}],
+    "is_absent": false
   }
 ]
