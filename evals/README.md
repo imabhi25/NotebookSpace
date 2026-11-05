@@ -4,7 +4,7 @@ This directory contains the automated retrieval and answer-grounding evaluation 
 
 ## Benchmark Results
 
-Evaluated on **35 questions** (N=27 answerable spanning factual baseline, paraphrased, multi-chunk/multi-page, conflicting updates, near-duplicate wording, and keyword distractor queries, plus N=8 absent-fact questions). Measured with gemini-2.5-flash-lite on a synthetic corpus.
+Evaluated on **35 questions** (N=27 answerable spanning factual baseline, paraphrased, multi-chunk/multi-page, conflicting updates, near-duplicate wording, and keyword distractor queries, plus N=8 absent-fact questions). Measured with gemini-3.5-flash-lite on a synthetic corpus.
 
 | Metric | Hybrid Search (Cosine + Keyword Boost) | No Boost (Pure Vector Cosine) | Notes |
 | :--- | :---: | :---: | :--- |
@@ -53,7 +53,7 @@ The benchmark evaluates 35 questions across 7 categories:
    - **Absent Questions (N=8)**: Raw cosine similarity range: **0.208** (min) to **0.645** (max), mean **0.400**.
    - **Critical finding**: Raw cosine alone **cannot separate vocabulary-sharing absent questions from answerable ones**. For example, `q30_abs` (*"What is the deadline for submitting grade re-evaluation requests following the midterm examination?"*) scores a raw cosine of **0.645**, higher than the mean for answerable questions (**0.558**), because the words *"grade"*, *"midterm"*, and *"examination"* have high vector proximity to the course text.
    - Therefore, vector thresholding alone is insufficient; downstream LLM grounded evidence verification is required to detect absent facts.
-5. **Model Used**: The evaluation was executed using Google Gemini **`gemini-2.5-flash-lite`** via `GeminiLLMClient`.
+5. **Model Used**: The evaluation was executed using Google Gemini **`gemini-3.5-flash-lite`** via `GeminiLLMClient`.
 6. **Cache Usage (`.cache/llm`)**:
    - On the initial run of absent questions, real live API calls were made to Google's Generative Language API, returning `{"supported": false, "answer": "NOT_FOUND"}`.
    - These model responses were serialized to `.cache/llm/<hash>.json`. On subsequent evaluation runs, the responses were read from `.cache/llm` to avoid duplicate API latency and quota consumption.
