@@ -50,6 +50,7 @@ OWNER_ROUTES = {
     ("POST", "/subjects/{subject_id}/archive"),
     ("POST", "/subjects/{subject_id}/restore"),
     ("GET", "/subjects/{subject_id}/starter-questions"),
+    ("GET", "/subjects/{subject_id}/retrieval-map"),
     ("GET", "/subjects/{subject_id}/sources"),
     ("POST", "/subjects/{subject_id}/sources/upload"),
     ("POST", "/subjects/{subject_id}/sources/paste"),
@@ -83,6 +84,7 @@ TEXT_FILE = {"file": ("authfix_probe.txt", b"SYNTHETIC probe file.", "text/plain
 REQUESTS = {
     ("GET", "/passages"): {"params": {"file": "{source_name}", "page": 1}},
     ("POST", "/subjects"): {"json": {"name": "SYNTHETIC probe subject"}},
+    ("GET", "/subjects/{subject_id}/retrieval-map"): {},
     ("PUT", "/subjects/{subject_id}"): {"json": {"name": "SYNTHETIC renamed by intruder"}},
     ("POST", "/subjects/{subject_id}/sources/upload"): {"files": TEXT_FILE},
     ("POST", "/subjects/{subject_id}/sources/paste"): {"json": {"title": "SYNTHETIC intruder paste", "text": "SYNTHETIC text."}},

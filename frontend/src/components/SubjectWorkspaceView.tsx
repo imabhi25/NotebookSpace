@@ -17,6 +17,8 @@ import {
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { lazyView, preloadWhenIdle } from '../lazyView';
 import { SourceRow } from './SourceRow';
+import { useModalFocus } from '../useModalFocus';
+import { RetrievalMapView } from './RetrievalMapView';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
@@ -54,6 +56,7 @@ interface SubjectWorkspaceViewProps {
   onDeleteNote: (noteId: string) => Promise<void>;
   messages: MessageItem[];
   chatLoading: boolean;
+  historyLoading?: boolean;
   onStopGeneration?: () => void;
   onResetWorkspace?: () => Promise<void>;
 }
@@ -62,6 +65,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   subject,
   sources,
   notes,
+  activeConversationId,
   selectedSourceIds,
   starterQuestions,
   isDemoMode,
@@ -83,6 +87,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   onDeleteNote,
   messages,
   chatLoading,
+  historyLoading = false,
   onStopGeneration,
   onResetWorkspace,
 }) => {
@@ -247,8 +252,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   }, [isLeftCollapsed]);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
 
-  // Right contextual panel tab: 'passage' | 'notes'
-  const [rightPanelTab, setRightPanelTab] = useState<'passage' | 'notes'>('passage');
+  // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
+  const [rightPanelTab, setRightPanelTab] = useState<'passage' | 'notes' | 'retrieval'>('passage');
 
   // Search queries
   const [sourceSearch, setSourceSearch] = useState('');
@@ -304,6 +309,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [noteFormTitle, setNoteFormTitle] = useState('');
   const [noteFormContent, setNoteFormContent] = useState('');
+
+  // Focus trap refs
+  const createNoteModalRef = useModalFocus(isCreateNoteOpen, () => setIsCreateNoteOpen(false));
+  const settingsModalRef = useModalFocus(isSettingsOpen, () => setIsSettingsOpen(false));
 
   // Citation inspection state
   const [selectedCitation, setSelectedCitation] = useState<ActiveCitation | null>(null);
@@ -459,7 +468,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     try {
       const lookupFile = matchingSource?.file_name || cit.file;
       const data = await api.getPassages(lookupFile, cit.page);
-      setPassages(data);
+      // Backup guard: deduplicate passages by chunk_index & text
+      const seen = new Set<string>();
+      const deduped = data.filter((p) => {
+        const key = `${p.chunk_index ?? ''}:${(p.text || p.chunk_text || '').trim()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setPassages(deduped);
     } catch {
       setPassages([]);
     } finally {
@@ -901,7 +918,20 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </span>
           </div>
           {/* Conversation Thread */}
-          {sources.length === 0 ? (
+          {historyLoading ? (
+            <div className="empty-state-scroll-container" role="status" aria-live="polite" aria-label="Loading conversation history" data-testid="chat-history-loading">
+              <div className="empty-state-centered-box" style={{ maxWidth: '560px', width: '100%', alignItems: 'stretch' }}>
+                <div className="skeleton-loader" aria-hidden="true" style={{ width: '100%' }}>
+                  <span className="skeleton-line line-short" style={{ width: '35%', marginBottom: '14px' }} />
+                  <span className="skeleton-line line-long" style={{ width: '92%', marginBottom: '8px' }} />
+                  <span className="skeleton-line line-long" style={{ width: '78%', marginBottom: '28px' }} />
+                  <span className="skeleton-line line-short" style={{ width: '28%', marginBottom: '14px' }} />
+                  <span className="skeleton-line line-long" style={{ width: '88%', marginBottom: '8px' }} />
+                  <span className="skeleton-line line-med" style={{ width: '64%' }} />
+                </div>
+              </div>
+            </div>
+          ) : sources.length === 0 ? (
             <div className="empty-state-scroll-container">
               <div className="empty-state-centered-box workspace-zero-sources-box">
                 <div className="empty-state-brand-mark" aria-hidden="true">
@@ -1381,6 +1411,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               >
                 Notes ({notes.length})
               </button>
+              <button
+                type="button"
+                className={`segment-btn ${rightPanelTab === 'retrieval' ? 'active' : ''}`}
+                onClick={() => setRightPanelTab('retrieval')}
+                data-testid="right-panel-tab-retrieval"
+              >
+                Retrieval
+              </button>
             </div>
 
             <div className="right-header-actions">
@@ -1686,6 +1724,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               </div>
             </div>
           )}
+
+          {/* RIGHT PANEL CONTENT: RETRIEVAL MAP VIEW */}
+          {rightPanelTab === 'retrieval' && (
+            <div className="right-panel-body retrieval-panel-body">
+              <RetrievalMapView
+                subjectId={subject.id}
+                conversationId={activeConversationId || undefined}
+                sources={sources}
+              />
+            </div>
+          )}
         </aside>
       </div>
 
@@ -1755,7 +1804,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {/* Create / Edit Note Modal */}
       {isCreateNoteOpen && (
         <div className="modal-backdrop" onClick={() => setIsCreateNoteOpen(false)}>
-          <div className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
+          <div ref={createNoteModalRef} className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingNote ? 'Edit Note' : 'Create Note'}</h2>
               <button type="button" className="modal-close-btn" onClick={() => setIsCreateNoteOpen(false)} aria-label="Close">
@@ -1832,7 +1881,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {/* Notebook Settings Modal */}
       {isSettingsOpen && (
         <div className="modal-backdrop" onClick={() => setIsSettingsOpen(false)}>
-          <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+          <div ref={settingsModalRef} className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Notebook Settings</h2>
               <button type="button" className="modal-close-btn" onClick={() => setIsSettingsOpen(false)} aria-label="Close">
