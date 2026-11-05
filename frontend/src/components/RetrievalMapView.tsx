@@ -58,8 +58,8 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
           // Auto-select first retrieved chunk if available
           if (res.retrieved_chunk_ids && res.retrieved_chunk_ids.length > 0) {
             setSelectedChunkId(res.retrieved_chunk_ids[0]);
-          } else if (res.chunks.length > 0) {
-            setSelectedChunkId(res.chunks[0].id);
+          } else {
+            setSelectedChunkId(null);
           }
         }
       })
@@ -139,7 +139,8 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
   const activeChunk: RetrievalMapChunk | null = useMemo(() => {
     if (!data) return null;
     const targetId = hoveredChunkId ?? selectedChunkId;
-    return data.chunks.find((c) => c.id === targetId) || data.chunks[0] || null;
+    if (targetId === null || targetId === undefined) return null;
+    return data.chunks.find((c) => c.id === targetId) || null;
   }, [data, hoveredChunkId, selectedChunkId]);
 
   if (loading) {
@@ -323,7 +324,7 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
       </div>
 
       {/* Selected Chunk Details Inspector */}
-      {activeChunk && (
+      {activeChunk ? (
         <div className="retrieval-inspector-card" data-testid="retrieval-inspector">
           <div className="inspector-top-row">
             <div className="inspector-title-area">
@@ -411,6 +412,12 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
               </button>
             </div>
           )}
+        </div>
+      ) : (
+        <div className="retrieval-no-retrieved-card" data-testid="no-retrieved-passages-note">
+          <p className="retrieval-map-note" style={{ fontStyle: 'normal' }}>
+            No passages were retrieved for this answer.
+          </p>
         </div>
       )}
     </div>
