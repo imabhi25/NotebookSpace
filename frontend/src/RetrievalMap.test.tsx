@@ -274,4 +274,69 @@ describe('RetrievalMapView', () => {
       expect(screen.getByText('Introduction to attention mechanisms.')).toBeTruthy();
     });
   });
+
+  it('handles and truncates very long file names with a tooltip and proper meta wrapping', async () => {
+    const longFileName =
+      'CS_4800_Advanced_Machine_Learning_Deep_Neural_Architectures_And_Reinforcement_Learning_Textbook_Chapter_12_Comprehensive_Notes_Final_Version_2026.pdf';
+    const longFileResponse: RetrievalMapResponse = {
+      subject_id: 'sub-long',
+      question: 'What is deep reinforcement learning?',
+      query_position: { x: 0.1, y: 0.2, z: 0.0 },
+      abstained: false,
+      abstain_reason: null,
+      support_min_score: 0.2,
+      retrieved_chunk_ids: [100],
+      chunks: [
+        {
+          id: 100,
+          source_id: 'src-long',
+          file_name: longFileName,
+          title: longFileName,
+          page_number: 142,
+          chunk_index: 3,
+          text: 'Deep reinforcement learning combines deep artificial neural networks with reinforcement learning architectures.',
+          position: { x: 0.12, y: 0.22, z: 0.0 },
+          raw_cosine: 0.88,
+          score: 1.18,
+          matched_terms: ['reinforcement', 'learning'],
+          is_retrieved: true,
+        },
+      ],
+    };
+
+    vi.mocked(api.getRetrievalMap).mockResolvedValueOnce(longFileResponse);
+
+    render(
+      <RetrievalMapView
+        subjectId="sub-long"
+        sources={[{ id: 'src-long', file_name: longFileName, title: longFileName, version: 1 } as any]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('retrieval-map-view')).toBeTruthy();
+    });
+
+    // Check that the long file name is in the list with a title tooltip
+    const fileElem = screen.getByTestId('passage-file-100');
+    expect(fileElem).toBeTruthy();
+    expect(fileElem.getAttribute('title')).toBe(longFileName);
+    expect(fileElem.textContent).toBe(longFileName);
+    expect(fileElem.className).toContain('passage-file-name');
+
+    // Check page and score cells
+    const row = screen.getByTestId('retrieved-passage-row-100');
+    expect(row.textContent).toContain('p. 142');
+    expect(row.textContent).toContain('raw 0.880');
+    expect(row.textContent).toContain('score 1.180');
+
+    // Inspector also renders with tooltip and title
+    const inspector = screen.getByTestId('retrieval-inspector');
+    expect(inspector).toBeTruthy();
+    const inspectorDocs = screen.getAllByTitle(longFileName);
+    expect(inspectorDocs.length).toBeGreaterThanOrEqual(2);
+    const inspectorDoc = inspector.querySelector('.inspector-doc-name');
+    expect(inspectorDoc).toBeTruthy();
+    expect(inspectorDoc?.getAttribute('title')).toBe(longFileName);
+  });
 });

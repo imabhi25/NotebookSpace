@@ -361,57 +361,54 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
             <h4>Retrieved passages</h4>
             <span className="retrieved-passages-hint">Ranked by final score &bull; Click to inspect</span>
           </div>
-          <div className="retrieved-passages-table-wrap">
-            <table className="retrieved-passages-table">
-              <thead>
-                <tr>
-                  <th>Rank</th>
-                  <th>Source</th>
-                  <th>Page</th>
-                  <th>Raw Cosine</th>
-                  <th>Final Score</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rankedRetrievedChunks.map((chunk, idx) => {
-                  const isSelected = selectedChunkId === chunk.id;
-                  const rank = idx + 1;
-                  const docTitle = chunk.title || chunk.file_name;
-                  const rawCosStr = typeof chunk.raw_cosine === 'number' ? chunk.raw_cosine.toFixed(3) : 'N/A';
-                  const scoreStr = typeof chunk.score === 'number' ? chunk.score.toFixed(3) : 'N/A';
+          <div className="retrieved-passages-list" role="list">
+            {rankedRetrievedChunks.map((chunk, idx) => {
+              const isSelected = selectedChunkId === chunk.id;
+              const rank = idx + 1;
+              const docTitle = chunk.title || chunk.file_name;
+              const rawCosStr = typeof chunk.raw_cosine === 'number' ? chunk.raw_cosine.toFixed(3) : 'N/A';
+              const scoreStr = typeof chunk.score === 'number' ? chunk.score.toFixed(3) : 'N/A';
 
-                  return (
-                    <tr
-                      key={chunk.id}
-                      className={`retrieved-passage-row ${isSelected ? 'selected' : ''}`}
-                      onClick={() => setSelectedChunkId(chunk.id)}
-                      data-testid={`retrieved-passage-row-${chunk.id}`}
-                      tabIndex={0}
-                      role="button"
-                      aria-label={`Rank ${rank}: ${docTitle} page ${chunk.page_number}`}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault();
-                          setSelectedChunkId(chunk.id);
-                        }
-                      }}
+              return (
+                <div
+                  key={chunk.id}
+                  className={`retrieved-passage-row ${isSelected ? 'selected' : ''}`}
+                  onClick={() => setSelectedChunkId(chunk.id)}
+                  data-testid={`retrieved-passage-row-${chunk.id}`}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Rank ${rank}: ${docTitle} page ${chunk.page_number}`}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedChunkId(chunk.id);
+                    }
+                  }}
+                >
+                  <div className="passage-row-main">
+                    <span className={`rank-badge rank-${rank}`}>#{rank}</span>
+                    <span
+                      className="passage-file-name"
+                      title={chunk.file_name || docTitle}
+                      data-testid={`passage-file-${chunk.id}`}
                     >
-                      <td className="passage-rank-cell">
-                        <span className={`rank-badge rank-${rank}`}>#{rank}</span>
-                      </td>
-                      <td className="passage-file-cell" title={chunk.file_name}>
-                        {docTitle}
-                      </td>
-                      <td className="passage-page-cell">p. {chunk.page_number}</td>
-                      <td className="passage-cosine-cell" data-testid={`passage-raw-${chunk.id}`}>{rawCosStr}</td>
-                      <td className="passage-score-cell" data-testid={`passage-score-${chunk.id}`}>
-                        <span className="final-score-val">{scoreStr}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                      {docTitle}
+                    </span>
+                  </div>
+                  <div className="passage-row-meta">
+                    <span className="passage-page-cell">p. {chunk.page_number}</span>
+                    <div className="passage-scores-cell">
+                      <span className="passage-cosine-cell" data-testid={`passage-raw-${chunk.id}`}>
+                        raw {rawCosStr}
+                      </span>
+                      <span className="passage-score-cell" data-testid={`passage-score-${chunk.id}`}>
+                        score <span className="final-score-val">{scoreStr}</span>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
