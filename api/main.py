@@ -21,6 +21,7 @@ from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from answering.answer import answer_question
 from answering.notebook_answer import answer_notebook_question
+from answering.retrieval_map import build_retrieval_map_payload, invalidate_retrieval_map_cache
 from api.auth import (
     DEMO_USER_EMAIL,
     create_guest_user_and_session,
@@ -990,6 +991,7 @@ def _process_and_store_source(
             raw_content=full_content,
             version=version,
         )
+        invalidate_retrieval_map_cache(subject_id)
 
 
 def _stale_processing_minutes() -> int:
@@ -1253,6 +1255,7 @@ def rename_source_endpoint(
     )
     if not updated or updated["subject_id"] != subject_id:
         raise HTTPException(status_code=404, detail="Source not found.")
+    invalidate_retrieval_map_cache(subject_id)
     return updated
 
 
@@ -1268,6 +1271,7 @@ def delete_source_endpoint(
     deleted = delete_source(user_id=current_user["id"], source_id=source_id)
     if not deleted:
         raise HTTPException(status_code=404, detail="Source not found.")
+    invalidate_retrieval_map_cache(subject_id)
     return {"message": "Source successfully deleted."}
 
 
@@ -1522,6 +1526,69 @@ def send_message_endpoint(
         retry_message_id=payload.retry_message_id,
     )
     return asst_msg
+
+
+@app.get("/subjects/{subject_id}/retrieval-map")
+def get_retrieval_map_endpoint(
+    subject_id: str,
+    conversation_id: Optional[str] = Query(None),
+    message_id: Optional[str] = Query(None),
+    question: Optional[str] = Query(None),
+    selected_source_ids: Optional[list[str]] = Query(None),
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
+):
+    """
+    Project chunks from selected sources into a 3D coordinate space via PCA.
+    Optionally projects a question and computes raw cosine similarity, keyword-boosted score,
+    matched terms, and whether the answer abstained.
+    """
+    subj = get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
+    if not subj:
+        raise HTTPException(status_code=404, detail="Subject not found.")
+
+    sources = get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id)
+
+    # If selected_source_ids not explicitly provided, use all ready sources
+    if not selected_source_ids:
+        selected_source_ids = [s["id"] for s in sources if s["status"] == "ready"]
+    else:
+        # validate they belong to this subject
+        valid_ids = {s["id"] for s in sources}
+        selected_source_ids = [sid for sid in selected_source_ids if sid in valid_ids]
+
+    msg_retrieved = None
+    abstained = False
+    abstain_reason = None
+    q_text = question
+
+    if conversation_id and message_id:
+        all_msgs = get_messages_for_conversation(user_id=current_user["id"], conversation_id=conversation_id)
+        target_msg = next((m for m in all_msgs if m.get("id") == message_id), None)
+        if target_msg:
+            msg_retrieved = target_msg.get("retrieved")
+            abstained = bool(target_msg.get("abstained"))
+            abstain_reason = target_msg.get("abstain_reason")
+            if not q_text:
+                # Look for corresponding user question in conversation
+                for m in all_msgs:
+                    if m.get("role") == "user" and m.get("created_at") <= target_msg.get("created_at"):
+                        q_text = m.get("content")
+            if target_msg.get("selected_source_ids"):
+                selected_source_ids = target_msg["selected_source_ids"]
+
+    support_min_score = float(os.getenv("SUPPORT_MIN_SCORE", "0.20"))
+
+    return build_retrieval_map_payload(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        selected_source_ids=selected_source_ids,
+        sources=sources,
+        question=q_text,
+        message_retrieved=msg_retrieved,
+        message_abstained=abstained,
+        message_abstain_reason=abstain_reason,
+        support_min_score=support_min_score,
+    )
 
 
 # ============================================================================
