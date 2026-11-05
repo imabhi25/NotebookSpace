@@ -596,17 +596,56 @@ export function App({
     data: { name?: string; course_code?: string; description?: string }
   ) => {
     const updated = await api.updateSubject(subjId, data);
-    setSubjects((prev) => prev.map((s) => (s.id === subjId ? updated : s)));
+    setSubjects((prev) =>
+      prev.map((s) =>
+        s.id === subjId
+          ? { ...s, ...updated, source_count: updated.source_count ?? s.source_count ?? 0 }
+          : s
+      )
+    );
+    if (activeSubject?.id === subjId) {
+      setActiveSubject((prev) =>
+        prev
+          ? { ...prev, ...updated, source_count: updated.source_count ?? prev.source_count ?? 0 }
+          : null
+      );
+    }
   };
 
   const handleArchiveSubject = async (subjId: string) => {
     const updated = await api.archiveSubject(subjId);
-    setSubjects((prev) => prev.map((s) => (s.id === subjId ? updated : s)));
+    setSubjects((prev) =>
+      prev.map((s) =>
+        s.id === subjId
+          ? { ...s, ...updated, source_count: updated.source_count ?? s.source_count ?? 0 }
+          : s
+      )
+    );
+    if (activeSubject?.id === subjId) {
+      setActiveSubject((prev) =>
+        prev
+          ? { ...prev, ...updated, source_count: updated.source_count ?? prev.source_count ?? 0 }
+          : null
+      );
+    }
   };
 
   const handleRestoreSubject = async (subjId: string) => {
     const updated = await api.restoreSubject(subjId);
-    setSubjects((prev) => prev.map((s) => (s.id === subjId ? updated : s)));
+    setSubjects((prev) =>
+      prev.map((s) =>
+        s.id === subjId
+          ? { ...s, ...updated, source_count: updated.source_count ?? s.source_count ?? 0 }
+          : s
+      )
+    );
+    if (activeSubject?.id === subjId) {
+      setActiveSubject((prev) =>
+        prev
+          ? { ...prev, ...updated, source_count: updated.source_count ?? prev.source_count ?? 0 }
+          : null
+      );
+    }
   };
 
   const handleDeleteSubject = async (subjId: string) => {

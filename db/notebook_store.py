@@ -294,8 +294,7 @@ def update_subject(
                         is_archived = %s,
                         settings = %s::jsonb,
                         updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s AND user_id = %s
-                    RETURNING id, name, course_code, description, is_archived, settings, created_at, updated_at;
+                    WHERE id = %s AND user_id = %s;
                     """,
                     (
                         new_name,
@@ -307,7 +306,28 @@ def update_subject(
                         str(user_id),
                     ),
                 )
+                cur.execute(
+                    """
+                    SELECT 
+                        s.id,
+                        s.name,
+                        s.course_code,
+                        s.description,
+                        s.is_archived,
+                        s.settings,
+                        s.created_at,
+                        s.updated_at,
+                        COUNT(src.id)::int AS source_count
+                    FROM subjects s
+                    LEFT JOIN sources src ON s.id = src.subject_id AND src.status != 'failed'
+                    WHERE s.id = %s AND s.user_id = %s
+                    GROUP BY s.id, s.name, s.course_code, s.description, s.is_archived, s.settings, s.created_at, s.updated_at;
+                    """,
+                    (str(subject_id), str(user_id)),
+                )
                 row = cur.fetchone()
+                if not row:
+                    return None
                 return {
                     "id": str(row[0]),
                     "name": row[1],
@@ -317,6 +337,7 @@ def update_subject(
                     "settings": row[5] if isinstance(row[5], dict) else json.loads(row[5]),
                     "created_at": row[6].isoformat(),
                     "updated_at": row[7].isoformat(),
+                    "source_count": int(row[8]),
                 }
 
 
