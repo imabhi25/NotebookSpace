@@ -51,6 +51,7 @@ OWNER_ROUTES = {
     ("POST", "/subjects/{subject_id}/restore"),
     ("GET", "/subjects/{subject_id}/starter-questions"),
     ("GET", "/subjects/{subject_id}/retrieval-map"),
+    ("POST", "/subjects/sample"),
     ("GET", "/subjects/{subject_id}/sources"),
     ("POST", "/subjects/{subject_id}/sources/upload"),
     ("POST", "/subjects/{subject_id}/sources/paste"),
@@ -76,7 +77,7 @@ OWNER_ROUTES = {
 
 # Collection routes have no resource of another user in their path. Another guest gets
 # their own (empty) collection, which is checked separately.
-COLLECTION_ROUTES = {("GET", "/subjects"), ("POST", "/subjects")}
+COLLECTION_ROUTES = {("GET", "/subjects"), ("POST", "/subjects"), ("POST", "/subjects/sample")}
 
 TEXT_FILE = {"file": ("authfix_probe.txt", b"SYNTHETIC probe file.", "text/plain")}
 
@@ -84,6 +85,7 @@ TEXT_FILE = {"file": ("authfix_probe.txt", b"SYNTHETIC probe file.", "text/plain
 REQUESTS = {
     ("GET", "/passages"): {"params": {"file": "{source_name}", "page": 1}},
     ("POST", "/subjects"): {"json": {"name": "SYNTHETIC probe subject"}},
+    ("POST", "/subjects/sample"): {},
     ("GET", "/subjects/{subject_id}/retrieval-map"): {},
     ("PUT", "/subjects/{subject_id}"): {"json": {"name": "SYNTHETIC renamed by intruder"}},
     ("POST", "/subjects/{subject_id}/sources/upload"): {"files": TEXT_FILE},

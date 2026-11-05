@@ -593,6 +593,19 @@ export function App({
     navigateTo('workspace', subj.id);
   };
 
+  const handleCreateSampleSubject = async () => {
+    try {
+      setSubjectsLoading(true);
+      const subj = await api.createSampleSubject();
+      setSubjects((prev) => [subj, ...prev]);
+      navigateTo('workspace', subj.id);
+    } catch (err: any) {
+      console.error('Failed to create sample notebook:', err);
+    } finally {
+      setSubjectsLoading(false);
+    }
+  };
+
   const handleUpdateSubject = async (
     subjId: string,
     data: { name?: string; course_code?: string; description?: string }
@@ -1088,6 +1101,7 @@ export function App({
           currentUser={currentUser}
           onOpenSubject={(id) => navigateTo('workspace', id)}
           onCreateSubject={handleCreateSubject}
+          onCreateSampleSubject={handleCreateSampleSubject}
           onUpdateSubject={handleUpdateSubject}
           onArchiveSubject={handleArchiveSubject}
           onRestoreSubject={handleRestoreSubject}

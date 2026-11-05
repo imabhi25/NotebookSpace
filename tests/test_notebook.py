@@ -569,3 +569,83 @@ def test_source_count_preserved_on_update_archive_restore(auth_headers):
     ).json()
     assert restored["source_count"] == 1
 
+
+def test_one_click_sample_notebook_in_guest_mode():
+    """Verify one-click sample notebook works cleanly in guest mode with real scored retrieval."""
+    from fastapi.testclient import TestClient
+    from api.main import app
+
+    with TestClient(app) as client:
+        # 1. Initialize guest session
+        res = client.post("/auth/guest-session")
+        assert res.status_code == 200
+        token = res.json()["token"]
+        headers = {"Authorization": f"Bearer {token}"}
+
+        # 2. Create sample notebook via one-click endpoint
+        sample_res = client.post("/subjects/sample", headers=headers)
+        assert sample_res.status_code == 200
+        subj_data = sample_res.json()
+        assert "Sample" in subj_data["name"]
+        assert subj_data["source_count"] == 1
+        subj_id = subj_data["id"]
+
+        # 3. Check sources
+        sources_res = client.get(f"/subjects/{subj_id}/sources", headers=headers)
+        assert sources_res.status_code == 200
+        sources = sources_res.json()
+        assert len(sources) == 1
+        src = sources[0]
+        assert src["file_name"] == "syllabus.pdf"
+        assert src["status"] == "ready"
+
+        # 4. Check conversation and message with real scored retrieval
+        convs_res = client.get(f"/subjects/{subj_id}/conversations", headers=headers)
+        assert convs_res.status_code == 200
+        convs = convs_res.json()
+        assert len(convs) == 1
+        conv_id = convs[0]["id"]
+
+        msgs_res = client.get(f"/subjects/{subj_id}/conversations/{conv_id}/messages", headers=headers)
+        assert msgs_res.status_code == 200
+        msgs = msgs_res.json()
+        assert len(msgs) == 2
+        user_msg = msgs[0]
+        asst_msg = msgs[1]
+        assert user_msg["role"] == "user"
+        assert "late" in user_msg["content"].lower()
+        assert asst_msg["role"] == "assistant"
+        assert asst_msg["model"] == "Sample"
+        assert "Sample Answer" in asst_msg["content"]
+        assert len(asst_msg["citations"]) > 0
+        citation = asst_msg["citations"][0]
+        assert citation["file"] == "syllabus.pdf"
+        assert citation["page"] == 2
+
+        # Verify real scored retrieved items are present
+        assert len(asst_msg["retrieved"]) > 0
+        top_retrieved = asst_msg["retrieved"][0]
+        assert "id" in top_retrieved or "chunk_id" in top_retrieved
+        assert top_retrieved.get("score") is not None
+
+        # 5. Check retrieval map endpoint works with this sample conversation
+        map_res = client.get(
+            f"/subjects/{subj_id}/retrieval-map?conversation_id={conv_id}",
+            headers=headers,
+        )
+        assert map_res.status_code == 200
+        map_data = map_res.json()
+        assert len(map_data["chunks"]) > 0
+        assert len(map_data["retrieved_chunk_ids"]) > 0
+
+        # 6. Check passage endpoint returns chunk for the citation
+        passages_res = client.get(
+            f"/passages?file=syllabus.pdf&page=2&subject_id={subj_id}&source_id={src['id']}",
+            headers=headers,
+        )
+        assert passages_res.status_code == 200
+        passages = passages_res.json()
+        assert len(passages) >= 1
+        assert any("late" in p["text"].lower() or "penalty" in p["text"].lower() for p in passages)
+
+
