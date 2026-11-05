@@ -775,6 +775,8 @@ def test_one_click_sample_notebook_in_guest_mode():
         assert user_msg["role"] == "user"
         assert "late" in user_msg["content"].lower()
         assert asst_msg["role"] == "assistant"
+        assert asst_msg["model"] == "Sample"
+        assert "Sample Answer" in asst_msg["content"]
         assert len(asst_msg["citations"]) > 0
         citation = asst_msg["citations"][0]
         assert citation["file"] == "syllabus.pdf"

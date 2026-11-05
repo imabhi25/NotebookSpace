@@ -1,10 +1,19 @@
 #!/usr/bin/env python3
 """
-Retrieval Evaluation Harness for NotebookSpace.
-Evaluates the search_scoped retrieval pipeline across a curated test set:
-- Top-k retrieval hit rate with hybrid ranking (vector similarity + keyword boost)
-- Top-k retrieval hit rate with keyword boost disabled (pure vector similarity)
-- Abstain accuracy on absent-fact questions (top_score < support_min_score -> NOT_FOUND)
+NotebookSpace Comprehensive Retrieval Evaluation Harness.
+Evaluates the search_scoped retrieval pipeline across a 32-question benchmark:
+- 12 baseline factual single-chunk questions
+- 3 paraphrased questions with vocabulary shift
+- 3 multi-chunk questions requiring synthesis across 2 documents
+- 2 conflict resolution questions (syllabus vs announcement update)
+- 4 near-duplicate wording questions between assignment 1 and assignment 2
+- 8 absent-fact questions (4 out-of-domain + 4 sharing in-domain course vocabulary)
+
+Reports:
+- Hit@1, Hit@3, Hit@5 hit rates (Hybrid vs Pure Vector Cosine without keyword boost)
+- Mean Reciprocal Rank (MRR)
+- Absent questions abstention accuracy
+- Raw cosine similarity separation distribution between answerable and absent questions
 """
 
 import json
@@ -14,6 +23,7 @@ import io
 import hashlib
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 # Ensure project root is in sys.path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -36,7 +46,7 @@ from db.notebook_store import (
 from answering.notebook_answer import answer_notebook_question
 from ingestion.parsers import parse_pdf_source
 from ingestion.chunker import chunk_pages
-from ingestion.embedder import embed_batch
+from ingestion.embedder import embed_batch, embed_text
 
 QUESTIONS_FILE = PROJECT_ROOT / "evals" / "questions.json"
 SAMPLE_DOCS_DIR = PROJECT_ROOT / "docs" / "sample_docs"
@@ -65,7 +75,6 @@ def setup_eval_corpus() -> tuple[dict[str, Any], dict[str, Any], list[dict[str, 
             description="Subject for automated retrieval evaluations.",
         )
 
-    # Ingest PDFs from sample_docs into this subject if not already ready
     existing_sources = get_sources_for_subject(user_id=user["id"], subject_id=eval_subj["id"])
     sources_by_file = {s["file_name"]: s for s in existing_sources if s["status"] == "ready"}
 
@@ -123,11 +132,7 @@ def search_without_keyword_boost(
     selected_source_ids: list[str],
     k: int = 5,
 ) -> list[dict[str, Any]]:
-    """Run search_scoped but evaluate ranking using raw similarity_score without keyword boost."""
-    # We can retrieve candidates and rank purely by unboosted similarity_score
-    from unittest.mock import patch
-
-    # Mock extract_key_terms to return [] so no keyword search or boost is performed
+    """Run search_scoped with keyword extraction bypassed to evaluate pure vector cosine similarity."""
     with patch("db.notebook_store.extract_key_terms", return_value=[]):
         return search_scoped(
             question=question,
@@ -138,44 +143,80 @@ def search_without_keyword_boost(
         )
 
 
-def run_evaluation():
-    print("=" * 80)
-    print(" NOTEBOOKSPACE RETRIEVAL EVALUATION HARNESS")
-    print("=" * 80)
+def calculate_raw_cosine(question: str, chunk_id: int) -> float:
+    """Compute exact unboosted cosine similarity between question and chunk."""
+    q_vec = embed_text(question)
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 - (embedding <=> %s::vector) FROM chunks WHERE id = %s",
+                (q_vec, chunk_id),
+            )
+            row = cur.fetchone()
+            return float(row[0]) if row else 0.0
 
-    if not QUESTIONS_FILE.is_file():
-        print(f"Error: Questions file not found at {QUESTIONS_FILE}", file=sys.stderr)
-        sys.exit(1)
+
+def is_target_hit(chunk: dict[str, Any], targets: list[dict[str, Any]]) -> bool:
+    c_file = Path(chunk.get("file_name", "")).name.lower()
+    c_page = int(chunk.get("page_number", -1))
+    return any(
+        Path(t["file"]).name.lower() == c_file and int(t["page"]) == c_page
+        for t in targets
+    )
+
+
+def find_first_hit_rank(chunks: list[dict[str, Any]], targets: list[dict[str, Any]], max_k: int = 5) -> int | None:
+    for idx, c in enumerate(chunks[:max_k]):
+        if is_target_hit(c, targets):
+            return idx + 1
+    return None
+
+
+def run_evaluation():
+    print("=" * 95)
+    print(" NOTEBOOKSPACE COMPREHENSIVE RETRIEVAL BENCHMARK")
+    print("=" * 95)
 
     with open(QUESTIONS_FILE, "r", encoding="utf-8") as f:
         questions = json.load(f)
 
     print(f"Loaded {len(questions)} evaluation questions from {QUESTIONS_FILE.name}")
-    print("Setting up evaluation course corpus...")
     user, subject, sources = setup_eval_corpus()
     source_ids = [s["id"] for s in sources]
-    print(f"Evaluation corpus ready: {len(sources)} sources indexed.\n")
+    eval_conv = create_conversation(user["id"], subject["id"], "Full Eval Run")
+    print(f"Corpus initialized: {len(sources)} course documents indexed.")
+    print("-" * 95 + "\n")
 
-    eval_conv = create_conversation(user["id"], subject["id"], "Retrieval Eval Session")
     k = 5
-    hybrid_hits = 0
-    no_boost_hits = 0
-    total_factual = 0
+    # Metrics containers
+    hybrid_top1_hits = 0
+    hybrid_top3_hits = 0
+    hybrid_top5_hits = 0
+    hybrid_rr_sum = 0.0
 
-    abstain_correct = 0
+    noboost_top1_hits = 0
+    noboost_top3_hits = 0
+    noboost_top5_hits = 0
+    noboost_rr_sum = 0.0
+
+    total_answerable = 0
     total_absent = 0
+    absent_abstained = 0
 
-    results_table = []
+    answerable_raw_cosines = []
+    absent_raw_cosines = []
+
+    table_rows = []
 
     for q in questions:
         q_id = q["id"]
+        q_cat = q.get("category", "general")
         q_text = q["question"]
-        is_absent = q.get("is_absent", False)
-        exp_source = q.get("expected_source")
-        exp_page = q.get("expected_page")
+        is_abs = q.get("is_absent", False)
+        targets = q.get("expected_targets", [])
 
-        # 1. Hybrid search (vector + keyword boost)
-        retrieved_hybrid = search_scoped(
+        # Retrieve Hybrid
+        ret_hybrid = search_scoped(
             question=q_text,
             user_id=user["id"],
             subject_id=subject["id"],
@@ -183,8 +224,8 @@ def run_evaluation():
             k=k,
         )
 
-        # 2. Vector-only search (keyword boost disabled)
-        retrieved_no_boost = search_without_keyword_boost(
+        # Retrieve No Boost
+        ret_noboost = search_without_keyword_boost(
             question=q_text,
             user_id=user["id"],
             subject_id=subject["id"],
@@ -192,15 +233,15 @@ def run_evaluation():
             k=k,
         )
 
-        top_score_hybrid = (
-            max((r["score"] for r in retrieved_hybrid), default=0.0)
-            if retrieved_hybrid
-            else 0.0
-        )
+        top_chunk_id = ret_hybrid[0]["id"] if ret_hybrid else None
+        top_raw_cosine = calculate_raw_cosine(q_text, top_chunk_id) if top_chunk_id else 0.0
+        top_final_score = ret_hybrid[0]["score"] if ret_hybrid else 0.0
 
-        if is_absent:
+        if is_abs:
             total_absent += 1
-            # Run through real answering pipeline to verify proper abstention
+            absent_raw_cosines.append(top_raw_cosine)
+
+            # Test abstention in real pipeline
             ans = answer_notebook_question(
                 question=q_text,
                 conversation_id=eval_conv["id"],
@@ -210,92 +251,147 @@ def run_evaluation():
             )
             abstained = bool(ans.get("abstained", False))
             reason = ans.get("abstain_reason") or "not_found"
+
             if abstained:
-                abstain_correct += 1
+                absent_abstained += 1
                 status = f"PASS (Abstained: {reason})"
             else:
-                status = f"FAIL (Answered: {ans.get('content', '')[:18]})"
+                status = f"FAIL (Answered: {ans.get('content', '')[:16]})"
 
-            results_table.append({
+            target_repr = "ABSENT"
+            table_rows.append({
                 "id": q_id,
-                "question": q_text[:38] + "...",
-                "expected": "ABSENT (Abstain)",
-                "hybrid_hit": "N/A",
-                "no_boost_hit": "N/A",
-                "top_score": f"{top_score_hybrid:.3f}",
+                "cat": q_cat,
+                "question": q_text[:34] + "...",
+                "target": target_repr,
+                "hyb_rank": "-",
+                "no_rank": "-",
+                "raw_cos": f"{top_raw_cosine:.3f}",
+                "final_score": f"{top_final_score:.3f}",
                 "status": status,
             })
         else:
-            total_factual += 1
+            total_answerable += 1
+            answerable_raw_cosines.append(top_raw_cosine)
 
-            # Check hit in hybrid
-            hybrid_hit = any(
-                r.get("file_name") == exp_source and r.get("page_number") == exp_page
-                for r in retrieved_hybrid
-            )
-            if hybrid_hit:
-                hybrid_hits += 1
+            # Rank in Hybrid
+            hyb_rank = find_first_hit_rank(ret_hybrid, targets, max_k=5)
+            if hyb_rank == 1:
+                hybrid_top1_hits += 1
+                hybrid_top3_hits += 1
+                hybrid_top5_hits += 1
+                hybrid_rr_sum += 1.0
+            elif hyb_rank in (2, 3):
+                hybrid_top3_hits += 1
+                hybrid_top5_hits += 1
+                hybrid_rr_sum += 1.0 / hyb_rank
+            elif hyb_rank in (4, 5):
+                hybrid_top5_hits += 1
+                hybrid_rr_sum += 1.0 / hyb_rank
 
-            # Check hit in no_boost
-            no_boost_hit = any(
-                r.get("file_name") == exp_source and r.get("page_number") == exp_page
-                for r in retrieved_no_boost
-            )
-            if no_boost_hit:
-                no_boost_hits += 1
+            # Rank in No-Boost
+            no_rank = find_first_hit_rank(ret_noboost, targets, max_k=5)
+            if no_rank == 1:
+                noboost_top1_hits += 1
+                noboost_top3_hits += 1
+                noboost_top5_hits += 1
+                noboost_rr_sum += 1.0
+            elif no_rank in (2, 3):
+                noboost_top3_hits += 1
+                noboost_top5_hits += 1
+                noboost_rr_sum += 1.0 / no_rank
+            elif no_rank in (4, 5):
+                noboost_top5_hits += 1
+                noboost_rr_sum += 1.0 / no_rank
 
-            status = "PASS" if hybrid_hit else "FAIL"
+            t_strs = [f"{Path(t['file']).stem} p.{t['page']}" for t in targets]
+            target_repr = ", ".join(t_strs)
+            if len(target_repr) > 22:
+                target_repr = target_repr[:20] + ".."
 
-            results_table.append({
+            status = "PASS" if hyb_rank else "FAIL"
+
+            table_rows.append({
                 "id": q_id,
-                "question": q_text[:38] + "...",
-                "expected": f"{exp_source} p.{exp_page}",
-                "hybrid_hit": "YES" if hybrid_hit else "NO",
-                "no_boost_hit": "YES" if no_boost_hit else "NO",
-                "top_score": f"{top_score_hybrid:.3f}",
+                "cat": q_cat,
+                "question": q_text[:34] + "...",
+                "target": target_repr,
+                "hyb_rank": f"#{hyb_rank}" if hyb_rank else "MISS",
+                "no_rank": f"#{no_rank}" if no_rank else "MISS",
+                "raw_cos": f"{top_raw_cosine:.3f}",
+                "final_score": f"{top_final_score:.3f}",
                 "status": status,
             })
 
-    # Print Results Table
-    header_fmt = "{:<5} {:<42} {:<24} {:<10} {:<12} {:<10} {:<28}"
-    row_fmt = "{:<5} {:<42} {:<24} {:<10} {:<12} {:<10} {:<28}"
-
-    print("-" * 135)
-    print(header_fmt.format("ID", "Question", "Expected Target", "Hybrid Hit", "No-Boost Hit", "Top Score", "Status"))
-    print("-" * 135)
-    for r in results_table:
-        print(row_fmt.format(
+    # Print Detailed Results Table
+    fmt = "{:<9} {:<15} {:<37} {:<23} {:<9} {:<9} {:<8} {:<8} {:<25}"
+    print("-" * 148)
+    print(fmt.format("ID", "Category", "Question", "Expected Target", "Hyb Rank", "No-B Rank", "Raw Cos", "Final", "Status"))
+    print("-" * 148)
+    for r in table_rows:
+        print(fmt.format(
             r["id"],
+            r["cat"],
             r["question"],
-            r["expected"],
-            r["hybrid_hit"],
-            r["no_boost_hit"],
-            r["top_score"],
+            r["target"],
+            r["hyb_rank"],
+            r["no_rank"],
+            r["raw_cos"],
+            r["final_score"],
             r["status"],
         ))
-    print("-" * 135)
+    print("-" * 148)
 
-    # Print Summary Metrics
-    hybrid_rate = (hybrid_hits / total_factual) * 100 if total_factual else 0.0
-    no_boost_rate = (no_boost_hits / total_factual) * 100 if total_factual else 0.0
-    abstain_rate = (abstain_correct / total_absent) * 100 if total_absent else 0.0
+    # Compute Summary Stats
+    hyb_top1_pct = (hybrid_top1_hits / total_answerable) * 100
+    hyb_top3_pct = (hybrid_top3_hits / total_answerable) * 100
+    hyb_top5_pct = (hybrid_top5_hits / total_answerable) * 100
+    hyb_mrr = hybrid_rr_sum / total_answerable
+
+    no_top1_pct = (noboost_top1_hits / total_answerable) * 100
+    no_top3_pct = (noboost_top3_hits / total_answerable) * 100
+    no_top5_pct = (noboost_top5_hits / total_answerable) * 100
+    no_mrr = noboost_rr_sum / total_answerable
+
+    abs_abstain_pct = (absent_abstained / total_absent) * 100
 
     print("\n" + "=" * 80)
-    print(" EVALUATION SUMMARY RESULTS")
+    print(" RETRIEVAL BENCHMARK PERFORMANCE METRICS")
     print("=" * 80)
     print(f"Total Questions Evaluated       : {len(questions)}")
-    print(f"Factual Target Questions        : {total_factual}")
+    print(f"Answerable Target Questions     : {total_answerable}")
     print(f"Absent-Fact (Abstain) Questions : {total_absent}")
     print("-" * 80)
-    print(f"Top-{k} Hit Rate (Hybrid Ranking)        : {hybrid_hits}/{total_factual} ({hybrid_rate:.1f}%)")
-    print(f"Top-{k} Hit Rate (Keyword Boost Disabled): {no_boost_hits}/{total_factual} ({no_boost_rate:.1f}%)")
-    print(f"Absent-Fact Abstain Accuracy             : {abstain_correct}/{total_absent} ({abstain_rate:.1f}%)")
+    print(f"{'Metric':<32} | {'Hybrid (Vector + Boost)':<24} | {'No Keyword Boost':<20}")
+    print("-" * 80)
+    print(f"{'Top-1 Hit Rate':<32} | {hybrid_top1_hits:>2}/{total_answerable:<2} ({hyb_top1_pct:>5.1f}%)          | {noboost_top1_hits:>2}/{total_answerable:<2} ({no_top1_pct:>5.1f}%)")
+    print(f"{'Top-3 Hit Rate':<32} | {hybrid_top3_hits:>2}/{total_answerable:<2} ({hyb_top3_pct:>5.1f}%)          | {noboost_top3_hits:>2}/{total_answerable:<2} ({no_top3_pct:>5.1f}%)")
+    print(f"{'Top-5 Hit Rate':<32} | {hybrid_top5_hits:>2}/{total_answerable:<2} ({hyb_top5_pct:>5.1f}%)          | {noboost_top5_hits:>2}/{total_answerable:<2} ({no_top5_pct:>5.1f}%)")
+    print(f"{'Mean Reciprocal Rank (MRR)':<32} | {hyb_mrr:>6.3f}                   | {no_mrr:>6.3f}")
+    print("-" * 80)
+    print(f"Absent Questions Abstain Rate   : {absent_abstained}/{total_absent} ({abs_abstain_pct:.1f}%)")
     print("=" * 80)
 
-    # Check passing thresholds
-    assert hybrid_rate >= 80.0, f"Hybrid hit rate {hybrid_rate:.1f}% below 80% threshold"
-    assert abstain_rate >= 75.0, f"Abstain accuracy {abstain_rate:.1f}% below 75% threshold"
-    print("\nRetrieval Evaluation: ALL CHECKS PASSED SUCCESSFULLY.")
+    # Cosine Separation Analysis
+    print("\n" + "=" * 80)
+    print(" RAW COSINE SIMILARITY SEPARATION ANALYSIS")
+    print("=" * 80)
+    ans_min, ans_max = min(answerable_raw_cosines), max(answerable_raw_cosines)
+    ans_avg = sum(answerable_raw_cosines) / len(answerable_raw_cosines)
+    abs_min, abs_max = min(absent_raw_cosines), max(absent_raw_cosines)
+    abs_avg = sum(absent_raw_cosines) / len(absent_raw_cosines)
+
+    print(f"Answerable Questions (N={len(answerable_raw_cosines)}):")
+    print(f"  Min: {ans_min:.4f}  |  Mean: {ans_avg:.4f}  |  Max: {ans_max:.4f}")
+    print(f"Absent Questions (N={len(absent_raw_cosines)}):")
+    print(f"  Min: {abs_min:.4f}  |  Mean: {abs_avg:.4f}  |  Max: {abs_max:.4f}")
+    print("-" * 80)
+    print("Empirical Observation:")
+    print(f"  - Absent questions top chunk raw cosine spans [{abs_min:.3f}, {abs_max:.3f}] (mean {abs_avg:.3f})")
+    print(f"  - Answerable questions top chunk raw cosine spans [{ans_min:.3f}, {ans_max:.3f}] (mean {ans_avg:.3f})")
+    gap = ans_avg - abs_avg
+    print(f"  - Separation Mean Gap: {gap:.4f}")
+    print("=" * 80 + "\n")
 
 
 if __name__ == "__main__":

@@ -798,6 +798,8 @@ def create_sample_subject_endpoint(
             detail="Portfolio deployment limit reached: maximum 10 subjects per guest workspace.",
         )
 
+    check_user_ask_rate_limit(current_user["id"], limit=10)
+
     subj = create_subject(
         user_id=current_user["id"],
         name="CS 401: Systems Programming (Sample)",
@@ -862,7 +864,8 @@ def create_sample_subject_endpoint(
         user_id=current_user["id"],
         conversation_id=conv["id"],
         role="assistant",
-        content="According to the course syllabus, assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit [syllabus.pdf p.2].",
+        content="**[Sample Answer]** According to the course syllabus, assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit [syllabus.pdf p.2].",
+        model="Sample",
         citations=[
             {
                 "file": "syllabus.pdf",
