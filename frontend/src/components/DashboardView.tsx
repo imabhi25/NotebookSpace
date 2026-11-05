@@ -12,6 +12,7 @@ export interface DashboardViewProps {
   currentUser?: User | null;
   onOpenSubject: (subjectId: string) => void;
   onCreateSubject: (data: { name: string; course_code?: string; description?: string; settings?: Record<string, any> }) => Promise<void>;
+  onCreateSampleSubject?: () => Promise<void> | void;
   onUpdateSubject: (subjectId: string, data: { name?: string; course_code?: string; description?: string }) => Promise<void>;
   onArchiveSubject: (subjectId: string) => Promise<void>;
   onRestoreSubject: (subjectId: string) => Promise<void>;
@@ -29,6 +30,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUser,
   onOpenSubject,
   onCreateSubject,
+  onCreateSampleSubject,
   onUpdateSubject,
   onArchiveSubject,
   onRestoreSubject,
@@ -472,15 +474,36 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     ? 'No archived notebooks'
                     : search
                     ? 'No matching notebooks found'
-                    : 'Create your first notebook'}
+                    : 'Ask questions about your course materials'}
                 </h2>
                 <p>
                   {tab === 'archived'
                     ? 'Archived notebooks will appear here.'
                     : search
                     ? `No notebooks match "${search}". Try adjusting your search query.`
-                    : 'Organize course syllabi, lecture notes, and assignments into notebooks.'}
+                    : 'Upload a source, ask a question, and follow citations back to the relevant passage.'}
                 </p>
+                {tab === 'active' && !search && (
+                  <div className="empty-state-cta-group" style={{ marginTop: '1.25rem', display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
+                    {onCreateSampleSubject && (
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={onCreateSampleSubject}
+                        data-testid="try-sample-notebook-btn"
+                      >
+                        Try sample notebook
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      onClick={openCreateModal}
+                    >
+                      Create notebook
+                    </button>
+                  </div>
+                )}
               </div>
             ) : (
               <div className="notebook-grid" role="list" key={`${tab}-${sortBy}`}>

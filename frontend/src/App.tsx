@@ -601,6 +601,19 @@ export function App({
     navigateTo('workspace', subj.id);
   };
 
+  const handleCreateSampleSubject = async () => {
+    try {
+      setSubjectsLoading(true);
+      const subj = await api.createSampleSubject();
+      setSubjects((prev) => [subj, ...prev]);
+      navigateTo('workspace', subj.id);
+    } catch (err: any) {
+      console.error('Failed to create sample notebook:', err);
+    } finally {
+      setSubjectsLoading(false);
+    }
+  };
+
   const handleUpdateSubject = async (
     subjId: string,
     data: { name?: string; course_code?: string; description?: string }
@@ -1000,9 +1013,9 @@ export function App({
                   <div className="empty-state-brand-mark" aria-hidden="true">
                     <span className="brand-logo-letter empty-state-logo-letter">N</span>
                   </div>
-                  <h1 className="empty-state-heading">What would you like to understand?</h1>
+                  <h1 className="empty-state-heading">Ask questions about your course materials</h1>
                   <p className="empty-state-subtext">
-                    Ask about your course. Every answer starts with your sources.
+                    Upload a source, ask a question, and follow citations back to the relevant passage.
                   </p>
                   <div className="starter-chips-container" role="group" aria-label="Starter questions">
                     <button
@@ -1121,6 +1134,7 @@ export function App({
           currentUser={currentUser}
           onOpenSubject={(id) => navigateTo('workspace', id)}
           onCreateSubject={handleCreateSubject}
+          onCreateSampleSubject={handleCreateSampleSubject}
           onUpdateSubject={handleUpdateSubject}
           onArchiveSubject={handleArchiveSubject}
           onRestoreSubject={handleRestoreSubject}

@@ -564,10 +564,10 @@ describe('NotebookSpace UI', () => {
     render(<App />);
 
     expect(
-      screen.getByRole('heading', { name: /What would you like to understand\?/i })
+      screen.getByRole('heading', { name: /Ask questions about your course materials/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/Ask about your course\. Every answer starts with your sources\./i)
+      screen.getByText(/Upload a source, ask a question, and follow citations back to the relevant passage\./i)
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Grade breakdown' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Lecture room' })).toBeInTheDocument();
@@ -620,7 +620,7 @@ describe('NotebookSpace UI', () => {
 
     // Initially the empty state is present
     expect(
-      screen.getByRole('heading', { name: /What would you like to understand\?/i })
+      screen.getByRole('heading', { name: /Ask questions about your course materials/i })
     ).toBeInTheDocument();
 
     // Click starter chip
@@ -633,7 +633,7 @@ describe('NotebookSpace UI', () => {
     });
 
     expect(
-      screen.queryByRole('heading', { name: /What would you like to understand\?/i })
+      screen.queryByRole('heading', { name: /Ask questions about your course materials/i })
     ).not.toBeInTheDocument();
     expect(
       screen.getByText('What is the grade breakdown for this course?')
@@ -672,7 +672,7 @@ describe('NotebookSpace UI', () => {
       expect(screen.getByTestId('answer-view')).toBeInTheDocument();
     });
     expect(
-      screen.queryByRole('heading', { name: /What would you like to understand\?/i })
+      screen.queryByRole('heading', { name: /Ask questions about your course materials/i })
     ).not.toBeInTheDocument();
 
     // Click New chat
@@ -681,7 +681,7 @@ describe('NotebookSpace UI', () => {
 
     // Empty state is restored
     expect(
-      screen.getByRole('heading', { name: /What would you like to understand\?/i })
+      screen.getByRole('heading', { name: /Ask questions about your course materials/i })
     ).toBeInTheDocument();
     expect(screen.queryByTestId('answer-view')).not.toBeInTheDocument();
   });

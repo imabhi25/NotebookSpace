@@ -51,6 +51,7 @@ from db.notebook_store import (
     get_subject_by_id,
     get_subjects_for_user,
     get_user_by_email,
+    save_message,
     store_source_chunks,
     update_conversation_title,
     update_note,
@@ -783,6 +784,108 @@ def create_subject_endpoint(
         description=payload.description,
         settings=settings,
     )
+
+
+@app.post("/subjects/sample")
+def create_sample_subject_endpoint(
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
+):
+    """Create a one-click sample notebook with one small source and a suggested question with clickable citation."""
+    existing = get_subjects_for_user(user_id=current_user["id"], include_archived=True)
+    if len(existing) >= 10:
+        raise HTTPException(
+            status_code=400,
+            detail="Portfolio deployment limit reached: maximum 10 subjects per guest workspace.",
+        )
+
+    subj = create_subject(
+        user_id=current_user["id"],
+        name="CS 401: Systems Programming (Sample)",
+        course_code="CS 401",
+        description="Sample course materials with interactive citations and 2D retrieval projection.",
+    )
+    subject_id = subj["id"]
+
+    # 1. Ingest small source (syllabus.pdf or synthetic fallback)
+    sample_pdf = Path(__file__).resolve().parent.parent / "docs" / "sample_docs" / "syllabus.pdf"
+    if sample_pdf.is_file():
+        content = sample_pdf.read_bytes()
+        file_hash = hashlib.sha256(content).hexdigest()
+        stream = io.BytesIO(content)
+        pages = parse_pdf_source(source=stream, file_name="syllabus.pdf")
+    else:
+        synthetic_text = (
+            "--- Page 1 ---\n"
+            "CS 401: Advanced Systems Programming - Course Syllabus\n"
+            "Instructor: Dr. Alex Mercer. Office hours: Tuesdays and Thursdays 2-4 PM.\n\n"
+            "--- Page 2 ---\n"
+            "Grading Breakdown and Course Policies\n"
+            "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.\n"
+            "Midterm Examination: 25 percent of total grade.\n"
+        )
+        content = synthetic_text.encode("utf-8")
+        file_hash = hashlib.sha256(content).hexdigest()
+        pages = _pages_from_saved_content(synthetic_text, "syllabus.pdf")
+
+    src = create_source(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        title="syllabus.pdf",
+        file_name="syllabus.pdf",
+        source_type="pdf",
+        file_hash=file_hash,
+        status="processing",
+    )
+
+    _process_and_store_source(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        source_id=src["id"],
+        version=1,
+        pages=pages,
+    )
+
+    # 2. Suggested question & conversation with clickable citation
+    conv = create_conversation(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        title="Late submission policy",
+    )
+    question = "What is the late submission policy?"
+    save_message(
+        user_id=current_user["id"],
+        conversation_id=conv["id"],
+        role="user",
+        content=question,
+    )
+    save_message(
+        user_id=current_user["id"],
+        conversation_id=conv["id"],
+        role="assistant",
+        content="According to the course syllabus, assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit [syllabus.pdf p.2].",
+        citations=[
+            {
+                "file": "syllabus.pdf",
+                "page": 2,
+                "source_id": src["id"],
+                "source_version": 1,
+                "excerpt": "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.",
+            }
+        ],
+        retrieved=[
+            {
+                "file": "syllabus.pdf",
+                "page": 2,
+                "source_id": src["id"],
+                "text": "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.",
+                "score": 0.88,
+            }
+        ],
+        selected_source_ids=[src["id"]],
+        source_versions={src["id"]: 1},
+    )
+
+    return get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)
 
 
 @app.get("/subjects/{subject_id}")

@@ -1143,10 +1143,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </svg>
                 </div>
                 <h1 className="empty-state-heading" data-testid="empty-state-heading">
-                  Add your first source
+                  Ask questions about your course materials
                 </h1>
                 <p className="empty-state-subtext">
-                  Upload course syllabi, lecture slides, assignments, or web articles to get started. Answers cite exact pages and quotes from your sources.
+                  Upload a source, ask a question, and follow citations back to the relevant passage.
                 </p>
                 <div className="zero-sources-cta-group">
                   <button
@@ -1178,10 +1178,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <EmptyStateIcon />
                 </div>
                 <h1 className="empty-state-heading" data-testid="empty-state-heading">
-                  What would you like to understand?
+                  Ask questions about your course materials
                 </h1>
                 <p className="empty-state-subtext">
-                  Ask about your course materials. Every answer starts with your selected sources.
+                  Upload a source, ask a question, and follow citations back to the relevant passage.
                 </p>
 
                 {/* Starter questions */}

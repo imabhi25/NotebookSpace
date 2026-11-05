@@ -237,6 +237,13 @@ export const api = {
     });
   },
 
+  async createSampleSubject(): Promise<Subject> {
+    await getOrInitToken();
+    return apiFetch<Subject>('/subjects/sample', {
+      method: 'POST',
+    });
+  },
+
   async getSubject(id: string): Promise<Subject> {
     return apiFetch<Subject>(`/subjects/${id}`);
   },
