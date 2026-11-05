@@ -1138,8 +1138,20 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
-  padding: var(--space-4);
+  padding: var(--space-3);
   width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.retrieval-panel-body {
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+.retrieval-panel-body .retrieval-map-root {
+  padding: 0;
 }
 
 .retrieval-map-loading,
@@ -1293,6 +1305,10 @@ aside .retrieval-svg,
   border: var(--border-width) solid var(--color-border);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-2);
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .inspector-top-row {
@@ -1300,6 +1316,8 @@ aside .retrieval-svg,
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
+  min-width: 0;
+  flex-wrap: wrap;
 }
 
 .inspector-title-area {
@@ -1307,12 +1325,19 @@ aside .retrieval-svg,
   align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2);
+  min-width: 0;
+  flex: 1;
 }
 
 .inspector-doc-name {
   font-weight: var(--weight-semibold);
   font-size: var(--type-body);
   color: var(--color-text-primary);
+  min-width: 0;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .inspector-page-pill,
@@ -1334,12 +1359,14 @@ aside .retrieval-svg,
   background: color-mix(in oklab, #fbbf24 18%, var(--color-surface));
   color: #fbbf24;
   border: var(--border-width) solid color-mix(in oklab, #fbbf24 40%, var(--color-surface));
+  flex-shrink: 0;
 }
 
 .inspector-scores-grid {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+  min-width: 0;
 }
 
 .score-box {
@@ -1350,8 +1377,8 @@ aside .retrieval-svg,
   background: var(--color-surface-raised);
   border: var(--border-width) solid var(--color-border-sheet);
   border-radius: var(--radius-md);
-  flex: 1;
-  min-width: 140px;
+  flex: 1 1 120px;
+  min-width: 0;
 }
 
 .score-label {
@@ -1437,7 +1464,7 @@ aside .retrieval-svg,
   justify-content: flex-end;
 }
 
-/* Retrieved Passages Ranked Table */
+/* Retrieved Passages Ranked List */
 .retrieved-passages-card {
   display: flex;
   flex-direction: column;
@@ -1447,12 +1474,17 @@ aside .retrieval-svg,
   border-radius: var(--radius-lg);
   padding: var(--space-3);
   box-shadow: var(--shadow-1);
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
 }
 
 .retrieved-passages-header {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-width: 0;
 }
 
 .retrieved-passages-header h4 {
@@ -1460,58 +1492,104 @@ aside .retrieval-svg,
   font-size: var(--type-small);
   font-weight: var(--weight-semibold);
   color: var(--color-text-primary);
+  min-width: 0;
 }
 
 .retrieved-passages-hint {
   font-size: var(--type-caption);
   color: var(--color-text-muted);
+  min-width: 0;
 }
 
-.retrieved-passages-table-wrap {
+.retrieved-passages-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1-5);
+  min-width: 0;
   width: 100%;
-  overflow-x: auto;
-  border: var(--border-width) solid var(--color-border-sheet);
-  border-radius: var(--radius-md);
-}
-
-.retrieved-passages-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: var(--type-caption);
-  text-align: left;
-}
-
-.retrieved-passages-table th {
-  padding: var(--space-1) var(--space-2);
-  background: var(--color-surface-raised);
-  color: var(--color-text-secondary);
-  font-weight: var(--weight-medium);
-  border-bottom: var(--border-width) solid var(--color-border-sheet);
-  white-space: nowrap;
-}
-
-.retrieved-passages-table td {
-  padding: var(--space-1-5) var(--space-2);
-  border-bottom: var(--border-width) solid var(--color-border-sheet);
-  color: var(--color-text-primary);
-  vertical-align: middle;
 }
 
 .retrieved-passage-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: var(--border-width) solid var(--color-border-sheet);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-raised);
   cursor: pointer;
-  transition: background-color var(--motion-fast) var(--motion-ease);
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+  transition: background-color var(--motion-fast) var(--motion-ease), border-color var(--motion-fast) var(--motion-ease);
 }
 
 .retrieved-passage-row:hover {
   background-color: var(--color-surface-hover);
+  border-color: var(--color-border);
 }
 
 .retrieved-passage-row.selected {
   background-color: var(--color-accent-subtle);
+  border-color: var(--color-accent-border);
 }
 
-.retrieved-passage-row:last-child td {
-  border-bottom: none;
+.passage-row-main {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  width: 100%;
+}
+
+.passage-file-name {
+  flex: 1 1 0%;
+  min-width: 0;
+  font-size: var(--type-small);
+  font-weight: var(--weight-medium);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.passage-row-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+  width: 100%;
+  font-size: var(--type-caption);
+}
+
+.passage-page-cell {
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  min-width: 0;
+  flex-shrink: 0;
+}
+
+.passage-scores-cell {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.passage-cosine-cell,
+.passage-score-cell {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+  min-width: 0;
+}
+
+.passage-score-cell .final-score-val {
+  font-weight: var(--weight-semibold);
+  color: var(--color-accent-bright);
 }
 
 .rank-badge {
@@ -1524,6 +1602,7 @@ aside .retrieval-svg,
   padding: 1px 5px;
   background: var(--color-surface-hover);
   color: var(--color-text-secondary);
+  flex-shrink: 0;
 }
 
 .rank-badge.rank-1 {
@@ -1534,30 +1613,6 @@ aside .retrieval-svg,
 [data-theme="dark"] .rank-badge.rank-1 {
   background: rgba(251, 191, 36, 0.2);
   color: #fbbf24;
-}
-
-.passage-file-cell {
-  max-width: 90px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: var(--weight-medium);
-}
-
-.passage-page-cell {
-  white-space: nowrap;
-  color: var(--color-text-secondary);
-}
-
-.passage-cosine-cell,
-.passage-score-cell {
-  white-space: nowrap;
-  font-variant-numeric: tabular-nums;
-}
-
-.passage-score-cell .final-score-val {
-  font-weight: var(--weight-semibold);
-  color: var(--color-accent-bright);
 }
 
 
