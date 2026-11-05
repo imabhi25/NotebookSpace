@@ -162,6 +162,7 @@ export function App({
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [messages, setMessages] = useState<MessageItem[]>([]);
   const [chatLoading, setChatLoading] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
   const [isMobileNotebooksOpen, setIsMobileNotebooksOpen] = useState(false);
   const chatAbortRef = useRef<AbortController | null>(null);
 
@@ -220,14 +221,20 @@ export function App({
       if (convs.length > 0) {
         const firstConvId = convs[0].id;
         setActiveConversationId(firstConvId);
-        const msgs = await api.getMessages(subjectId, firstConvId);
-        setMessages(applyStoppedFilter(firstConvId, msgs));
+        setHistoryLoading(true);
+        try {
+          const msgs = await api.getMessages(subjectId, firstConvId);
+          setMessages(applyStoppedFilter(firstConvId, msgs));
+        } finally {
+          setHistoryLoading(false);
+        }
       } else {
         // Auto-create initial conversation
         const newConv = await api.createConversation(subjectId, 'New Conversation');
         setConversations([newConv]);
         setActiveConversationId(newConv.id);
         setMessages([]);
+        setHistoryLoading(false);
       }
     } catch {
       // If subject not found or unauthorized, return to dashboard
@@ -265,11 +272,14 @@ export function App({
   const handleSelectConversation = async (convId: string) => {
     if (!activeSubject) return;
     setActiveConversationId(convId);
+    setHistoryLoading(true);
     try {
       const msgs = await api.getMessages(activeSubject.id, convId);
       setMessages(applyStoppedFilter(convId, msgs));
     } catch {
       setMessages([]);
+    } finally {
+      setHistoryLoading(false);
     }
   };
 
@@ -1153,6 +1163,7 @@ export function App({
               onDeleteNote={handleDeleteNote}
               messages={messages}
               chatLoading={chatLoading}
+              historyLoading={historyLoading}
               onStopGeneration={handleStopGeneration}
               onResetWorkspace={handleResetWorkspace}
             />

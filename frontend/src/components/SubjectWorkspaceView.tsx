@@ -65,6 +65,7 @@ interface SubjectWorkspaceViewProps {
   onDeleteNote: (noteId: string) => Promise<void>;
   messages: MessageItem[];
   chatLoading: boolean;
+  historyLoading?: boolean;
   onStopGeneration?: () => void;
   onResetWorkspace?: () => Promise<void>;
   onToggleNotebooksDrawer?: () => void;
@@ -101,6 +102,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   onDeleteNote,
   messages,
   chatLoading,
+  historyLoading = false,
   onStopGeneration,
 }) => {
   // --------------------------------------------------------------------------
@@ -1100,7 +1102,20 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           )}
 
           {/* Conversation Thread */}
-          {sources.length === 0 ? (
+          {historyLoading ? (
+            <div className="empty-state-scroll-container" role="status" aria-live="polite" aria-label="Loading conversation history" data-testid="chat-history-loading">
+              <div className="empty-state-centered-box" style={{ maxWidth: '560px', width: '100%', alignItems: 'stretch' }}>
+                <div className="skeleton-loader" aria-hidden="true" style={{ width: '100%' }}>
+                  <span className="skeleton-line line-short" style={{ width: '35%', marginBottom: '14px' }} />
+                  <span className="skeleton-line line-long" style={{ width: '92%', marginBottom: '8px' }} />
+                  <span className="skeleton-line line-long" style={{ width: '78%', marginBottom: '28px' }} />
+                  <span className="skeleton-line line-short" style={{ width: '28%', marginBottom: '14px' }} />
+                  <span className="skeleton-line line-long" style={{ width: '88%', marginBottom: '8px' }} />
+                  <span className="skeleton-line line-med" style={{ width: '64%' }} />
+                </div>
+              </div>
+            </div>
+          ) : sources.length === 0 ? (
             <div className="empty-state-scroll-container">
               <div className="empty-state-centered-box workspace-zero-sources-box">
                 <div className="empty-state-brand-mark" aria-hidden="true">
