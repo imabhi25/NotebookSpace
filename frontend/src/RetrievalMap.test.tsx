@@ -172,4 +172,106 @@ describe('RetrievalMapView', () => {
       expect(screen.getByTestId('raw-cosine-val').textContent).toBe('0.720');
     });
   });
+
+  it('selects the highest-scoring chunk by default when document order differs from score order and renders ranked list', async () => {
+    const unorderedChunksResponse: RetrievalMapResponse = {
+      subject_id: 'sub-1',
+      question: 'Explain attention mechanisms',
+      query_position: { x: 0.0, y: 0.0, z: 0.0 },
+      abstained: false,
+      abstain_reason: null,
+      support_min_score: 0.2,
+      // Document order: id 10, then 11, then 12
+      retrieved_chunk_ids: [10, 11, 12],
+      chunks: [
+        {
+          id: 10,
+          source_id: 'src-1',
+          file_name: 'paper.pdf',
+          title: 'Paper',
+          page_number: 1,
+          chunk_index: 0,
+          text: 'Introduction to attention mechanisms.',
+          position: { x: 0.1, y: 0.1, z: 0.0 },
+          raw_cosine: 0.4,
+          score: 0.5,
+          matched_terms: ['attention'],
+          is_retrieved: true,
+        },
+        {
+          id: 11,
+          source_id: 'src-1',
+          file_name: 'paper.pdf',
+          title: 'Paper',
+          page_number: 4,
+          chunk_index: 1,
+          text: 'Scaled dot-product attention formula and definition.',
+          position: { x: 0.5, y: 0.5, z: 0.0 },
+          raw_cosine: 0.65,
+          score: 0.95, // Highest score
+          matched_terms: ['attention', 'mechanisms'],
+          is_retrieved: true,
+        },
+        {
+          id: 12,
+          source_id: 'src-1',
+          file_name: 'paper.pdf',
+          title: 'Paper',
+          page_number: 7,
+          chunk_index: 2,
+          text: 'Multi-head attention architectural layer discussion.',
+          position: { x: 0.3, y: 0.3, z: 0.0 },
+          raw_cosine: 0.7,
+          score: 0.7, // Second highest score
+          matched_terms: [],
+          is_retrieved: true,
+        },
+      ],
+    };
+
+    vi.mocked(api.getRetrievalMap).mockResolvedValueOnce(unorderedChunksResponse);
+
+    render(
+      <RetrievalMapView
+        subjectId="sub-1"
+        sources={[{ id: 'src-1', file_name: 'paper.pdf', title: 'Paper', version: 1 } as any]}
+      />
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId('retrieval-map-view')).toBeTruthy();
+    });
+
+    // Default selected chunk should be chunk 11 (highest score 0.95), NOT chunk 10 (first in document order)
+    expect(screen.getByTestId('retrieval-inspector')).toBeTruthy();
+    expect(screen.getByTestId('final-score-val').textContent).toBe('0.950');
+    expect(screen.getByTestId('raw-cosine-val').textContent).toBe('0.650');
+    expect(screen.getByText('Scaled dot-product attention formula and definition.')).toBeTruthy();
+
+    // Verify ranked retrieved passages list is displayed
+    const list = screen.getByTestId('retrieved-passages-list');
+    expect(list).toBeTruthy();
+
+    // Check rows: Rank 1 is id 11, Rank 2 is id 12, Rank 3 is id 10
+    const row1 = screen.getByTestId('retrieved-passage-row-11');
+    const row2 = screen.getByTestId('retrieved-passage-row-12');
+    const row3 = screen.getByTestId('retrieved-passage-row-10');
+
+    expect(row1).toBeTruthy();
+    expect(row2).toBeTruthy();
+    expect(row3).toBeTruthy();
+
+    expect(row1.textContent).toContain('0.950');
+    expect(row2.textContent).toContain('0.700');
+    expect(row3.textContent).toContain('0.500');
+
+    // Clicking row 3 (id 10) selects chunk 10 in the inspector
+    fireEvent.click(row3);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('final-score-val').textContent).toBe('0.500');
+      expect(screen.getByTestId('raw-cosine-val').textContent).toBe('0.400');
+      expect(screen.getByText('Introduction to attention mechanisms.')).toBeTruthy();
+    });
+  });
 });
