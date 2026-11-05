@@ -21,6 +21,7 @@ import os
 import sys
 import io
 import hashlib
+import argparse
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -48,16 +49,19 @@ from ingestion.parsers import parse_pdf_source
 from ingestion.chunker import chunk_pages
 from ingestion.embedder import embed_batch, embed_text
 
-QUESTIONS_FILE = PROJECT_ROOT / "evals" / "questions.json"
-SAMPLE_DOCS_DIR = PROJECT_ROOT / "docs" / "sample_docs"
+SYNTHETIC_QUESTIONS_FILE = PROJECT_ROOT / "evals" / "questions.json"
+REAL_QUESTIONS_FILE = PROJECT_ROOT / "evals" / "questions_real.json"
+SYNTHETIC_DOCS_DIR = PROJECT_ROOT / "docs" / "sample_docs"
+REAL_DOCS_DIR = PROJECT_ROOT / "evals" / "corpus_real"
 
 SUPPORT_MIN_SCORE = float(os.getenv("SUPPORT_MIN_SCORE", "0.20"))
 EVAL_USER_EMAIL = "eval_benchmark_runner@example.com"
-EVAL_SUBJECT_NAME = "Evaluation Benchmark Course"
+EVAL_SYNTHETIC_SUBJECT_NAME = "Evaluation Benchmark Course"
+EVAL_REAL_SUBJECT_NAME = "Evaluation Benchmark Course (Real Corpus)"
 
 
-def setup_eval_corpus() -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]]]:
-    """Ensure eval user, subject, and sample course documents are ingested."""
+def setup_eval_corpus(corpus: str = "synthetic") -> tuple[dict[str, Any], dict[str, Any], list[dict[str, Any]], int]:
+    """Ensure eval user, subject, and corpus documents are ingested."""
     user = get_user_by_email(EVAL_USER_EMAIL)
     if not user:
         user = create_user(
@@ -65,20 +69,31 @@ def setup_eval_corpus() -> tuple[dict[str, Any], dict[str, Any], list[dict[str, 
             password_hash="eval_dummy_hash",
         )
 
+    if corpus == "real":
+        subj_name = EVAL_REAL_SUBJECT_NAME
+        course_code = "EVAL 201"
+        docs_dir = REAL_DOCS_DIR
+        subj_desc = "Subject for real textbook corpus evaluations."
+    else:
+        subj_name = EVAL_SYNTHETIC_SUBJECT_NAME
+        course_code = "EVAL 101"
+        docs_dir = SYNTHETIC_DOCS_DIR
+        subj_desc = "Subject for automated retrieval evaluations."
+
     subjects = get_subjects_for_user(user_id=user["id"], include_archived=False)
-    eval_subj = next((s for s in subjects if s["name"] == EVAL_SUBJECT_NAME), None)
+    eval_subj = next((s for s in subjects if s["name"] == subj_name), None)
     if not eval_subj:
         eval_subj = create_subject(
             user_id=user["id"],
-            name=EVAL_SUBJECT_NAME,
-            course_code="EVAL 101",
-            description="Subject for automated retrieval evaluations.",
+            name=subj_name,
+            course_code=course_code,
+            description=subj_desc,
         )
 
     existing_sources = get_sources_for_subject(user_id=user["id"], subject_id=eval_subj["id"])
     sources_by_file = {s["file_name"]: s for s in existing_sources if s["status"] == "ready"}
 
-    pdf_files = sorted(SAMPLE_DOCS_DIR.glob("*.pdf"))
+    pdf_files = sorted(docs_dir.glob("*.pdf")) if docs_dir.exists() else []
     for pdf_path in pdf_files:
         fn = pdf_path.name
         if fn in sources_by_file:
@@ -122,7 +137,20 @@ def setup_eval_corpus() -> tuple[dict[str, Any], dict[str, Any], list[dict[str, 
 
     ready_sources = get_sources_for_subject(user_id=user["id"], subject_id=eval_subj["id"])
     ready_sources = [s for s in ready_sources if s["status"] == "ready"]
-    return user, eval_subj, ready_sources
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT COUNT(*) FROM chunks c
+                JOIN sources s ON s.id = c.source_id
+                WHERE s.subject_id = %s
+                """,
+                (eval_subj["id"],),
+            )
+            total_chunks = cur.fetchone()[0]
+
+    return user, eval_subj, ready_sources, total_chunks
 
 
 def search_without_keyword_boost(
@@ -172,19 +200,23 @@ def find_first_hit_rank(chunks: list[dict[str, Any]], targets: list[dict[str, An
     return None
 
 
-def run_evaluation():
+def run_evaluation(corpus: str = "synthetic"):
     print("=" * 95)
-    print(" NOTEBOOKSPACE COMPREHENSIVE RETRIEVAL BENCHMARK")
+    print(f" NOTEBOOKSPACE COMPREHENSIVE RETRIEVAL BENCHMARK [{corpus.upper()} CORPUS]")
     print("=" * 95)
 
-    with open(QUESTIONS_FILE, "r", encoding="utf-8") as f:
+    questions_file = REAL_QUESTIONS_FILE if corpus == "real" else SYNTHETIC_QUESTIONS_FILE
+    if not questions_file.exists():
+        raise FileNotFoundError(f"Questions file not found: {questions_file}")
+
+    with open(questions_file, "r", encoding="utf-8") as f:
         questions = json.load(f)
 
-    print(f"Loaded {len(questions)} evaluation questions from {QUESTIONS_FILE.name}")
-    user, subject, sources = setup_eval_corpus()
+    print(f"Loaded {len(questions)} evaluation questions from {questions_file.name}")
+    user, subject, sources, total_chunks = setup_eval_corpus(corpus=corpus)
     source_ids = [s["id"] for s in sources]
-    eval_conv = create_conversation(user["id"], subject["id"], "Full Eval Run")
-    print(f"Corpus initialized: {len(sources)} course documents indexed.")
+    eval_conv = create_conversation(user["id"], subject["id"], f"Full Eval Run ({corpus})")
+    print(f"Corpus initialized: {len(sources)} documents indexed ({total_chunks} total chunks).")
     print("-" * 95 + "\n")
 
     k = 5
@@ -353,11 +385,14 @@ def run_evaluation():
     no_top5_pct = (noboost_top5_hits / total_answerable) * 100
     no_mrr = noboost_rr_sum / total_answerable
 
-    abs_abstain_pct = (absent_abstained / total_absent) * 100
+    abs_abstain_pct = (absent_abstained / total_absent) * 100 if total_absent > 0 else 0.0
+    top5_coverage_pct = (min(5, total_chunks) / total_chunks * 100.0) if total_chunks > 0 else 0.0
 
     print("\n" + "=" * 80)
-    print(" RETRIEVAL BENCHMARK PERFORMANCE METRICS")
+    print(f" RETRIEVAL BENCHMARK PERFORMANCE METRICS [{corpus.upper()} CORPUS]")
     print("=" * 80)
+    print(f"Total Chunks in Corpus           : {total_chunks}")
+    print(f"Top-5 Coverage of Corpus         : {min(5, total_chunks)}/{total_chunks} ({top5_coverage_pct:.1f}%)")
     print(f"Total Questions Evaluated       : {len(questions)}")
     print(f"Answerable Target Questions     : {total_answerable}")
     print(f"Absent-Fact (Abstain) Questions : {total_absent}")
@@ -376,10 +411,12 @@ def run_evaluation():
     print("\n" + "=" * 80)
     print(" RAW COSINE SIMILARITY SEPARATION ANALYSIS")
     print("=" * 80)
-    ans_min, ans_max = min(answerable_raw_cosines), max(answerable_raw_cosines)
-    ans_avg = sum(answerable_raw_cosines) / len(answerable_raw_cosines)
-    abs_min, abs_max = min(absent_raw_cosines), max(absent_raw_cosines)
-    abs_avg = sum(absent_raw_cosines) / len(absent_raw_cosines)
+    ans_min = min(answerable_raw_cosines) if answerable_raw_cosines else 0.0
+    ans_max = max(answerable_raw_cosines) if answerable_raw_cosines else 0.0
+    ans_avg = sum(answerable_raw_cosines) / len(answerable_raw_cosines) if answerable_raw_cosines else 0.0
+    abs_min = min(absent_raw_cosines) if absent_raw_cosines else 0.0
+    abs_max = max(absent_raw_cosines) if absent_raw_cosines else 0.0
+    abs_avg = sum(absent_raw_cosines) / len(absent_raw_cosines) if absent_raw_cosines else 0.0
 
     print(f"Answerable Questions (N={len(answerable_raw_cosines)}):")
     print(f"  Min: {ans_min:.4f}  |  Mean: {ans_avg:.4f}  |  Max: {ans_max:.4f}")
@@ -395,4 +432,12 @@ def run_evaluation():
 
 
 if __name__ == "__main__":
-    run_evaluation()
+    parser = argparse.ArgumentParser(description="NotebookSpace Retrieval Evaluation Benchmark Harness")
+    parser.add_argument(
+        "--corpus",
+        choices=["synthetic", "real"],
+        default="synthetic",
+        help="Corpus to evaluate: 'synthetic' (default) or 'real' (evals/corpus_real)",
+    )
+    args = parser.parse_args()
+    run_evaluation(corpus=args.corpus)
