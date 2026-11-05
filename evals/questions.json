@@ -1,0 +1,114 @@
+[
+  {
+    "id": "q01",
+    "question": "Who is the instructor for CS 401 and what is their email address?",
+    "expected_source": "syllabus.pdf",
+    "expected_page": 1,
+    "is_absent": false
+  },
+  {
+    "id": "q02",
+    "question": "What are the course prerequisites for CS 401?",
+    "expected_source": "syllabus.pdf",
+    "expected_page": 1,
+    "is_absent": false
+  },
+  {
+    "id": "q03",
+    "question": "What is the penalty for late assignment submissions according to the syllabus?",
+    "expected_source": "syllabus.pdf",
+    "expected_page": 2,
+    "is_absent": false
+  },
+  {
+    "id": "q04",
+    "question": "When and where is the midterm examination scheduled in the syllabus?",
+    "expected_source": "syllabus.pdf",
+    "expected_page": 2,
+    "is_absent": false
+  },
+  {
+    "id": "q05",
+    "question": "What percentage of the total grade is the Final Term Project in the syllabus?",
+    "expected_source": "syllabus.pdf",
+    "expected_page": 2,
+    "is_absent": false
+  },
+  {
+    "id": "q06",
+    "question": "When is Assignment 1 due according to the syllabus schedule?",
+    "expected_source": "syllabus.pdf",
+    "expected_page": 3,
+    "is_absent": false
+  },
+  {
+    "id": "q07",
+    "question": "When is Assignment 2 due according to the syllabus schedule?",
+    "expected_source": "syllabus.pdf",
+    "expected_page": 3,
+    "is_absent": false
+  },
+  {
+    "id": "q08",
+    "question": "What is the penalty for academic integrity violations in the syllabus?",
+    "expected_source": "syllabus.pdf",
+    "expected_page": 4,
+    "is_absent": false
+  },
+  {
+    "id": "q09",
+    "question": "How many distinct lock shards are required for Assignment 1?",
+    "expected_source": "assignment_1.pdf",
+    "expected_page": 2,
+    "is_absent": false
+  },
+  {
+    "id": "q10",
+    "question": "What cluster node configurations are tested in the Assignment 2 benchmark?",
+    "expected_source": "assignment_2.pdf",
+    "expected_page": 2,
+    "is_absent": false
+  },
+  {
+    "id": "q11",
+    "question": "Where are the Teaching Assistant walk-in tutoring hours held?",
+    "expected_source": "announcement_update.pdf",
+    "expected_page": 3,
+    "is_absent": false
+  },
+  {
+    "id": "q12",
+    "question": "What materials or cheat sheets are students allowed to bring to the midterm exam?",
+    "expected_source": "exam_guide.pdf",
+    "expected_page": 1,
+    "is_absent": false
+  },
+  {
+    "id": "q13",
+    "question": "What is the policy on using Python PyTorch for Assignment 3 machine learning models?",
+    "expected_source": null,
+    "expected_page": null,
+    "is_absent": true
+  },
+  {
+    "id": "q14",
+    "question": "How much financial reimbursement is provided for cloud GPU compute credits on AWS?",
+    "expected_source": null,
+    "expected_page": null,
+    "is_absent": true
+  },
+  {
+    "id": "q15",
+    "question": "What is the required formal dress code for final term project presentations?",
+    "expected_source": null,
+    "expected_page": null,
+    "is_absent": true
+  },
+  {
+    "id": "q16",
+    "question": "Which campus cafeteria meal plan is included with enrollment in the summer session?",
+    "expected_source": null,
+    "expected_page": null,
+    "is_absent": true
+  }
+]
