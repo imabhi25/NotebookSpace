@@ -1,0 +1,256 @@
+[
+  {
+    "id": "q01",
+    "category": "factual_baseline",
+    "question": "Who is the instructor for CS 401 and what is their email address?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 1}],
+    "is_absent": false
+  },
+  {
+    "id": "q02",
+    "category": "factual_baseline",
+    "question": "What are the course prerequisites for CS 401?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 1}],
+    "is_absent": false
+  },
+  {
+    "id": "q03",
+    "category": "factual_baseline",
+    "question": "What is the penalty for late assignment submissions according to the syllabus?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q04",
+    "category": "factual_baseline",
+    "question": "When and where is the midterm examination scheduled in the syllabus?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q05",
+    "category": "factual_baseline",
+    "question": "What percentage of the total grade is the Final Term Project in the syllabus?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q06",
+    "category": "factual_baseline",
+    "question": "When is Assignment 1 due according to the syllabus schedule?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 3}],
+    "is_absent": false
+  },
+  {
+    "id": "q07",
+    "category": "factual_baseline",
+    "question": "When is Assignment 2 due according to the syllabus schedule?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 3}],
+    "is_absent": false
+  },
+  {
+    "id": "q08",
+    "category": "factual_baseline",
+    "question": "What is the penalty for academic integrity violations in the syllabus?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 4}],
+    "is_absent": false
+  },
+  {
+    "id": "q09",
+    "category": "factual_baseline",
+    "question": "How many distinct lock shards are required for Assignment 1?",
+    "expected_targets": [{"file": "assignment_1.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q10",
+    "category": "factual_baseline",
+    "question": "What cluster node configurations are tested in the Assignment 2 benchmark?",
+    "expected_targets": [{"file": "assignment_2.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q11",
+    "category": "factual_baseline",
+    "question": "Where are the Teaching Assistant walk-in tutoring hours held?",
+    "expected_targets": [{"file": "announcement_update.pdf", "page": 3}],
+    "is_absent": false
+  },
+  {
+    "id": "q12",
+    "category": "factual_baseline",
+    "question": "What materials or cheat sheets are students allowed to bring to the midterm exam?",
+    "expected_targets": [{"file": "exam_guide.pdf", "page": 1}],
+    "is_absent": false
+  },
+  {
+    "id": "q13_para",
+    "category": "paraphrased",
+    "question": "Which prior computer science classes must students complete before taking this advanced systems course?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 1}],
+    "is_absent": false
+  },
+  {
+    "id": "q14_para",
+    "category": "paraphrased",
+    "question": "When can students drop by to talk with Dr. Mercer outside of lecture?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 1}],
+    "is_absent": false
+  },
+  {
+    "id": "q15_para",
+    "category": "paraphrased",
+    "question": "How much do the hands-on coding projects contribute toward the overall course mark?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q16_multi",
+    "category": "multi_chunk",
+    "question": "How did the late submission penalty policy change between the syllabus and the revised announcement?",
+    "expected_targets": [
+      {"file": "syllabus.pdf", "page": 2},
+      {"file": "announcement_update.pdf", "page": 2}
+    ],
+    "is_absent": false
+  },
+  {
+    "id": "q17_multi",
+    "category": "multi_chunk",
+    "question": "Compare the scheduled submission deadlines for Assignment 1 between the course syllabus and the extension announcement.",
+    "expected_targets": [
+      {"file": "syllabus.pdf", "page": 3},
+      {"file": "announcement_update.pdf", "page": 1}
+    ],
+    "is_absent": false
+  },
+  {
+    "id": "q18_multi",
+    "category": "multi_chunk",
+    "question": "What are the conflicting midterm exam dates stated in the syllabus versus the subsequent announcement?",
+    "expected_targets": [
+      {"file": "syllabus.pdf", "page": 2},
+      {"file": "announcement_update.pdf", "page": 2}
+    ],
+    "is_absent": false
+  },
+  {
+    "id": "q19_conf",
+    "category": "conflict",
+    "question": "What is the penalty per day for turning in late work according to the latest revised announcement?",
+    "expected_targets": [{"file": "announcement_update.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q20_conf",
+    "category": "conflict",
+    "question": "On what specific calendar day in November is the midterm exam rescheduled according to the update announcement?",
+    "expected_targets": [{"file": "announcement_update.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q21_dup",
+    "category": "near_duplicate",
+    "question": "What exact archive filename and contents are specified for packaging the Assignment 2 submission?",
+    "expected_targets": [{"file": "assignment_2.pdf", "page": 4}],
+    "is_absent": false
+  },
+  {
+    "id": "q22_dup",
+    "category": "near_duplicate",
+    "question": "What archive format and design document path are required for packaging the Assignment 1 submission?",
+    "expected_targets": [{"file": "assignment_1.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q23_dup",
+    "category": "near_duplicate",
+    "question": "What worker thread counts are evaluated by the benchmark harness in the concurrent key-value store project?",
+    "expected_targets": [{"file": "assignment_1.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q24_dup",
+    "category": "near_duplicate",
+    "question": "What cluster node instance counts are evaluated by the benchmark harness in the Raft consensus project?",
+    "expected_targets": [{"file": "assignment_2.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q25_abs",
+    "category": "absent_fact",
+    "question": "What is the policy on using Python PyTorch for Assignment 3 machine learning models?",
+    "expected_targets": [],
+    "is_absent": true
+  },
+  {
+    "id": "q26_abs",
+    "category": "absent_fact",
+    "question": "How much financial reimbursement is provided for cloud GPU compute credits on AWS?",
+    "expected_targets": [],
+    "is_absent": true
+  },
+  {
+    "id": "q27_abs",
+    "category": "absent_fact",
+    "question": "What is the required formal dress code for final term project presentations?",
+    "expected_targets": [],
+    "is_absent": true
+  },
+  {
+    "id": "q28_abs",
+    "category": "absent_fact",
+    "question": "Which campus cafeteria meal plan is included with enrollment in the summer session?",
+    "expected_targets": [],
+    "is_absent": true
+  },
+  {
+    "id": "q29_abs",
+    "category": "absent_vocabulary",
+    "question": "How many penalty-free grace days can students allocate across programming project submissions?",
+    "expected_targets": [],
+    "is_absent": true
+  },
+  {
+    "id": "q30_abs",
+    "category": "absent_vocabulary",
+    "question": "What is the deadline for submitting grade re-evaluation requests following the midterm examination?",
+    "expected_targets": [],
+    "is_absent": true
+  },
+  {
+    "id": "q31_abs",
+    "category": "absent_vocabulary",
+    "question": "What is the maximum allowed group size for students collaborating on the final term project implementation?",
+    "expected_targets": [],
+    "is_absent": true
+  },
+  {
+    "id": "q32_abs",
+    "category": "absent_vocabulary",
+    "question": "What minimum score on the midterm exam is required to earn extra credit on Raft assignment 2?",
+    "expected_targets": [],
+    "is_absent": true
+  },
+  {
+    "id": "q33_distractor_policy",
+    "category": "distractor_policy",
+    "question": "What is the policy on sharing code solutions or discussing algorithms with classmates?",
+    "expected_targets": [{"file": "syllabus.pdf", "page": 4}],
+    "is_absent": false
+  },
+  {
+    "id": "q34_distractor_code",
+    "category": "distractor_code",
+    "question": "What programming code standard and C++20 conventions must be followed for the exam technical scope?",
+    "expected_targets": [{"file": "exam_guide.pdf", "page": 2}],
+    "is_absent": false
+  },
+  {
+    "id": "q35_distractor_rubric",
+    "category": "distractor_rubric",
+    "question": "What is the grading policy and point breakdown for clean code formatting and comments in Assignment 1?",
+    "expected_targets": [{"file": "assignment_1.pdf", "page": 3}],
+    "is_absent": false
+  }
+]
