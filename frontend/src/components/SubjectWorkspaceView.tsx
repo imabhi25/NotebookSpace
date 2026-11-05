@@ -450,7 +450,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     setIsRightCollapsed(false); // One open state for desktop, tablet, and phone.
     if (isCompact) setIsLeftCollapsed(true); // Preserve citation focus on small screens.
     loadPassages(cit);
+  };
 
+  const handleSelectPassageFromRetrieval = (fileName: string, pageNumber: number) => {
+    const matchingSource = sources.find((s) => s.file_name === fileName || s.title === fileName);
+    const cit: Citation = {
+      file: fileName,
+      page: pageNumber,
+      source_id: matchingSource?.id,
+      source_version: matchingSource?.version ?? 1,
+    };
+    handleSelectCitation(cit, '');
   };
 
   const loadPassages = async (cit: Citation) => {
@@ -1731,7 +1741,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <RetrievalMapView
                 subjectId={subject.id}
                 conversationId={activeConversationId || undefined}
+                selectedSourceIds={selectedSourceIds}
                 sources={sources}
+                onSelectPassage={handleSelectPassageFromRetrieval}
               />
             </div>
           )}
