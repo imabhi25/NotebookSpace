@@ -578,14 +578,22 @@ def get_documents_endpoint():
 def get_passages_endpoint(
     file: str = Query(..., description="Document file name"),
     page: int = Query(..., ge=1, description="Page number"),
+    subject_id: Optional[str] = Query(None, description="Optional subject ID to scope passages"),
+    source_id: Optional[str] = Query(None, description="Optional source ID to scope passages"),
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     """Return chunks for a file and page that the caller is allowed to read.
 
-    A signed-in caller sees their own sources, or the shared demo documents. No credentials,
-    someone else's source and an unknown name all answer the same 404.
+    A signed-in caller sees their own sources (optionally scoped to subject_id or source_id),
+    or the shared demo documents. No credentials, someone else's source and an unknown name all answer the same 404.
     """
-    passages = get_passages_for_page(file_name=file, page_number=page, user_id=current_user["id"])
+    passages = get_passages_for_page(
+        file_name=file,
+        page_number=page,
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        source_id=source_id,
+    )
     if not passages:
         raise HTTPException(status_code=404, detail="Not found.")
     return passages

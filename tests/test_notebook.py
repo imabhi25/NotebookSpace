@@ -526,3 +526,46 @@ def test_conflict_and_citation_stable_source_id_after_rename(auth_headers):
     assert src_1_id in cit_source_ids
     assert src_2_id in cit_source_ids
 
+
+def test_source_count_preserved_on_update_archive_restore(auth_headers):
+    """NS-01: Renaming, archiving, or restoring a notebook must preserve and return accurate source_count."""
+    # Create subject
+    subj = client.post("/subjects", json={"name": "Source Count Test"}, headers=auth_headers).json()
+    assert subj["source_count"] == 0
+
+    # Add source
+    pdf_bytes = make_pdf(["Syllabus content page 1."])
+    src = client.post(
+        f"/subjects/{subj['id']}/sources/upload",
+        files={"file": ("syllabus.pdf", pdf_bytes, "application/pdf")},
+        headers=auth_headers,
+    ).json()
+    assert src["status"] == "ready"
+
+    # Verify initial source count is 1
+    subj_get = client.get(f"/subjects", headers=auth_headers).json()
+    subj_entry = next(s for s in subj_get if s["id"] == subj["id"])
+    assert subj_entry["source_count"] == 1
+
+    # Rename notebook -> source_count must still be 1
+    renamed = client.put(
+        f"/subjects/{subj['id']}",
+        json={"name": "Source Count Test Renamed"},
+        headers=auth_headers,
+    ).json()
+    assert renamed["source_count"] == 1
+
+    # Archive notebook -> source_count must still be 1
+    archived = client.post(
+        f"/subjects/{subj['id']}/archive",
+        headers=auth_headers,
+    ).json()
+    assert archived["source_count"] == 1
+
+    # Restore notebook -> source_count must still be 1
+    restored = client.post(
+        f"/subjects/{subj['id']}/restore",
+        headers=auth_headers,
+    ).json()
+    assert restored["source_count"] == 1
+
