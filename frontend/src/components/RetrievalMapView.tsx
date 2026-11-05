@@ -222,7 +222,6 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
           {/* Chunks */}
           {points.map((pt) => {
             const isSelected = selectedChunkId === pt.id;
-            const isHovered = hoveredChunkId === pt.id;
             const isRetrieved = pt.is_retrieved;
             const color = sourceColorMap.get(pt.source_id) || 'var(--color-accent)';
             const radius = isSelected ? 8 : isRetrieved ? 6.5 : 5;

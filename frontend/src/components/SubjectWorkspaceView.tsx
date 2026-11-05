@@ -369,7 +369,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     setPassageLoading(true);
     try {
       const lookupFile = matchingSource?.file_name || cit.file;
-      const data = await api.getPassages(lookupFile, cit.page, subject.id, matchingSource?.id || cit.source_id);
+      const data = await api.getPassages(lookupFile, cit.page, subject.id, matchingSource?.id || cit.source_id || undefined);
       // Backup guard: deduplicate passages by chunk_index & text
       const seen = new Set<string>();
       const deduped = data.filter((p) => {

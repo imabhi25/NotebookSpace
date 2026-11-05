@@ -451,8 +451,7 @@ export const api = {
       }
     }
     const queryStr = params.toString() ? `?${params.toString()}` : '';
-    const res = await apiFetch(`/subjects/${subjectId}/retrieval-map${queryStr}`);
-    return res.json();
+    return await apiFetch<RetrievalMapResponse>(`/subjects/${subjectId}/retrieval-map${queryStr}`);
   },
 
   async getPassages(file: string, page: number, subjectId?: string, sourceId?: string): Promise<PassageItem[]> {
