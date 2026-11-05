@@ -8,7 +8,9 @@ import time
 from typing import Any
 from uuid import UUID
 
-from answering.llm import LLMClient, get_llm_client
+import copy
+
+from answering.llm import BaseCachedLLMClient, LLMClient, get_llm_client
 from db.notebook_store import (
     search_scoped,
     save_message,
@@ -256,7 +258,13 @@ def answer_notebook_question(
     if is_retry and retry_message_id:
         try:
             from db.notebook_store import delete_message
-            delete_message(user_id=user_id, message_id=retry_message_id, db_url=db_url)
+            delete_message(
+                user_id=user_id,
+                message_id=retry_message_id,
+                conversation_id=conversation_id,
+                role="assistant",
+                db_url=db_url,
+            )
         except Exception as e:
             logger.warning(f"Could not delete message on retry: {e}")
 
@@ -305,6 +313,10 @@ def answer_notebook_question(
     elif is_followup_query(question) and history:
         # Find last user question
         last_user_questions = [m["content"] for m in history if m["role"] == "user"]
+        # A retry's question is already saved as the latest user message; the follow-up
+        # refers to the one before it.
+        if is_retry and last_user_questions and last_user_questions[-1] == question:
+            last_user_questions.pop()
         if last_user_questions:
             search_query = f"{question} {last_user_questions[-1]}"
         else:
@@ -394,6 +406,11 @@ def answer_notebook_question(
 
     # 5. Call LLM Client
     client = llm_client or get_llm_client()
+    if is_retry and isinstance(client, BaseCachedLLMClient):
+        # A retry repeats the previous prompt, so a cached answer would only replay the
+        # answer the user is retrying.
+        client = copy.copy(client)
+        client.read_cache = False
     model_name = getattr(client, "model", "gemini")
 
     try:

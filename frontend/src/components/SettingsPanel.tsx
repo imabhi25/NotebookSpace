@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { api } from '../api';
 import { SubjectSettings, User } from '../types';
 import { useModalFocus } from '../useModalFocus';
+import { ThemeSetting, getThemeSetting, setThemeSetting } from '../theme';
 
 const DEFAULTS_KEY = 'notebookspace_default_response_settings';
 const LENGTHS: SubjectSettings['response_length'][] = ['concise', 'default', 'detailed'];
@@ -41,6 +42,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [defaults, setDefaults] = useState<SubjectSettings>(
     () => readDefaultResponseSettings() || { response_length: 'default', response_style: 'general' }
   );
+  const [theme, setTheme] = useState<ThemeSetting>(getThemeSetting);
+  const chooseTheme = (next: ThemeSetting) => {
+    setTheme(next);
+    setThemeSetting(next);
+  };
   const [exportState, setExportState] = useState<'idle' | 'working' | 'done' | 'failed'>('idle');
 
   const saveDefaults = (next: SubjectSettings) => {
@@ -109,6 +115,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         </div>
 
         <div className="settings-panel-body">
+          <section className="settings-section" aria-labelledby="settings-appearance-title">
+            <h3 id="settings-appearance-title" className="settings-section-title">Appearance</h3>
+            <div className="sidebar-filter-pills home-filter-tabs theme-control" role="radiogroup" aria-labelledby="settings-appearance-title">
+              {(['auto', 'light', 'dark'] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  role="radio"
+                  aria-checked={theme === option}
+                  className={`sidebar-filter-pill ${theme === option ? 'active' : ''}`}
+                  onClick={() => chooseTheme(option)}
+                >
+                  {option === 'auto' ? 'Auto' : option === 'light' ? 'Light' : 'Dark'}
+                </button>
+              ))}
+            </div>
+            <p className="settings-section-hint">Auto follows your device.</p>
+          </section>
+
           <section className="settings-section" aria-labelledby="settings-defaults-title">
             <h3 id="settings-defaults-title" className="settings-section-title">Default responses</h3>
             <p className="settings-section-hint">Used for new notebooks. Each notebook can change its own.</p>

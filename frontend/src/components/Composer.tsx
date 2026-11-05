@@ -41,7 +41,7 @@ export const Composer: React.FC<ComposerProps> = ({
   loading,
   onStop,
   selectedSourceCount,
-  placeholder = "Start typing, or ask a question (e.g., When is the final exam?)...",
+  placeholder = "",
   mode = 'ask',
   onModeChange,
   proofDraft: externalProofDraft,

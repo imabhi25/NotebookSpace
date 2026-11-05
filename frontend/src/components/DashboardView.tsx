@@ -3,7 +3,6 @@ import React, { useState, useEffect } from 'react';
 import { SortMenu } from './SortMenu';
 import { SettingsPanel, readDefaultResponseSettings } from './SettingsPanel';
 import { Subject, User } from '../types';
-import { useModalFocus } from '../useModalFocus';
 
 export interface DashboardViewProps {
   subjects: Subject[];
@@ -12,7 +11,6 @@ export interface DashboardViewProps {
   currentUser?: User | null;
   onOpenSubject: (subjectId: string) => void;
   onCreateSubject: (data: { name: string; course_code?: string; description?: string; settings?: Record<string, any> }) => Promise<void>;
-  onCreateSampleSubject?: () => Promise<void> | void;
   onUpdateSubject: (subjectId: string, data: { name?: string; course_code?: string; description?: string }) => Promise<void>;
   onArchiveSubject: (subjectId: string) => Promise<void>;
   onRestoreSubject: (subjectId: string) => Promise<void>;
@@ -21,6 +19,7 @@ export interface DashboardViewProps {
   isMobileSidebarOpen?: boolean;
   onSetMobileSidebarOpen?: (open: boolean) => void;
   children?: React.ReactNode;
+  workspaceMode?: boolean;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -30,17 +29,33 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUser,
   onOpenSubject,
   onCreateSubject,
-  onCreateSampleSubject,
   onUpdateSubject,
   onArchiveSubject,
   onRestoreSubject,
   onDeleteSubject,
   onResetWorkspace,
+  isMobileSidebarOpen: controlledMobileOpen,
+  onSetMobileSidebarOpen,
   children,
+  workspaceMode = false,
 }) => {
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState<'updated_at' | 'name' | 'created_at'>('updated_at');
   const [tab, setTab] = useState<'active' | 'archived'>('active');
+  const [homeTab, setHomeTab] = useState<'all' | 'active' | 'archived'>('all');
+
+  // Sidebar collapse & drawer states
+  const [localMobileOpen, setLocalMobileOpen] = useState(false);
+  const isMobileOpen = controlledMobileOpen !== undefined ? controlledMobileOpen : localMobileOpen;
+  const setMobileOpen = (open: boolean) => {
+    if (onSetMobileSidebarOpen) {
+      onSetMobileSidebarOpen(open);
+    } else {
+      setLocalMobileOpen(open);
+    }
+  };
+
+  const [isCollapsedDesktop, setIsCollapsedDesktop] = useState(false);
 
   // Privacy banner dismissal persistence
   const [isPrivacyBannerDismissed, setIsPrivacyBannerDismissed] = useState<boolean>(() => {
@@ -76,6 +91,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     setIsPrivacyBannerDismissed(false);
   };
 
+  // Direction of the last desktop sidebar toggle, so the main area can glide instead of jumping.
+  const [sidebarMotion, setSidebarMotion] = useState<'idle' | 'collapsing' | 'expanding'>('idle');
+  const collapseSidebar = () => {
+    setSidebarMotion('collapsing');
+    setIsCollapsedDesktop(true);
+  };
+  const expandSidebar = () => {
+    setSidebarMotion('expanding');
+    setIsCollapsedDesktop(false);
+  };
+
   // Item overflow menus
   const [menuOpenSubjectId, setMenuOpenSubjectId] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -83,7 +109,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
-  const createModalRef = useModalFocus(isCreateOpen, () => setIsCreateOpen(false));
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [deletingSubject, setDeletingSubject] = useState<Subject | null>(null);
 
@@ -202,359 +227,615 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
-  // Filter and sort notebooks
-  const filtered = subjects
-    .filter((s) => (tab === 'active' ? !s.is_archived : s.is_archived))
-    .filter((s) => {
-      if (!search.trim()) return true;
-      const q = search.toLowerCase();
-      return (
-        s.name.toLowerCase().includes(q) ||
-        (s.course_code && s.course_code.toLowerCase().includes(q)) ||
-        (s.description && s.description.toLowerCase().includes(q))
-      );
-    })
-    .sort((a, b) => {
-      if (sortBy === 'name') return a.name.localeCompare(b.name);
-      if (sortBy === 'created_at') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
-    });
+  // Filter and sort notebooks (shared by the launcher grid and the in-workspace sidebar)
+  const filterAndSort = (mode: 'all' | 'active' | 'archived') =>
+    subjects
+      .filter((s) => (mode === 'all' ? true : mode === 'active' ? !s.is_archived : s.is_archived))
+      .filter((s) => {
+        if (!search.trim()) return true;
+        const q = search.toLowerCase();
+        return (
+          s.name.toLowerCase().includes(q) ||
+          (s.course_code && s.course_code.toLowerCase().includes(q)) ||
+          (s.description && s.description.toLowerCase().includes(q))
+        );
+      })
+      .sort((a, b) => {
+        if (sortBy === 'name') return a.name.localeCompare(b.name);
+        if (sortBy === 'created_at') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+      });
+  const filtered = filterAndSort(tab);
+  const homeFiltered = filterAndSort(homeTab);
+
+  // A stable paper tone per notebook, derived from its title.
+  const toneFor = (name: string) => {
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+    return (hash % 6) + 1;
+  };
+  const initialFor = (name: string) => (name.trim().charAt(0) || 'N').toUpperCase();
+
+  // Single "⋯" overflow menu: rename, archive or restore, delete
+  const renderNotebookMenu = (s: Subject) => (
+                    <div
+                      className="notebook-item-actions"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        type="button"
+                        className="notebook-menu-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setMenuOpenSubjectId(menuOpenSubjectId === s.id ? null : s.id);
+                        }}
+                        aria-label={`Options for ${s.name}`}
+                        title="More options"
+                      >
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <circle cx="12" cy="12" r="1.5" />
+                          <circle cx="19" cy="12" r="1.5" />
+                          <circle cx="5" cy="12" r="1.5" />
+                        </svg>
+                      </button>
+
+                      {menuOpenSubjectId === s.id && (
+                        <div className="notebook-overflow-menu" role="menu">
+                          <button
+                            type="button"
+                            className="notebook-menu-item"
+                            role="menuitem"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuOpenSubjectId(null);
+                              openEditModal(s, e);
+                            }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+                            </svg>
+                            <span>Rename</span>
+                          </button>
+
+                          {s.is_archived ? (
+                            <button
+                              type="button"
+                              className="notebook-menu-item"
+                              role="menuitem"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpenSubjectId(null);
+                                onRestoreSubject(s.id);
+                              }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="1 4 1 10 7 10" />
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                              </svg>
+                              <span>Restore</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="notebook-menu-item"
+                              role="menuitem"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpenSubjectId(null);
+                                onArchiveSubject(s.id);
+                              }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="21 8 21 21 3 21 3 8" />
+                                <rect x="1" y="3" width="22" height="5" />
+                                <line x1="10" y1="12" x2="14" y2="12" />
+                              </svg>
+                              <span>Archive</span>
+                            </button>
+                          )}
+
+                          <button
+                            type="button"
+                            className="notebook-menu-item menu-item-danger"
+                            role="menuitem"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setMenuOpenSubjectId(null);
+                              setDeletingSubject(s);
+                            }}
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                            </svg>
+                            <span>Delete</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+  );
 
   const formatDate = (iso: string) => {
     try {
       const d = new Date(iso);
-      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+      return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
     } catch {
       return iso;
     }
   };
 
-  // A short mark for each notebook card: the course number when there is one, else initials.
-  const notebookMark = (s: Subject) => {
-    const code = (s.course_code || '').trim();
-    const digits = code.match(/\d{3,4}/);
-    if (digits) return digits[0];
-    if (code) return code.slice(0, 4).toUpperCase();
-    return s.name
-      .split(/\s+/)
-      .filter(Boolean)
-      .slice(0, 2)
-      .map((w) => w.charAt(0).toUpperCase())
-      .join('');
-  };
-
-  const renderCardMenu = (s: Subject) => {
-    const isMenuOpen = menuOpenSubjectId === s.id;
-    return (
-      <div className="notebook-item-actions" onClick={(e) => e.stopPropagation()}>
-        <button
-          type="button"
-          className="notebook-menu-btn"
-          onClick={(e) => {
-            e.stopPropagation();
-            setMenuOpenSubjectId(isMenuOpen ? null : s.id);
-          }}
-          aria-label={`Options for ${s.name}`}
-          title="More options"
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="5" r="1.5" />
-            <circle cx="12" cy="12" r="1.5" />
-            <circle cx="12" cy="19" r="1.5" />
-          </svg>
-        </button>
-
-        {isMenuOpen && (
-          <div className="notebook-overflow-menu" role="menu">
+  const privacyBanner = !isPrivacyBannerDismissed && (
+          <div
+            className="guest-workspace-notice guest-workspace-notice-slim"
+            data-testid="guest-workspace-banner"
+          >
+            <div className="guest-workspace-notice-content">
+              <svg className="privacy-lock-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              <span className="guest-workspace-notice-title">Private Browser Workspace:</span>
+              <span className="guest-workspace-notice-text">
+                Your course notebooks, uploaded materials, and saved notes are private to this browser session and persist across reloads. No sign-in required.
+              </span>
+            </div>
             <button
               type="button"
-              className="notebook-menu-item"
-              role="menuitem"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpenSubjectId(null);
-                openEditModal(s, e);
-              }}
+              className="privacy-banner-dismiss-btn"
+              onClick={handleDismissBanner}
+              aria-label="Dismiss privacy notice"
+              title="Dismiss notice"
             >
-              <span>Rename</span>
-            </button>
-            {s.is_archived ? (
-              <button
-                type="button"
-                className="notebook-menu-item"
-                role="menuitem"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpenSubjectId(null);
-                  onRestoreSubject(s.id);
-                }}
-              >
-                <span>Restore</span>
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="notebook-menu-item"
-                role="menuitem"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setMenuOpenSubjectId(null);
-                  onArchiveSubject(s.id);
-                }}
-              >
-                <span>Archive</span>
-              </button>
-            )}
-            <button
-              type="button"
-              className="notebook-menu-item menu-item-danger"
-              role="menuitem"
-              onClick={(e) => {
-                e.stopPropagation();
-                setMenuOpenSubjectId(null);
-                setDeletingSubject(s);
-              }}
-            >
-              <span>Delete</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
             </button>
           </div>
-        )}
-      </div>
-    );
-  };
+        );
 
   return (
-    <div className="dashboard-shell-layout">
-      {children ? (
-        /* An open notebook takes the whole window; the logo in its top bar leads back here. */
-        <main className="dashboard-main-content">
-          <div className="dashboard-children-wrapper">{children}</div>
-        </main>
-      ) : (
-        <div className="home-page">
-          <header className="home-top-bar">
-            <span className="home-brand">
-              <span className="brand-logo-letter" aria-hidden="true">N</span>
-              <span className="home-brand-name">NotebookSpace</span>
-            </span>
+    <div className={`dashboard-shell-layout sidebar-motion-${sidebarMotion} ${workspaceMode ? 'workspace-shell' : ''}`}>
+      {children || workspaceMode ? (
+        <>
+      {!workspaceMode && <>
+      {/* Mobile Backdrop Overlay (always mounted so it can fade out as well as in) */}
+      <div
+        className={`sidebar-mobile-overlay ${isMobileOpen ? 'is-open' : ''}`}
+        onClick={() => setMobileOpen(false)}
+        aria-hidden="true"
+      />
 
-            <div className="home-tabs" role="tablist" aria-label="Notebook filter">
+      {/* ======================================================================
+          1. NOTEBOOKLM-STYLE LEFT SIDEBAR (~260px)
+          ====================================================================== */}
+      <aside
+        className={`notebooks-sidebar ${isMobileOpen ? 'mobile-open' : ''} ${
+          isCollapsedDesktop ? 'collapsed-desktop' : ''
+        }`}
+        aria-label="Notebooks sidebar"
+      >
+        {/* Sidebar Brand Header */}
+        <div className="sidebar-brand-row">
+          <div className="sidebar-brand">
+            <span className="brand-mark-wrapper" aria-hidden="true">
+              <span className="brand-logo-letter">N</span>
+            </span>
+            <span className="sidebar-brand-title">NotebookSpace</span>
+          </div>
+
+          <div className="sidebar-header-actions">
+            <button
+              type="button"
+              className="btn-icon sidebar-settings-btn"
+              onClick={() => setIsSettingsOpen(true)}
+              title="Workspace settings"
+              aria-label="Workspace settings"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
+            </button>
+
+            {/* Desktop collapse toggle */}
+            <button
+              type="button"
+              className="btn-icon sidebar-desktop-toggle-btn"
+              onClick={collapseSidebar}
+              title="Collapse sidebar"
+              aria-label="Collapse sidebar"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <line x1="9" y1="3" x2="9" y2="21" />
+              </svg>
+            </button>
+
+            {/* Mobile drawer close button */}
+            <button
+              type="button"
+              className="btn-icon sidebar-mobile-close-btn"
+              onClick={() => setMobileOpen(false)}
+              title="Close menu"
+              aria-label="Close menu"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Action: + New notebook */}
+        <div className="sidebar-new-btn-container">
+          <button
+            type="button"
+            className="btn-sidebar-new-notebook"
+            onClick={openCreateModal}
+            data-testid="create-subject-btn"
+            aria-label="Create new notebook"
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="12" y1="5" x2="12" y2="19" />
+              <line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+            <span>New notebook</span>
+          </button>
+        </div>
+
+        {/* Toolbar: Search & Compact Filter */}
+        <div className="sidebar-search-filter-box">
+          <div className="sidebar-search-row">
+            <svg className="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              type="text"
+              className="sidebar-search-input"
+              placeholder="Search subjects or notebooks..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              aria-label="Search notebooks"
+            />
+            {search && (
+              <button
+                type="button"
+                className="sidebar-search-clear-btn"
+                onClick={() => setSearch('')}
+                aria-label="Clear search query"
+              >
+                &times;
+              </button>
+            )}
+          </div>
+
+          <div className="sidebar-filter-row">
+            <div className="sidebar-filter-pills" role="tablist">
               <button
                 type="button"
                 role="tab"
                 aria-selected={tab === 'active'}
-                className={`home-tab ${tab === 'active' ? 'active' : ''}`}
+                className={`sidebar-filter-pill ${tab === 'active' ? 'active' : ''}`}
                 onClick={() => setTab('active')}
               >
-                My notebooks
+                Active
               </button>
               <button
                 type="button"
                 role="tab"
                 aria-selected={tab === 'archived'}
-                className={`home-tab ${tab === 'archived' ? 'active' : ''}`}
+                className={`sidebar-filter-pill ${tab === 'archived' ? 'active' : ''}`}
                 onClick={() => setTab('archived')}
               >
                 Archived
               </button>
             </div>
 
-            <div className="home-top-right">
-              <label className="home-search">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <circle cx="11" cy="11" r="8" />
-                  <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Search notebooks"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  aria-label="Search notebooks"
-                />
-                {search && (
-                  <button
-                    type="button"
-                    className="home-search-clear"
-                    onClick={() => setSearch('')}
-                    aria-label="Clear search query"
+            <SortMenu
+              label="Sort notebooks"
+              value={sortBy}
+              onChange={setSortBy}
+              options={[
+                { value: 'updated_at', label: 'Recent' },
+                { value: 'name', label: 'Name' },
+                { value: 'created_at', label: 'Created' },
+              ]}
+            />
+          </div>
+        </div>
+
+        {/* Notebooks List */}
+        <div className="sidebar-notebooks-scroll">
+          {loading ? (
+            <div className="sidebar-loading-box">
+              <div className="step-spinner spinner-inline" />
+              <span>Loading notebooks...</span>
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="sidebar-empty-box" key={tab}><EmptyStateIcon />
+              <p>{tab === 'archived' ? 'No archived notebooks.' : search ? 'No matching notebooks.' : 'No notebooks yet.'}</p>
+            </div>
+          ) : (
+            <div className="sidebar-notebooks-list" role="list" key={`${tab}-${sortBy}`}>
+              {filtered.map((s) => {
+                const isSelected = activeSubjectId === s.id;
+
+                return (
+                  <div
+                    key={s.id}
+                    role="listitem"
+                    className={`sidebar-notebook-item ${isSelected ? 'active' : ''}`}
+                    onClick={() => {
+                      onOpenSubject(s.id);
+                      if (isMobileOpen) setMobileOpen(false);
+                    }}
+                    data-testid={`subject-card-${s.id}`}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        onOpenSubject(s.id);
+                        if (isMobileOpen) setMobileOpen(false);
+                      }
+                    }}
                   >
-                    &times;
-                  </button>
-                )}
-              </label>
+                    <div className="notebook-item-icon" aria-hidden="true">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                    </div>
 
-              <SortMenu
-                label="Sort notebooks"
-                value={sortBy}
-                onChange={setSortBy}
-                options={[
-                  { value: 'updated_at', label: 'Recent' },
-                  { value: 'name', label: 'Name' },
-                  { value: 'created_at', label: 'Created' },
-                ]}
+                    <div className="notebook-item-content">
+                      <div className="notebook-item-title-row">
+                        <span className="notebook-item-title" title={s.name}>
+                          {s.name}
+                        </span>
+                        {s.course_code && (
+                          <span className="course-code-badge notebook-code-badge">
+                            {s.course_code}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="notebook-item-meta-row">
+                        <span className="notebook-item-sources">
+                          {(s.source_count ?? 0)} {(s.source_count ?? 0) === 1 ? 'source' : 'sources'}
+                        </span>
+                        <span className="notebook-item-date">
+                          {formatDate(s.updated_at)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {renderNotebookMenu(s)}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+      </aside>
+      </>}
+
+      {/* ======================================================================
+          2. MAIN AREA: Selected Notebook Detail View or Calm Empty State
+          ====================================================================== */}
+      <main className="dashboard-main-content">
+        {/* Reopen Floating Tab on Desktop when sidebar is collapsed */}
+        {!workspaceMode && isCollapsedDesktop && (
+          <button
+            type="button"
+            className="floating-sidebar-reopen-btn"
+            onClick={expandSidebar}
+            title="Open notebooks sidebar"
+            aria-label="Open notebooks sidebar"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+              <line x1="9" y1="3" x2="9" y2="21" />
+            </svg>
+            <span>Notebooks</span>
+          </button>
+        )}
+
+        {privacyBanner}
+
+        <div className="dashboard-children-wrapper">
+          {children}
+        </div>
+      </main>
+        </>
+      ) : (
+        /* ====================================================================
+           LAUNCHER: "My notebooks" card grid (shown whenever no notebook is open)
+           ==================================================================== */
+        <div className="notebooks-home">
+          <header className="home-header">
+            <div className="home-brand">
+              <span className="brand-mark-wrapper" aria-hidden="true">
+                <span className="brand-logo-letter">N</span>
+              </span>
+              <span className="sidebar-brand-title">NotebookSpace</span>
+            </div>
+
+            <div className="sidebar-search-row home-search">
+              <svg className="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                className="sidebar-search-input"
+                placeholder="Search notebooks…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                aria-label="Search notebooks"
               />
+              {search && (
+                <button
+                  type="button"
+                  className="sidebar-search-clear-btn"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search query"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
 
+            <div className="home-header-actions">
               <button
                 type="button"
-                className="home-icon-btn"
+                className="btn-icon sidebar-settings-btn"
                 onClick={() => setIsSettingsOpen(true)}
                 title="Workspace settings"
                 aria-label="Workspace settings"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                  <circle cx="12" cy="12" r="3" />
-                  <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-                </svg>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <circle cx="12" cy="12" r="3" />
+                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+              </svg>
               </button>
-
-              <span
-                className="workspace-avatar"
-                role="img"
-                aria-label={currentUser?.email ? `Signed in as ${currentUser.email}` : 'Guest workspace'}
-                title={currentUser?.email ? `Signed in as ${currentUser.email}` : 'Guest workspace, private to this browser'}
-              >
-                {(currentUser?.email || 'G').charAt(0).toUpperCase()}
-              </span>
-            </div>
-          </header>
-
-          <div className="home-content">
-            {!isPrivacyBannerDismissed && (
-              <div className="home-privacy-note" data-testid="guest-workspace-banner">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                  <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-                </svg>
-                <p>
-                  Your notebooks, sources and notes are private to this browser and stay after a reload. No sign-in needed.
-                </p>
-                <button
-                  type="button"
-                  className="home-icon-btn"
-                  onClick={handleDismissBanner}
-                  aria-label="Dismiss privacy notice"
-                  title="Dismiss notice"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="18" y1="6" x2="6" y2="18" />
-                    <line x1="6" y1="6" x2="18" y2="18" />
-                  </svg>
-                </button>
-              </div>
-            )}
-
-            <div className="home-heading-row">
-              <h1 className="home-heading">{tab === 'archived' ? 'Archived notebooks' : 'My notebooks'}</h1>
               <button
                 type="button"
-                className="btn-new-notebook"
+                className="btn btn-primary home-new-btn"
                 onClick={openCreateModal}
                 data-testid="create-subject-btn"
                 aria-label="Create new notebook"
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 <span>New notebook</span>
               </button>
             </div>
+          </header>
 
-            {loading ? (
-              <div className="dashboard-loading-state">
-                <div className="step-spinner spinner-large" />
-                <p>Loading notebooks...</p>
-              </div>
-            ) : filtered.length === 0 ? (
-              <div className="home-empty" data-testid="dashboard-empty-state">
-                <EmptyStateIcon />
-                <h2>
-                  {tab === 'archived'
-                    ? 'No archived notebooks'
-                    : search
-                    ? 'No matching notebooks found'
-                    : 'Ask questions about your course materials'}
-                </h2>
-                <p>
-                  {tab === 'archived'
-                    ? 'Archived notebooks will appear here.'
-                    : search
-                    ? `No notebooks match "${search}". Try adjusting your search query.`
-                    : 'Upload a source, ask a question, and follow citations back to the relevant passage.'}
-                </p>
-                {tab === 'active' && !search && (
-                  <div className="empty-state-cta-group" style={{ marginTop: '1.25rem', display: 'flex', gap: '0.75rem', justifyContent: 'center' }}>
-                    {onCreateSampleSubject && (
-                      <button
-                        type="button"
-                        className="btn btn-primary"
-                        onClick={onCreateSampleSubject}
-                        data-testid="try-sample-notebook-btn"
-                      >
-                        Try sample notebook
-                      </button>
-                    )}
+          {privacyBanner}
+
+          <main className="home-main">
+            <div className="home-main-inner">
+              <h1 className="home-heading">My notebooks</h1>
+
+              <div className="home-toolbar">
+                <div className="sidebar-filter-pills home-filter-tabs" role="tablist">
+                  {(['all', 'active', 'archived'] as const).map((mode) => (
                     <button
+                      key={mode}
                       type="button"
-                      className="btn btn-secondary"
-                      onClick={openCreateModal}
+                      role="tab"
+                      aria-selected={homeTab === mode}
+                      className={`sidebar-filter-pill ${homeTab === mode ? 'active' : ''}`}
+                      onClick={() => setHomeTab(mode)}
                     >
-                      Create notebook
+                      {mode === 'all' ? 'All' : mode === 'active' ? 'Active' : 'Archived'}
                     </button>
-                  </div>
-                )}
+                  ))}
+                </div>
+                <SortMenu
+                  label="Sort notebooks"
+                  value={sortBy}
+                  onChange={setSortBy}
+                  options={[
+                    { value: 'updated_at', label: 'Recent' },
+                    { value: 'name', label: 'Name' },
+                    { value: 'created_at', label: 'Created' },
+                  ]}
+                />
               </div>
-            ) : (
-              <div className="notebook-grid" role="list" key={`${tab}-${sortBy}`}>
-                {tab === 'active' && !search && (
-                  <button
-                    type="button"
-                    role="listitem"
-                    className="notebook-card notebook-card-new"
-                    onClick={openCreateModal}
-                  >
-                    <span className="notebook-card-new-icon" aria-hidden="true">
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="5" x2="12" y2="19" />
-                        <line x1="5" y1="12" x2="19" y2="12" />
-                      </svg>
-                    </span>
-                    <span>Create new notebook</span>
-                  </button>
-                )}
-                {filtered.map((s) => (
-                  <div
-                    key={s.id}
-                    role="listitem"
-                    className={`notebook-card ${activeSubjectId === s.id ? 'active' : ''}`}
-                    onClick={() => onOpenSubject(s.id)}
-                    onKeyDown={(e) => {
-                      if (e.target === e.currentTarget && e.key === 'Enter') onOpenSubject(s.id);
-                    }}
-                    tabIndex={0}
-                    data-testid={`subject-card-${s.id}`}
-                  >
-                    <div className="notebook-card-top">
-                      <span className="notebook-card-mark" aria-hidden="true">
-                        {notebookMark(s)}
-                      </span>
-                      {renderCardMenu(s)}
+
+              {loading ? (
+                <div className="notebook-grid" role="status" aria-busy="true">
+                  <span className="sr-only">Loading notebooks...</span>
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="notebook-card notebook-card-skeleton" aria-hidden="true">
+                      <span className="skeleton-line line-short" />
+                      <span className="skeleton-line line-long" />
+                      <span className="skeleton-line line-med" />
                     </div>
-                    <div>
+                  ))}
+                </div>
+              ) : homeFiltered.length === 0 ? (
+            <div className="dashboard-empty-state" data-testid="dashboard-empty-state">
+              <div className="empty-state-brand-mark" aria-hidden="true">
+                <EmptyStateIcon />
+              </div>
+              <h2 className="empty-heading">
+                {homeTab === 'archived'
+                  ? 'No archived notebooks'
+                  : search
+                  ? 'No matching notebooks found'
+                  : 'Create your first notebook'}
+              </h2>
+              <p className="empty-subtext">
+                {homeTab === 'archived'
+                  ? 'Archived notebooks will appear here.'
+                  : search
+                  ? `No notebooks match "${search}". Try adjusting your search query.`
+                  : 'Organize course syllabi, lecture notes, and assignments into notebooks.'}
+              </p>
+              {homeTab !== 'archived' && !search && (
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={openCreateModal}
+                >
+                  + New notebook
+                </button>
+              )}
+            </div>
+              ) : (
+                <div className="notebook-grid" role="list" key={`${homeTab}-${sortBy}`}>
+                  {homeFiltered.map((s) => (
+                    <div
+                      key={s.id}
+                      role="listitem"
+                      className={`notebook-card ${menuOpenSubjectId === s.id ? 'menu-open' : ''}`}
+                      onClick={() => onOpenSubject(s.id)}
+                      data-testid={`subject-card-${s.id}`}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault();
+                          onOpenSubject(s.id);
+                        }
+                      }}
+                    >
+                      <div className="notebook-card-top">
+                        <span className={`notebook-card-mark tone-${toneFor(s.name)}`} aria-hidden="true">
+                          {initialFor(s.name)}
+                        </span>
+                        {renderNotebookMenu(s)}
+                      </div>
                       <h2 className="notebook-card-title" title={s.name}>
                         {s.name}
                       </h2>
-                      <div className="notebook-card-meta">
-                        {formatDate(s.updated_at)} · {s.source_count ?? 0}{' '}
-                        {(s.source_count ?? 0) === 1 ? 'source' : 'sources'}
+                      <div className="notebook-card-tags">
+                        {s.course_code && (
+                          <span className="course-code-badge notebook-code-badge">{s.course_code}</span>
+                        )}
+                        {s.is_archived && <span className="notebook-code-badge notebook-archived-tag">Archived</span>}
                       </div>
+                      {(s.source_count ?? 0) === 0 ? (
+                        <p className="notebook-card-meta notebook-card-meta-empty">
+                          Add your first source <span aria-hidden="true">→</span>
+                        </p>
+                      ) : (
+                        <p className="notebook-card-meta">
+                          {formatDate(s.updated_at)} · {s.source_count} {s.source_count === 1 ? 'source' : 'sources'}
+                        </p>
+                      )}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </main>
         </div>
       )}
 
@@ -564,7 +845,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Create Notebook Modal */}
       {isCreateOpen && (
         <div className="modal-backdrop" onClick={() => setIsCreateOpen(false)}>
-          <div ref={createModalRef} className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
                 Create new notebook
@@ -590,7 +871,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   id="create-subj-name"
                   type="text"
                   required
-                  placeholder="e.g. EECS 3101 — Algorithms"
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   disabled={submitting}
@@ -602,7 +882,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <input
                   id="create-subj-code"
                   type="text"
-                  placeholder="e.g. EECS 3101"
                   value={formCode}
                   onChange={(e) => setFormCode(e.target.value)}
                   disabled={submitting}
@@ -613,21 +892,12 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <textarea
                   id="create-subj-desc"
                   rows={3}
-                  placeholder="e.g. Design and analysis of efficient algorithms, graphs, and dynamic programming."
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
                   disabled={submitting}
                 />
               </div>
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setIsCreateOpen(false)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Creating...' : 'Create Notebook'}
                 </button>
@@ -690,14 +960,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
               </div>
               <div className="modal-actions">
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  onClick={() => setEditingSubject(null)}
-                  disabled={submitting}
-                >
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Saving...' : 'Save Changes'}
                 </button>
@@ -727,14 +989,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               All associated documents, conversations, and notes will be permanently removed.
             </div>
             <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setDeletingSubject(null)}
-                disabled={submitting}
-              >
-                Cancel
-              </button>
               <button
                 type="button"
                 className="btn btn-danger"
@@ -782,13 +1036,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               Start a new guest workspace? This will create a fresh workspace for this browser, clearing all local notebooks, documents, and notes.
             </div>
             <div className="modal-actions">
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => setIsResetConfirmOpen(false)}
-              >
-                Cancel
-              </button>
               <button
                 type="button"
                 className="btn btn-danger"

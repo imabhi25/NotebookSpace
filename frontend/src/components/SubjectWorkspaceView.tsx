@@ -1,7 +1,6 @@
 import { EmptyStateIcon } from './EmptyStateIcon';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { api } from '../api';
-import { useModalFocus } from '../useModalFocus';
 import {
   Subject,
   Source,
@@ -14,36 +13,35 @@ import {
   SubjectSettings,
   User,
   normalizeFileName,
-  formatConventionTopic,
-  formatSourceTitle,
-  formatProofAsLatex,
 } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { lazyView, preloadWhenIdle } from '../lazyView';
-import '../proof.css';
+import { SourceRow } from './SourceRow';
+
+import { useModalFocus } from '../useModalFocus';
+import { RetrievalMapView } from './RetrievalMapView';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
-import { Composer, ProofDraft, initialProofDraft } from './Composer';
-import { RetrievalMapView } from './RetrievalMapView';
+import { Composer } from './Composer';
 
 interface SubjectWorkspaceViewProps {
   subject: Subject;
   sources: Source[];
-  conversations: Conversation[];
+  conversations?: Conversation[];
   notes: Note[];
-  activeConversationId: string | null;
+  activeConversationId?: string | null;
   selectedSourceIds: string[];
   starterQuestions: string[];
   isDemoMode: boolean;
   currentUser?: User | null;
   onBackToDashboard: () => void;
   onSelectSources: (ids: string[]) => void;
-  onSelectConversation: (convId: string) => void;
-  onCreateConversation: () => Promise<void>;
-  onRenameConversation: (convId: string, title: string) => Promise<void>;
-  onDeleteConversation: (convId: string) => Promise<void>;
+  onSelectConversation?: (convId: string) => void;
+  onCreateConversation?: () => Promise<void>;
+  onRenameConversation?: (convId: string, title: string) => Promise<void>;
+  onDeleteConversation?: (convId: string) => Promise<void>;
   onUploadFiles: (files: File[]) => Promise<void>;
   onPasteText: (title: string, text: string) => Promise<void>;
   onAddUrl: (url: string, title?: string) => Promise<void>;
@@ -51,15 +49,7 @@ interface SubjectWorkspaceViewProps {
   onDeleteSource: (sourceId: string) => Promise<void>;
   onRetrySource: (sourceId: string) => Promise<void>;
   onReplaceSource: (sourceId: string, file: File) => Promise<void>;
-  onSendMessage: (
-    question: string,
-    options?: {
-      is_retry?: boolean;
-      retry_message_id?: string;
-      mode?: 'ask' | 'proof';
-      proof_submission?: any;
-    }
-  ) => Promise<void>;
+  onSendMessage: (question: string, options?: { is_retry?: boolean; retry_message_id?: string }) => Promise<void>;
   onUpdateSettings: (settings: SubjectSettings) => Promise<void>;
   onCreateNote: (title: string, content: string) => Promise<void>;
   onSaveAnswerAsNote: (msg: MessageItem) => Promise<void>;
@@ -70,13 +60,11 @@ interface SubjectWorkspaceViewProps {
   historyLoading?: boolean;
   onStopGeneration?: () => void;
   onResetWorkspace?: () => Promise<void>;
-  onToggleNotebooksDrawer?: () => void;
 }
 
 export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   subject,
   sources,
-  conversations,
   notes,
   activeConversationId,
   selectedSourceIds,
@@ -85,10 +73,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   currentUser,
   onBackToDashboard,
   onSelectSources,
-  onSelectConversation,
-  onCreateConversation,
-  onRenameConversation,
-  onDeleteConversation,
   onUploadFiles,
   onPasteText,
   onAddUrl,
@@ -106,27 +90,179 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   chatLoading,
   historyLoading = false,
   onStopGeneration,
+  onResetWorkspace,
 }) => {
   // --------------------------------------------------------------------------
   // LAYOUT STATE: Independently Collapsible Side Panels
   // --------------------------------------------------------------------------
-  const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
-  const [isRightCollapsed, setIsRightCollapsed] = useState(false);
-  const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
-  const [isRightOpenMobile, setIsRightOpenMobile] = useState(false);
+  const compactViewport = () => typeof window !== 'undefined' && window.innerWidth <= 960;
+  const [isCompact, setIsCompact] = useState(compactViewport);
+  const [isLeftCollapsed, setIsLeftCollapsed] = useState(compactViewport);
+  const [isRightCollapsed, setIsRightCollapsed] = useState(true);
+  const [isActionsOpen, setIsActionsOpen] = useState(false);
+  const [titleBelowBar, setTitleBelowBar] = useState(compactViewport);
+  const headerRef = useRef<HTMLElement>(null);
+  const backButtonRef = useRef<HTMLButtonElement>(null);
+  const actionsRef = useRef<HTMLDivElement>(null);
+  const titleMeasureRef = useRef<HTMLDivElement>(null);
+  const leftToggleRef = useRef<HTMLButtonElement>(null);
+  const rightToggleRef = useRef<HTMLButtonElement>(null);
+  const menuRootRef = useRef<HTMLDivElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const chatAreaRef = useRef<HTMLElement>(null);
+  const leftPanelRef = useRef<HTMLElement>(null);
+  const rightPanelRef = useRef<HTMLElement>(null);
+  const closeLeftPanel = () => { setIsLeftCollapsed(true); leftToggleRef.current?.focus(); };
+  const closeRightPanel = () => { setIsRightCollapsed(true); rightToggleRef.current?.focus(); };
+
+  useEffect(() => {
+    let wasCompact = compactViewport();
+    const onResize = () => {
+      const next = compactViewport();
+      if (next === wasCompact) return;
+      wasCompact = next;
+      setIsCompact(next);
+      setIsLeftCollapsed(next);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // An unusually long title moves below the controls instead of wrapping the bar or losing text.
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (isCompact) { setTitleBelowBar(true); return; }
+      const header = headerRef.current;
+      if (!header || !titleMeasureRef.current || header.clientWidth === 0) return;
+      const style = getComputedStyle(header);
+      const gap = parseFloat(style.columnGap) || 0;
+      const available = header.clientWidth - (parseFloat(style.paddingLeft) || 0)
+        - (parseFloat(style.paddingRight) || 0) - (backButtonRef.current?.offsetWidth || 0)
+        - (actionsRef.current?.offsetWidth || 0) - gap * 2;
+      setTitleBelowBar(titleMeasureRef.current.offsetWidth > available);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const observer = new ResizeObserver(measure);
+    if (headerRef.current) observer.observe(headerRef.current);
+    if (titleMeasureRef.current) observer.observe(titleMeasureRef.current);
+    if (actionsRef.current) observer.observe(actionsRef.current);
+    return () => observer.disconnect();
+  }, [isCompact, subject.name, subject.course_code]);
+
+  useEffect(() => {
+    if (chatAreaRef.current) chatAreaRef.current.inert = isCompact && (!isLeftCollapsed || !isRightCollapsed);
+  }, [isCompact, isLeftCollapsed, isRightCollapsed]);
+
+  useEffect(() => {
+    if (isCompact && !isLeftCollapsed) leftPanelRef.current?.focus();
+  }, [isCompact, isLeftCollapsed]);
+
+  useEffect(() => {
+    if (isCompact && !isRightCollapsed) rightPanelRef.current?.focus();
+  }, [isCompact, isRightCollapsed]);
+
+  useEffect(() => {
+    if (!isActionsOpen) return;
+    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
+    const closeOutside = (event: PointerEvent) => {
+      if (!menuRootRef.current?.contains(event.target as Node)) setIsActionsOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOutside);
+    return () => document.removeEventListener('pointerdown', closeOutside);
+  }, [isActionsOpen]);
+
+  const closeActions = () => { setIsActionsOpen(false); menuButtonRef.current?.focus(); };
+  const handleMenuKeys = (event: React.KeyboardEvent) => {
+    const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') || [])];
+    const index = items.indexOf(document.activeElement as HTMLButtonElement);
+    if (event.key === 'Escape' || event.key === 'Tab') {
+      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
+      closeActions();
+    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+        : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+      items[next]?.focus();
+    }
+  };
 
   // Left sidebar active tab: 'sources' | 'conversations'
-  const [sidebarTab, setSidebarTab] = useState<'sources' | 'conversations'>('sources');
+  const [isPanelDragOver, setIsPanelDragOver] = useState(false);
 
-  // Right contextual panel tab: 'tools' | 'passage' | 'notes' | 'retrieval'
-  const [rightPanelTab, setRightPanelTab] = useState<'tools' | 'passage' | 'notes' | 'retrieval'>('tools');
-  const [retrievalMessageContext, setRetrievalMessageContext] = useState<{
-    messageId?: string;
-    question?: string;
-  }>({});
+  // Sources panel width: a fixed default the user can drag between limits; the choice is remembered.
+  const SOURCES_WIDTH_KEY = 'notebookspace_sources_panel_width';
+  const SOURCES_WIDTH_MIN = 300;
+  const SOURCES_WIDTH_MAX = 560;
+  // The chat keeps at least this much room (plus the body padding and gap), so the panel can never cover it.
+  const CHAT_MIN_WIDTH = 420;
+  const workspaceBodyRef = useRef<HTMLDivElement>(null);
+  const sourcesWidthLimit = () => {
+    const bodyWidth = workspaceBodyRef.current?.clientWidth || 0;
+    if (!bodyWidth) return SOURCES_WIDTH_MAX;
+    return Math.max(SOURCES_WIDTH_MIN, Math.min(SOURCES_WIDTH_MAX, bodyWidth - CHAT_MIN_WIDTH - 36));
+  };
+  const clampSourcesWidth = (value: number) => Math.round(Math.min(sourcesWidthLimit(), Math.max(SOURCES_WIDTH_MIN, value)));
+  const [sourcesWidth, setSourcesWidth] = useState<number | null>(() => {
+    try {
+      const stored = Number(window.localStorage.getItem(SOURCES_WIDTH_KEY));
+      return stored ? clampSourcesWidth(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isResizingSources, setIsResizingSources] = useState(false);
+  const resizeStart = useRef<{ pointerX: number; width: number } | null>(null);
+  const railRef = useRef<HTMLElement>(null);
+  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0 || !leftPanelRef.current) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture?.(e.pointerId);
+    resizeStart.current = { pointerX: e.clientX, width: leftPanelRef.current.getBoundingClientRect().width };
+    setIsResizingSources(true);
+  };
+  const handleResizeMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizeStart.current) return;
+    setSourcesWidth(clampSourcesWidth(resizeStart.current.width + e.clientX - resizeStart.current.pointerX));
+  };
+  const handleResizeEnd = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!resizeStart.current) return;
+    const width = clampSourcesWidth(resizeStart.current.width + e.clientX - resizeStart.current.pointerX);
+    resizeStart.current = null;
+    setIsResizingSources(false);
+    setSourcesWidth(width);
+    try {
+      window.localStorage.setItem(SOURCES_WIDTH_KEY, String(width));
+    } catch {
+      // ignore
+    }
+  };
+  const handleResizeReset = () => {
+    setSourcesWidth(null);
+    try {
+      window.localStorage.removeItem(SOURCES_WIDTH_KEY);
+    } catch {
+      // ignore
+    }
+  };
+  // Whichever of the panel and the rail is not showing is taken out of the tab order and the accessibility tree.
+  useEffect(() => {
+    if (leftPanelRef.current) leftPanelRef.current.inert = isLeftCollapsed;
+    if (railRef.current) railRef.current.inert = !isLeftCollapsed;
+  }, [isLeftCollapsed]);
+  const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
+
+  // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
+  const [rightPanelTab, setRightPanelTab] = useState<'passage' | 'notes' | 'retrieval'>('passage');
 
   // Search queries
   const [sourceSearch, setSourceSearch] = useState('');
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [webQuery, setWebQuery] = useState('');
+  const [webHint, setWebHint] = useState('');
+  const [initialUrl, setInitialUrl] = useState('');
+  const selectAllRef = useRef<HTMLInputElement>(null);
   const [noteSearch, setNoteSearch] = useState('');
 
   // Modals
@@ -144,7 +280,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [renamingSource, setRenamingSource] = useState<Source | null>(null);
   const [newSourceTitle, setNewSourceTitle] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const settingsModalRef = useModalFocus(isSettingsOpen, () => setIsSettingsOpen(false));
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -172,10 +307,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Notes Modal
   const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
-  const createNoteModalRef = useModalFocus(isCreateNoteOpen, () => setIsCreateNoteOpen(false));
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [noteFormTitle, setNoteFormTitle] = useState('');
   const [noteFormContent, setNoteFormContent] = useState('');
+
+  // Focus trap refs
+  const createNoteModalRef = useModalFocus(isCreateNoteOpen, () => setIsCreateNoteOpen(false));
+  const settingsModalRef = useModalFocus(isSettingsOpen, () => setIsSettingsOpen(false));
+  const addSourceModalRef = useModalFocus(isAddSourceOpen, () => setIsAddSourceOpen(false));
 
   // Citation inspection state
   const [selectedCitation, setSelectedCitation] = useState<ActiveCitation | null>(null);
@@ -187,50 +326,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [savedNoteMsgId, setSavedNoteMsgId] = useState<string | null>(null);
   const [savingNoteMsgId, setSavingNoteMsgId] = useState<string | null>(null);
-
-  // Proof mode state & drafts
-  const [composerMode, setComposerMode] = useState<'ask' | 'proof'>('ask');
-  const [proofDraft, setProofDraft] = useState<ProofDraft>(initialProofDraft);
-  const [expandedHints, setExpandedHints] = useState<Record<string, boolean>>({});
-  const [copiedLatexId, setCopiedLatexId] = useState<string | null>(null);
-
-  const toggleHint = (key: string) => {
-    setExpandedHints((prev) => ({ ...prev, [key]: !prev[key] }));
-  };
-
-  const handleCopyLatex = async (msgId: string, proofData: any) => {
-    try {
-      const latex = formatProofAsLatex(proofData);
-      await navigator.clipboard.writeText(latex);
-      setCopiedLatexId(msgId);
-      setTimeout(() => setCopiedLatexId(null), 2000);
-    } catch {
-      // ignore
-    }
-  };
-
-  const handleSubmitProof = async (draft: ProofDraft) => {
-    if (chatLoading) return;
-    let promptText = `What are you proving: ${draft.statement}`;
-    if (draft.format === 'loop_invariant') {
-      if (draft.initialization.trim()) promptText += `\n\n**Initialization:**\n${draft.initialization.trim()}`;
-      if (draft.maintenance.trim()) promptText += `\n\n**Maintenance:**\n${draft.maintenance.trim()}`;
-      if (draft.termination.trim()) promptText += `\n\n**Termination:**\n${draft.termination.trim()}`;
-    } else {
-      promptText += `\n\n**Proof:**\n${draft.body.trim()}`;
-    }
-    await onSendMessage(promptText, {
-      mode: 'proof',
-      proof_submission: {
-        statement: draft.statement,
-        format: draft.format,
-        initialization: draft.format === 'loop_invariant' ? draft.initialization : undefined,
-        maintenance: draft.format === 'loop_invariant' ? draft.maintenance : undefined,
-        termination: draft.format === 'loop_invariant' ? draft.termination : undefined,
-        body: draft.format === 'free_form' ? draft.body : undefined,
-      },
-    });
-  };
 
   // File replacement input ref
   const replaceFileInputRef = useRef<HTMLInputElement>(null);
@@ -259,39 +354,26 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           setViewingSource(null);
         } else if (isAddSourceOpen) {
           setIsAddSourceOpen(false);
+        } else if (isActionsOpen) {
+          closeActions();
+        } else if (isCompact && !isRightCollapsed) {
+          closeRightPanel();
+        } else if (isCompact && !isLeftCollapsed) {
+          closeLeftPanel();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen]);
-
-  // Compute superseded sources map from conversation messages
-  const supersededSourcesMap = React.useMemo(() => {
-    const map: Record<string, { supersededBy: string; topic: string }> = {};
-    for (const m of messages) {
-      if (Array.isArray(m.conflicts)) {
-        for (const conf of m.conflicts) {
-          if (conf.resolution?.current_file) {
-            const currentNorm = normalizeFileName(conf.resolution.current_file);
-            for (const claim of conf.claims || []) {
-              const claimNorm = normalizeFileName(claim.file);
-              if (claimNorm && claimNorm !== currentNorm) {
-                map[claimNorm] = {
-                  supersededBy: conf.resolution.current_file,
-                  topic: conf.topic,
-                };
-              }
-            }
-          }
-        }
-      }
-    }
-    return map;
-  }, [messages]);
+  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, isCompact, isLeftCollapsed, isRightCollapsed]);
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
+  const readySelectedCount = readySources.filter((s) => selectedSourceIds.includes(s.id)).length;
+  const allReadySelected = readySources.length > 0 && readySelectedCount === readySources.length;
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = readySelectedCount > 0 && !allReadySelected;
+  }, [readySelectedCount, allReadySelected, sources.length]);
 
   // Source selection handlers
   const handleToggleSource = (sourceId: string) => {
@@ -304,6 +386,30 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   const handleSelectAllSources = () => {
     onSelectSources(readySources.map((s) => s.id));
+  };
+
+  // The link bar adds a page as a source: a link opens the Add sources dialog on its link tab, ready to confirm.
+  const handleWebSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    const query = webQuery.trim();
+    if (!query) {
+      setWebHint('Paste a link to a page to add it as a source.');
+      return;
+    }
+    const candidate = /^https?:\/\//i.test(query) ? query : /^[\w-]+(\.[\w-]+)+(\/\S*)?$/.test(query) ? `https://${query}` : '';
+    try {
+      if (candidate) {
+        new URL(candidate);
+        setInitialUrl(candidate);
+        setWebQuery('');
+        setWebHint('');
+        setIsAddSourceOpen(true);
+        return;
+      }
+    } catch {
+      // fall through to the hint
+    }
+    setWebHint('Web search is not available yet. Paste a link and it is added as a source.');
   };
 
   const handleClearSources = () => {
@@ -343,16 +449,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const handleSelectCitation = (cit: Citation, messageId: string) => {
     setSelectedCitation({ ...cit, messageId });
     setRightPanelTab('passage');
-    setIsRightCollapsed(false); // Auto-expand right panel
-    setIsRightOpenMobile(true); // Auto-open right panel drawer on mobile/tablet
-    setIsSidebarOpenMobile(false); // Close left drawer if open
+    setIsRightCollapsed(false); // One open state for desktop, tablet, and phone.
+    if (isCompact) setIsLeftCollapsed(true); // Preserve citation focus on small screens.
     loadPassages(cit);
-    setTimeout(() => {
-      const panel = document.querySelector('.workspace-right-panel');
-      if (panel && typeof panel.scrollIntoView === 'function') {
-        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
-    }, 50);
+
   };
 
   const loadPassages = async (cit: Citation) => {
@@ -481,25 +581,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       await onSaveAnswerAsNote(msg);
       setSavedNoteMsgId(msg.id);
       setRightPanelTab('notes');
-      setIsRightCollapsed(false); // Auto-expand right panel on save note
+      setIsRightCollapsed(false); // Auto-expand right panel on save note at every viewport.
+      if (isCompact) setIsLeftCollapsed(true);
       setTimeout(() => setSavedNoteMsgId(null), 2500);
     } finally {
       setSavingNoteMsgId(null);
-    }
-  };
-
-  // Tool tile counts, derived from the answers in the open conversation
-  const conflictMessageCount = messages.filter(
-    (m) => m.role === 'assistant' && (m.conflicts?.length ?? 0) > 0
-  ).length;
-  const conventionMessageCount = messages.filter(
-    (m) => m.role === 'assistant' && (m.convention_mismatches?.length ?? 0) > 0
-  ).length;
-  const scrollToFirst = (selector: string) => {
-    const el = document.querySelector(selector);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      setIsRightOpenMobile(false);
     }
   };
 
@@ -518,7 +604,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
 
   return (
-    <div className="workspace-root">
+    <div className="workspace-root workspace-layout" data-left-open={!isLeftCollapsed} data-right-open={!isRightCollapsed}>
       <input
         ref={replaceFileInputRef}
         type="file"
@@ -527,596 +613,312 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         onChange={handleReplaceFileChange}
       />
 
-      {/* Mobile Drawer Overlay */}
-      {(isSidebarOpenMobile || isRightOpenMobile) && (
-        <div
-          className="sidebar-overlay"
-          onClick={() => {
-            setIsSidebarOpenMobile(false);
-            setIsRightOpenMobile(false);
-          }}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* ======================================================================
-          COMPACT TOP BAR: NotebookSpace, back to subjects, current subject
-          ====================================================================== */}
-      <header className="workspace-top-bar">
-        <div className="workspace-top-left">
-          <button
-            type="button"
-            className="workspace-brand-link"
-            onClick={onBackToDashboard}
-            title="All notebooks"
-            aria-label="Back to all notebooks"
-          >
-            <span className="brand-logo-letter-small" aria-hidden="true">N</span>
-          </button>
-          <h1 className="workspace-notebook-title" title={subject.name}>
-            {subject.name}
-          </h1>
-        </div>
-
-        <div className="workspace-top-right">
-          {/* Panel toggles: only shown where the side panels become drawers */}
-          <button
-            type="button"
-            className={`workspace-toggle-btn ${isSidebarOpenMobile ? 'active' : ''}`}
-            onClick={() => setIsSidebarOpenMobile(!isSidebarOpenMobile)}
-            title="Sources"
-            aria-label="Toggle sources panel"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="9" y1="3" x2="9" y2="21" />
+      <div className="workspace-subject-pill workspace-subject-pill-name workspace-title-measure"
+        ref={titleMeasureRef} aria-hidden="true" data-title={`${subject.name} ${subject.course_code || ''}`} />
+      <header className="workspace-top-bar workspace-control-bar" ref={headerRef}>
+        <button type="button" className="workspace-back-btn" ref={backButtonRef}
+          onClick={onBackToDashboard} title="Back to notebooks dashboard" aria-label="Back to notebooks dashboard">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
+          <span>Notebooks</span>
+        </button>
+        {!titleBelowBar && (
+          <div className="workspace-subject-pill workspace-notebook-identity">
+            <h1 className="workspace-subject-pill-name">{subject.name}</h1>
+            {subject.course_code && <span className="workspace-subject-pill-code">{subject.course_code}</span>}
+          </div>
+        )}
+        <div className="workspace-top-right workspace-essential-actions" ref={actionsRef}>
+          <button type="button" ref={leftToggleRef}
+            className={`workspace-toggle-btn ${!isLeftCollapsed ? 'active' : ''}`}
+            onClick={() => setIsLeftCollapsed(!isLeftCollapsed)}
+            title={isLeftCollapsed ? 'Show sources panel' : 'Hide sources panel'}
+            aria-label="Toggle sources panel" aria-expanded={!isLeftCollapsed} aria-controls="workspace-sources-panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" />
             </svg>
-            <span className="toggle-badge">{sources.length}</span>
+            <span className="toggle-label">Sources</span>
           </button>
-
-          <button
-            type="button"
-            className={`workspace-toggle-btn ${isRightOpenMobile ? 'active' : ''}`}
-            onClick={() => setIsRightOpenMobile(!isRightOpenMobile)}
-            title="Tools"
-            aria-label="Toggle tools panel"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-              <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-              <line x1="15" y1="3" x2="15" y2="21" />
+          <button type="button" ref={rightToggleRef}
+            className={`workspace-toggle-btn ${!isRightCollapsed ? 'active' : ''}`}
+            onClick={() => setIsRightCollapsed(!isRightCollapsed)}
+            title={isRightCollapsed ? 'Show notes & passage inspector' : 'Hide notes & passage inspector'}
+            aria-label="Toggle inspector panel" aria-expanded={!isRightCollapsed} aria-controls="workspace-inspector-panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M15 3v18" />
             </svg>
+            <span className="toggle-label">{rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}</span>
           </button>
-
-          <button
-            type="button"
-            className="btn-icon workspace-top-icon-btn"
-            onClick={onCreateConversation}
-            title="New conversation"
-            aria-label="New conversation"
-            data-testid="top-new-chat-btn"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="12" y1="5" x2="12" y2="19" />
-              <line x1="5" y1="12" x2="19" y2="12" />
-            </svg>
-          </button>
-
-          <button
-            type="button"
-            className="btn-icon workspace-top-icon-btn"
-            onClick={() => setIsSettingsOpen(true)}
-            title="Notebook settings"
-            aria-label="Notebook settings"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-            </svg>
-          </button>
-
-          {isDemoMode && (
-            <span className="demo-pill" data-testid="demo-pill">
-              Public demo
-            </span>
-          )}
-
-          <span
-            className="workspace-avatar"
-            data-testid="guest-workspace-badge"
-            title={currentUser?.email ? `Signed in as ${currentUser.email}` : 'Guest workspace, private to this browser'}
-            aria-label={currentUser?.email ? `Signed in as ${currentUser.email}` : 'Guest workspace'}
-            role="img"
-          >
-            {(currentUser?.email || 'G').charAt(0).toUpperCase()}
-          </span>
+          <div className="workspace-actions-menu" ref={menuRootRef}>
+            <button type="button" ref={menuButtonRef} className="btn-icon workspace-top-icon-btn"
+              aria-label="Notebook actions" title="Notebook actions" aria-haspopup="menu" aria-expanded={isActionsOpen}
+              aria-controls="workspace-actions-menu" onClick={() => setIsActionsOpen(!isActionsOpen)}
+              onKeyDown={(event) => { if (event.key === 'ArrowDown') { event.preventDefault(); setIsActionsOpen(true); } }}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                <circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" />
+              </svg>
+            </button>
+            {isActionsOpen && (
+              <div id="workspace-actions-menu" className="notebook-overflow-menu workspace-overflow-menu"
+                ref={menuRef} role="menu" aria-label="Notebook actions" onKeyDown={handleMenuKeys}>
+                <button type="button" className="notebook-menu-item" role="menuitem"
+                  onClick={() => { closeActions(); setIsSettingsOpen(true); }}>Notebook settings</button>
+                <button type="button" className="notebook-menu-item" role="menuitem" data-testid="guest-workspace-badge"
+                  title="Your notebook workspace is private to this browser."
+                  onClick={() => { closeActions(); onResetWorkspace?.(); }}>{currentUser?.email || 'Guest Workspace'}</button>
+                {isDemoMode && <span className="demo-pill" data-testid="demo-pill">Public demo</span>}
+              </div>
+            )}
+          </div>
         </div>
       </header>
+      {titleBelowBar && (
+        <div className="workspace-notebook-heading">
+          <div className="workspace-subject-pill workspace-notebook-identity">
+            <h1 className="workspace-subject-pill-name">{subject.name}</h1>
+            {subject.course_code && <span className="workspace-subject-pill-code">{subject.course_code}</span>}
+          </div>
+        </div>
+      )}
 
       {/* ======================================================================
           3-COLUMN WORKSPACE BODY
           ====================================================================== */}
-      <div className="workspace-body">
+      <div className="workspace-body" ref={workspaceBodyRef}>
+        {isCompact && (!isLeftCollapsed || !isRightCollapsed) && (
+          <div className="sidebar-overlay workspace-panels-overlay" aria-hidden="true"
+            onClick={() => { setIsLeftCollapsed(true); setIsRightCollapsed(true); leftToggleRef.current?.focus(); }} />
+        )}
+        <div
+          className={`sources-slot ${isLeftCollapsed ? 'is-collapsed' : ''} ${isResizingSources ? 'is-resizing' : ''}`}
+          style={sourcesWidth ? ({ '--sources-panel-user-width': `${sourcesWidth}px` } as React.CSSProperties) : undefined}
+        >
+          <nav className="workspace-sources-rail" aria-label="Sources" ref={railRef} aria-hidden={!isLeftCollapsed}>
+            <button type="button" className="panel-toggle-btn" aria-label="Open sources panel" title="Open sources panel"
+              aria-controls="workspace-sources-panel" aria-expanded={false}
+              onClick={() => setIsLeftCollapsed(false)}>
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="3.5" />
+                <line x1="9" y1="9" x2="9" y2="15" />
+              </svg>
+            </button>
+          </nav>
         {/* --------------------------------------------------------------------
             1. LEFT PANEL: NotebookLM's Source Workflow & Compact History
             -------------------------------------------------------------------- */}
         <aside
-          className={`workspace-sidebar ${isLeftCollapsed ? 'panel-collapsed' : ''} ${
-            isSidebarOpenMobile ? 'sidebar-open' : ''
-          }`}
-          aria-label="Course Sources and Chats"
+          className={`workspace-sidebar ${!isLeftCollapsed ? 'sidebar-open' : ''}`}
+          id="workspace-sources-panel" aria-hidden={isLeftCollapsed} ref={leftPanelRef} tabIndex={-1}
+          aria-label="Sources"
         >
           {/* Sidebar Tab Header */}
           <div className="workspace-sidebar-header">
-            <div className="sidebar-segment-switcher">
-              <button
-                type="button"
-                className={`segment-btn ${sidebarTab === 'sources' ? 'active' : ''}`}
-                onClick={() => setSidebarTab('sources')}
-              >
-                Sources ({sources.length})
-              </button>
-              <button
-                type="button"
-                className={`segment-btn ${sidebarTab === 'conversations' ? 'active' : ''}`}
-                onClick={() => setSidebarTab('conversations')}
-              >
-                Chats ({conversations.length})
-              </button>
-            </div>
+            <h2 className="sources-panel-title">Sources</h2>
 
             <button
               type="button"
-              className="panel-collapse-btn"
-              onClick={() => {
-                setIsLeftCollapsed(true);
-                setIsSidebarOpenMobile(false);
-              }}
+              className="panel-collapse-btn panel-toggle-btn"
+              onClick={closeLeftPanel}
               title="Collapse sources panel"
               aria-label="Collapse sources panel"
             >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="3.5" />
+                <line x1="9" y1="9" x2="9" y2="15" />
               </svg>
             </button>
           </div>
 
-          {/* TAB 1: SOURCES (NotebookLM Workflow) */}
-          {sidebarTab === 'sources' && (
-            <div className="sidebar-tab-content">
-              <div className="sources-action-row">
-                <button
-                  type="button"
-                  className="btn-pill btn-add-sources"
-                  onClick={() => setIsAddSourceOpen(true)}
-                  data-testid="add-source-btn"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  <span>Add sources</span>
-                </button>
-                <button
-                  type="button"
-                  className="btn-pill"
-                  onClick={() => {
-                    setNoteFormTitle('');
-                    setNoteFormContent('');
-                    setEditingNote(null);
-                    setIsCreateNoteOpen(true);
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19" />
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  <span>Create note</span>
-                </button>
-              </div>
-              <div className="sources-header-bar">
-                <span className="selection-badge">
-                  {selectedSourceIds.length} of {readySources.length} selected
-                </span>
-                <div className="selection-controls">
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={handleSelectAllSources}
-                    disabled={readySources.length === 0}
-                  >
-                    Select all
-                  </button>
-                  <span>&bull;</span>
-                  <button
-                    type="button"
-                    className="btn-link"
-                    onClick={handleClearSources}
-                    disabled={selectedSourceIds.length === 0}
-                  >
-                    Clear
-                  </button>
-                </div>
-              </div>
-
-
-              {sources.length > 2 && (
-                <div className="source-search-container">
-                  <input
-                    type="text"
-                    placeholder="Search sources..."
-                    value={sourceSearch}
-                    onChange={(e) => setSourceSearch(e.target.value)}
-                    className="source-search-input"
-                  />
-                </div>
-              )}
-
-              <div className="sources-list-scroll">
-                {sources.length === 0 ? (
-                  <div className="sidebar-empty-box"><EmptyStateIcon />
-                    <p>No materials added yet.</p>
-                    <p className="subtext">Upload PDFs, notes, or web articles.</p>
-                  </div>
-                ) : filteredSources.length === 0 ? (
-                  <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
-                ) : (
-                  <ul className="workspace-sources-ul">
-                    {filteredSources.map((s) => {
-                      const isReady = s.status === 'ready';
-                      const isSelected = selectedSourceIds.includes(s.id);
-
-                      return (
-                        <li key={s.id} className={`workspace-source-item ${isSelected ? 'selected' : ''}`}>
-                          <div className={`source-type-badge-icon badge-${(s.source_type || 'doc').toLowerCase()}`}>
-                            {s.source_type === 'pdf' ? (
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                                <line x1="16" y1="13" x2="8" y2="13" />
-                                <line x1="16" y1="17" x2="8" y2="17" />
-                                <polyline points="10 9 9 9 8 9" />
-                              </svg>
-                            ) : s.source_type === 'url' ? (
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <line x1="2" y1="12" x2="22" y2="12" />
-                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                              </svg>
-                            ) : (
-                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                <polyline points="14 2 14 8 20 8" />
-                                <line x1="16" y1="13" x2="8" y2="13" />
-                                <line x1="16" y1="17" x2="8" y2="17" />
-                              </svg>
-                            )}
-                          </div>
-
-                          <div
-                            className="source-info-col"
-                            onClick={() => isReady && handleToggleSource(s.id)}
-                            onKeyDown={(e) => {
-                              if (e.target === e.currentTarget && isReady && (e.key === 'Enter' || e.key === ' ')) {
-                                e.preventDefault();
-                                handleToggleSource(s.id);
-                              }
-                            }}
-                            role="button"
-                            tabIndex={0}
-                          >
-                            <div className="source-title-row">
-                              <span className="source-title-text" title={s.title}>
-                                {s.title}
-                              </span>
-                              {(() => {
-                                const supersededInfo =
-                                  supersededSourcesMap[normalizeFileName(s.file_name)] ||
-                                  supersededSourcesMap[normalizeFileName(s.title)];
-                                if (!supersededInfo) return null;
-                                return (
-                                  <span
-                                    className="source-superseded-tag"
-                                    data-testid="source-superseded-tag"
-                                    title={`Superseded by ${formatSourceTitle(supersededInfo.supersededBy, sources)}`}
-                                  >
-                                    Superseded
-                                  </span>
-                                );
-                              })()}
-                            </div>
-                            <div className={`source-meta-row ${isReady ? "is-ready" : ""}`}>
-                              <span className="source-type-tag">{s.source_type}</span>
-                              {isReady ? (
-                                <span>
-                                  {s.page_count} {s.page_count === 1 ? 'page' : 'pages'} &bull; Ready
-                                </span>
-                              ) : s.status === 'processing' ? (
-                                <span className="status-processing">Processing...</span>
-                              ) : (
-                                <span className="status-failed" title={s.error_message || ''}>
-                                  Failed
-                                </span>
-                              )}
-
-                              <div className="source-actions-col">
-                                <button
-                                  type="button"
-                                  className="source-item-btn"
-                                  title="View content"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleOpenSourceViewer(s);
-                                  }}
-                                  aria-label={`View ${s.title}`}
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                                    <circle cx="12" cy="12" r="3" />
-                                  </svg>
-                                </button>
-                                <button
-                                  type="button"
-                                  className="source-item-btn"
-                                  title="Rename source"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setRenamingSource(s);
-                                    setNewSourceTitle(s.title);
-                                  }}
-                                  aria-label={`Rename ${s.title}`}
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                                  </svg>
-                                </button>
-                                {s.status === 'failed' && (s.source_type === 'url' || s.source_type === 'pasted') ? (
-                                  <button
-                                    type="button"
-                                    className="source-item-btn"
-                                    title="Retry ingestion"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      onRetrySource(s.id);
-                                    }}
-                                    aria-label={`Retry ${s.title}`}
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="1 4 1 10 7 10" />
-                                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                                    </svg>
-                                  </button>
-                                ) : (
-                                  <button
-                                    type="button"
-                                    className="source-item-btn"
-                                    title="Replace file"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleTriggerReplace(s.id);
-                                    }}
-                                    aria-label={`Replace ${s.title}`}
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="23 4 23 10 17 10" />
-                                      <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-                                    </svg>
-                                  </button>
-                                )}
-                                <button
-                                  type="button"
-                                  className="source-item-btn source-delete-btn"
-                                  title="Remove source"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    if (window.confirm(`Remove source "${s.title}" from this notebook?`)) {
-                                      onDeleteSource(s.id);
-                                    }
-                                  }}
-                                  aria-label={`Delete ${s.title}`}
-                                >
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                    <polyline points="3 6 5 6 21 6" />
-                                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="source-checkbox-col">
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              disabled={!isReady}
-                              onChange={() => handleToggleSource(s.id)}
-                              aria-label={`Select ${s.title}`}
-                              data-testid={`source-checkbox-${s.id}`}
-                            />
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-
-              {/* Compact Conversation History Underneath Sources */}
-              {conversations.length > 0 && (
-                <div className="compact-conversations-shelf">
-                  <div className="shelf-header">
-                    <span className="shelf-title">Recent Chats</span>
-                    <button
-                      type="button"
-                      className="shelf-new-btn"
-                      onClick={onCreateConversation}
-                      title="New chat"
-                    >
-                      + New
-                    </button>
-                  </div>
-                  <ul className="shelf-conv-list">
-                    {conversations.slice(0, 4).map((c) => {
-                      const isActive = c.id === activeConversationId;
-                      return (
-                        <li
-                          key={c.id}
-                          className={`shelf-conv-item ${isActive ? 'active' : ''}`}
-                          onClick={() => onSelectConversation(c.id)}
-                          tabIndex={0}
-                          role="button"
-                          onKeyDown={(e) => {
-                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                              e.preventDefault();
-                              onSelectConversation(c.id);
-                            }
-                          }}
-                          title={c.title}
-                        >
-                          <span className="shelf-conv-title">{c.title}</span>
-                          <span className="shelf-conv-count">
-                            {c.message_count ? `${c.message_count} msgs` : 'Empty'}
-                          </span>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 2: CONVERSATIONS (Full Chat History) */}
-          {sidebarTab === 'conversations' && (
-            <div className="sidebar-tab-content">
-              <button
-                type="button"
-                className="btn btn-secondary btn-full btn-new-conv"
-                onClick={onCreateConversation}
-                data-testid="new-conversation-btn"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+          {/* SOURCES: add / note actions, link search, selection row, then the list (or the drop zone when empty) */}
+          <div
+            className={`sidebar-tab-content sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
+            onDragOver={(e) => {
+              if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+              e.preventDefault();
+              setIsPanelDragOver(true);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsPanelDragOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsPanelDragOver(false);
+              const files = Array.from(e.dataTransfer?.files || []);
+              if (files.length > 0) {
+                setDroppedFiles(files);
+                setIsAddSourceOpen(true);
+              }
+            }}
+          >
+            <div className="sources-action-row">
+              <button type="button" className="sources-pill-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span>New conversation</span>
+                <span>Add sources</span>
               </button>
-              <ul className="workspace-conv-ul">
-                {conversations.map((c) => {
-                  const isActive = c.id === activeConversationId;
-                  return (
-                    <li
-                      key={c.id}
-                      className={`workspace-conv-item ${isActive ? 'active' : ''}`}
-                      onClick={() => onSelectConversation(c.id)}
-                          tabIndex={0}
-                          role="button"
-                          onKeyDown={(e) => {
-                            if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
-                              e.preventDefault();
-                              onSelectConversation(c.id);
-                            }
-                          }}
-                    >
-                      <div className="conv-title-col" title={c.title}>
-                        <span className="conv-title-text">{c.title}</span>
-                        <span className="conv-meta-text">
-                          {c.message_count ? `${c.message_count} messages` : 'Empty chat'}
-                        </span>
-                      </div>
-                      <div className="conv-actions-col" onClick={(e) => e.stopPropagation()}>
-                        <button
-                          type="button"
-                          className="source-item-btn"
-                          title="Rename conversation"
-                          onClick={() => {
-                            const newName = window.prompt('Rename conversation:', c.title);
-                            if (newName && newName.trim()) {
-                              onRenameConversation(c.id, newName.trim());
-                            }
-                          }}
-                          aria-label="Rename conversation"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          className="source-item-btn source-delete-btn"
-                          title="Delete conversation"
-                          onClick={() => {
-                            if (window.confirm('Delete this conversation thread?')) {
-                              onDeleteConversation(c.id);
-                            }
-                          }}
-                          aria-label="Delete conversation"
-                        >
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                          </svg>
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
+              <button type="button" className="sources-pill-btn" onClick={() => setIsCreateNoteOpen(true)} data-testid="create-note-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Create note</span>
+              </button>
             </div>
-          )}
 
-          {/* Left Panel Footer: Subject Settings */}
-          <div className="sidebar-bottom-bar">
-            <button
-              type="button"
-              className="sidebar-settings-link"
-              onClick={() => setIsSettingsOpen(true)}
-              title="Notebook Settings"
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1z" />
-              </svg>
-              <span>Notebook Settings</span>
-            </button>
+            <form className="sources-web-search" role="search" aria-label="Add a web page as a source" onSubmit={handleWebSearch}>
+              <input
+                type="search"
+                className="sources-web-input"
+                placeholder="Search the web for new sources"
+                aria-label="Search the web for new sources"
+                value={webQuery}
+                onChange={(e) => { setWebQuery(e.target.value); if (webHint) setWebHint(''); }}
+              />
+              <div className="sources-web-controls">
+                <label className="sources-select">
+                  <span className="sr-only">Where to search</span>
+                  <select defaultValue="web" aria-label="Where to search">
+                    <option value="web">Web</option>
+                  </select>
+                </label>
+                <label className="sources-select">
+                  <span className="sr-only">Research depth</span>
+                  <select defaultValue="fast" aria-label="Research depth">
+                    <option value="fast">Fast Research</option>
+                    <option value="deep" disabled>Deep Research (soon)</option>
+                  </select>
+                </label>
+                <button type="submit" className="sources-web-go" aria-label="Add this link as a source" title="Add this link as a source">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="13 6 19 12 13 18" />
+                  </svg>
+                </button>
+              </div>
+              {webHint && <p className="sources-web-hint" role="status">{webHint}</p>}
+            </form>
+
+            {sources.length === 0 ? (
+              <button
+                type="button"
+                className="sources-drop-zone"
+                onClick={() => setIsAddSourceOpen(true)}
+                data-testid="sources-drop-zone"
+              >
+                <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <span className="sources-drop-title">Drop PDFs here or click to browse</span>
+                <span className="sources-drop-hint">PDFs, links, pasted text</span>
+              </button>
+            ) : (
+              <>
+                <div className="sources-select-row">
+                  <button
+                    type="button"
+                    className={`sources-filter-btn ${isFilterOpen ? 'active' : ''}`}
+                    aria-label="Filter sources by name"
+                    aria-pressed={isFilterOpen}
+                    title="Filter sources by name"
+                    onClick={() => { setIsFilterOpen((open) => !open); setSourceSearch(''); }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <line x1="4" y1="7" x2="20" y2="7" />
+                      <line x1="7" y1="12" x2="17" y2="12" />
+                      <line x1="10" y1="17" x2="14" y2="17" />
+                    </svg>
+                  </button>
+                  <label className="sources-select-all">
+                    <span>Select all</span>
+                    <input
+                      type="checkbox"
+                      ref={selectAllRef}
+                      className="source-row-checkbox"
+                      checked={allReadySelected}
+                      disabled={readySources.length === 0}
+                      onChange={() => (allReadySelected ? handleClearSources() : handleSelectAllSources())}
+                      aria-label="Select all sources"
+                    />
+                  </label>
+                </div>
+                <p className="sr-only" aria-live="polite">
+                  {selectedSourceIds.length} of {readySources.length} selected
+                </p>
+
+                {isFilterOpen && (
+                  <div className="source-search-container">
+                    <input
+                      type="text"
+                      placeholder="Filter sources..."
+                      aria-label="Filter sources by name"
+                      value={sourceSearch}
+                      onChange={(e) => setSourceSearch(e.target.value)}
+                      className="source-search-input"
+                      autoFocus
+                    />
+                  </div>
+                )}
+
+                <div className="sources-list-scroll">
+                  {filteredSources.length === 0 ? (
+                    <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
+                  ) : (
+                    <ul className="workspace-sources-ul">
+                      {filteredSources.map((s) => (
+                        <SourceRow
+                          key={s.id}
+                          source={s}
+                          isSelected={selectedSourceIds.includes(s.id)}
+                          onToggle={() => handleToggleSource(s.id)}
+                          onView={() => handleOpenSourceViewer(s)}
+                          onRename={() => {
+                            setRenamingSource(s);
+                            setNewSourceTitle(s.title);
+                          }}
+                          onRetry={() => onRetrySource(s.id)}
+                          onReplace={() => handleTriggerReplace(s.id)}
+                          onRemove={() => {
+                            if (window.confirm(`Remove source "${s.title}" from this notebook?`)) {
+                              onDeleteSource(s.id);
+                            }
+                          }}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </>
+            )}
           </div>
         </aside>
+          <div
+            className="sources-resize-handle"
+            role="separator"
+            aria-orientation="vertical"
+            aria-label="Resize sources panel"
+            title="Drag to resize. Double-click to reset."
+            onPointerDown={handleResizeStart}
+            onPointerMove={handleResizeMove}
+            onPointerUp={handleResizeEnd}
+            onPointerCancel={handleResizeEnd}
+            onDoubleClick={handleResizeReset}
+          />
+        </div>
 
         {/* --------------------------------------------------------------------
             2. CENTER CHAT AREA: ChatGPT / Claude Reading Experience
             -------------------------------------------------------------------- */}
-        <main className="workspace-main-area">
-          {/* Floating Reopen Button for Left Panel */}
-          {isLeftCollapsed && (
-            <button
-              type="button"
-              className="floating-reopen-btn left-reopen"
-              onClick={() => setIsLeftCollapsed(false)}
-              title="Open sources panel"
-              aria-label="Open sources panel"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-              <span>Sources ({sources.length})</span>
-            </button>
-          )}
-
-          {/* Floating Reopen Button for Right Panel */}
-          {isRightCollapsed && (
-            <button
-              type="button"
-              className="floating-reopen-btn right-reopen"
-              onClick={() => setIsRightCollapsed(false)}
-              title="Open tools panel"
-              aria-label="Open tools panel"
-            >
-              <span>Tools</span>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
-            </button>
-          )}
-
+        <section className="workspace-main-area" aria-label="Chat" ref={chatAreaRef}>
+          <div className="workspace-chat-context">
+            <span className="selected-sources-pill" data-testid="selected-sources-pill">
+              {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
+            </span>
+          </div>
           {/* Conversation Thread */}
           {historyLoading ? (
             <div className="empty-state-scroll-container" role="status" aria-live="polite" aria-label="Loading conversation history" data-testid="chat-history-loading">
@@ -1162,6 +964,28 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     <span>Add course materials</span>
                   </button>
                 </div>
+                {/* One-click sample notebook for guest mode */}
+                {(!currentUser || currentUser.is_guest) && (
+                  <div style={{ marginTop: '14px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={async () => {
+                        try {
+                          const sampleSubj = await api.createSampleNotebook();
+                          if (sampleSubj && sampleSubj.id) {
+                            window.location.href = `/subject/${sampleSubj.id}`;
+                          }
+                        } catch (err: any) {
+                          alert(err.message || 'Failed to create sample notebook');
+                        }
+                      }}
+                      data-testid="create-sample-notebook-btn"
+                    >
+                      Explore sample notebook
+                    </button>
+                  </div>
+                )}
                 <div className="zero-sources-hints">
                   <span>PDF documents</span>
                   <span>&bull;</span>
@@ -1232,11 +1056,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   loading={chatLoading}
                   onStop={onStopGeneration}
                   selectedSourceCount={selectedSourceIds.length}
-                  mode={composerMode}
-                  onModeChange={setComposerMode}
-                  proofDraft={proofDraft}
-                  setProofDraft={setProofDraft}
-                  onSubmitProof={handleSubmitProof}
                 />
               </div>
             </div>
@@ -1249,63 +1068,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       <div key={msg.id} className={`thread-turn turn-${msg.role}`}>
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
-                            {msg.proof_check && msg.proof_check.statement ? (
-                              <div className="user-message-bubble user-proof-submission-view" data-testid="user-proof-submission">
-                                <div className="user-proof-statement">
-                                  <strong>What I&rsquo;m proving:</strong> {msg.proof_check.statement}
-                                </div>
-                                {msg.proof_check.format === 'loop_invariant' ? (
-                                  <>
-                                    {msg.proof_check.initialization && (
-                                      <div className="user-proof-section-box">
-                                        <span className="user-proof-section-title">Initialization</span>
-                                        <div className="user-proof-section-body">{msg.proof_check.initialization}</div>
-                                      </div>
-                                    )}
-                                    {msg.proof_check.maintenance && (
-                                      <div className="user-proof-section-box">
-                                        <span className="user-proof-section-title">Maintenance</span>
-                                        <div className="user-proof-section-body">{msg.proof_check.maintenance}</div>
-                                      </div>
-                                    )}
-                                    {msg.proof_check.termination && (
-                                      <div className="user-proof-section-box">
-                                        <span className="user-proof-section-title">Termination</span>
-                                        <div className="user-proof-section-body">{msg.proof_check.termination}</div>
-                                      </div>
-                                    )}
-                                  </>
-                                ) : (
-                                  msg.proof_check.body && (
-                                    <div className="user-proof-section-box">
-                                      <span className="user-proof-section-title">Proof Body</span>
-                                      <div className="user-proof-section-body">{msg.proof_check.body}</div>
-                                    </div>
-                                  )
-                                )}
-                                <button
-                                  type="button"
-                                  className="proof-copy-latex-btn"
-                                  onClick={() => handleCopyLatex(msg.id, msg.proof_check)}
-                                  data-testid="copy-as-latex-btn"
-                                  aria-label="Copy proof as LaTeX"
-                                >
-                                  {copiedLatexId === msg.id ? (
-                                    <>
-                                      <span aria-hidden="true">✓</span>
-                                      <span>Copied LaTeX</span>
-                                    </>
-                                  ) : (
-                                    <>
-                                      <span aria-hidden="true">📋</span>
-                                      <span>Copy as LaTeX</span>
-                                    </>
-                                  )}
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="user-message-bubble">{msg.content}</div>
-                            )}
+                            <div className="user-message-bubble">{msg.content}</div>
                             {(() => {
                               const msgIdx = messages.findIndex((m) => m.id === msg.id);
                               const nextMsg = messages[msgIdx + 1];
@@ -1383,33 +1146,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     </svg>
                                     <span>Retry</span>
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="answer-action-btn"
-                                    onClick={() => {
-                                      const prevUserContent = messages
-                                        .slice(0, messages.findIndex((m) => m.id === msg.id))
-                                        .reverse()
-                                        .find((m) => m.role === 'user')?.content;
-                                      setRetrievalMessageContext({
-                                        messageId: msg.id,
-                                        question: prevUserContent,
-                                      });
-                                      setRightPanelTab('retrieval');
-                                      setIsRightCollapsed(false);
-                                      setIsRightOpenMobile(true);
-                                    }}
-                                    title="View retrieval vector map"
-                                    aria-label="View retrieval map"
-                                    data-testid={`retrieval-btn-${msg.id}`}
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <circle cx="12" cy="12" r="3" />
-                                      <circle cx="19" cy="5" r="2" />
-                                      <circle cx="5" cy="19" r="2" />
-                                    </svg>
-                                    <span>Retrieval</span>
-                                  </button>
                                 </div>
 
                                 {msg.retrieved && msg.retrieved.length > 0 && (
@@ -1462,49 +1198,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   return null;
                                 })()}
 
-                                {/* Resolved conflict summary banner above answer */}
-                                {msg.conflicts && msg.conflicts.some((c) => Boolean(c.resolution)) && (
-                                  <div className="conflict-summary-banner" data-testid="conflict-summary-banner" role="status">
-                                    <span className="summary-banner-icon" aria-hidden="true">💡</span>
-                                    <span className="summary-banner-text">
-                                      <strong>Heads up:</strong>{' '}
-                                      {msg.conflicts
-                                        .filter((c) => Boolean(c.resolution))
-                                        .map((c, i) => (
-                                          <span key={i}>
-                                            {formatSourceTitle(c.resolution!.current_file, sources)} updates the {c.topic}.{' '}
-                                          </span>
-                                        ))}
-                                    </span>
-                                  </div>
-                                )}
-
-                                {/* Convention Pills above answer */}
-                                {msg.conventions && msg.conventions.length > 0 && (
-                                  <div className="conventions-pills-row" data-testid="conventions-pills">
-                                    {msg.conventions.map((conv, idx) => {
-                                      const isConvActive =
-                                        selectedCitation?.messageId === msg.id &&
-                                        normalizeFileName(selectedCitation?.file) === normalizeFileName(conv.file) &&
-                                        selectedCitation?.page === conv.page;
-
-                                      return (
-                                        <button
-                                          key={idx}
-                                          type="button"
-                                          className={`convention-pill ${conv.adopted ? 'adopted' : ''} ${isConvActive ? 'active' : ''}`}
-                                          onClick={() => handleSelectCitation({ file: conv.file, page: conv.page }, msg.id)}
-                                          data-testid={`convention-pill-${idx}`}
-                                          aria-label={`Convention: ${conv.value} in ${formatSourceTitle(conv.file, sources)}`}
-                                        >
-                                          <span className="convention-pill-icon" aria-hidden="true">✦</span>
-                                          <span>{conv.value} &middot; {formatSourceTitle(conv.file, sources)}</span>
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-
                                 {/* Conflicts Disagreement View */}
                                 {msg.conflict_detected && msg.conflicts && msg.conflicts.length > 0 && (
                                   <div className="conflict-container" data-testid="conflict-view">
@@ -1518,263 +1211,41 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     </div>
                                     {msg.conflicts.map((conf, cIdx) => (
                                       <div key={cIdx} className="conflict-topic-group">
-                                        <div className="conflict-topic">Conflict Topic: {conf.topic}</div>
+                                        <div className="conflict-topic">Topic: {conf.topic}</div>
                                         <div className="conflict-cards-row">
-                                          {conf.claims.map((claim, clIdx) => {
-                                            const isClaimActive =
-                                              selectedCitation?.messageId === msg.id &&
-                                              normalizeFileName(selectedCitation?.file) === normalizeFileName(claim.file) &&
-                                              selectedCitation?.page === claim.page;
-                                            const isCurrent =
-                                              conf.resolution &&
-                                              normalizeFileName(claim.file) === normalizeFileName(conf.resolution.current_file);
-                                            const isSuperseded =
-                                              conf.resolution &&
-                                              normalizeFileName(claim.file) !== normalizeFileName(conf.resolution.current_file);
-
-                                            return (
-                                              <div
-                                                key={clIdx}
-                                                className={`conflict-source-card ${isCurrent ? 'claim-current' : ''} ${isSuperseded ? 'claim-superseded' : ''} ${isClaimActive ? 'active' : ''}`}
-                                                onClick={() =>
-                                                  handleSelectCitation({ file: claim.file, page: claim.page }, msg.id)
-                                                }
-                                                role="button"
-                                                tabIndex={0}
-                                                onKeyDown={(e) => {
-                                                  if (e.key === 'Enter' || e.key === ' ') {
-                                                    e.preventDefault();
-                                                    handleSelectCitation({ file: claim.file, page: claim.page }, msg.id);
-                                                  }
-                                                }}
-                                                aria-label={`Claim: ${claim.value} in ${claim.file} page ${claim.page}`}
-                                              >
-                                                <div className="conflict-card-badges">
-                                                  {isCurrent && (
-                                                    <span className="conflict-badge conflict-badge-current" data-testid="badge-current">
-                                                      <span className="badge-dot" aria-hidden="true" />
-                                                      Current
-                                                    </span>
-                                                  )}
-                                                  {isSuperseded && (
-                                                    <span className="conflict-badge conflict-badge-superseded" data-testid="badge-superseded">
-                                                      Superseded
-                                                    </span>
-                                                  )}
-                                                </div>
-                                                <div className="source-value">&ldquo;{claim.value}&rdquo;</div>
-                                                {isCurrent && conf.resolution?.evidence && (
-                                                  <div className="conflict-evidence" data-testid="conflict-evidence">
-                                                    <span className="evidence-label">Evidence:</span> {conf.resolution.evidence}
-                                                  </div>
-                                                )}
-                                                <div className="source-meta">
-                                                  <div>{formatSourceTitle(claim.file, sources)} &middot; p. {claim.page}</div>
-                                                  {claim.upload_date && <div><strong>Uploaded:</strong> {claim.upload_date}</div>}
-                                                </div>
+                                          {conf.claims.map((claim, clIdx) => (
+                                            <div
+                                              key={clIdx}
+                                              className="conflict-source-card"
+                                              onClick={() =>
+                                                handleSelectCitation({ file: claim.file, page: claim.page }, msg.id)
+                                              }
+                                            >
+                                              <div className="source-value">&ldquo;{claim.value}&rdquo;</div>
+                                              <div className="source-meta">
+                                                {claim.file} (Page {claim.page})
                                               </div>
-                                            );
-                                          })}
+                                            </div>
+                                          ))}
                                         </div>
-                                        {!conf.resolution && (
-                                          <div className="conflict-unresolved-note" data-testid="conflict-unresolved-note">
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                              <circle cx="12" cy="12" r="10" />
-                                              <line x1="12" y1="16" x2="12" y2="12" />
-                                              <line x1="12" y1="8" x2="12.01" y2="8" />
-                                            </svg>
-                                            <span>The sources don&rsquo;t say which is newer. Check with your instructor.</span>
-                                          </div>
-                                        )}
                                       </div>
                                     ))}
                                   </div>
                                 )}
 
-                                {/* Convention Mismatch State */}
-                                {!msg.abstained && msg.convention_mismatches && msg.convention_mismatches.length > 0 && (
-                                  <div className="convention-mismatch-container" data-testid="convention-mismatch-view">
-                                    <div className="convention-mismatch-header">
-                                      <svg
-                                        className="convention-icon-svg"
-                                        width="20"
-                                        height="20"
-                                        viewBox="0 0 24 24"
-                                        fill="none"
-                                        stroke="currentColor"
-                                        strokeWidth="2"
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        aria-hidden="true"
-                                      >
-                                        <circle cx="12" cy="12" r="10" />
-                                        <line x1="12" y1="16" x2="12" y2="12" />
-                                        <line x1="12" y1="8" x2="12.01" y2="8" />
-                                      </svg>
-                                      <h3 className="convention-mismatch-heading">Convention Mismatch Noted</h3>
-                                    </div>
-                                    {msg.convention_mismatches.map((mismatch, mIdx) => {
-                                      const summaryParts = mismatch.conventions.map(
-                                        (c) => `${formatSourceTitle(c.file, sources)} uses ${c.value}`
-                                      );
-                                      const summaryText =
-                                        summaryParts.join('; ') +
-                                        (mismatch.adopted_file
-                                          ? `. This answer follows ${formatSourceTitle(mismatch.adopted_file, sources)}.`
-                                          : '.');
+                                {/* Grounded Answer Body */}
+                                <div className="answer-text">
+                                  <MarkdownRenderer
+                                    content={msg.content}
+                                    citations={msg.citations || []}
+                                    isThisMessageSelected={selectedCitation?.messageId === msg.id}
+                                    selectedCitation={selectedCitation}
+                                    onSelectCitation={(cit) => handleSelectCitation(cit, msg.id)}
+                                  />
+                                </div>
 
-                                      return (
-                                        <div key={mIdx} className="convention-mismatch-group">
-                                          <div className="convention-mismatch-topic">
-                                            Topic: {formatConventionTopic(mismatch.topic)}
-                                          </div>
-                                          <p className="convention-mismatch-summary" data-testid="convention-mismatch-summary">
-                                            {summaryText}
-                                          </p>
-                                          <div className="convention-cards-row">
-                                            {mismatch.conventions.map((conv, cIdx) => {
-                                              const isConvActive =
-                                                selectedCitation?.messageId === msg.id &&
-                                                normalizeFileName(selectedCitation?.file) === normalizeFileName(conv.file) &&
-                                                selectedCitation?.page === conv.page;
-
-                                              return (
-                                                <div
-                                                  key={cIdx}
-                                                  className={`convention-card ${conv.adopted ? 'adopted' : ''} ${isConvActive ? 'active' : ''}`}
-                                                  onClick={() => handleSelectCitation({ file: conv.file, page: conv.page }, msg.id)}
-                                                  role="button"
-                                                  tabIndex={0}
-                                                  onKeyDown={(e) => {
-                                                    if (e.key === 'Enter' || e.key === ' ') {
-                                                      e.preventDefault();
-                                                      handleSelectCitation({ file: conv.file, page: conv.page }, msg.id);
-                                                    }
-                                                  }}
-                                                  aria-label={`Convention: ${conv.value} in ${formatSourceTitle(conv.file, sources)} page ${conv.page}`}
-                                                >
-                                                  <div className="convention-badge-row">
-                                                    {conv.adopted ? (
-                                                      <span className="badge-adopted" data-testid="badge-adopted">
-                                                        ✓ Followed in answer
-                                                      </span>
-                                                    ) : (
-                                                      <span className="badge-alternative">Alternative</span>
-                                                    )}
-                                                  </div>
-                                                  <div className="convention-value">&ldquo;{conv.value}&rdquo;</div>
-                                                  <div className="convention-meta">
-                                                    {formatSourceTitle(conv.file, sources)} &middot; p. {conv.page}
-                                                  </div>
-                                                </div>
-                                              );
-                                            })}
-                                          </div>
-                                        </div>
-                                      );
-                                    })}
-                                  </div>
-                                )}
-
-                                {/* Grounded Answer Body or Structured Proof Check */}
-                                {msg.proof_check?.sections && msg.proof_check.sections.length > 0 ? (
-                                  <div className="proof-check-container" data-testid="proof-check-view">
-                                    {msg.proof_check.overall && (
-                                      <div className="proof-check-overall-banner" data-testid="proof-overall-banner">
-                                        {msg.proof_check.overall}
-                                      </div>
-                                    )}
-                                    <div className="proof-sections-list">
-                                      {msg.proof_check.sections.map((sec, sIdx) => {
-                                        const hintKey = `${msg.id}-${sec.part}-${sIdx}`;
-                                        const isHintOpen = Boolean(expandedHints[hintKey]);
-                                        const partLabel =
-                                          sec.part.charAt(0).toUpperCase() + sec.part.slice(1);
-
-                                        return (
-                                          <div key={sIdx} className="proof-section-card" data-testid={`proof-section-${sec.part}`}>
-                                            <div className="proof-section-header">
-                                              <span className="proof-section-part-name">{partLabel}</span>
-                                              <span
-                                                className={`proof-verdict-badge verdict-${sec.verdict}`}
-                                                data-testid={`verdict-${sec.part}`}
-                                              >
-                                                {sec.verdict === 'correct' && '✓ Correct'}
-                                                {sec.verdict === 'partially_correct' && '⚠ Partially Correct'}
-                                                {sec.verdict === 'incorrect' && '✕ Incorrect'}
-                                                {sec.verdict === 'missing' && '○ Missing'}
-                                              </span>
-                                            </div>
-                                            <div className="proof-section-feedback">{sec.feedback}</div>
-                                            {sec.citations && sec.citations.length > 0 && (
-                                              <div className="proof-citations-row">
-                                                {sec.citations.map((cit, cIdx) => {
-                                                  const isActive =
-                                                    selectedCitation?.messageId === msg.id &&
-                                                    normalizeFileName(selectedCitation.file) === normalizeFileName(cit.file) &&
-                                                    selectedCitation.page === cit.page;
-
-                                                  return (
-                                                    <button
-                                                      key={cIdx}
-                                                      type="button"
-                                                      className={`chip ${isActive ? 'active' : ''}`}
-                                                      onClick={() => handleSelectCitation(cit, msg.id)}
-                                                      data-testid={`proof-citation-${sec.part}-${cIdx}`}
-                                                    >
-                                                      <span className="chip-badge">[{cIdx + 1}]</span>
-                                                      <span>
-                                                        {cit.file} p.{cit.page}
-                                                      </span>
-                                                    </button>
-                                                  );
-                                                })}
-                                              </div>
-                                            )}
-                                            {sec.hint && (
-                                              <div className="proof-hint-wrapper">
-                                                <button
-                                                  type="button"
-                                                  className="proof-hint-toggle-btn"
-                                                  onClick={() => toggleHint(hintKey)}
-                                                  data-testid={`hint-toggle-${sec.part}`}
-                                                  aria-expanded={isHintOpen}
-                                                >
-                                                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                                    {isHintOpen ? (
-                                                      <polyline points="18 15 12 9 6 15" />
-                                                    ) : (
-                                                      <polyline points="6 9 12 15 18 9" />
-                                                    )}
-                                                  </svg>
-                                                  <span>{isHintOpen ? 'Hide hint' : 'Show hint'}</span>
-                                                </button>
-                                                {isHintOpen && (
-                                                  <div className="proof-hint-content" data-testid={`hint-content-${sec.part}`}>
-                                                    💡 {sec.hint}
-                                                  </div>
-                                                )}
-                                              </div>
-                                            )}
-                                          </div>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="answer-text">
-                                    <MarkdownRenderer
-                                      content={msg.content}
-                                      citations={msg.citations || []}
-                                      isThisMessageSelected={selectedCitation?.messageId === msg.id}
-                                      selectedCitation={selectedCitation}
-                                      onSelectCitation={(cit) => handleSelectCitation(cit, msg.id)}
-                                    />
-                                  </div>
-                                )}
-
-                                {/* Citation Chips Row (for regular answers) */}
-                                {!msg.proof_check?.sections && msg.citations && msg.citations.length > 0 && (
+                                {/* Citation Chips Row */}
+                                {msg.citations && msg.citations.length > 0 && (
                                   <div className="citations-section">
                                     <div className="chips-row">
                                       {msg.citations.map((cit, cIdx) => {
@@ -1855,33 +1326,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     </svg>
                                     <span>Retry</span>
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="answer-action-btn"
-                                    onClick={() => {
-                                      const prevUserContent = messages
-                                        .slice(0, messages.findIndex((m) => m.id === msg.id))
-                                        .reverse()
-                                        .find((m) => m.role === 'user')?.content;
-                                      setRetrievalMessageContext({
-                                        messageId: msg.id,
-                                        question: prevUserContent,
-                                      });
-                                      setRightPanelTab('retrieval');
-                                      setIsRightCollapsed(false);
-                                      setIsRightOpenMobile(true);
-                                    }}
-                                    title="View retrieval vector map"
-                                    aria-label="View retrieval map"
-                                    data-testid={`retrieval-btn-${msg.id}`}
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <circle cx="12" cy="12" r="3" />
-                                      <circle cx="19" cy="5" r="2" />
-                                      <circle cx="5" cy="19" r="2" />
-                                    </svg>
-                                    <span>Retrieval</span>
-                                  </button>
                                 </div>
                               </div>
                             )}
@@ -1960,53 +1404,46 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 loading={chatLoading}
                 onStop={onStopGeneration}
                 selectedSourceCount={selectedSourceIds.length}
-                mode={composerMode}
-                onModeChange={setComposerMode}
-                proofDraft={proofDraft}
-                setProofDraft={setProofDraft}
-                onSubmitProof={handleSubmitProof}
               />
             </>
           )}
-        </main>
+        </section>
 
         {/* --------------------------------------------------------------------
             3. RIGHT CONTEXTUAL PANEL: Supporting Passage OR Saved Notes
             -------------------------------------------------------------------- */}
         <aside
-          className={`workspace-right-panel ${isRightCollapsed ? 'panel-collapsed' : ''} ${
-            isRightOpenMobile ? 'right-open' : ''
-          }`}
+          className={`workspace-right-panel ${!isRightCollapsed ? 'right-open' : ''}`}
+          id="workspace-inspector-panel" hidden={isRightCollapsed} ref={rightPanelRef} tabIndex={-1}
           data-testid="passage-pane"
           aria-label="Inspector and Notes Panel"
         >
-          {/* Right Panel Header: "Tools" home, or a back arrow into a tool */}
+          {/* Right Panel Header with Dual Mode Switcher */}
           <div className="right-panel-header">
-            {rightPanelTab === 'tools' ? (
-              <h2 className="right-panel-title">Tools</h2>
-            ) : (
-              <div className="right-panel-title-row">
-                <button
-                  type="button"
-                  className="panel-back-btn"
-                  onClick={() => setRightPanelTab('tools')}
-                  aria-label="Back to tools"
-                  title="Back to tools"
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="19" y1="12" x2="5" y2="12" />
-                    <polyline points="12 19 5 12 12 5" />
-                  </svg>
-                </button>
-                <h2 className="right-panel-title">
-                  {rightPanelTab === 'passage'
-                    ? 'Passage'
-                    : rightPanelTab === 'retrieval'
-                    ? 'Retrieval map'
-                    : `Notes (${notes.length})`}
-                </h2>
-              </div>
-            )}
+            <div className="sidebar-segment-switcher">
+              <button
+                type="button"
+                className={`segment-btn ${rightPanelTab === 'passage' ? 'active' : ''}`}
+                onClick={() => setRightPanelTab('passage')}
+              >
+                Passage
+              </button>
+              <button
+                type="button"
+                className={`segment-btn ${rightPanelTab === 'notes' ? 'active' : ''}`}
+                onClick={() => setRightPanelTab('notes')}
+              >
+                Notes ({notes.length})
+              </button>
+              <button
+                type="button"
+                className={`segment-btn ${rightPanelTab === 'retrieval' ? 'active' : ''}`}
+                onClick={() => setRightPanelTab('retrieval')}
+                data-testid="right-panel-tab-retrieval"
+              >
+                Retrieval
+              </button>
+            </div>
 
             <div className="right-header-actions">
               {/* Citation Step Controls when in Passage mode */}
@@ -2046,10 +1483,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <button
                 type="button"
                 className="panel-collapse-btn"
-                onClick={() => {
-                  setIsRightCollapsed(true);
-                  setIsRightOpenMobile(false);
-                }}
+                onClick={closeRightPanel}
                 title="Collapse inspector panel"
                 aria-label="Close source panel"
               >
@@ -2060,133 +1494,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               </button>
             </div>
           </div>
-
-          {/* RIGHT PANEL CONTENT: TOOLS HOME */}
-          {rightPanelTab === 'tools' && (
-            <div className="right-panel-body tools-home">
-              <div className="tools-grid" role="list">
-                <button type="button" role="listitem" className="tool-tile" onClick={() => setRightPanelTab('passage')}>
-                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="16" y1="13" x2="8" y2="13" />
-                    <line x1="16" y1="17" x2="8" y2="17" />
-                  </svg>
-                  <span className="tool-tile-label">Passage</span>
-                </button>
-                <button type="button" role="listitem" className="tool-tile" onClick={() => setRightPanelTab('notes')}>
-                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <path d="M12 20h9" />
-                    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-                  </svg>
-                  <span className="tool-tile-label">Notes</span>
-                  {notes.length > 0 && <span className="tool-tile-count">{notes.length}</span>}
-                </button>
-                <button
-                  type="button"
-                  role="listitem"
-                  className="tool-tile tool-tile-warning"
-                  onClick={() => scrollToFirst('[data-testid="conflict-view"]')}
-                  disabled={conflictMessageCount === 0}
-                  title={conflictMessageCount === 0 ? 'No conflicting sources in this chat yet' : 'Jump to the first conflict'}
-                >
-                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-                    <line x1="12" y1="9" x2="12" y2="13" />
-                    <line x1="12" y1="17" x2="12.01" y2="17" />
-                  </svg>
-                  <span className="tool-tile-label">Conflicts</span>
-                  {conflictMessageCount > 0 && <span className="tool-tile-count">{conflictMessageCount}</span>}
-                </button>
-                <button
-                  type="button"
-                  role="listitem"
-                  className="tool-tile tool-tile-info"
-                  onClick={() => scrollToFirst('[data-testid="convention-mismatch-view"]')}
-                  disabled={conventionMessageCount === 0}
-                  title={conventionMessageCount === 0 ? 'No notation differences in this chat yet' : 'Jump to the first notation difference'}
-                >
-                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <polyline points="16 3 21 3 21 8" />
-                    <line x1="4" y1="20" x2="21" y2="3" />
-                    <polyline points="21 16 21 21 16 21" />
-                    <line x1="15" y1="15" x2="21" y2="21" />
-                    <line x1="4" y1="4" x2="9" y2="9" />
-                  </svg>
-                  <span className="tool-tile-label">Conventions</span>
-                  {conventionMessageCount > 0 && <span className="tool-tile-count">{conventionMessageCount}</span>}
-                </button>
-                <button
-                  type="button"
-                  role="listitem"
-                  className={`tool-tile ${composerMode === 'proof' ? 'active' : ''}`}
-                  onClick={() => {
-                    setComposerMode('proof');
-                    setIsRightOpenMobile(false);
-                  }}
-                  title="Check a proof attempt against course materials"
-                  data-testid="tool-tile-proof-check"
-                >
-                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <polyline points="9 11 12 14 22 4" />
-                    <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-                  </svg>
-                  <span className="tool-tile-label">Proof check</span>
-                </button>
-                <button
-                  type="button"
-                  role="listitem"
-                  className="tool-tile"
-                  onClick={() => setRightPanelTab('retrieval')}
-                  title="View 2D semantic embedding projection of course materials"
-                  data-testid="tool-tile-retrieval-map"
-                >
-                  <svg className="tool-tile-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <circle cx="12" cy="12" r="3" />
-                    <circle cx="19" cy="5" r="2" />
-                    <circle cx="5" cy="19" r="2" />
-                    <path d="M10.5 10.5L6.5 17.5" strokeOpacity="0.5" />
-                    <path d="M13.5 10.5L17.5 6.5" strokeOpacity="0.5" />
-                  </svg>
-                  <span className="tool-tile-label">Retrieval</span>
-                </button>
-              </div>
-
-              {notes.length > 0 ? (
-                <div className="tools-recent">
-                  <h3 className="tools-recent-heading">Saved notes</h3>
-                  <ul className="tools-recent-list">
-                    {notes.slice(0, 5).map((n) => (
-                      <li key={n.id}>
-                        <button
-                          type="button"
-                          className="tools-recent-item"
-                          onClick={() => {
-                            setEditingNote(n);
-                            setNoteFormTitle(n.title);
-                            setNoteFormContent(n.content);
-                            setIsCreateNoteOpen(true);
-                          }}
-                        >
-                          <span className="tools-recent-title">{n.title}</span>
-                          <span className="tools-recent-meta">
-                            {n.is_saved_answer ? 'Saved answer' : 'Note'} · {new Date(n.updated_at).toLocaleDateString()}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              ) : (
-                <div className="tools-empty">
-                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <path d="M12 3l1.9 4.6L18.5 9.5l-4.6 1.9L12 16l-1.9-4.6L5.5 9.5l4.6-1.9z" />
-                  </svg>
-                  <p>Saved notes and tool results appear here.</p>
-                </div>
-              )}
-            </div>
-          )}
 
           {/* RIGHT PANEL CONTENT: PASSAGE VIEW */}
           {rightPanelTab === 'passage' && (
@@ -2447,31 +1754,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <div className="right-panel-body retrieval-panel-body">
               <RetrievalMapView
                 subjectId={subject.id}
-                conversationId={activeConversationId}
-                messageId={retrievalMessageContext.messageId || activeMessage?.id}
-                question={
-                  retrievalMessageContext.question ||
-                  (activeMessage
-                    ? messages
-                        .slice(0, messages.findIndex((m) => m.id === activeMessage.id))
-                        .reverse()
-                        .find((m) => m.role === 'user')?.content
-                    : undefined)
-                }
-                selectedSourceIds={selectedSourceIds}
+                conversationId={activeConversationId || undefined}
                 sources={sources}
-                onSelectPassage={(file, page) => {
-                  const matchingSrc = sources.find((s) => s.file_name === file || s.title === file);
-                  handleSelectCitation(
-                    {
-                      file,
-                      page,
-                      source_id: matchingSrc?.id,
-                      source_version: matchingSrc?.version,
-                    },
-                    retrievalMessageContext.messageId || activeMessage?.id || ''
-                  );
-                }}
               />
             </div>
           )}
@@ -2484,7 +1768,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {(isAddSourceOpen || hasOpenedAddSource.current) && (
         <SourceModal
           isOpen={isAddSourceOpen}
-          onClose={() => setIsAddSourceOpen(false)}
+          initialFiles={droppedFiles}
+          initialUrl={initialUrl}
+          onClose={() => { setIsAddSourceOpen(false); setDroppedFiles([]); setInitialUrl(''); }}
           onUploadFiles={onUploadFiles}
           onPasteText={onPasteText}
           onAddUrl={onAddUrl}
@@ -2504,7 +1790,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Rename Source</h2>
-              <button type="button" className="modal-close-btn" onClick={() => setRenamingSource(null)}>
+              <button type="button" className="modal-close-btn" onClick={() => setRenamingSource(null)} aria-label="Close">
                 &times;
               </button>
             </div>
@@ -2530,9 +1816,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setRenamingSource(null)}>
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary">
                   Save
                 </button>
@@ -2548,7 +1831,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <div ref={createNoteModalRef} className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingNote ? 'Edit Note' : 'Create Note'}</h2>
-              <button type="button" className="modal-close-btn" onClick={() => setIsCreateNoteOpen(false)}>
+              <button type="button" className="modal-close-btn" onClick={() => setIsCreateNoteOpen(false)} aria-label="Close">
                 &times;
               </button>
             </div>
@@ -2571,7 +1854,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   id="note-title-input"
                   type="text"
                   required
-                  placeholder="e.g. Dijkstra vs Bellman-Ford Summary"
                   value={noteFormTitle}
                   onChange={(e) => setNoteFormTitle(e.target.value)}
                   autoFocus
@@ -2606,15 +1888,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   id="note-content-input"
                   rows={8}
                   required
-                  placeholder="Write your study notes, formulas, or reminders here..."
                   value={noteFormContent}
                   onChange={(e) => setNoteFormContent(e.target.value)}
                 />
               </div>
               <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setIsCreateNoteOpen(false)}>
-                  Cancel
-                </button>
                 <button type="submit" className="btn btn-primary">
                   {editingNote ? 'Save Changes' : 'Create Note'}
                 </button>
@@ -2630,7 +1908,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <div ref={settingsModalRef} className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Notebook Settings</h2>
-              <button type="button" className="modal-close-btn" onClick={() => setIsSettingsOpen(false)}>
+              <button type="button" className="modal-close-btn" onClick={() => setIsSettingsOpen(false)} aria-label="Close">
                 &times;
               </button>
             </div>

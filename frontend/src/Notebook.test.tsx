@@ -1,13 +1,13 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DashboardView } from './components/DashboardView';
 import { SubjectWorkspaceView } from './components/SubjectWorkspaceView';
 import { MarkdownRenderer } from './components/MarkdownRenderer';
-import { AssistantMessage } from './components/AssistantMessage';
-import { Sidebar } from './components/Sidebar';
-import { SourcePanel } from './components/SourcePanel';
-import { Subject, Source, Conversation, MessageItem, AskResponse } from './types';
+import { Subject, Source, Conversation, MessageItem } from './types';
+import { api } from './api';
+
+afterEach(() => vi.restoreAllMocks());
 
 describe('MarkdownRenderer component', () => {
   it('renders markdown text with inline citation chips and handles citation click', () => {
@@ -43,6 +43,59 @@ describe('MarkdownRenderer component', () => {
     const markdown = 'The time complexity is $O(n \\log n)$.';
     const { container } = render(<MarkdownRenderer content={markdown} />);
     expect(container.querySelector('.katex')).not.toBeNull();
+  });
+
+  it('keeps the leading symbol and leaves no stray dollar sign', () => {
+    const { container } = render(<MarkdownRenderer content={'So $T(n) = O(n \\log n)$ overall.'} />);
+    const math = container.querySelectorAll('.math-inline');
+    expect(math).toHaveLength(1);
+    expect(math[0]).toHaveAttribute('aria-label', 'T(n) = O(n \\log n)');
+    expect(container.textContent).not.toContain('$');
+  });
+
+  it('pairs dollar signs so plain words between two expressions stay text', () => {
+    const { container } = render(
+      <MarkdownRenderer content={'Split an array of size $n$ into two halves of size $n/2$.'} />
+    );
+    const math = container.querySelectorAll('.math-inline');
+    expect(math).toHaveLength(2);
+    expect(math[0]).toHaveAttribute('aria-label', 'n');
+    expect(math[1]).toHaveAttribute('aria-label', 'n/2');
+    expect(container.textContent).toContain(' into two halves of size ');
+  });
+
+  it('renders KaTeX as HTML only, so no hidden MathML copy can duplicate the text', () => {
+    const { container } = render(<MarkdownRenderer content={'Size $n$.'} />);
+    expect(container.querySelector('.katex-mathml')).toBeNull();
+    expect(container.querySelector('.katex-html')).not.toBeNull();
+  });
+
+  it('leaves prices and escaped dollars as text', () => {
+    const { container } = render(<MarkdownRenderer content={'It costs $5 and $10. Literal \\$x\\$ here.'} />);
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.textContent).toContain('It costs $5 and $10.');
+    expect(container.textContent).toContain('Literal $x$ here.');
+  });
+
+  it('never treats dollar signs inside inline code as math', () => {
+    const { container } = render(<MarkdownRenderer content={'Run `echo $a $b` now.'} />);
+    expect(container.querySelector('.katex')).toBeNull();
+    expect(container.querySelector('code')).toHaveTextContent('echo $a $b');
+  });
+
+  it('keeps citations clickable next to math', () => {
+    const onSelect = vi.fn();
+    const { container } = render(
+      <MarkdownRenderer content={'Merge sort is $O(n \\log n)$ [eecs3101.pdf p.3].'} onSelectCitation={onSelect} />
+    );
+    expect(container.querySelectorAll('.math-inline')).toHaveLength(1);
+    expect(screen.getByRole('button', { name: /Citation:\s*eecs3101\.pdf\s+page\s+3/i })).toBeInTheDocument();
+  });
+
+  it('renders display math and shows unparseable math as its source', () => {
+    const { container } = render(<MarkdownRenderer content={'$$x^2 + y^2$$\n\nBad $\\frac{1$ input.'} />);
+    expect(container.querySelectorAll('.math-display')).toHaveLength(1);
+    expect(container.textContent).toContain('$\\frac{1$');
   });
 });
 
@@ -90,7 +143,7 @@ describe('DashboardView component', () => {
     expect(screen.getByText('EECS 2031 — Software Tools')).toBeInTheDocument();
     expect(screen.getByText(/3\s+sources/i)).toBeInTheDocument();
 
-    const searchInput = screen.getByPlaceholderText(/search notebooks/i);
+    const searchInput = screen.getByLabelText('Search notebooks');
     fireEvent.change(searchInput, { target: { value: 'Software' } });
 
     expect(screen.queryByText('EECS 3101 — Algorithms')).not.toBeInTheDocument();
@@ -306,13 +359,14 @@ describe('SubjectWorkspaceView component', () => {
     expect(screen.getByText('Lecture 1.pdf')).toBeInTheDocument();
     expect(screen.getByText(/1 of 2 selected/i)).toBeInTheDocument();
 
-    const selectAllBtn = screen.getByRole('button', { name: /Select all/i });
+    const selectAllBtn = screen.getByRole('checkbox', { name: /Select all/i });
     fireEvent.click(selectAllBtn);
     expect(handleSelectSources).toHaveBeenCalledWith(['src-1', 'src-2']);
   });
 
   it('renders chat message with citation and handles inline citation chip click', async () => {
     const handleSaveNote = vi.fn();
+    vi.spyOn(api, 'getPassages').mockResolvedValue([]);
 
     render(
       <SubjectWorkspaceView
@@ -361,7 +415,7 @@ describe('SubjectWorkspaceView component', () => {
 
     // Test Save as Note
     const saveNoteBtn = screen.getByRole('button', { name: /save to note/i });
-    fireEvent.click(saveNoteBtn);
+    await act(async () => { fireEvent.click(saveNoteBtn); });
     expect(handleSaveNote).toHaveBeenCalledWith(mockMessages[1]);
   });
 });
@@ -383,271 +437,7 @@ describe('Guest Workspace & Access Flow', () => {
 
     const banner = screen.getByTestId('guest-workspace-banner');
     expect(banner).toBeInTheDocument();
-    expect(banner).toHaveTextContent(/private to this browser/i);
-    expect(banner).toHaveTextContent(/No sign-in needed/i);
+    expect(banner).toHaveTextContent(/Private Browser Workspace/i);
+    expect(banner).toHaveTextContent(/private to this browser session/i);
   });
 });
-
-describe('Phase 1: Conflict Resolution (Current vs Superseded)', () => {
-  const resolvedResult: AskResponse = {
-    answer: 'Assignment 1 is due October 21 [announcement_update.pdf p.1].',
-    citations: [{ file: 'announcement_update.pdf', page: 1 }],
-    conflict_detected: true,
-    conflicts: [
-      {
-        topic: 'Assignment 1 deadline',
-        claims: [
-          { file: 'syllabus.pdf', page: 3, value: 'October 15' },
-          { file: 'announcement_update.pdf', page: 1, value: 'October 21' },
-        ],
-        resolution: {
-          current_file: 'announcement_update.pdf',
-          current_page: 1,
-          basis: 'newer_source_explicit_override',
-          evidence: 'Announcement dated Oct 10 explicitly extends the deadline.',
-        },
-      },
-    ],
-    tokens: { input: 10, output: 20, total: 30 },
-    latency: 0.1,
-    retrieved: [],
-    abstained: false,
-  };
-
-  it('renders Current and Superseded badges, evidence, and top summary banner', () => {
-    const handleSelect = vi.fn();
-    render(
-      <AssistantMessage
-        result={resolvedResult}
-        onSelectCitation={handleSelect}
-        sources={[
-          { id: '1', title: 'Course Syllabus', file_name: 'syllabus.pdf', status: 'ready', created_at: '', updated_at: '' } as Source,
-          { id: '2', title: 'Announcement Update', file_name: 'announcement_update.pdf', status: 'ready', created_at: '', updated_at: '' } as Source,
-        ]}
-      />
-    );
-
-    // Top summary banner above answer
-    const summaryBanner = screen.getByTestId('conflict-summary-banner');
-    expect(summaryBanner).toBeInTheDocument();
-    expect(summaryBanner).toHaveTextContent(/Announcement Update updates the Assignment 1 deadline/i);
-
-    // Current badge on winning source
-    const currentBadge = screen.getByTestId('badge-current');
-    expect(currentBadge).toBeInTheDocument();
-    expect(currentBadge).toHaveTextContent('Current');
-
-    // Superseded badge on outdated source
-    const supersededBadge = screen.getByTestId('badge-superseded');
-    expect(supersededBadge).toBeInTheDocument();
-    expect(supersededBadge).toHaveTextContent('Superseded');
-
-    // Evidence display
-    const evidence = screen.getByTestId('conflict-evidence');
-    expect(evidence).toBeInTheDocument();
-    expect(evidence).toHaveTextContent(/Announcement dated Oct 10 explicitly extends the deadline/i);
-
-    // Clicking claim selects citation
-    const claimBtn = screen.getByRole('button', { name: /Claim: October 21 in announcement_update\.pdf page 1/i });
-    fireEvent.click(claimBtn);
-    expect(handleSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ file: 'announcement_update.pdf', page: 1 }),
-      ''
-    );
-  });
-
-  it('renders neutral disclaimer when conflict has no resolution', () => {
-    const unresolvedResult: AskResponse = {
-      answer: 'Conflicting dates found.',
-      citations: [{ file: 'doc_a.pdf', page: 1 }],
-      conflict_detected: true,
-      conflicts: [
-        {
-          topic: 'exam date',
-          claims: [
-            { file: 'doc_a.pdf', page: 1, value: 'Dec 10' },
-            { file: 'doc_b.pdf', page: 2, value: 'Dec 15' },
-          ],
-          resolution: null,
-        },
-      ],
-      tokens: { input: 10, output: 20, total: 30 },
-      latency: 0.1,
-      retrieved: [],
-      abstained: false,
-    };
-
-    render(
-      <AssistantMessage
-        result={unresolvedResult}
-        onSelectCitation={() => {}}
-      />
-    );
-
-    expect(screen.queryByTestId('badge-current')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('badge-superseded')).not.toBeInTheDocument();
-    const unresolvedNote = screen.getByTestId('conflict-unresolved-note');
-    expect(unresolvedNote).toBeInTheDocument();
-    expect(unresolvedNote).toHaveTextContent(/The sources don’t say which is newer\. Check with your instructor\./i);
-  });
-});
-
-describe('Phase 2: Conventions & Convention Mismatch', () => {
-  const conventionResult: AskResponse = {
-    answer: 'Arrays are processed from index 1 to n.',
-    citations: [{ file: 'tutorial_02_arrays.pdf', page: 1 }],
-    conflict_detected: false,
-    conflicts: [],
-    conventions: [
-      {
-        topic: 'array_indexing',
-        value: '1-indexed',
-        file: 'tutorial_02_arrays.pdf',
-        page: 1,
-        adopted: true,
-      },
-    ],
-    convention_mismatches: [
-      {
-        topic: 'array_indexing',
-        conventions: [
-          {
-            topic: 'array_indexing',
-            value: '0-indexed',
-            file: 'lecture_algorithms_math_code.pdf',
-            page: 1,
-            adopted: false,
-          },
-          {
-            topic: 'array_indexing',
-            value: '1-indexed',
-            file: 'tutorial_02_arrays.pdf',
-            page: 1,
-            adopted: true,
-          },
-        ],
-        adopted_file: 'tutorial_02_arrays.pdf',
-        adopted_value: '1-indexed',
-      },
-    ],
-    tokens: { input: 10, output: 20, total: 30 },
-    latency: 0.1,
-    retrieved: [],
-    abstained: false,
-  };
-
-  it('renders convention pills at top of answer and handles click', () => {
-    const handleSelect = vi.fn();
-    render(
-      <AssistantMessage
-        result={conventionResult}
-        onSelectCitation={handleSelect}
-        sources={[
-          { id: '1', title: 'Tutorial 02 Arrays', file_name: 'tutorial_02_arrays.pdf', status: 'ready', created_at: '', updated_at: '' } as Source,
-          { id: '2', title: 'Lecture Algorithms', file_name: 'lecture_algorithms_math_code.pdf', status: 'ready', created_at: '', updated_at: '' } as Source,
-        ]}
-      />
-    );
-
-    const pill = screen.getByTestId('convention-pill-0');
-    expect(pill).toBeInTheDocument();
-    expect(pill).toHaveTextContent(/1-indexed · Tutorial 02 Arrays/i);
-
-    fireEvent.click(pill);
-    expect(handleSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ file: 'tutorial_02_arrays.pdf', page: 1 }),
-      ''
-    );
-  });
-
-  it('renders softer convention mismatch card with adopted badge and alternative card', () => {
-    const handleSelect = vi.fn();
-    render(
-      <AssistantMessage
-        result={conventionResult}
-        onSelectCitation={handleSelect}
-        sources={[
-          { id: '1', title: 'Tutorial 02 Arrays', file_name: 'tutorial_02_arrays.pdf', status: 'ready', created_at: '', updated_at: '' } as Source,
-          { id: '2', title: 'Lecture Algorithms', file_name: 'lecture_algorithms_math_code.pdf', status: 'ready', created_at: '', updated_at: '' } as Source,
-        ]}
-      />
-    );
-
-    const mismatchView = screen.getByTestId('convention-mismatch-view');
-    expect(mismatchView).toBeInTheDocument();
-    expect(screen.getByText(/Convention Mismatch Noted/i)).toBeInTheDocument();
-    expect(screen.getByText(/Topic: array indexing/i)).toBeInTheDocument();
-
-    const summary = screen.getByTestId('convention-mismatch-summary');
-    expect(summary).toHaveTextContent(/Lecture Algorithms uses 0-indexed; Tutorial 02 Arrays uses 1-indexed\. This answer follows Tutorial 02 Arrays\./i);
-
-    const adoptedBadge = screen.getByTestId('badge-adopted');
-    expect(adoptedBadge).toHaveTextContent('✓ Followed in answer');
-    expect(screen.getByText('Alternative')).toBeInTheDocument();
-
-    // Clicking alternative convention selects its citation
-    const altConvCard = screen.getByRole('button', { name: /Convention: 0-indexed in Lecture Algorithms page 1/i });
-    fireEvent.click(altConvCard);
-    expect(handleSelect).toHaveBeenCalledWith(
-      expect.objectContaining({ file: 'lecture_algorithms_math_code.pdf', page: 1 }),
-      ''
-    );
-  });
-});
-
-describe('Superseded Badges in Sidebar and SourcePanel', () => {
-  it('renders Superseded badge on document in Sidebar when marked in supersededMap', () => {
-    const docs = [
-      { file_name: 'syllabus.pdf', page_count: 3, chunk_count: 5 },
-      { file_name: 'announcement_update.pdf', page_count: 1, chunk_count: 2 },
-    ];
-    const supersededMap = {
-      'syllabus.pdf': { supersededBy: 'announcement_update.pdf', topic: 'deadline' },
-    };
-
-    render(
-      <Sidebar
-        documents={docs}
-        isDemoMode={true}
-        onNewChat={() => {}}
-        onUpload={() => {}}
-        uploadFile={null}
-        setUploadFile={() => {}}
-        uploading={false}
-        uploadMsg={null}
-        isOpenMobile={false}
-        onCloseMobile={() => {}}
-        supersededMap={supersededMap}
-      />
-    );
-
-    const supersededBadge = screen.getByTestId('doc-superseded-badge');
-    expect(supersededBadge).toBeInTheDocument();
-    expect(supersededBadge).toHaveTextContent('Superseded');
-    expect(supersededBadge).toHaveAttribute('title', 'Superseded by Announcement update');
-  });
-
-  it('renders Superseded badge in SourcePanel header when selected document is superseded', () => {
-    const supersededMap = {
-      'syllabus.pdf': { supersededBy: 'announcement_update.pdf', topic: 'deadline' },
-    };
-
-    render(
-      <SourcePanel
-        selectedCitation={{ file: 'syllabus.pdf', page: 3 }}
-        citations={[{ file: 'syllabus.pdf', page: 3 }]}
-        passages={[{ file_name: 'syllabus.pdf', page_number: 3, chunk_index: 0, text: 'Old deadline October 15' }]}
-        passageLoading={false}
-        onSelectCitation={() => {}}
-        onClose={() => {}}
-        isOpen={true}
-        supersededMap={supersededMap}
-      />
-    );
-
-    const panelBadge = screen.getByTestId('panel-superseded-badge');
-    expect(panelBadge).toBeInTheDocument();
-    expect(panelBadge).toHaveTextContent('Superseded');
-  });
-});
-
