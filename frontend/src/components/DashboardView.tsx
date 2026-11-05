@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { SortMenu } from './SortMenu';
 import { SettingsPanel, readDefaultResponseSettings } from './SettingsPanel';
 import { Subject, User } from '../types';
+import { useModalFocus } from '../useModalFocus';
 
 export interface DashboardViewProps {
   subjects: Subject[];
@@ -80,6 +81,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const createModalRef = useModalFocus(isCreateOpen, () => setIsCreateOpen(false));
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [deletingSubject, setDeletingSubject] = useState<Subject | null>(null);
 
@@ -539,7 +541,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Create Notebook Modal */}
       {isCreateOpen && (
         <div className="modal-backdrop" onClick={() => setIsCreateOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div ref={createModalRef} className="modal-content" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>
                 Create new notebook

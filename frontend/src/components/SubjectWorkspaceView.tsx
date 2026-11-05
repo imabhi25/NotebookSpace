@@ -1,6 +1,7 @@
 import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../api';
+import { useModalFocus } from '../useModalFocus';
 import {
   Subject,
   Source,
@@ -138,6 +139,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [renamingSource, setRenamingSource] = useState<Source | null>(null);
   const [newSourceTitle, setNewSourceTitle] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const settingsModalRef = useModalFocus(isSettingsOpen, () => setIsSettingsOpen(false));
   const [settingsError, setSettingsError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -165,6 +167,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Notes Modal
   const [isCreateNoteOpen, setIsCreateNoteOpen] = useState(false);
+  const createNoteModalRef = useModalFocus(isCreateNoteOpen, () => setIsCreateNoteOpen(false));
   const [editingNote, setEditingNote] = useState<Note | null>(null);
   const [noteFormTitle, setNoteFormTitle] = useState('');
   const [noteFormContent, setNoteFormContent] = useState('');
@@ -2429,7 +2432,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {/* Create / Edit Note Modal */}
       {isCreateNoteOpen && (
         <div className="modal-backdrop" onClick={() => setIsCreateNoteOpen(false)}>
-          <div className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
+          <div ref={createNoteModalRef} className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>{editingNote ? 'Edit Note' : 'Create Note'}</h2>
               <button type="button" className="modal-close-btn" onClick={() => setIsCreateNoteOpen(false)}>
@@ -2511,7 +2514,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {/* Notebook Settings Modal */}
       {isSettingsOpen && (
         <div className="modal-backdrop" onClick={() => setIsSettingsOpen(false)}>
-          <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+          <div ref={settingsModalRef} className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Notebook Settings</h2>
               <button type="button" className="modal-close-btn" onClick={() => setIsSettingsOpen(false)}>
