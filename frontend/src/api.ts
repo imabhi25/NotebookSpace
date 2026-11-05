@@ -423,11 +423,14 @@ export const api = {
     await apiFetch(`/subjects/${subjectId}/notes/${noteId}`, { method: 'DELETE' });
   },
 
-  // Legacy Passages & Ask
-  async getPassages(file: string, page: number): Promise<PassageItem[]> {
+  // Passages & Ask
+  async getPassages(file: string, page: number, subjectId?: string, sourceId?: string): Promise<PassageItem[]> {
     // Passages are served only to a signed-in session. A refusal reads as "nothing to show".
     await getOrInitToken();
-    const res = await fetch(`${API_BASE_URL}/passages?file=${encodeURIComponent(file)}&page=${page}`, {
+    let url = `${API_BASE_URL}/passages?file=${encodeURIComponent(file)}&page=${page}`;
+    if (subjectId) url += `&subject_id=${encodeURIComponent(subjectId)}`;
+    if (sourceId) url += `&source_id=${encodeURIComponent(sourceId)}`;
+    const res = await fetch(url, {
       headers: getAuthHeaders(),
     });
     return res.ok ? await res.json() : [];

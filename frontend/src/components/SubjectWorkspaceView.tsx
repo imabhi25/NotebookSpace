@@ -364,8 +364,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     setPassageLoading(true);
     try {
       const lookupFile = matchingSource?.file_name || cit.file;
-      const data = await api.getPassages(lookupFile, cit.page);
-      setPassages(data);
+      const data = await api.getPassages(lookupFile, cit.page, subject.id, matchingSource?.id || cit.source_id);
+      // Backup guard: deduplicate passages by chunk_index & text
+      const seen = new Set<string>();
+      const deduped = data.filter((p) => {
+        const key = `${p.chunk_index ?? ''}:${(p.text || p.chunk_text || '').trim()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      setPassages(deduped);
     } catch {
       setPassages([]);
     } finally {
