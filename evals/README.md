@@ -1,5 +1,10 @@
 # Retrieval Evaluation Benchmark
 
+> **Evaluation Rules**:
+> - Labels are fixed before any retrieval is run and are never edited after seeing results.
+> - The strict metric (expected file and page) is the headline evaluation standard.
+> - No "lenient" rescoring of the synthetic set.
+
 This directory contains the automated retrieval and answer-grounding evaluation benchmark for NotebookSpace.
 
 ## Benchmark Results
