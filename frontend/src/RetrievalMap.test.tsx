@@ -88,7 +88,7 @@ describe('RetrievalMapView', () => {
     expect(screen.getByText('+0.30 boost')).toBeTruthy();
   });
 
-  it('displays weak match label when score is below support_min_score upon selecting chunk', async () => {
+  it('displays low similarity label when raw cosine is below 0.35 upon selecting chunk', async () => {
     vi.mocked(api.getRetrievalMap).mockResolvedValueOnce(mockResponse);
 
     render(
@@ -102,14 +102,18 @@ describe('RetrievalMapView', () => {
       expect(screen.getByTestId('retrieval-map-view')).toBeTruthy();
     });
 
-    // Click on chunk 2 which has score 0.05 < 0.20
+    // Click on chunk 2 which has raw_cosine 0.05 < 0.35
     const chunk2Node = screen.getByLabelText(/chunk 1/i);
     fireEvent.click(chunk2Node);
 
-    // Inspector should update to show chunk 2 and weak match badge
+    // Inspector should update to show chunk 2 and low similarity badge
     await waitFor(() => {
-      expect(screen.getByTestId('weak-match-badge')).toBeTruthy();
-      expect(screen.getByText(/Weak match/i)).toBeTruthy();
+      const badge = screen.getByTestId('weak-match-badge');
+      expect(badge).toBeTruthy();
+      expect(screen.getByText('Low similarity')).toBeTruthy();
+      expect(badge.getAttribute('title')).toBe(
+        'Heuristic only; answers are still checked against the passages.'
+      );
       expect(screen.getByTestId('raw-cosine-val').textContent).toBe('0.050');
       expect(screen.getByTestId('final-score-val').textContent).toBe('0.050');
     });

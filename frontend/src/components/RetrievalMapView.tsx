@@ -175,8 +175,6 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
     );
   }
 
-  const supportMin = data.support_min_score ?? 0.20;
-
   return (
     <div className="retrieval-map-root" data-testid="retrieval-map-view">
       {/* Header Info */}
@@ -369,11 +367,15 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
               </div>
             </div>
 
-            {/* Weak Match Badge */}
-            {typeof activeChunk.score === 'number' && activeChunk.score < supportMin && (
+            {/* Low similarity badge */}
+            {typeof activeChunk.raw_cosine === 'number' && activeChunk.raw_cosine < 0.35 && (
               <div className="score-alert-box" role="note">
-                <span className="weak-match-badge" data-testid="weak-match-badge">
-                  Weak match (&lt; {supportMin.toFixed(2)})
+                <span
+                  className="weak-match-badge"
+                  data-testid="weak-match-badge"
+                  title="Heuristic only; answers are still checked against the passages."
+                >
+                  Low similarity
                 </span>
               </div>
             )}

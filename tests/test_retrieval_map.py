@@ -128,3 +128,56 @@ def test_retrieval_map_api_endpoint(monkeypatch):
 
     finally:
         _delete_user(user_id)
+
+
+def test_keyword_boost_flips_ranking():
+    """Unit test demonstrating that keyword boost can flip chunk ranking compared to pure vector search."""
+    from db.notebook_store import (
+        create_subject,
+        create_source,
+        store_source_chunks,
+        update_source_status,
+        search_scoped,
+    )
+    from ingestion.chunker import chunk_pages
+    from ingestion.embedder import embed_batch
+    from evals.run_retrieval_eval import search_without_keyword_boost
+
+    token, user_id = _new_guest()
+    try:
+        subj = create_subject(user_id, "Test Boost Flip")
+        # Source A has higher semantic similarity to "late work" without containing the literal word "policy"
+        text_a = "Students submitting exercises past the deadline will receive reduced credit."
+        src_a = create_source(user_id, subj["id"], "Source A", "source_a.txt", "text")
+        chunks_a = chunk_pages([(1, 1, text_a)])
+        store_source_chunks(user_id, subj["id"], src_a["id"], 1, chunks_a, embed_batch([c.text for c in chunks_a]))
+        update_source_status(source_id=src_a["id"], status="ready", page_count=1, word_count=10, raw_content=text_a, version=1)
+
+        # Source B has low semantic similarity to "late work" but contains the exact key term "policy"
+        text_b = "A company security policy requires badge access at all doors."
+        src_b = create_source(user_id, subj["id"], "Source B", "source_b.txt", "text")
+        chunks_b = chunk_pages([(1, 1, text_b)])
+        store_source_chunks(user_id, subj["id"], src_b["id"], 1, chunks_b, embed_batch([c.text for c in chunks_b]))
+        update_source_status(source_id=src_b["id"], status="ready", page_count=1, word_count=10, raw_content=text_b, version=1)
+
+        q = "What is the policy for late work?"
+        s_ids = [src_a["id"], src_b["id"]]
+
+        # 1. Pure vector cosine search (no keyword boost)
+        res_noboost = search_without_keyword_boost(q, user_id, subj["id"], s_ids, k=2)
+        # 2. Hybrid search (vector cosine + keyword boost)
+        res_hybrid = search_scoped(q, user_id, subj["id"], s_ids, k=2)
+
+        # In no-boost mode, Source A ranks #1 because of higher raw semantic similarity
+        assert res_noboost[0]["file"] == "Source A"
+        assert res_noboost[1]["file"] == "Source B"
+        assert res_noboost[0]["score"] > res_noboost[1]["score"]
+
+        # In hybrid mode, Source B gets boosted by +0.30 due to matching "policy" and flips to #1
+        assert res_hybrid[0]["file"] == "Source B"
+        assert res_hybrid[1]["file"] == "Source A"
+        assert "policy" in res_hybrid[0]["matched_terms"]
+        assert res_hybrid[0]["score"] > res_hybrid[1]["score"]
+    finally:
+        _delete_user(user_id)
+
