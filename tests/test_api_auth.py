@@ -306,6 +306,66 @@ def test_passages_requires_the_owner(world, guest_b):
     assert anonymous.json() == other.json() == unknown.json()
 
 
+def test_same_filename_in_two_notebooks_scopes_passages(world):
+    """NS-04: When a user uploads sources with the same file name into two different notebooks,
+    scoping by subject_id or source_id returns only the chunks for that notebook, avoiding duplicates."""
+    headers = world["headers"]
+    file_title = f"shared_name_{uuid.uuid4().hex[:6]}"
+
+    # Notebook 1
+    subj1 = client.post("/subjects", json={"name": "Notebook 1"}, headers=headers).json()
+    src1 = client.post(
+        f"/subjects/{subj1['id']}/sources/paste",
+        json={"title": file_title, "text": "Unique text inside Notebook 1 source page one."},
+        headers=headers,
+    ).json()
+    assert src1["status"] == "ready"
+
+    # Notebook 2
+    subj2 = client.post("/subjects", json={"name": "Notebook 2"}, headers=headers).json()
+    src2 = client.post(
+        f"/subjects/{subj2['id']}/sources/paste",
+        json={"title": file_title, "text": "Unique text inside Notebook 2 source page one."},
+        headers=headers,
+    ).json()
+    assert src2["status"] == "ready"
+
+    # Query without scoping returns chunks from both notebooks (demonstrating why scoping is necessary)
+    all_passages = client.get(
+        "/passages",
+        params={"file": file_title, "page": 1},
+        headers=headers,
+    ).json()
+    assert len(all_passages) == 2
+
+    # Query scoped to Notebook 1 returns only Notebook 1's passage
+    scoped1 = client.get(
+        "/passages",
+        params={"file": file_title, "page": 1, "subject_id": subj1["id"]},
+        headers=headers,
+    ).json()
+    assert len(scoped1) == 1
+    assert "Notebook 1" in scoped1[0]["text"]
+
+    # Query scoped to Notebook 2 returns only Notebook 2's passage
+    scoped2 = client.get(
+        "/passages",
+        params={"file": file_title, "page": 1, "subject_id": subj2["id"]},
+        headers=headers,
+    ).json()
+    assert len(scoped2) == 1
+    assert "Notebook 2" in scoped2[0]["text"]
+
+    # Query scoped by source_id works identically
+    by_src1 = client.get(
+        "/passages",
+        params={"file": file_title, "page": 1, "source_id": src1["id"]},
+        headers=headers,
+    ).json()
+    assert len(by_src1) == 1
+    assert "Notebook 1" in by_src1[0]["text"]
+
+
 def test_passage_lookup_without_a_user_never_returns_private_text(world):
     name = world["ids"]["source_name"]
     assert get_passages_for_page(file_name=name, page_number=1) == []
