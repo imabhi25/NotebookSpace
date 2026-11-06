@@ -1077,37 +1077,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
                             <div className="user-message-bubble">{msg.content}</div>
-                            {(() => {
-                              const msgIdx = messages.findIndex((m) => m.id === msg.id);
-                              const nextMsg = messages[msgIdx + 1];
-                              if (nextMsg && nextMsg.role === 'assistant' && nextMsg.abstained && nextMsg.abstain_reason === 'generation_failed') {
-                                return (
-                                  <div className="user-message-inline-error" data-testid={`inline-error-${msg.id}`}>
-                                    <span className="error-icon" aria-hidden="true">✕</span>
-                                    <span>Failed to generate response.</span>
-                                    <button
-                                      type="button"
-                                      className="user-turn-retry-btn"
-                                      data-testid={`retry-inline-btn-${msg.id}`}
-                                      onClick={() => {
-                                        onSendMessage(msg.content, {
-                                          is_retry: true,
-                                          retry_message_id: nextMsg.id,
-                                        });
-                                      }}
-                                    >
-                                      Retry
-                                    </button>
-                                  </div>
-                                );
-                              }
-                              return null;
-                            })()}
                           </div>
                         ) : (
                           <div className="assistant-message">
                             {/* 1. Abstention / Not Found view */}
-                            {msg.abstained ? (
+                            {msg.abstained || msg.abstain_reason === 'generation_failed' ? (
                               <div
                                 className={`card-not-found ${
                                   msg.abstain_reason === 'generation_failed' ? 'card-generation-failed' : ''

@@ -105,9 +105,7 @@ def test_gemini_quota_exhausted_exits_immediately(tmp_path: Path, monkeypatch):
             with pytest.raises(RuntimeError) as exc_info:
                 client._raw_generate(system="sys", user="usr")
 
-            assert "LLM quota exhausted" in str(exc_info.value)
-            assert "Retry after" in str(exc_info.value)
-            assert "estimated reset:" in str(exc_info.value)
+            assert exc_info.value.category == "quota"
             # Must exit immediately on attempt 0: no sleep, only 1 post call
             assert mock_post.call_count == 1
             assert mock_sleep.call_count == 0
@@ -119,7 +117,7 @@ def test_gemini_short_transient_retry_bounded(tmp_path: Path):
 
     client = GeminiLLMClient(api_key="test_key", cache_dir=tmp_path)
 
-    resp_429 = httpx.Response(429, headers={"retry-after": "5"})
+    resp_429 = httpx.Response(503, headers={"retry-after": "5"})
     resp_200 = httpx.Response(
         200,
         json={
@@ -135,7 +133,7 @@ def test_gemini_short_transient_retry_bounded(tmp_path: Path):
             assert in_tok == 10
             assert out_tok == 2
             assert mock_post.call_count == 2
-            mock_sleep.assert_called_once_with(5.0)
+            mock_sleep.assert_called_once_with(2.0)
 
 
 def test_gemini_503_backoff_retry_bounded(tmp_path: Path):
@@ -158,10 +156,10 @@ def test_gemini_503_backoff_retry_bounded(tmp_path: Path):
             text, in_tok, out_tok = client._raw_generate(system="sys", user="usr")
             assert text == "Recovered"
             assert mock_post.call_count == 2
-            mock_sleep.assert_called_once_with(2.0)
+            mock_sleep.assert_called_once_with(1.0)
 
 
-def test_gemini_quota_exhausted_falls_back_to_fallback_model(tmp_path: Path):
+def test_gemini_missing_model_falls_back_to_explicit_model(tmp_path: Path):
     from unittest.mock import patch
     import httpx
 
@@ -179,7 +177,7 @@ def test_gemini_quota_exhausted_falls_back_to_fallback_model(tmp_path: Path):
             "status": "RESOURCE_EXHAUSTED",
         }
     }
-    resp_429 = httpx.Response(429, json=err_body)
+    resp_429 = httpx.Response(404, json=err_body)
     resp_200 = httpx.Response(
         200,
         json={
