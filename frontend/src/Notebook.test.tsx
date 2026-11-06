@@ -318,6 +318,33 @@ describe('SubjectWorkspaceView component', () => {
     },
   ];
 
+  it.each([true, false])('shows one retryable provider failure for abstained=%s', (legacyAbstained) => {
+    const retry = vi.fn();
+    const failure: MessageItem = {
+      ...mockMessages[1], id: 'failed', content: 'The AI service has reached its usage limit for now. Please try again later.',
+      abstained: legacyAbstained, abstain_reason: 'generation_failed', citations: [], retrieved: [],
+    };
+    render(
+      <SubjectWorkspaceView
+        subject={activeSubject} sources={mockSources} selectedSourceIds={['src-1']}
+        conversations={mockConversations} notes={[]} activeConversationId="conv-1"
+        starterQuestions={[]} isDemoMode={false} onBackToDashboard={() => {}}
+        onSelectSources={() => {}} onSelectConversation={() => {}}
+        onCreateConversation={async () => {}} onRenameConversation={async () => {}}
+        onDeleteConversation={async () => {}} onUploadFiles={async () => {}}
+        onPasteText={async () => {}} onAddUrl={async () => {}} onRenameSource={async () => {}}
+        onDeleteSource={async () => {}} onRetrySource={async () => {}} onReplaceSource={async () => {}}
+        onSendMessage={retry} onUpdateSettings={async () => {}} onCreateNote={async () => {}}
+        onSaveAnswerAsNote={async () => {}} onUpdateNote={async () => {}} onDeleteNote={async () => {}}
+        messages={[mockMessages[0], failure]} chatLoading={false}
+      />
+    );
+    expect(screen.getAllByText(failure.content)).toHaveLength(1);
+    expect(screen.getByText('GENERATION FAILED')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry question' }));
+    expect(retry).toHaveBeenCalledWith(mockMessages[0].content, { is_retry: true, retry_message_id: 'failed' });
+  });
+
   it('renders sources with checkboxes and toggles selection', () => {
     const handleSelectSources = vi.fn();
 

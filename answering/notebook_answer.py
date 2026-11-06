@@ -9,7 +9,7 @@ from uuid import UUID
 
 import copy
 
-from answering.llm import BaseCachedLLMClient, LLMClient, LLMServiceError, get_llm_client
+from answering.llm import BaseCachedLLMClient, LLMClient, LLMServiceError, get_llm_client, with_question_budget
 from db.notebook_store import (
     search_scoped,
     save_message,
@@ -147,17 +147,14 @@ def answer_notebook_question(
 
     # If this is a retry of a previous failed assistant turn, remove the old failed turn
     if is_retry and retry_message_id:
-        try:
-            from db.notebook_store import delete_message
-            delete_message(
-                user_id=user_id,
-                message_id=retry_message_id,
-                conversation_id=conversation_id,
-                role="assistant",
-                db_url=db_url,
-            )
-        except Exception as e:
-            logger.warning(f"Could not delete message on retry: {e}")
+        from db.notebook_store import delete_message
+        delete_message(
+            user_id=user_id,
+            message_id=retry_message_id,
+            conversation_id=conversation_id,
+            role="assistant",
+            db_url=db_url,
+        )
 
     # 1. Check if sources are selected
     if not selected_source_ids:
@@ -268,7 +265,7 @@ def answer_notebook_question(
     user_prompt = "\n\n".join(user_prompt_parts)
 
     # 5. Call LLM Client
-    client = llm_client or get_llm_client()
+    client = with_question_budget(llm_client or get_llm_client())
     if is_retry and isinstance(client, BaseCachedLLMClient):
         # A retry repeats the previous prompt, so a cached answer would only replay the
         # answer the user is retrying.
@@ -280,13 +277,13 @@ def answer_notebook_question(
         logger.error("Failed to generate answer from LLM: %s", type(error).__name__)
         category = error.category if isinstance(error, LLMServiceError) else "unavailable"
         message = {
-            "quota": "The AI service has reached a usage or billing limit. Please try again later.",
+            "quota": "The AI service has reached its usage limit for now. Please try again later.",
             "configuration": "The AI service is temporarily unavailable due to a configuration issue. Please try again later.",
             "unavailable": "The AI service is temporarily unavailable. Please try again.",
         }.get(category, "The AI service is temporarily unavailable. Please try again.")
         return save_message(
             user_id=user_id, conversation_id=conversation_id, role="assistant",
-            content=message, model=model_name, abstained=True,
+            content=message, model=model_name, abstained=False,
             abstain_reason="generation_failed", retrieved=retrieved,
             selected_source_ids=[str(s) for s in selected_source_ids],
             source_versions=source_versions, latency=time.perf_counter() - start_time,

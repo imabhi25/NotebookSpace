@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+import copy
 import hashlib
 import json
 import logging
@@ -161,6 +161,7 @@ class GeminiLLMClient(BaseCachedLLMClient):
         model_name = model or os.getenv("LLM_MODEL", "gemini-3.5-flash-lite")
         super().__init__(model=model_name, cache_dir=cache_dir)
         self.fallback_models = fallback_models
+        self.request_budget: list[int] | None = None
         self.api_key = api_key or os.getenv("LLM_API_KEY") or os.getenv("GEMINI_API_KEY") or ""
 
     def _raw_generate(self, system: str, user: str) -> tuple[str, int, int]:
@@ -189,79 +190,48 @@ class GeminiLLMClient(BaseCachedLLMClient):
             return sanitized.strip()
 
         data = None
-        last_sanitized_err = ""
+        budget = self.request_budget if self.request_budget is not None else [2]
         with httpx.Client(timeout=60.0) as client:
             for current_model in models_to_try:
                 url = f"https://generativelanguage.googleapis.com/v1beta/models/{current_model}:generateContent"
-                for attempt in range(3):
+                while budget[0] > 0:
+                    budget[0] -= 1
                     resp = client.post(url, json=payload, headers=headers)
                     if resp.status_code == 200:
                         data = resp.json()
                         break
 
                     delay_sec, err_status = parse_retry_delay(resp)
-                    err_msg = ""
                     try:
-                        err_json = resp.json()
-                        if isinstance(err_json, dict) and "error" in err_json:
-                            err_msg = err_json["error"].get("message", "")
-                    except Exception:
+                        err_msg = resp.json().get("error", {}).get("message", "")
+                    except (ValueError, AttributeError):
                         err_msg = resp.text[:200]
-                    last_sanitized_err = _sanitize_message(err_msg)
                     logger.error(
                         "Gemini API error [model=%s, status=%s, code=%s]: %s",
-                        current_model,
-                        resp.status_code,
-                        err_status or "NONE",
-                        last_sanitized_err,
+                        current_model, resp.status_code, err_status or "NONE", _sanitize_message(err_msg),
                     )
 
-                    # For exhausted quota requiring a long wait (> 60s), fall back to next model if available, else exit immediately
-                    if resp.status_code == 429 and (err_status == "RESOURCE_EXHAUSTED" or (delay_sec is not None and delay_sec > 60.0)):
-                        if current_model != models_to_try[-1]:
-                            logger.warning(
-                                "Gemini quota exhausted on %s. Trying fallback model.",
-                                current_model,
-                            )
-                            break
-                        if delay_sec is not None and delay_sec > 60.0:
-                            reset_dt = datetime.now(timezone.utc) + timedelta(seconds=delay_sec)
-                            reset_iso = reset_dt.isoformat()
-                            raise LLMServiceError("quota",
-                                f"LLM quota exhausted (status 429 {err_status or ''}). "
-                                f"Retry after {delay_sec:.1f}s (estimated reset: {reset_iso})."
-                            )
-                        elif err_status == "RESOURCE_EXHAUSTED":
-                            raise LLMServiceError("quota",
-                                f"LLM quota exhausted (status 429 {err_status}). "
-                                "Quota window exceeded. Please wait for provider quota reset."
-                            )
+                    # A bad request or credential, billing failure, or rate limit cannot
+                    # be repaired by switching models or repeating the same request.
+                    if resp.status_code in (400, 401, 402, 403, 429):
+                        category = "quota" if resp.status_code in (402, 429) or err_status == "RESOURCE_EXHAUSTED" else "configuration"
+                        raise LLMServiceError(category, f"LLM request failed with status {resp.status_code} {err_status or ''}")
 
-                    # If model is not found (404) and we have a fallback model, break to next model
-                    if resp.status_code == 404 and current_model != models_to_try[-1]:
+                    # Explicitly configured fallbacks are only tried for a missing model,
+                    # and share the same two-request budget as retries and JSON repair.
+                    if resp.status_code == 404 and current_model != models_to_try[-1] and budget[0] > 0:
                         break
-
-                    # Short transient failures: bounded retries up to 3 times (attempts 0, 1)
-                    if resp.status_code in (429, 500, 502, 503, 504) and attempt < 2:
-                        if delay_sec is not None and 0.0 < delay_sec <= 60.0:
-                            sleep_time = delay_sec
-                        else:
-                            sleep_time = float(2 ** (attempt + 1))
-                        time.sleep(sleep_time)
+                    if resp.status_code in (500, 502, 503, 504) and budget[0] > 0:
+                        time.sleep(min(delay_sec, 2.0) if delay_sec is not None and delay_sec > 0 else 1.0)
                         continue
-
-                    if resp.status_code >= 400 and current_model == models_to_try[-1]:
-                        status_detail = f" {err_status}" if err_status else ""
-                        detail_msg = f": {last_sanitized_err}" if last_sanitized_err else ""
-                        category = (
-                            "quota" if resp.status_code == 429 or err_status == "RESOURCE_EXHAUSTED"
-                            else "configuration" if resp.status_code in (401, 403)
-                            else "unavailable"
-                        )
-                        raise LLMServiceError(category, f"LLM request failed with status {resp.status_code}{status_detail}{detail_msg}")
-
+                    raise LLMServiceError("unavailable", f"LLM request failed with status {resp.status_code}")
                 if data is not None:
                     break
+                if budget[0] <= 0:
+                    break
+
+        if data is None:
+            raise LLMServiceError("unavailable", "LLM request budget exhausted")
 
         candidates = data.get("candidates", [])
         if not candidates:
@@ -274,6 +244,14 @@ class GeminiLLMClient(BaseCachedLLMClient):
         in_tok = usage.get("promptTokenCount", 0)
         out_tok = usage.get("candidatesTokenCount", 0)
         return text, in_tok, out_tok
+
+
+def with_question_budget(client: LLMClient) -> LLMClient:
+    """Give each question its own provider request budget, including JSON repair."""
+    if isinstance(client, GeminiLLMClient):
+        client = copy.copy(client)
+        client.request_budget = [2]
+    return client
 
 
 class FakeLLMClient(BaseCachedLLMClient):
@@ -313,8 +291,7 @@ def get_llm_client(
     mod = model or os.getenv("LLM_MODEL", "gemini-3.5-flash")
 
     if prov in ("gemini", "google"):
-        fallback = ["gemini-3.5-flash-lite"] if mod != "gemini-3.5-flash-lite" else ["gemini-3.5-flash"]
-        return GeminiLLMClient(model=mod, fallback_models=fallback, api_key=api_key, cache_dir=cache_dir)
+        return GeminiLLMClient(model=mod, api_key=api_key, cache_dir=cache_dir)
     elif prov in ("fake", "mock"):
         return FakeLLMClient(model=mod, cache_dir=cache_dir)
     else:

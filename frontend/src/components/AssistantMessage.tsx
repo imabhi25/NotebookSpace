@@ -197,12 +197,12 @@ export const AssistantMessage: React.FC<AssistantMessageProps> = ({
   return (
     <div className="assistant-message">
       {/* 3. NOT FOUND (ABSTAINED) STATE */}
-      {result.abstained ? (
+      {result.abstained || result.abstain_reason === 'generation_failed' ? (
         <div className={`card-not-found ${result.abstain_reason === 'generation_failed' ? 'card-generation-failed' : ''}`} data-testid="abstained-view">
           <div className={`not-found-badge ${result.abstain_reason === 'generation_failed' ? 'badge-failed' : ''}`}>
             {result.abstain_reason === 'generation_failed' ? 'GENERATION FAILED' : 'NOT FOUND IN YOUR DOCUMENTS'}
           </div>
-          <div className="abstain-reason">{getPlainAbstainReason(result.abstain_reason)}</div>
+          <div className="abstain-reason">{result.abstain_reason === 'generation_failed' ? result.answer : getPlainAbstainReason(result.abstain_reason)}</div>
           {searchedQuery && (
             <div className="abstain-query">Searched for: &ldquo;{searchedQuery}&rdquo;</div>
           )}
