@@ -418,6 +418,210 @@ describe('SubjectWorkspaceView component', () => {
     await act(async () => { fireEvent.click(saveNoteBtn); });
     expect(handleSaveNote).toHaveBeenCalledWith(mockMessages[1]);
   });
+
+  it('shows See retrieval link on assistant answer with retrieved passages', () => {
+    render(
+      <SubjectWorkspaceView
+        subject={activeSubject}
+        sources={mockSources}
+        selectedSourceIds={['src-1', 'src-2']}
+        conversations={mockConversations}
+        notes={[]}
+        activeConversationId="conv-1"
+        starterQuestions={[]}
+        isDemoMode={false}
+        onBackToDashboard={() => {}}
+        onSelectSources={() => {}}
+        onSelectConversation={() => {}}
+        onCreateConversation={async () => {}}
+        onRenameConversation={async () => {}}
+        onDeleteConversation={async () => {}}
+        onUploadFiles={async () => {}}
+        onPasteText={async () => {}}
+        onAddUrl={async () => {}}
+        onRenameSource={async () => {}}
+        onDeleteSource={async () => {}}
+        onRetrySource={async () => {}}
+        onReplaceSource={async () => {}}
+        onSendMessage={async () => {}}
+        onUpdateSettings={async () => {}}
+        onCreateNote={async () => {}}
+        onSaveAnswerAsNote={async () => {}}
+        onUpdateNote={async () => {}}
+        onDeleteNote={async () => {}}
+        messages={mockMessages}
+        chatLoading={false}
+      />
+    );
+
+    const seeRetrievalBtn = screen.getByTestId('see-retrieval-btn-msg-2');
+    expect(seeRetrievalBtn).toBeInTheDocument();
+    expect(seeRetrievalBtn).toHaveAccessibleName('See retrieval');
+  });
+
+  it('hides See retrieval link when abstained with no retrieved passages, but shows when passages exist', () => {
+    const abstainedNoPassages: MessageItem = {
+      id: 'msg-abs-none',
+      conversation_id: 'conv-1',
+      user_id: 'user-1',
+      role: 'assistant',
+      content: 'NOT FOUND IN YOUR DOCUMENTS',
+      citations: [],
+      conflicts: [],
+      conflict_detected: false,
+      abstained: true,
+      abstain_reason: 'not_found',
+      retrieved: [],
+      selected_source_ids: ['src-1'],
+      source_versions: {},
+      tokens: { input: 10, output: 0, total: 10 },
+      latency: 100,
+      created_at: '2026-10-05T10:01:00Z',
+    };
+
+    const abstainedWithPassages: MessageItem = {
+      id: 'msg-abs-with',
+      conversation_id: 'conv-1',
+      user_id: 'user-1',
+      role: 'assistant',
+      content: 'NOT FOUND IN YOUR DOCUMENTS',
+      citations: [],
+      conflicts: [],
+      conflict_detected: false,
+      abstained: true,
+      abstain_reason: 'not_found',
+      retrieved: [
+        {
+          id: 'chunk-1',
+          source_id: 'src-1',
+          file: 'Syllabus.pdf',
+          file_name: 'Syllabus.pdf',
+          page: 2,
+          page_number: 2,
+          chunk_text: 'Midterm Exam: 25% of final grade.',
+          score: 0.15,
+        },
+      ],
+      selected_source_ids: ['src-1'],
+      source_versions: {},
+      tokens: { input: 10, output: 0, total: 10 },
+      latency: 100,
+      created_at: '2026-10-05T10:02:00Z',
+    };
+
+    render(
+      <SubjectWorkspaceView
+        subject={activeSubject}
+        sources={mockSources}
+        selectedSourceIds={['src-1', 'src-2']}
+        conversations={mockConversations}
+        notes={[]}
+        activeConversationId="conv-1"
+        starterQuestions={[]}
+        isDemoMode={false}
+        onBackToDashboard={() => {}}
+        onSelectSources={() => {}}
+        onSelectConversation={() => {}}
+        onCreateConversation={async () => {}}
+        onRenameConversation={async () => {}}
+        onDeleteConversation={async () => {}}
+        onUploadFiles={async () => {}}
+        onPasteText={async () => {}}
+        onAddUrl={async () => {}}
+        onRenameSource={async () => {}}
+        onDeleteSource={async () => {}}
+        onRetrySource={async () => {}}
+        onReplaceSource={async () => {}}
+        onSendMessage={async () => {}}
+        onUpdateSettings={async () => {}}
+        onCreateNote={async () => {}}
+        onSaveAnswerAsNote={async () => {}}
+        onUpdateNote={async () => {}}
+        onDeleteNote={async () => {}}
+        messages={[abstainedNoPassages, abstainedWithPassages]}
+        chatLoading={false}
+      />
+    );
+
+    // Hidden for abstained answer with no retrieved passages
+    expect(screen.queryByTestId('see-retrieval-btn-msg-abs-none')).toBeNull();
+
+    // Shown for abstained answer with retrieved passages
+    expect(screen.getByTestId('see-retrieval-btn-msg-abs-with')).toBeInTheDocument();
+  });
+
+  it('opens the Retrieval tab and loads retrieval map for THAT message on click and keyboard activation', async () => {
+    const retrievalSpy = vi.spyOn(api, 'getRetrievalMap').mockResolvedValue({
+      subject_id: 'sub-1',
+      question: 'What is the grading policy?',
+      query_position: { x: 0.1, y: 0.2, z: 0.0 },
+      abstained: false,
+      abstain_reason: null,
+      support_min_score: 0.2,
+      retrieved_chunk_ids: [1],
+      chunks: [],
+    });
+
+    render(
+      <SubjectWorkspaceView
+        subject={activeSubject}
+        sources={mockSources}
+        selectedSourceIds={['src-1', 'src-2']}
+        conversations={mockConversations}
+        notes={[]}
+        activeConversationId="conv-1"
+        starterQuestions={[]}
+        isDemoMode={false}
+        onBackToDashboard={() => {}}
+        onSelectSources={() => {}}
+        onSelectConversation={() => {}}
+        onCreateConversation={async () => {}}
+        onRenameConversation={async () => {}}
+        onDeleteConversation={async () => {}}
+        onUploadFiles={async () => {}}
+        onPasteText={async () => {}}
+        onAddUrl={async () => {}}
+        onRenameSource={async () => {}}
+        onDeleteSource={async () => {}}
+        onRetrySource={async () => {}}
+        onReplaceSource={async () => {}}
+        onSendMessage={async () => {}}
+        onUpdateSettings={async () => {}}
+        onCreateNote={async () => {}}
+        onSaveAnswerAsNote={async () => {}}
+        onUpdateNote={async () => {}}
+        onDeleteNote={async () => {}}
+        messages={mockMessages}
+        chatLoading={false}
+      />
+    );
+
+    const seeRetrievalBtn = screen.getByTestId('see-retrieval-btn-msg-2');
+    expect(seeRetrievalBtn).toBeInTheDocument();
+
+    // Keyboard activation: focus and press Enter/click
+    seeRetrievalBtn.focus();
+    expect(document.activeElement).toBe(seeRetrievalBtn);
+
+    await act(async () => {
+      fireEvent.click(seeRetrievalBtn);
+    });
+
+    // Right panel inspector should now be visible and on Retrieval tab
+    const retrievalTab = screen.getByTestId('right-panel-tab-retrieval');
+    expect(retrievalTab).toHaveClass('active');
+
+    // api.getRetrievalMap should have been called with messageId: 'msg-2'
+    await waitFor(() => {
+      expect(retrievalSpy).toHaveBeenCalledWith(
+        'sub-1',
+        expect.objectContaining({
+          conversationId: 'conv-1',
+          messageId: 'msg-2',
+        })
+      );
+    });
+  });
 });
 
 describe('Guest Workspace & Access Flow', () => {

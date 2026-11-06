@@ -254,6 +254,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
   const [rightPanelTab, setRightPanelTab] = useState<'passage' | 'notes' | 'retrieval'>('passage');
+  const [selectedRetrievalMessageId, setSelectedRetrievalMessageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSelectedRetrievalMessageId(null);
+  }, [activeConversationId]);
 
   // Search queries
   const [sourceSearch, setSourceSearch] = useState('');
@@ -595,6 +600,23 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     } finally {
       setSavingNoteMsgId(null);
     }
+  };
+
+  const handleSeeRetrieval = (messageId: string) => {
+    setSelectedRetrievalMessageId(messageId);
+    setRightPanelTab('retrieval');
+    setIsRightCollapsed(false);
+    if (isCompact) setIsLeftCollapsed(true);
+    setTimeout(() => {
+      const retrievalTabBtn = document.querySelector<HTMLButtonElement>(
+        '[data-testid="right-panel-tab-retrieval"]'
+      );
+      if (retrievalTabBtn) {
+        retrievalTabBtn.focus();
+      } else {
+        rightPanelRef.current?.focus();
+      }
+    }, 0);
   };
 
   // Filtered sources & notes
@@ -1132,6 +1154,22 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     </svg>
                                     <span>Retry</span>
                                   </button>
+                                  {msg.retrieved && msg.retrieved.length > 0 && (
+                                    <button
+                                      type="button"
+                                      className="answer-action-btn"
+                                      onClick={() => handleSeeRetrieval(msg.id)}
+                                      title="See retrieval"
+                                      aria-label="See retrieval"
+                                      data-testid={`see-retrieval-btn-${msg.id}`}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                        <circle cx="11" cy="11" r="8" />
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                      </svg>
+                                      <span>See retrieval</span>
+                                    </button>
+                                  )}
                                 </div>
 
                                 {msg.retrieved && msg.retrieved.length > 0 && (
@@ -1312,6 +1350,22 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     </svg>
                                     <span>Retry</span>
                                   </button>
+                                  {msg.retrieved && msg.retrieved.length > 0 && (
+                                    <button
+                                      type="button"
+                                      className="answer-action-btn"
+                                      onClick={() => handleSeeRetrieval(msg.id)}
+                                      title="See retrieval"
+                                      aria-label="See retrieval"
+                                      data-testid={`see-retrieval-btn-${msg.id}`}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                        <circle cx="11" cy="11" r="8" />
+                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                                      </svg>
+                                      <span>See retrieval</span>
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                             )}
@@ -1740,7 +1794,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <div className="right-panel-body retrieval-panel-body">
               <RetrievalMapView
                 subjectId={subject.id}
-                conversationId={activeConversationId || undefined}
+                conversationId={activeConversationId || (messages.length > 0 ? messages[0].conversation_id : undefined)}
+                messageId={selectedRetrievalMessageId || undefined}
                 selectedSourceIds={selectedSourceIds}
                 sources={sources}
                 onSelectPassage={handleSelectPassageFromRetrieval}
