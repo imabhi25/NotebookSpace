@@ -36,6 +36,7 @@ data/
 logs/
 evals/corpus_real_src/
 evals/corpus_real/
+evals/.bench_scratch/
 
 # IDE & OS
 .DS_Store
