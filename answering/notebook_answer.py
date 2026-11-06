@@ -145,16 +145,37 @@ def answer_notebook_question(
     settings = settings or {}
     support_min_score = float(os.getenv("SUPPORT_MIN_SCORE", "0.20"))
 
-    # If this is a retry of a previous failed assistant turn, remove the old failed turn
-    if is_retry and retry_message_id:
+    # If this is a retry of a previous failed or stopped assistant turn, remove the old turn
+    if is_retry:
         from db.notebook_store import delete_message
-        delete_message(
-            user_id=user_id,
-            message_id=retry_message_id,
-            conversation_id=conversation_id,
-            role="assistant",
-            db_url=db_url,
-        )
+        deleted = False
+        if retry_message_id:
+            deleted = bool(
+                delete_message(
+                    user_id=user_id,
+                    message_id=retry_message_id,
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    db_url=db_url,
+                )
+            )
+        if not deleted:
+            # If retry_message_id was not provided, not a UUID, or not found in DB
+            # (e.g. client-side stopped ID or stopped turn where the first request finished in the background),
+            # check the existing messages in the conversation and delete the last assistant message
+            # for this question turn so retry replaces it instead of adding a second assistant message.
+            try:
+                existing_msgs = get_messages_for_conversation(user_id=user_id, conversation_id=conversation_id, db_url=db_url)
+                if existing_msgs and existing_msgs[-1]["role"] == "assistant":
+                    delete_message(
+                        user_id=user_id,
+                        message_id=str(existing_msgs[-1]["id"]),
+                        conversation_id=conversation_id,
+                        role="assistant",
+                        db_url=db_url,
+                    )
+            except Exception:
+                pass
 
     # 1. Check if sources are selected
     if not selected_source_ids:
