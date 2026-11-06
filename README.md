@@ -62,7 +62,7 @@ There are **two established evaluation suites and one pending real-corpus extens
 - **Backend**: FastAPI with PostgreSQL and `pgvector` extension (hosted on [Render](https://render.com); database commonly on Neon free tier).
 - **Frontend**: React + TypeScript + Vite (hosted on [Vercel](https://vercel.com); live at [notebookspace.vercel.app](https://notebookspace.vercel.app/)).
 - **Embeddings**: `sentence-transformers/all-MiniLM-L6-v2` (384-dimensional dense vectors, cached via FastEmbed ONNX runtime).
-- **LLM**: Google Gemini (`gemini-3.5-flash` via the free-tier API; used by the live application).
+- **LLM**: Google Gemini (the live app runs on the Gemini API free tier with gemini-3.5-flash-lite (about 15 requests per minute and 500 requests per day), so it can return a temporary "unavailable" message when the daily limit is reached).
 - **Security**: The LLM API key lives strictly on the backend environment; it is never exposed in frontend code, any `VITE_` variables, or the browser.
 - **Deployed API features**: The live Render backend exposes endpoints used by the sample notebook and Retrieval tab (including sample-notebook creation and retrieval-map data). The Vercel frontend alone is not enough for those two features—the backend must be deployed (it is, on the current live site).
 - **Public Demo Guardrails**: Demo mode (`DEMO_MODE=true`) disables document uploads (returns 403), enforces IP-based rate limiting on `/ask` (default 10 questions/minute), and pre-seeds only openly licensed synthetic course documents. This applies to the legacy `/demo` path; the one-click guest sample uses the normal product APIs on the live backend.
@@ -120,7 +120,7 @@ docker build -t course-assistant .
 docker run -p 8000:8000 \
   -e DATABASE_URL="postgresql://user:password@host:port/dbname" \
   -e LLM_API_KEY="your_api_key" \
-  -e LLM_MODEL="gemini-3.5-flash" \
+  -e LLM_MODEL="gemini-3.5-flash-lite" \
   course-assistant
 ```
 
@@ -134,7 +134,7 @@ The application is designed for free-tier cloud deployment:
 - **Backend (Render)**: Deploy the FastAPI application as a free Web Service on [Render](https://render.com) using `render.yaml` or the Dockerfile. Configure environment variables in the Render dashboard:
   - `DATABASE_URL`: Connection string to your Neon database.
   - `LLM_API_KEY`: Google Gemini API key.
-  - `LLM_MODEL`: `gemini-3.5-flash`.
+  - `LLM_MODEL`: `gemini-3.5-flash-lite` (the live app runs on the Gemini API free tier with gemini-3.5-flash-lite (about 15 requests per minute and 500 requests per day), so it can return a temporary "unavailable" message when the daily limit is reached).
   - `ALLOWED_ORIGINS`: Comma-separated list of allowed frontend URLs (include `https://notebookspace.vercel.app` and any preview URLs).
   - `DEMO_MODE`: `true` when you want the legacy demo upload prohibition and rate limiting.
   - `DEMO_ASK_PER_MINUTE`: `10`.
@@ -215,7 +215,7 @@ Evaluated on the synthetic course corpus (7 documents, 23 chunks, 35 questions: 
 | **Hit@3** | **92.6%** (25 / 27) | **92.6%** (25 / 27) | Target passage in top 3 |
 | **Hit@5** | **100.0%** (27 / 27) | **100.0%** (27 / 27) | Target passage in top 5 (~22% corpus coverage) |
 | **MRR** | **0.751** | **0.751** | Mean reciprocal rank of first hit ($1/\text{rank}$) |
-| **Abstention Accuracy** | **100.0%** (8 / 8) | **100.0%** (8 / 8) | 8/8 (measured with gemini-3.5-flash-lite; re-check on the live model, gemini-3.5-flash, pending) |
+| **Abstention Accuracy** | **100.0%** (8 / 8) | **100.0%** (8 / 8) | 8/8 (measured with gemini-3.5-flash-lite; the live app runs on the Gemini API free tier with gemini-3.5-flash-lite (about 15 requests per minute and 500 requests per day), so it can return a temporary "unavailable" message when the daily limit is reached) |
 
 *Note: Hybrid search changes top-5 candidate ordering on 9 of 27 answerable questions without displacing the first correct hit, yielding identical first-hit aggregate metrics. See [evals/README.md](evals/README.md) for full benchmark documentation.*
 
