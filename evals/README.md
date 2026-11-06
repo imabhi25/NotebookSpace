@@ -4,6 +4,7 @@
 > - Labels are fixed before any retrieval is run and are never edited after seeing results.
 > - The strict metric (expected file and page) is the headline evaluation standard.
 > - No "lenient" rescoring of the synthetic set.
+> - MRR is capped at rank 5 (a miss outside the top 5 counts as 0, i.e., $1/\text{rank} = 0$).
 
 This directory contains the automated retrieval and answer-grounding evaluation benchmark for NotebookSpace across both synthetic course documents and a real published textbook corpus.
 
@@ -95,6 +96,11 @@ To eliminate structural clues and ensure uniquely discriminating benchmark queri
 | **Mean Reciprocal Rank (MRR)** | **0.561** | **0.558** | **+0.003** | Reciprocal rank of first hit ($1/\text{rank}$) |
 | **Absent-Fact Abstention Accuracy** | **100.0%** (6 / 6) | **100.0%** (6 / 6) | 0.0% | All 6 absent queries correctly abstained (`not_found`) |
 
+#### Set B Methodological Notes & Audit Observations
+- **Shared Absent Questions**: The 6 absent-fact questions are shared between Set A and Set B, so their 6/6 (100%) abstain result represents one evaluated result, not two independent measurements.
+- **Generation Search Strategy**: Set B generation switched to unique-candidate-phrase hints after many Rule (c) rejections (43 candidates rejected for non-unique gold answers).
+- **Chunk Qualification**: Only 33 of 108 chunks qualified under Rule (a), and some numbered-question text (for example `rq_b_02`, `rq_b_13`) still got through in chunks with surrounding prose.
+
 #### Set B Generation Audit Log
 - **Valid Prose Chunks Identified**: 33 (rejected 75 chunks under Rule a)
 - **Candidates Rejected under Rule (b)** [Meta-words]: 8
@@ -120,6 +126,29 @@ To eliminate structural clues and ensure uniquely discriminating benchmark queri
 
 ---
 
+## 3. Comprehensive Experimental Matrix (Set × Configuration)
+
+> **Statistical Note**: On a 30-question benchmark set (or 27 questions on synthetic), differences of 2 questions or fewer (≤ 6.7%) are within sampling noise. Only empirically measured outcomes are recorded below. All evaluations enforce strict file and page matching against gold labels fixed before retrieval. MRR is capped at rank 5 ($1/\text{rank} = 0$ for misses outside top 5).
+
+### Matrix Results Table
+
+| Dataset / Set | Embedding Model (384-dim) | Reranker (Cross-Encoder) | Hit@1 | Hit@3 | Hit@5 | MRR | Added Latency (Median / P95) | Peak RSS |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: |
+| **Synthetic** (N=27) | `all-MiniLM-L6-v2` (Default) | None (Hybrid) | 59.3% (16/27) | 92.6% (25/27) | 100.0% (27/27) | 0.751 | — | 357.2 MB |
+| **Synthetic** (N=27) | `all-MiniLM-L6-v2` (Default) | `ms-marco-MiniLM-L-6-v2` | 74.1% (20/27) | 96.3% (26/27) | 100.0% (27/27) | 0.853 | 273.0 ms / 466.8 ms | 465.7 MB |
+| **Synthetic** (N=27) | `bge-small-en-v1.5` | None (Hybrid) | 59.3% (16/27) | 88.9% (24/27) | 96.3% (26/27) | 0.737 | — | 418.3 MB |
+| **Synthetic** (N=27) | `bge-small-en-v1.5` | `ms-marco-MiniLM-L-6-v2` | 74.1% (20/27) | 96.3% (26/27) | 96.3% (26/27) | 0.846 | 270.8 ms / 320.7 ms | 658.9 MB |
+| **Real Set A** (N=30) | `all-MiniLM-L6-v2` (Default) | None (Hybrid) | 36.7% (11/30) | 53.3% (16/30) | 56.7% (17/30) | 0.442 | — | 357.2 MB |
+| **Real Set A** (N=30) | `all-MiniLM-L6-v2` (Default) | `ms-marco-MiniLM-L-6-v2` | 56.7% (17/30) | 73.3% (22/30) | 80.0% (24/30) | 0.658 | 992.2 ms / 1245.1 ms | 943.8 MB |
+| **Real Set A** (N=30) | `bge-small-en-v1.5` | None (Hybrid) | 50.0% (15/30) | 73.3% (22/30) | 80.0% (24/30) | 0.632 | — | 418.3 MB |
+| **Real Set A** (N=30) | `bge-small-en-v1.5` | `ms-marco-MiniLM-L-6-v2` | 63.3% (19/30) | 83.3% (25/30) | 86.7% (26/30) | 0.734 | 720.3 ms / 808.0 ms | 1141.5 MB |
+| **Real Set B** (N=30) | `all-MiniLM-L6-v2` (Default) | None (Hybrid) | 46.7% (14/30) | 63.3% (19/30) | 73.3% (22/30) | 0.561 | — | 357.2 MB |
+| **Real Set B** (N=30) | `all-MiniLM-L6-v2` (Default) | `ms-marco-MiniLM-L-6-v2` | 50.0% (15/30) | 80.0% (24/30) | 83.3% (25/30) | 0.653 | 889.0 ms / 1368.4 ms | 1002.6 MB |
+| **Real Set B** (N=30) | `bge-small-en-v1.5` | None (Hybrid) | 50.0% (15/30) | 76.7% (23/30) | 93.3% (28/30) | 0.655 | — | 418.3 MB |
+| **Real Set B** (N=30) | `bge-small-en-v1.5` | `ms-marco-MiniLM-L-6-v2` | 53.3% (16/30) | 86.7% (26/30) | 86.7% (26/30) | 0.694 | 751.1 ms / 1134.4 ms | 1018.4 MB |
+
+---
+
 ## Running the Benchmarks
 
 Both benchmarks can be executed using the evaluation harness:
@@ -128,11 +157,20 @@ Both benchmarks can be executed using the evaluation harness:
 # Run synthetic corpus benchmark (default)
 .venv/bin/python evals/run_retrieval_eval.py --corpus synthetic
 
+# Run synthetic with cross-encoder reranker
+.venv/bin/python evals/run_retrieval_eval.py --corpus synthetic --rerank
+
 # Run real textbook corpus benchmark (Set A)
 .venv/bin/python evals/run_retrieval_eval.py --corpus real --set a
 
 # Run real textbook corpus benchmark (Set B)
 .venv/bin/python evals/run_retrieval_eval.py --corpus real --set b
+
+# Run real textbook benchmark with cross-encoder reranker
+.venv/bin/python evals/run_retrieval_eval.py --corpus real --set b --rerank
+
+# Run with alternative 384-dim embedding model
+.venv/bin/python evals/run_retrieval_eval.py --corpus real --set b --embedding-model "BAAI/bge-small-en-v1.5" --rerank
 
 # Build / regenerate real benchmark questions (Set B)
 .venv/bin/python evals/build_real_eval.py --set b
