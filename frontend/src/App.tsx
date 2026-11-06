@@ -249,7 +249,7 @@ export function App({
         const stoppedVal = window.localStorage.getItem(stoppedKey);
         if (stoppedVal && msgs.length > 0) {
           const lastMsg = msgs[msgs.length - 1];
-          if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.abstained) {
+          if (lastMsg && lastMsg.role === 'assistant' && !lastMsg.abstained && lastMsg.abstain_reason !== 'generation_failed') {
             return msgs.map((m, idx) => {
               if (idx === msgs.length - 1) {
                 return {
@@ -474,7 +474,7 @@ export function App({
         user_id: currentUser?.id || '',
         role: 'assistant',
         content: err.message || 'Unable to generate response. Service temporarily unavailable.',
-        abstained: true,
+        abstained: false,
         abstain_reason: 'generation_failed',
         citations: [],
         conflicts: [],
