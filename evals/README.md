@@ -153,7 +153,7 @@ To eliminate structural clues and ensure uniquely discriminating benchmark queri
 
 A clean, isolated benchmark (`evals/benchmark_memory.py`) was executed to evaluate production resource profiles without database or PDF parsing overhead. Each configuration runs in **one fresh subprocess** measuring resident set size via `resource.getrusage(RUSAGE_SELF).ru_maxrss` immediately after loading models and after executing 30 real evaluation queries against 15 realistic-length textbook passages (~250 words each).
 
-> **CPU Environment Caveat**: The benchmark host CPU is an **Apple Silicon Mac (M-series)**, **NOT Render's free-tier shared CPU (0.1 vCPU)**. On Render's throttled free CPU, embedding and cross-encoder inference times would be roughly 3×–6× slower (reranking 15 passages would take approximately 2.5–4.5 seconds per request). Latency numbers below demonstrate relative scaling rather than production Render execution times.
+> **CPU Environment Caveat**: The benchmark host CPU is an **Apple Silicon Mac (M-series)**, **NOT Render's free-tier shared CPU (0.1 vCPU)**. Latency on Render's throttled free CPU was not measured; any performance multiplier is an unmeasured guess. Latency numbers below demonstrate relative scaling on macOS Apple Silicon rather than production Render execution times.
 
 ### Benchmark Results (30 Queries, Top-15 Reranked Passages)
 
@@ -164,15 +164,9 @@ A clean, isolated benchmark (`evals/benchmark_memory.py`) was executed to evalua
 | **MiniLM + Reranker** | `all-MiniLM-L6-v2` | `ms-marco-MiniLM-L-6-v2` | **379.6 MB** | **598.0 MB** | 3.1 ms | 6.0 ms | 591.4 ms | 711.0 ms |
 | **BGE + Reranker** | `bge-small-en-v1.5` | `ms-marco-MiniLM-L-6-v2` | **468.2 MB** | **653.3 MB** | 5.4 ms | 14.1 ms | 640.5 ms | 783.7 ms |
 
-### Docker 512 MB Memory Limit Test (`--memory=512m`)
+### 512 MB Container Limit Status
 
-When running under a hard memory limit of 512 MB (e.g. `docker run --memory=512m --memory-swap=512m python:3.12-slim` or Render free-tier container):
-1. **Standalone Embedders (MiniLM & BGE)**:
-   - **MiniLM** (peak 257.5 MB, ~50% limit) and **BGE** (peak 318.4 MB, ~62% limit) **survive without memory pressure**. Neither model is OOM-killed.
-2. **Configurations with Cross-Encoder Reranker**:
-   - Both **MiniLM + Reranker** (peak 598.0 MB) and **BGE + Reranker** (peak 653.3 MB) allocate substantial ONNX runtime memory buffers during cross-attention scoring over 15 sequences.
-   - Because peak RSS exceeds 512 MB, **both reranker configurations are OOM-killed (Linux kernel OOM killer, exit code 137)** under a strict 512 MB cgroup limit without swap.
-   - **Conclusion**: The cross-encoder reranker cannot be deployed on Render's 512 MB free tier. It requires a container tier with at least 1 GB RAM (or an out-of-process reranking microservice). Standalone BGE fits comfortably within the 512 MB envelope.
+Not run under a 512 MB container limit (Docker unavailable). Peak RSS measured on macOS Apple Silicon: MiniLM 257 MB, BGE 318 MB, MiniLM+reranker 598 MB, BGE+reranker 653 MB. Linux and Render memory may differ; the reranker configurations exceed 512 MB on this measurement and are untested on Render.
 
 ---
 
@@ -212,27 +206,28 @@ Evaluating search performance with keyword boost active (+0.30 on matched terms)
 
 ### Absent Questions Pipeline Execution (`gemini-3.5-flash` + BGE)
 
-1. **Retrieval Behavior**: Absent questions on BGE produce top chunks with raw cosines between 0.56 and 0.81. When hybrid search matches common query terms (e.g. "Python", "Assignment"), scores reach 0.86–1.00. Because the current `SUPPORT_MIN_SCORE` is 0.20, all absent questions pass the pre-LLM check and are forwarded to `answer_notebook_question`.
+1. **Retrieval Behavior**: Absent questions on BGE produce top chunks with raw cosines between 0.563 and 0.813. When hybrid search matches common query terms (e.g. "Python", "Assignment"), scores reach 0.86–1.00. Because the current `SUPPORT_MIN_SCORE` is 0.20, all absent questions pass the pre-LLM check and are forwarded to `answer_notebook_question`.
 2. **Abstention Outcome**:
-   - In live testing, Gemini API calls return `402 RESOURCE_EXHAUSTED` (prepayment credits depleted on Google AI Studio project), triggering pipeline fallback abstention (`abstained=True`, `abstain_reason="generation_failed"`) on 8/8 synthetic and 6/6 real absent questions.
-   - When credits are active, `gemini-3.5-flash` achieves **100% abstention accuracy** (`abstain_reason="not_found"`) because the system prompt instructs the model to emit `NOT_FOUND` whenever retrieved context does not substantiate the answer (as verified in Section 1 on the identical question texts).
+   - **BGE abstain accuracy through the full pipeline: not measured (API credits exhausted).**
+   - Live Gemini API calls failed with `402 RESOURCE_EXHAUSTED` (prepayment credits depleted on Google AI Studio project) across all 14 absent questions (8 synthetic, 6 real).
 
 ### Proposed Parameter Adjustments for BGE (Recommendations Only — Do Not Apply)
 
-If migrating production to BGE, adjust scoring constants to match BGE's tighter distribution:
+These are proposals only and have not been applied to production code or configuration:
 
-1. **`SUPPORT_MIN_SCORE`**:
+1. **Separation Limitation under BGE**:
+   - Raw cosine **cannot separate absent from answerable under BGE** (gap about 0.1, overlapping ranges: answerable [0.554, 0.863] vs absent [0.563, 0.813]).
+2. **`SUPPORT_MIN_SCORE`**:
    - **Current**: `0.20`
-   - **Proposed for BGE**: **`0.50`** (or `0.55`)
-   - *Rationale*: BGE absent-fact queries average 0.63–0.67 and reach 0.81 in worst cases. A threshold of 0.20 provides no protection against noise. A threshold of 0.50 filters out totally unrelated chunks while remaining below legitimate answerable scores (min 0.554).
-2. **`low_similarity_cutoff` (Retrieval Map & Filtering)**:
+   - **Proposed for BGE**: **`0.50`**
+   - *Rationale*: With BGE every tested absent question scored at least 0.563 raw cosine, so a floor of 0.50 rejects none of them and acts only as a junk-chunk floor for completely ungrounded or empty queries.
+3. **`low_similarity_cutoff` (Retrieval Map & Filtering)**:
    - **Current**: Implicit `0.0`
    - **Proposed for BGE**: **`0.45`**
-   - *Rationale*: Any chunk with cosine similarity below 0.45 under BGE is almost certainly noise.
-3. **`keyword_boost`**:
+4. **`keyword_boost`**:
    - **Current**: `+0.30`
-   - **Proposed for BGE**: **`+0.15`** (or `+0.10`)
-   - *Rationale*: MiniLM had a separation gap of ~0.194, so +0.30 was a moderate boost. For BGE, the separation gap is only ~0.097; a +0.30 boost dwarfs the semantic distance and risks promoting completely irrelevant chunks that happen to share a single keyword.
+   - **Proposed for BGE**: **`0`**
+   - *Rationale*: The keyword boost made no difference on any set with BGE (Hit@1, Hit@3, and Hit@5 were identical on Synthetic and Real Set A, and within 0.002 MRR on Set B), so the recommendation is to set it to 0 on migration.
 
 ---
 
@@ -360,6 +355,15 @@ Add the following unit and integration tests to `tests/`:
    - Verify idempotency: running migration script twice on already-migrated chunks does not corrupt data.
 3. `tests/test_mixed_vector_rejection.py`:
    - Verify `search_scoped` raises or ignores chunks whose `embedding_model` does not match active query model.
+
+---
+
+## 8. What Was Not Measured
+
+To maintain rigorous reporting boundaries, the following were **not measured** and remain untested:
+1. **Docker / Render Container Memory**: Docker was unavailable on this Mac, so no container run happened under a 512 MB limit. Peak RSS was measured exclusively on macOS Apple Silicon. Linux and Render memory profiles may differ; the reranker configurations exceed 512 MB on this measurement and are untested on Render.
+2. **BGE Abstain Through the Pipeline**: Full pipeline abstention using `gemini-3.5-flash` with BGE vectors was not measured because Gemini API prepayment credits were exhausted (`402 RESOURCE_EXHAUSTED` across all 14 absent questions).
+3. **Latency on Render's CPU**: Query embedding and reranking latencies were measured solely on an Apple Silicon Mac; latency on Render's free-tier shared CPU (0.1 vCPU) was not measured and any multiplier is an unmeasured guess.
 
 ---
 
