@@ -295,7 +295,7 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: v
 .not-found-badge { font-size: var(--type-caption); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-label); color: var(--color-text-secondary); background: var(--color-transparent); padding: 0; }
 .not-found-badge.badge-failed { color: var(--color-danger-text); }
 .related-passage-item { border-radius: var(--radius-control); box-shadow: var(--shadow-1); border-color: var(--color-border-sheet); }
-.answer-action-toolbar { margin-top: var(--space-3); border-top: none; padding-top: 0; gap: var(--space-1); }
+.answer-action-toolbar { margin-top: var(--space-3); border-top: none; padding-top: 0; gap: var(--space-1); flex-wrap: wrap; }
 .status-strip { background: var(--color-transparent); border: none; border-radius: var(--radius-none); padding: 0; gap: var(--space-3); color: var(--color-text-muted); }
 .status-strip-item { font-weight: var(--weight-regular); }
 .inline-action-icon { vertical-align: middle; margin-right: var(--space-1); }
@@ -665,7 +665,7 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
 .chips-row { gap: var(--space-2); }
 .chip { padding: var(--space-1) var(--space-3); min-height: var(--control-height-sm); display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; }
 .answer-action-toolbar { margin-top: 0; }
-.answer-action-btn { height: var(--control-height-sm); padding: 0 var(--space-2); font-size: var(--type-small); }
+.answer-action-btn { height: var(--control-height-sm); padding: 0 var(--space-2); font-size: var(--type-small); white-space: nowrap; }
 .status-strip { font-size: var(--type-caption); }
 
 /* States that used to look like defaults */
