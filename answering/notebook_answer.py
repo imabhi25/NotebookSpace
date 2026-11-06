@@ -159,23 +159,37 @@ def answer_notebook_question(
                     db_url=db_url,
                 )
             )
+
+        existing_msgs = get_messages_for_conversation(user_id=user_id, conversation_id=conversation_id, db_url=db_url)
         if not deleted:
-            # If retry_message_id was not provided, not a UUID, or not found in DB
-            # (e.g. client-side stopped ID or stopped turn where the first request finished in the background),
-            # check the existing messages in the conversation and delete the last assistant message
-            # for this question turn so retry replaces it instead of adding a second assistant message.
-            try:
-                existing_msgs = get_messages_for_conversation(user_id=user_id, conversation_id=conversation_id, db_url=db_url)
-                if existing_msgs and existing_msgs[-1]["role"] == "assistant":
-                    delete_message(
-                        user_id=user_id,
-                        message_id=str(existing_msgs[-1]["id"]),
-                        conversation_id=conversation_id,
-                        role="assistant",
-                        db_url=db_url,
-                    )
-            except Exception:
-                pass
+            # Only remove a trailing assistant message if it directly follows the user message
+            # with the same content as the one being retried: [that user message, an assistant message].
+            # Never remove an assistant message that answers an earlier question.
+            if (
+                len(existing_msgs) >= 2
+                and existing_msgs[-2]["role"] == "user"
+                and existing_msgs[-2]["content"] == question
+                and existing_msgs[-1]["role"] == "assistant"
+            ):
+                delete_message(
+                    user_id=user_id,
+                    message_id=str(existing_msgs[-1]["id"]),
+                    conversation_id=conversation_id,
+                    role="assistant",
+                    db_url=db_url,
+                )
+                existing_msgs = existing_msgs[:-1]
+
+        # If the retried user message is not stored in the conversation at all, save it (so it is not lost), then generate.
+        user_msg_exists = any(m.get("role") == "user" and m.get("content") == question for m in existing_msgs)
+        if not user_msg_exists:
+            save_message(
+                user_id=user_id,
+                conversation_id=conversation_id,
+                role="user",
+                content=question,
+                db_url=db_url,
+            )
 
     # 1. Check if sources are selected
     if not selected_source_ids:

@@ -12,6 +12,7 @@ from db.notebook_store import (
     save_message,
     get_messages_for_conversation,
 )
+from answering.notebook_answer import answer_notebook_question
 from answering.llm import FakeLLMClient
 
 client = TestClient(app)
@@ -182,21 +183,19 @@ def test_replace_source_with_unsupported_format_marks_failed(auth_headers, test_
     assert "Unsupported format" in rep_data["error_message"]
 
 
-def test_retry_after_stopped_generation_replaces_assistant_turn(auth_headers, test_subject, monkeypatch):
-    """Bug 2: Retry after user-initiated stop must replace the stopped turn, not store a 2nd assistant answer."""
+def test_retry_scenario_a_stop_after_save_then_retry(auth_headers, test_subject, monkeypatch):
+    """(a) stop after save then Retry -> exactly one assistant answer."""
     import answering.notebook_answer as na
-    from answering.llm import FakeLLMClient
 
     fake_client = FakeLLMClient(responses=[
-        '{"supported": true, "answer": "The midterm date is Thursday, Nov 19, 2026 [course.pdf p.1].", "citations": [{"file": "course.pdf", "page": 1, "quote": "Midterm Exam on Thursday, Nov 19, 2026."}]}',
-        '{"supported": true, "answer": "Retried answer: Midterm date is Nov 19 [course.pdf p.1].", "citations": [{"file": "course.pdf", "page": 1, "quote": "Midterm Exam on Thursday, Nov 19, 2026."}]}'
+        '{"supported": true, "answer": "Answer 1 [course.pdf p.1].", "citations": [{"file": "course.pdf", "page": 1, "quote": "Midterm Exam on Thursday, Nov 19, 2026."}]}',
+        '{"supported": true, "answer": "Retried Answer [course.pdf p.1].", "citations": [{"file": "course.pdf", "page": 1, "quote": "Midterm Exam on Thursday, Nov 19, 2026."}]}',
     ])
     monkeypatch.setattr(na, "get_llm_client", lambda **kwargs: fake_client)
 
     sub_id = test_subject["id"]
     headers = {"Authorization": auth_headers["Authorization"]}
 
-    # Upload a source with midterm date
     pdf = make_pdf(["Course Overview\nMidterm Exam on Thursday, Nov 19, 2026."])
     up_resp = client.post(
         f"/subjects/{sub_id}/sources/upload",
@@ -206,52 +205,252 @@ def test_retry_after_stopped_generation_replaces_assistant_turn(auth_headers, te
     assert up_resp.status_code == 200
     src = up_resp.json()
 
-    # Create conversation
     conv_resp = client.post(
         f"/subjects/{sub_id}/conversations",
-        json={"title": "Midterm Query"},
+        json={"title": "Test Conv A"},
         headers=headers,
     )
     assert conv_resp.status_code == 200
     conv_id = conv_resp.json()["id"]
 
-    # First ask: simulate generation
+    # Initial ask
     ask_resp1 = client.post(
         f"/subjects/{sub_id}/conversations/{conv_id}/messages",
-        json={
-            "question": "When is the midterm exam?",
-            "selected_source_ids": [src["id"]],
-        },
+        json={"question": "When is the midterm?", "selected_source_ids": [src["id"]]},
         headers=headers,
     )
     assert ask_resp1.status_code == 200
-    msg1 = ask_resp1.json()
 
-    # Verify conversation now has 1 user and 1 assistant message
-    msgs_resp1 = client.get(f"/subjects/{sub_id}/conversations/{conv_id}/messages", headers=headers)
-    msgs1 = msgs_resp1.json()
-    assert len(msgs1) == 2
-    assert msgs1[0]["role"] == "user"
-    assert msgs1[1]["role"] == "assistant"
+    # Conversation has [user, assistant]
+    msgs_1 = client.get(f"/subjects/{sub_id}/conversations/{conv_id}/messages", headers=headers).json()
+    assert len(msgs_1) == 2
 
-    # Now simulate user stopped generation on client (client stopped ID like "stopped-1730000000")
-    # and user clicks "Retry".
+    # User clicks Retry (e.g. stopped ID from client)
+    retry_resp = client.post(
+        f"/subjects/{sub_id}/conversations/{conv_id}/messages",
+        json={
+            "question": "When is the midterm?",
+            "selected_source_ids": [src["id"]],
+            "is_retry": True,
+            "retry_message_id": "stopped-12345",
+        },
+        headers=headers,
+    )
+    assert retry_resp.status_code == 200
+
+    # Conversation must STILL have exactly 2 messages: 1 user, 1 assistant
+    msgs_2 = client.get(f"/subjects/{sub_id}/conversations/{conv_id}/messages", headers=headers).json()
+    assert len(msgs_2) == 2
+    assert msgs_2[0]["role"] == "user"
+    assert msgs_2[0]["content"] == "When is the midterm?"
+    assert msgs_2[1]["role"] == "assistant"
+    assert "Retried Answer" in msgs_2[1]["content"]
+
+
+def test_retry_scenario_b_stop_before_save_with_earlier_qa(auth_headers, test_subject, monkeypatch):
+    """(b) stop before the user message was saved, with an earlier Q1/A1 in the conversation -> Retry keeps A1, saves Q2 and adds one answer A2."""
+    import answering.notebook_answer as na
+
+    fake_client = FakeLLMClient(responses=[
+        '{"supported": true, "answer": "Answer to Q1 [course.pdf p.1].", "citations": [{"file": "course.pdf", "page": 1, "quote": "Course Overview"}]}',
+        '{"supported": true, "answer": "Answer to Q2 [course.pdf p.1].", "citations": [{"file": "course.pdf", "page": 1, "quote": "Midterm Exam on Thursday, Nov 19, 2026."}]}',
+    ])
+    monkeypatch.setattr(na, "get_llm_client", lambda **kwargs: fake_client)
+
+    sub_id = test_subject["id"]
+    headers = {"Authorization": auth_headers["Authorization"]}
+
+    pdf = make_pdf(["Course Overview\nMidterm Exam on Thursday, Nov 19, 2026."])
+    up_resp = client.post(
+        f"/subjects/{sub_id}/sources/upload",
+        files={"file": ("course.pdf", pdf, "application/pdf")},
+        headers=headers,
+    )
+    assert up_resp.status_code == 200
+    src = up_resp.json()
+
+    conv_resp = client.post(
+        f"/subjects/{sub_id}/conversations",
+        json={"title": "Test Conv B"},
+        headers=headers,
+    )
+    assert conv_resp.status_code == 200
+    conv_id = conv_resp.json()["id"]
+
+    # First turn Q1 / A1
+    ask1 = client.post(
+        f"/subjects/{sub_id}/conversations/{conv_id}/messages",
+        json={"question": "What course is this?", "selected_source_ids": [src["id"]]},
+        headers=headers,
+    )
+    assert ask1.status_code == 200
+
+    msgs_1 = client.get(f"/subjects/{sub_id}/conversations/{conv_id}/messages", headers=headers).json()
+    assert len(msgs_1) == 2
+    assert msgs_1[0]["content"] == "What course is this?"
+    assert msgs_1[1]["content"] == "Answer to Q1 [course.pdf p.1]."
+
+    # Now user typed Q2: "When is the midterm?", but generation was stopped before Q2 was saved in DB.
+    # The user then clicks Retry for Q2.
+    # The backend must NOT remove A1, must save Q2, and must add A2!
+    retry_resp = client.post(
+        f"/subjects/{sub_id}/conversations/{conv_id}/messages",
+        json={
+            "question": "When is the midterm?",
+            "selected_source_ids": [src["id"]],
+            "is_retry": True,
+            "retry_message_id": "stopped-99999",
+        },
+        headers=headers,
+    )
+    assert retry_resp.status_code == 200
+
+    msgs_2 = client.get(f"/subjects/{sub_id}/conversations/{conv_id}/messages", headers=headers).json()
+    # Must have 4 messages: [Q1, A1, Q2, A2]
+    assert len(msgs_2) == 4
+    assert msgs_2[0]["role"] == "user"
+    assert msgs_2[0]["content"] == "What course is this?"
+    assert msgs_2[1]["role"] == "assistant"
+    assert msgs_2[1]["content"] == "Answer to Q1 [course.pdf p.1]."
+    assert msgs_2[2]["role"] == "user"
+    assert msgs_2[2]["content"] == "When is the midterm?"
+    assert msgs_2[3]["role"] == "assistant"
+    assert msgs_2[3]["content"] == "Answer to Q2 [course.pdf p.1]."
+
+
+def test_retry_scenario_c_failed_provider_answer_replaces_failure(auth_headers, test_subject, monkeypatch):
+    """(c) normal retry of a failed provider answer still replaces the failure."""
+    import answering.notebook_answer as na
+    from answering.llm import LLMServiceError
+
+    # First call will raise LLMServiceError; second call will succeed
+    class FailingThenSucceedingLLM:
+        def __init__(self):
+            self.calls = 0
+
+        def generate(self, system: str, user: str):
+            self.calls += 1
+            if self.calls == 1:
+                raise LLMServiceError("unavailable", "Provider timeout")
+            from answering.llm import LLMResponse
+            return LLMResponse(
+                text='{"supported": true, "answer": "Recovered answer [course.pdf p.1].", "citations": [{"file": "course.pdf", "page": 1, "quote": "Course Overview"}]}',
+                latency_seconds=0.1,
+                input_tokens=10,
+                output_tokens=15,
+            )
+
+    failing_client = FailingThenSucceedingLLM()
+    monkeypatch.setattr(na, "get_llm_client", lambda **kwargs: failing_client)
+
+    sub_id = test_subject["id"]
+    headers = {"Authorization": auth_headers["Authorization"]}
+
+    pdf = make_pdf(["Course Overview\nMidterm Exam on Thursday, Nov 19, 2026."])
+    up_resp = client.post(
+        f"/subjects/{sub_id}/sources/upload",
+        files={"file": ("course.pdf", pdf, "application/pdf")},
+        headers=headers,
+    )
+    assert up_resp.status_code == 200
+    src = up_resp.json()
+
+    conv_resp = client.post(
+        f"/subjects/{sub_id}/conversations",
+        json={"title": "Test Conv C"},
+        headers=headers,
+    )
+    assert conv_resp.status_code == 200
+    conv_id = conv_resp.json()["id"]
+
+    # First ask fails at LLM
+    ask1 = client.post(
+        f"/subjects/{sub_id}/conversations/{conv_id}/messages",
+        json={"question": "When is the midterm exam?", "selected_source_ids": [src["id"]]},
+        headers=headers,
+    )
+    assert ask1.status_code == 200
+    failed_msg = ask1.json()
+    assert failed_msg["abstained"] is False
+    assert failed_msg["abstain_reason"] == "generation_failed"
+
+    msgs_1 = client.get(f"/subjects/{sub_id}/conversations/{conv_id}/messages", headers=headers).json()
+    assert len(msgs_1) == 2
+    assert msgs_1[1]["id"] == failed_msg["id"]
+
+    # Retry the failed message with its exact retry_message_id
     retry_resp = client.post(
         f"/subjects/{sub_id}/conversations/{conv_id}/messages",
         json={
             "question": "When is the midterm exam?",
             "selected_source_ids": [src["id"]],
             "is_retry": True,
-            "retry_message_id": "stopped-1730932800000",
+            "retry_message_id": failed_msg["id"],
         },
         headers=headers,
     )
     assert retry_resp.status_code == 200
+    retried_msg = retry_resp.json()
+    assert "Recovered answer" in retried_msg["content"]
 
-    # Conversation must STILL have exactly 1 user message and 1 assistant message (replaced, NOT duplicated)
-    msgs_resp2 = client.get(f"/subjects/{sub_id}/conversations/{conv_id}/messages", headers=headers)
-    msgs2 = msgs_resp2.json()
-    assert len(msgs2) == 2, f"Expected 2 messages (1 user, 1 assistant), got {len(msgs2)}: {[m['role'] for m in msgs2]}"
-    assert msgs2[0]["role"] == "user"
-    assert msgs2[1]["role"] == "assistant"
-    assert "Retried answer" in msgs2[1]["content"]
+    # Exactly 2 messages in conversation (the failed assistant message was replaced)
+    msgs_2 = client.get(f"/subjects/{sub_id}/conversations/{conv_id}/messages", headers=headers).json()
+    assert len(msgs_2) == 2
+    assert msgs_2[0]["role"] == "user"
+    assert msgs_2[1]["role"] == "assistant"
+    assert "Recovered answer" in msgs_2[1]["content"]
+
+
+def test_failed_sources_excluded_from_source_count_and_cap(auth_headers, test_subject):
+    """Bug 3: Failed source rows must not count toward the card's source_count or the 15-source limit."""
+    sub_id = test_subject["id"]
+    headers = {"Authorization": auth_headers["Authorization"]}
+
+    # Initially 0 sources
+    subj_resp = client.get(f"/subjects", headers=headers)
+    assert subj_resp.status_code == 200
+    subj_data = next(s for s in subj_resp.json() if s["id"] == sub_id)
+    assert subj_data["source_count"] == 0
+
+    # 1. Upload a failed source (unsupported format)
+    resp_failed = client.post(
+        f"/subjects/{sub_id}/sources/upload",
+        files={"file": ("invalid.exe", b"binary content", "application/octet-stream")},
+        headers=headers,
+    )
+    assert resp_failed.status_code == 200
+    assert resp_failed.json()["status"] == "failed"
+
+    # Card's source_count must STILL be 0
+    subj_resp2 = client.get(f"/subjects", headers=headers)
+    subj_data2 = next(s for s in subj_resp2.json() if s["id"] == sub_id)
+    assert subj_data2["source_count"] == 0, f"Expected source_count 0, got {subj_data2['source_count']}"
+
+    # Also check /subjects/{id} endpoint
+    single_subj = client.get(f"/subjects/{sub_id}", headers=headers).json()
+    assert single_subj["source_count"] == 0
+
+    # 2. Upload 15 valid sources (should all succeed despite the 1 failed source)
+    for i in range(15):
+        txt_content = f"Valid content for source {i} detailing algorithms course requirements."
+        up = client.post(
+            f"/subjects/{sub_id}/sources/upload",
+            files={"file": (f"source_{i}.txt", txt_content.encode("utf-8"), "text/plain")},
+            headers=headers,
+        )
+        assert up.status_code == 200, f"Upload {i} failed with status {up.status_code}: {up.text}"
+        assert up.json()["status"] == "ready"
+
+    # Card's source_count must be exactly 15 (excluding the 1 failed source)
+    subj_resp3 = client.get(f"/subjects", headers=headers)
+    subj_data3 = next(s for s in subj_resp3.json() if s["id"] == sub_id)
+    assert subj_data3["source_count"] == 15
+
+    # 3. Uploading a 16th valid source must now hit the 15-source limit
+    up_16 = client.post(
+        f"/subjects/{sub_id}/sources/upload",
+        files={"file": ("source_16.txt", b"Overflow source content", "text/plain")},
+        headers=headers,
+    )
+    assert up_16.status_code == 400
+    assert "Portfolio deployment limit reached" in up_16.json()["detail"]

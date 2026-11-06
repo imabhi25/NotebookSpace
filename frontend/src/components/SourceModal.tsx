@@ -224,8 +224,13 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   };
 
   const handleDismissDialog = () => {
+    setError(null);
     setUploadResults(null);
     setSelectedFiles([]);
+    setPasteTitle('');
+    setPasteText('');
+    setUrlInput('');
+    setUrlTitle('');
     onClose();
   };
 

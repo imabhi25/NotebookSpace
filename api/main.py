@@ -1152,7 +1152,7 @@ async def upload_source_endpoint(
     if not subj:
         raise HTTPException(status_code=404, detail="Subject not found.")
 
-    existing_sources = get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id)
+    existing_sources = [s for s in get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id) if s.get("status") != "failed"]
     if len(existing_sources) >= 15:
         raise HTTPException(
             status_code=400,
@@ -1238,7 +1238,7 @@ def paste_source_endpoint(
     if not subj:
         raise HTTPException(status_code=404, detail="Subject not found.")
 
-    existing_sources = get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id)
+    existing_sources = [s for s in get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id) if s.get("status") != "failed"]
     if len(existing_sources) >= 15:
         raise HTTPException(
             status_code=400,
@@ -1299,7 +1299,7 @@ def url_source_endpoint(
     if not subj:
         raise HTTPException(status_code=404, detail="Subject not found.")
 
-    existing_sources = get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id)
+    existing_sources = [s for s in get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id) if s.get("status") != "failed"]
     if len(existing_sources) >= 15:
         raise HTTPException(
             status_code=400,
