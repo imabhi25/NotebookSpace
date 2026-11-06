@@ -6,6 +6,18 @@ export interface FileUploadResult {
   reason?: string;
 }
 
+export const formatFileSize = (bytes: number): string => {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+  const kb = bytes / 1024;
+  if (kb < 1024) {
+    return `${kb.toFixed(1)} KB`;
+  }
+  const mb = kb / 1024;
+  return `${mb.toFixed(1)} MB`;
+};
+
 interface SourceModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -164,16 +176,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
             continue;
           }
 
-          const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-          if (!['.pdf', '.txt', '.md', '.markdown'].includes(ext)) {
-            results.push({
-              filename: file.name,
-              status: 'failed',
-              reason: 'Unsupported format. Only PDF, TXT, and Markdown (.md) files are supported.',
-            });
-            continue;
-          }
-
           try {
             await onUploadFiles([file]);
             results.push({
@@ -206,13 +208,13 @@ export const SourceModal: React.FC<SourceModalProps> = ({
         await onPasteText(pasteTitle.trim(), pasteText.trim());
         setPasteTitle('');
         setPasteText('');
-        onClose();
+        handleDismissDialog();
       } else if (tab === 'url') {
         if (!urlInput.trim()) throw new Error('Please enter a webpage URL.');
         await onAddUrl(urlInput.trim(), urlTitle.trim() || undefined);
         setUrlInput('');
         setUrlTitle('');
-        onClose();
+        handleDismissDialog();
       }
     } catch (err: any) {
       setError(err.message || 'Failed to add source.');
@@ -225,6 +227,51 @@ export const SourceModal: React.FC<SourceModalProps> = ({
     setUploadResults(null);
     setSelectedFiles([]);
     onClose();
+  };
+
+  const handleDone = async () => {
+    if (tab === 'paste') {
+      const hasTitle = Boolean(pasteTitle.trim());
+      const hasText = Boolean(pasteText.trim());
+      if (hasTitle && hasText) {
+        setLoading(true);
+        setError(null);
+        try {
+          await onPasteText(pasteTitle.trim(), pasteText.trim());
+          setPasteTitle('');
+          setPasteText('');
+          handleDismissDialog();
+        } catch (err: any) {
+          setError(err.message || 'Failed to add pasted text.');
+        } finally {
+          setLoading(false);
+        }
+        return;
+      } else if (hasTitle && !hasText) {
+        setError('Please enter or paste the text content.');
+        return;
+      } else if (!hasTitle && hasText) {
+        setError('Please enter a title for the pasted content.');
+        return;
+      }
+    } else if (tab === 'url') {
+      if (urlInput.trim()) {
+        setLoading(true);
+        setError(null);
+        try {
+          await onAddUrl(urlInput.trim(), urlTitle.trim() || undefined);
+          setUrlInput('');
+          setUrlTitle('');
+          handleDismissDialog();
+        } catch (err: any) {
+          setError(err.message || 'Failed to add webpage.');
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+    }
+    handleDismissDialog();
   };
 
   return (
@@ -366,7 +413,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                         {selectedFiles.map((file, idx) => (
                           <li key={idx} className="selected-file-row">
                             <span className="file-name">{file.name}</span>
-                            <span className="file-size">{(file.size / 1024).toFixed(0)} KB</span>
+                            <span className="file-size">{formatFileSize(file.size)}</span>
                           </li>
                         ))}
                       </ul>
@@ -440,10 +487,11 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               <button
                 type="button"
                 className="btn btn-primary"
-                onClick={handleDismissDialog}
+                onClick={handleDone}
+                disabled={loading}
                 data-testid="upload-results-done-btn"
               >
-                Done
+                {loading ? 'Processing & Ingesting...' : 'Done'}
               </button>
             ) : (
               <>

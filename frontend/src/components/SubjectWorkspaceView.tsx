@@ -112,6 +112,20 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const chatAreaRef = useRef<HTMLElement>(null);
   const leftPanelRef = useRef<HTMLElement>(null);
   const rightPanelRef = useRef<HTMLElement>(null);
+  const lastSendTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (chatLoading) {
+      lastSendTimeRef.current = Date.now();
+    }
+  }, [chatLoading]);
+
+  const handleSafeStopGeneration = () => {
+    if (Date.now() - lastSendTimeRef.current < 500) {
+      return;
+    }
+    onStopGeneration?.();
+  };
   const closeLeftPanel = () => { setIsLeftCollapsed(true); leftToggleRef.current?.focus(); };
   const closeRightPanel = () => { setIsRightCollapsed(true); rightToggleRef.current?.focus(); };
 
@@ -1052,6 +1066,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   onSubmit={async (e) => {
                     e.preventDefault();
                     if (question.trim() && !chatLoading) {
+                      lastSendTimeRef.current = Date.now();
                       const q = question.trim();
                       try {
                         setQuestion('');
@@ -1062,7 +1077,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     }
                   }}
                   loading={chatLoading}
-                  onStop={onStopGeneration}
+                  onStop={handleSafeStopGeneration}
                   selectedSourceCount={selectedSourceIds.length}
                 />
               </div>
@@ -1385,7 +1400,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             <button
                               type="button"
                               className="btn btn-secondary btn-sm stop-gen-btn"
-                              onClick={onStopGeneration}
+                              onClick={handleSafeStopGeneration}
                             >
                               Stop generation
                             </button>
@@ -1406,6 +1421,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 onSubmit={async (e) => {
                   e.preventDefault();
                   if (question.trim() && !chatLoading) {
+                    lastSendTimeRef.current = Date.now();
                     const q = question.trim();
                     try {
                       setQuestion('');
@@ -1416,7 +1432,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   }
                 }}
                 loading={chatLoading}
-                onStop={onStopGeneration}
+                onStop={handleSafeStopGeneration}
                 selectedSourceCount={selectedSourceIds.length}
               />
             </>

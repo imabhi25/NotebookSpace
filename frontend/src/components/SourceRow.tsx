@@ -41,7 +41,15 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   const type = (s.source_type || 'doc').toLowerCase();
   const info = TYPE_INFO[type] || { badge: 'DOC', label: s.source_type || 'Document' };
   const isReady = s.status === 'ready';
-  const canRetry = s.status === 'failed' && (type === 'url' || type === 'pasted');
+  const isFailed = s.status === 'failed';
+
+  const handleRetryClick = () => {
+    if (type === 'url' || type === 'pasted') {
+      onRetry();
+    } else {
+      onReplace();
+    }
+  };
 
   const closeMenu = (restoreFocus: boolean) => {
     setIsMenuOpen(false);
@@ -130,15 +138,15 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         role="button"
         tabIndex={0}
       >
-        <span className="source-row-title" title={`${s.title} · ${info.label}${isReady ? ` · ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}` : ''}`}>
+        <span className="source-row-title" title={`${s.title} · ${info.label}${isReady ? ` · ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}` : s.status === 'failed' ? ` · ${s.error_message || 'Failed'}` : ''}`}>
           {s.title}
         </span>
         <span className="sr-only">
-          {info.label}{isReady ? `, ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}, ready` : ''}
+          {info.label}{isReady ? `, ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}, ready` : s.status === 'failed' ? `, failed: ${s.error_message || 'failed'}` : ''}
         </span>
         {s.status === 'processing' && <span className="source-row-status status-processing">Processing...</span>}
         {s.status === 'failed' && (
-          <span className="source-row-status status-failed" title={s.error_message || ''}>
+          <span className="source-row-status status-failed" title={s.error_message || 'Failed'}>
             Failed
           </span>
         )}
@@ -179,24 +187,31 @@ export const SourceRow: React.FC<SourceRowProps> = ({
           aria-label={`Options for ${s.title}`}
           style={menuPosition ? { top: menuPosition.top, left: menuPosition.left } : { visibility: 'hidden' }}
         >
-          <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onView)}>
-            View
-          </button>
-          <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onRename)}>
-            Rename
-          </button>
-          {canRetry ? (
-            <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onRetry)}>
-              Retry
-            </button>
+          {isFailed ? (
+            <>
+              <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(handleRetryClick)}>
+                Retry
+              </button>
+              <button type="button" className="notebook-menu-item menu-item-danger" role="menuitem" onClick={run(onRemove)}>
+                Remove
+              </button>
+            </>
           ) : (
-            <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onReplace)}>
-              Replace
-            </button>
+            <>
+              <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onView)}>
+                View
+              </button>
+              <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onRename)}>
+                Rename
+              </button>
+              <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onReplace)}>
+                Replace
+              </button>
+              <button type="button" className="notebook-menu-item menu-item-danger" role="menuitem" onClick={run(onRemove)}>
+                Remove
+              </button>
+            </>
           )}
-          <button type="button" className="notebook-menu-item menu-item-danger" role="menuitem" onClick={run(onRemove)}>
-            Remove
-          </button>
         </div>,
         document.body
       )}
