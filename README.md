@@ -215,7 +215,7 @@ Evaluated on the synthetic course corpus (7 documents, 23 chunks, 35 questions: 
 | **Hit@3** | **92.6%** (25 / 27) | **92.6%** (25 / 27) | Target passage in top 3 |
 | **Hit@5** | **100.0%** (27 / 27) | **100.0%** (27 / 27) | Target passage in top 5 (~22% corpus coverage) |
 | **MRR** | **0.751** | **0.751** | Mean reciprocal rank of first hit ($1/\text{rank}$) |
-| **Abstention Accuracy** | **100.0%** (8 / 8) | **100.0%** (8 / 8) | Correctly abstained on absent queries |
+| **Abstention Accuracy** | **100.0%** (8 / 8) | **100.0%** (8 / 8) | 8/8 (measured with gemini-3.5-flash-lite; re-check on the live model, gemini-3.5-flash, pending) |
 
 *Note: Hybrid search changes top-5 candidate ordering on 9 of 27 answerable questions without displacing the first correct hit, yielding identical first-hit aggregate metrics. See [evals/README.md](evals/README.md) for full benchmark documentation.*
 
