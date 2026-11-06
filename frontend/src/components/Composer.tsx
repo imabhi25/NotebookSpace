@@ -20,6 +20,13 @@ export const Composer: React.FC<ComposerProps> = ({
   placeholder = "",
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastSendTimeRef = useRef<number>(0);
+
+  useEffect(() => {
+    if (loading) {
+      lastSendTimeRef.current = Date.now();
+    }
+  }, [loading]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -33,14 +40,28 @@ export const Composer: React.FC<ComposerProps> = ({
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       if (!loading && question.trim()) {
+        lastSendTimeRef.current = Date.now();
         onSubmit(e);
       }
     }
   };
 
+  const handleFormSubmit = (e: React.FormEvent) => {
+    lastSendTimeRef.current = Date.now();
+    onSubmit(e);
+  };
+
+  const handleStopClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (Date.now() - lastSendTimeRef.current < 500) {
+      return;
+    }
+    onStop?.();
+  };
+
   return (
     <div className="composer-container">
-      <form onSubmit={onSubmit} className="composer-form">
+      <form onSubmit={handleFormSubmit} className="composer-form">
         <label htmlFor="question-input" className="sr-only">
           Ask a question about your course materials:
         </label>
@@ -67,7 +88,7 @@ export const Composer: React.FC<ComposerProps> = ({
             <button
               type="button"
               className="composer-stop-btn"
-              onClick={onStop}
+              onClick={handleStopClick}
               aria-label="Stop generation"
             >
               <span className="stop-btn-icon" aria-hidden="true">■</span>

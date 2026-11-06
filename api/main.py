@@ -1152,7 +1152,7 @@ async def upload_source_endpoint(
     if not subj:
         raise HTTPException(status_code=404, detail="Subject not found.")
 
-    existing_sources = get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id)
+    existing_sources = [s for s in get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id) if s.get("status") != "failed"]
     if len(existing_sources) >= 15:
         raise HTTPException(
             status_code=400,
@@ -1163,10 +1163,17 @@ async def upload_source_endpoint(
     ext = Path(filename).suffix.lower()
 
     if ext not in (".pdf", ".txt", ".md", ".markdown"):
-        raise HTTPException(
-            status_code=400,
-            detail="Unsupported format. Only PDF, TXT, and Markdown (.md) files are supported.",
+        src = create_source(
+            user_id=current_user["id"],
+            subject_id=subject_id,
+            title=filename,
+            file_name=filename,
+            source_type="doc",
+            file_hash=hashlib.sha256(b"").hexdigest(),
+            status="failed",
+            error_message="Unsupported format. Only PDF, TXT, and Markdown (.md) files are supported.",
         )
+        return src
 
     max_size = MAX_UPLOAD_SIZE_BYTES if ext == ".pdf" else MAX_TEXT_SIZE_BYTES
     content = await _read_upload_capped(file, max_size)
@@ -1231,7 +1238,7 @@ def paste_source_endpoint(
     if not subj:
         raise HTTPException(status_code=404, detail="Subject not found.")
 
-    existing_sources = get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id)
+    existing_sources = [s for s in get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id) if s.get("status") != "failed"]
     if len(existing_sources) >= 15:
         raise HTTPException(
             status_code=400,
@@ -1292,7 +1299,7 @@ def url_source_endpoint(
     if not subj:
         raise HTTPException(status_code=404, detail="Subject not found.")
 
-    existing_sources = get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id)
+    existing_sources = [s for s in get_sources_for_subject(user_id=current_user["id"], subject_id=subject_id) if s.get("status") != "failed"]
     if len(existing_sources) >= 15:
         raise HTTPException(
             status_code=400,
@@ -1449,8 +1456,18 @@ async def replace_source_endpoint(
 
     filename = file.filename or src["file_name"]
     ext = Path(filename).suffix.lower()
+    user_renamed = src.get("title") != src.get("file_name")
+    new_title = None if user_renamed else filename
+
     if ext not in (".pdf", ".txt", ".md", ".markdown"):
-        raise HTTPException(status_code=400, detail="Only PDF, TXT, and Markdown files are supported.")
+        update_source_status(
+            source_id=source_id,
+            status="failed",
+            error_message="Unsupported format. Only PDF, TXT, and Markdown (.md) files are supported.",
+            file_name=filename,
+            title=new_title,
+        )
+        return get_source_by_id(user_id=current_user["id"], source_id=source_id)
 
     max_size = MAX_UPLOAD_SIZE_BYTES if ext == ".pdf" else MAX_TEXT_SIZE_BYTES
     content = await _read_upload_capped(file, max_size)
@@ -1468,6 +1485,8 @@ async def replace_source_endpoint(
         error_message=None,
         raw_content="",
         source_type=_upload_source_type(ext),
+        file_name=filename,
+        title=new_title,
     )
 
     def replace_locked() -> None:
@@ -1491,6 +1510,7 @@ async def replace_source_endpoint(
                 file_hash=file_hash,
                 version=new_version,
                 file_name=filename,
+                title=new_title,
             )
 
     try:
@@ -1499,7 +1519,13 @@ async def replace_source_endpoint(
         return get_source_by_id(user_id=current_user["id"], source_id=source_id)
     except Exception as e:
         logger.error(f"Failed to replace source {source_id}: {e}", exc_info=True)
-        update_source_status(source_id=source_id, status="failed", error_message=str(e))
+        update_source_status(
+            source_id=source_id,
+            status="failed",
+            error_message=str(e),
+            file_name=filename,
+            title=new_title,
+        )
         return get_source_by_id(user_id=current_user["id"], source_id=source_id)
 
 

@@ -165,6 +165,7 @@ export function App({
   const [historyLoading, setHistoryLoading] = useState(false);
   const [isMobileNotebooksOpen, setIsMobileNotebooksOpen] = useState(false);
   const chatAbortRef = useRef<AbortController | null>(null);
+  const lastSendTimeRef = useRef<number>(0);
 
   // Fetch subjects whenever not in demo mode
   useEffect(() => {
@@ -413,6 +414,8 @@ export function App({
     const trimmed = queryText.trim();
     if (!trimmed) return;
 
+    lastSendTimeRef.current = Date.now();
+
     if (typeof window !== 'undefined' && window.localStorage) {
       try {
         window.localStorage.removeItem(`notebookspace_stopped_${activeConversationId}`);
@@ -496,6 +499,9 @@ export function App({
   };
 
   const handleStopGeneration = () => {
+    if (Date.now() - lastSendTimeRef.current < 500) {
+      return;
+    }
     if (chatAbortRef.current) {
       chatAbortRef.current.abort();
       chatAbortRef.current = null;

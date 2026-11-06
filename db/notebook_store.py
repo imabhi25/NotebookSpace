@@ -377,6 +377,7 @@ def create_source(
     status: str = "uploading",
     page_count: int = 1,
     word_count: int = 0,
+    error_message: str | None = None,
     db_url: str | None = None,
 ) -> dict[str, Any]:
     with get_connection(db_url) as conn:
@@ -386,9 +387,9 @@ def create_source(
                     """
                     INSERT INTO sources (
                         subject_id, user_id, title, file_name, source_type, source_url,
-                        file_hash, raw_content, status, page_count, word_count, version
+                        file_hash, raw_content, status, error_message, page_count, word_count, version
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)
                     RETURNING id, subject_id, user_id, title, file_name, source_type, source_url,
                               file_hash, status, error_message, page_count, word_count, version, created_at, updated_at;
                     """,
@@ -402,6 +403,7 @@ def create_source(
                         file_hash,
                         raw_content,
                         status,
+                        error_message,
                         page_count,
                         word_count,
                     ),
@@ -595,6 +597,7 @@ def update_source_status(
     file_hash: str | None = None,
     file_name: str | None = None,
     source_type: str | None = None,
+    title: str | None = None,
     db_url: str | None = None,
 ) -> None:
     with get_connection(db_url) as conn:
@@ -621,6 +624,9 @@ def update_source_status(
                 if file_name is not None:
                     updates.append("file_name = %s")
                     params.append(file_name)
+                if title is not None:
+                    updates.append("title = %s")
+                    params.append(title)
                 if source_type is not None:
                     updates.append("source_type = %s")
                     params.append(source_type)
