@@ -34,7 +34,7 @@ def test_sample_notebook_document_facts():
     
     # 3. Midterm date and weight
     assert "midterm" in full_text.lower()
-    assert "november 5" in full_text.lower()
+    assert "november 19" in full_text.lower()
     
     # 4. Weekly course schedule and topics
     assert "course topics by week" in full_text.lower() or "topics by week" in full_text.lower()

@@ -86,7 +86,7 @@ def build_sample_notebook_doc(out_path: Path):
         c,
         "Examination Schedule and Midterm Details",
         [
-            "Midterm Examination Date and Weight: The Midterm Examination is scheduled for Thursday, November 5, 2026, from 7:00 PM to 9:00 PM in Lecture Hall C. The midterm accounts for 25 percent of the overall course grade.",
+            "Midterm Examination Date and Weight: The Midterm Examination is scheduled for Thursday, November 19, 2026, from 7:00 PM to 9:00 PM in Lecture Hall C. The midterm accounts for 25 percent of the overall course grade.",
             "Midterm Scope and Allowed Materials: The examination covers all material from Weeks 1 through 7, including memory hierarchies, thread synchronization, and asynchronous I/O. The exam is closed-book; students may bring one double-sided letter-sized (8.5x11 inch) handwritten formula sheet.",
             "Final Examination: The Final Examination will be held during university exam week on December 18, 2026, contributing 25 percent of the course grade. It is comprehensive with an emphasis on Weeks 8 through 14.",
         ],
