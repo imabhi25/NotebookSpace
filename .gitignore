@@ -34,6 +34,8 @@ data/
 .cache/
 .llm_cache/
 logs/
+evals/corpus_real_src/
+evals/corpus_real/
 
 # IDE & OS
 .DS_Store

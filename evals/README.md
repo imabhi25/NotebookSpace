@@ -5,70 +5,97 @@
 > - The strict metric (expected file and page) is the headline evaluation standard.
 > - No "lenient" rescoring of the synthetic set.
 
-This directory contains the automated retrieval and answer-grounding evaluation benchmark for NotebookSpace.
+This directory contains the automated retrieval and answer-grounding evaluation benchmark for NotebookSpace across both synthetic course documents and a real published textbook corpus.
 
-## Benchmark Results
+---
 
-Evaluated on **35 questions** (N=27 answerable spanning factual baseline, paraphrased, multi-chunk/multi-page, conflicting updates, near-duplicate wording, and keyword distractor queries, plus N=8 absent-fact questions). Measured with gemini-3.5-flash-lite on a synthetic corpus.
+## 1. Synthetic Corpus Benchmark Results
+
+Evaluated on **35 questions** (N=27 answerable spanning factual baseline, paraphrased, multi-chunk/multi-page, conflicting updates, near-duplicate wording, and keyword distractor queries, plus N=8 absent-fact questions) over 7 course documents from `docs/sample_docs` (23 chunks).
 
 | Metric | Hybrid Search (Cosine + Keyword Boost) | No Boost (Pure Vector Cosine) | Notes |
 | :--- | :---: | :---: | :--- |
+| **Corpus Chunks** | 23 | 23 | 7 sample syllabus, assignment, and lecture documents |
+| **Top-5 Coverage of Corpus** | **21.7%** (5 / 23) | **21.7%** (5 / 23) | Evaluating top-5 candidates inspects ~22% of corpus |
 | **Hit@1 (Top-1 Hit Rate)** | **59.3%** (16 / 27) | **59.3%** (16 / 27) | Ranks target passage at rank 1 |
 | **Hit@3 (Top-3 Hit Rate)** | **92.6%** (25 / 27) | **92.6%** (25 / 27) | Ranks target passage in top 3 |
 | **Hit@5 (Top-5 Hit Rate)** | **100.0%** (27 / 27) | **100.0%** (27 / 27) | Target passage retrieved in all top-5 candidates |
 | **Mean Reciprocal Rank (MRR)** | **0.751** | **0.751** | Average reciprocal rank of first hit ($1/\text{rank}$) |
-| **Absent-Fact Abstention Accuracy** | **100.0%** (8 / 8) | **100.0%** (8 / 8) | Correctly abstained with reason `"not_found"` |
+| **Absent-Fact Abstention Accuracy** | **100.0%** (8 / 8) | **100.0%** (8 / 8) | 8/8 abstained on `gemini-3.5-flash-lite`; 8/8 on `gemini-3.5-flash` |
 
-### Metric Equality Between Hybrid and No-Boost on this Dataset
+### Models Tested on Absent Questions
+The 8 absent questions on the synthetic corpus were evaluated against both models:
+- **`gemini-3.5-flash-lite`**: 8/8 (100.0%) correctly abstained with reason `"not_found"`.
+- **`gemini-3.5-flash`**: 8/8 (100.0%) correctly abstained with reason `"not_found"`.
+
+### Metric Equality Between Hybrid and No-Boost on Synthetic Dataset
 While Hybrid and No-Boost achieved identical aggregate metrics on this test set, **the keyword boost does alter ranking**:
-- The keyword boost changed the top-5 order on 8 of 24 answerable questions but never changed the rank of the first correct passage, so the aggregate metrics matched.
-- When including the 3 new distractor questions (`q33`–`q35`), 9 of 27 answerable questions had top-5 candidate order changes between Hybrid and No-Boost.
-- Because the *first hit* for each of those questions was already ranked at position 1 (or position 2) by vector cosine similarity, the first-hit rank was unaffected, producing identical Hit@1/3/5 and MRR figures.
+- The keyword boost changed the top-5 candidate order on 9 of 27 answerable questions.
+- Because the *first hit* for each of those questions was already ranked at position 1 (or position 2) by vector cosine similarity, the first-hit rank was unaffected, producing identical Hit@1/3/5 and MRR figures on this smaller corpus.
 - A dedicated unit test in `tests/test_retrieval_map.py::test_keyword_boost_flips_ranking` verifies that the keyword boost flips candidate chunk rankings when a chunk with lower semantic cosine contains query key terms.
 
 ---
 
-## Evaluation Dataset Breakdown
+## 2. Real Textbook Corpus Benchmark Results
 
-The benchmark evaluates 35 questions across 7 categories:
-1. **Factual Baseline (`q01`–`q12`)**: Direct factual questions with terminology matching the documents.
-2. **Paraphrased (`q13_para`–`q15_para`)**: Questions using synonyms and natural phrasing without quoting document vocabulary.
-3. **Multi-Chunk / Multi-Page (`q16_multi`–`q18_multi`)**: Questions requiring synthesis across multiple pages or between syllabus and update announcements.
-4. **Conflicting Sources (`q19_conf`–`q20_conf`)**: Questions specifically testing whether updated policies/dates in announcements are retrieved over superseded syllabus entries.
-5. **Near-Duplicate Wording (`q21_dup`–`q24_dup`)**: Questions discriminating between similar assignments (Assignment 1 key-value store vs Assignment 2 Raft consensus).
-6. **Absent-Fact Questions (`q25_abs`–`q32_abs`)**:
-   - 4 Out-of-Domain (`q25_abs`–`q28_abs`): PyTorch on Assignment 3, AWS GPU compute credits, presentation dress code, campus meal plan.
-   - 4 Vocabulary-Sharing (`q29_abs`–`q32_abs`): Questions mimicking course policy language that do not exist in the documents (penalty-free grace days, grade re-evaluation deadline, maximum group size, midterm extra credit for Raft).
-7. **Keyword Distractor Questions (`q33_distractor_policy`–`q35_distractor_rubric`)**:
-   - Answerable questions featuring common words like `"policy"` or `"code"` that also appear in irrelevant chunks, testing whether the flat +0.30 boost hurts retrieval. The 3 distractor questions were chosen after probing about 9 candidates:
-     - `q33_distractor_policy` (*"What is the policy on sharing code solutions or discussing algorithms with classmates?"*): Target is `syllabus.pdf` p.4 (academic integrity). The word `"policy"` also appears in `announcement_update.pdf` p.1/p.2 and `assignment_2.pdf` p.4. `assignment_2.pdf` p.4 received +0.30 for matching `['policy', 'code']` and was promoted into top 5 (displacing `syllabus.pdf` p.3), but the target `syllabus.pdf` p.4 remained rank #1.
-     - `q34_distractor_code` (*"What programming code standard and C++20 conventions must be followed for the exam technical scope?"*): Target is `exam_guide.pdf` p.2 (programming standard). Irrelevant chunk `lecture_schedule.pdf` p.1 matched `['programming', 'standard', 'code', 'exam']` and held rank #1 in both hybrid and no-boost, while target `exam_guide.pdf` p.2 remained at rank #2 in both.
-     - `q35_distractor_rubric` (*"What is the grading policy and point breakdown for clean code formatting and comments in Assignment 1?"*): Target is `assignment_1.pdf` p.3 (code style rubric). Irrelevant chunk `assignment_2.pdf` p.4 matched `['grading', 'policy', 'breakdown', 'code', 'point', 'Assignment']` taking rank #2 (score 0.814), right behind the target at rank #1 (score 0.864).
-   - Finding: The flat +0.30 boost promoted distractor chunks within non-target top-5 slots but did not degrade the target passage's first-hit rank.
+Evaluated on **36 questions** (N=30 answerable generated from sampled prose chunks with strict paraphrasing and exact substring assertions, plus N=6 absent-fact questions on verified unmentioned topics) over 4 consecutive chapters of an introductory computer science textbook.
+
+### Real Corpus Attribution & Metadata
+- **Book Title**: *Introduction to Python Programming*
+- **Authors**: Udayan Das (Saint Mary's College of California), Aubrey Lawson (Wiley), Chris Mayfield (James Madison University), Narges Norouzi (UC Berkeley)
+- **License**: Creative Commons Attribution 4.0 International License (CC BY 4.0)
+- **Source URL**: https://openstax.org/details/books/introduction-python-programming
+- **Attribution**: "Access for free at openstax.org."
+- **Chapters Ingested**:
+  - `chapter_01_statements.pdf` (pages 17–46, 30 pages)
+  - `chapter_02_expressions.pdf` (pages 47–76, 30 pages)
+  - `chapter_03_objects.pdf` (pages 77–94, 18 pages)
+  - `chapter_04_decisions.pdf` (pages 95–124, 30 pages)
+  - Total: **108 pages / 108 chunks** (prose-heavy introductory chapters prior to the Answer Key and Index).
+
+### Performance Metrics Table
+
+| Metric | Hybrid Search (Cosine + Keyword Boost) | No Boost (Pure Vector Cosine) | Delta | Notes |
+| :--- | :---: | :---: | :---: | :--- |
+| **Total Chunks in Corpus** | 108 | 108 | — | 4 chapters extracted with pypdf |
+| **Top-5 Coverage of Corpus** | **4.6%** (5 / 108) | **4.6%** (5 / 108) | — | Selective retrieval regime (~4.6% vs ~21.7% on synthetic) |
+| **Hit@1 (Top-1 Hit Rate)** | **36.7%** (11 / 30) | **36.7%** (11 / 30) | 0.0% | Strict target file and page match |
+| **Hit@3 (Top-3 Hit Rate)** | **53.3%** (16 / 30) | **53.3%** (16 / 30) | 0.0% | Strict target in top 3 |
+| **Hit@5 (Top-5 Hit Rate)** | **56.7%** (17 / 30) | **53.3%** (16 / 30) | **+3.4%** | Target in top 5 (Keyword boost promotes target into top 5) |
+| **Mean Reciprocal Rank (MRR)** | **0.442** | **0.433** | **+0.009** | Average reciprocal rank of first hit ($1/\text{rank}$) |
+| **Absent-Fact Abstention Accuracy** | **100.0%** (6 / 6) | **100.0%** (6 / 6) | 0.0% | All 6 absent queries correctly abstained (`not_found`) |
+
+### Benchmark Construction Methodology
+1. **Prose Chunk Filtering**: Chunks were filtered to skip code listings, exercises, review questions, and chunks with fewer than 60 words of prose (57 valid prose chunks out of 108).
+2. **Seed 42 Sampling**: 30 chunks were sampled using `random.Random(42)`.
+3. **Paraphrase Enforcement**: Any question that copied $\ge 5$ consecutive words from its source chunk was rejected and regenerated by the model (4 questions rejected and regenerated; 0 dropped chunks).
+4. **Verbatim Ground Truth**: Every `gold_answer` was asserted to be an exact verbatim substring of the source chunk text (`assert gold_ans in chunk["text"]`).
+5. **Absent Question Verification**: 6 topics (Decorators, C Extensions & Ctypes, Packaging & PyPI, Multiprocessing & GIL, Dataclasses, Asyncio & Coroutines) were verified by scanning all 108 chunk texts to guarantee zero occurrences of their identifying terms.
+6. **Spot Check**: 15 randomly chosen question-chunk pairs are documented in `evals/spot_check.md`.
+
+### Raw Cosine Separation Analysis
+- **Synthetic Corpus**:
+  - Answerable (N=27): Min 0.379, Mean **0.558**, Max 0.648
+  - Absent (N=8): Min 0.208, Mean **0.400**, Max 0.645
+  - Separation Gap: 0.158
+- **Real Corpus**:
+  - Answerable (N=30): Min 0.269, Mean **0.492**, Max 0.688
+  - Absent (N=6): Min 0.114, Mean **0.298**, Max 0.411
+  - Separation Gap: **0.194**
 
 ---
 
-## Important Benchmark Notes
+## Running the Benchmarks
 
-1. **Synthetic Corpus**: The underlying corpus indexes 7 course documents from `docs/sample_docs` (`announcement_update.pdf`, `assignment_1.pdf`, `assignment_2.pdf`, `exam_guide.pdf`, `lecture_schedule.pdf`, `syllabus.pdf`, `tutorial_02_arrays.pdf`).
-2. **Author-Written Questions**: All 35 questions were written by the author to reflect realistic university course queries.
-3. **Vocabulary-Sharing Absent Questions Added Post-Initial Run**: The initial 16-question set only contained out-of-domain absent queries (`q13`–`q16`). Four vocabulary-sharing absent questions (`q29_abs`–`q32_abs`) were subsequently added to rigorously test whether the system relies solely on vector similarity or properly validates grounded support.
-4. **Raw Cosine Separation Limit**:
-   - **Answerable Questions (N=27)**: Raw cosine similarity range: **0.379** (min) to **0.648** (max), mean **0.558**.
-   - **Absent Questions (N=8)**: Raw cosine similarity range: **0.208** (min) to **0.645** (max), mean **0.400**.
-   - **Critical finding**: Raw cosine alone **cannot separate vocabulary-sharing absent questions from answerable ones**. For example, `q30_abs` (*"What is the deadline for submitting grade re-evaluation requests following the midterm examination?"*) scores a raw cosine of **0.645**, higher than the mean for answerable questions (**0.558**), because the words *"grade"*, *"midterm"*, and *"examination"* have high vector proximity to the course text.
-   - Therefore, vector thresholding alone is insufficient; downstream LLM grounded evidence verification is required to detect absent facts.
-5. **Model Used**: The evaluation was executed using Google Gemini **`gemini-3.5-flash-lite`** via `GeminiLLMClient`.
-6. **Cache Usage (`.cache/llm`)**:
-   - On the initial run of absent questions, real live API calls were made to Google's Generative Language API, returning `{"supported": false, "answer": "NOT_FOUND"}`.
-   - These model responses were serialized to `.cache/llm/<hash>.json`. On subsequent evaluation runs, the responses were read from `.cache/llm` to avoid duplicate API latency and quota consumption.
-
----
-
-## Running the Benchmark
-
-To execute the full retrieval and answer-grounding evaluation benchmark:
+Both benchmarks can be executed using the evaluation harness:
 
 ```bash
-.venv/bin/python evals/run_retrieval_eval.py
+# Run synthetic corpus benchmark (default)
+.venv/bin/python evals/run_retrieval_eval.py --corpus synthetic
+
+# Run real textbook corpus benchmark
+.venv/bin/python evals/run_retrieval_eval.py --corpus real
+
+# Build / regenerate real benchmark questions
+.venv/bin/python evals/build_real_eval.py
 ```
