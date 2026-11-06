@@ -1,0 +1,446 @@
+[
+  {
+    "id": "rq_b_01",
+    "category": "factual_paraphrased",
+    "question": "What variable is computed to store the converted temperature value from one unit to another?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 10
+      }
+    ],
+    "gold_answer": "new_temp",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_02",
+    "category": "factual_paraphrased",
+    "question": "What kind of mistake is associated with question number 5 in the provided text where quotation marks are missing?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 20
+      }
+    ],
+    "gold_answer": "SyntaxError 5",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_03",
+    "category": "factual_paraphrased",
+    "question": "What position did the TIOBE index show for the previous two decades?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 26
+      }
+    ],
+    "gold_answer": "had been #1",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_04",
+    "category": "factual_paraphrased",
+    "question": "What function call is used in the text to determine the length of the string \"Yo\"?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 4
+      }
+    ],
+    "gold_answer": "len(\"Yo\"",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_05",
+    "category": "factual_paraphrased",
+    "question": "What text is displayed in the output example following the user's entry?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 7
+      }
+    ],
+    "gold_answer": "entered: Sophia",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_06",
+    "category": "factual_paraphrased",
+    "question": "What kind of evaluation is performed by the logical operator that returns True if both inputs are true?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 28
+      }
+    ],
+    "gold_answer": "Logical) Evaluates",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_07",
+    "category": "factual_paraphrased",
+    "question": "What is the syntax used for a conditional expression in Python?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 29
+      }
+    ],
+    "gold_answer": "expression expression_if_true if condition else expression_if_false",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_08",
+    "category": "factual_paraphrased",
+    "question": "What specific type of starter, along with 1/2 cup of lukewarm water, is listed in the ingredients for the bread-making program example?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 29
+      }
+    ],
+    "gold_answer": "sourdough starter",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_09",
+    "category": "factual_paraphrased",
+    "question": "At which Dutch national research institute did the creator of Python start working in 1982?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 24
+      }
+    ],
+    "gold_answer": "Dutch national research institute",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_10",
+    "category": "factual_paraphrased",
+    "question": "What is the primary function of the assignment symbol described in the reference guide?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 28
+      }
+    ],
+    "gold_answer": "Assigns (or updates) the value of a variable",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_11",
+    "category": "factual_paraphrased",
+    "question": "What should a programmer attempt to do when encountering an error message?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 21
+      }
+    ],
+    "gold_answer": "look up what that error means",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_12",
+    "category": "factual_paraphrased",
+    "question": "What is the result when 74 is raised to the power of two according to the arithmetic examples in the text?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 29
+      }
+    ],
+    "gold_answer": "5476",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_13",
+    "category": "factual_paraphrased",
+    "question": "What is the result variable value designation for question 16 in the text?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 5
+      }
+    ],
+    "gold_answer": "False 16",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_14",
+    "category": "factual_paraphrased",
+    "question": "What is the specific arrival hour calculated for the 340-minute trip example starting at 13:25?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 15
+      }
+    ],
+    "gold_answer": "Arrival hour is 19",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_15",
+    "category": "factual_paraphrased",
+    "question": "What geometric shape's surface area and volume formulas are presented in Table 2.6?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 20
+      }
+    ],
+    "gold_answer": "right circular cylinder",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_16",
+    "category": "factual_paraphrased",
+    "question": "Which Python library specifically designed for data analysis is mentioned in the text?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 3
+      }
+    ],
+    "gold_answer": "Pandas",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_17",
+    "category": "factual_paraphrased",
+    "question": "Which specific escape sequence is used to represent the tab character in a string?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 18
+      }
+    ],
+    "gold_answer": "'\\t'",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_18",
+    "category": "factual_paraphrased",
+    "question": "What is the result returned by calling math.pow(3, 3)?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 18
+      }
+    ],
+    "gold_answer": "27.0",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_19",
+    "category": "factual_paraphrased",
+    "question": "What is one of the learning objectives regarding Python's utility outside of computer science and information technology?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 26
+      }
+    ],
+    "gold_answer": "Summarize how Python is used in fields other than CS and IT.",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_20",
+    "category": "factual_paraphrased",
+    "question": "Which musical group released the song mentioned in the Friday Boolean prompt?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 6
+      }
+    ],
+    "gold_answer": "the Cure",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_21",
+    "category": "factual_paraphrased",
+    "question": "What string is assigned to the variable named holiday in the multiple-choice question?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 13
+      }
+    ],
+    "gold_answer": "one-sided",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_22",
+    "category": "factual_paraphrased",
+    "question": "What is the specific nanometer wavelength range specified for the color orange in the text?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 22
+      }
+    ],
+    "gold_answer": "590\u2013624",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_23",
+    "category": "factual_paraphrased",
+    "question": "What is the calculated individual tip amount shown in the example output?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 30
+      }
+    ],
+    "gold_answer": "Tip per person: $3.89",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_24",
+    "category": "factual_paraphrased",
+    "question": "What kind of value is always generated when performing division with the forward slash operator?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 7
+      }
+    ],
+    "gold_answer": "produces a float",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_25",
+    "category": "factual_paraphrased",
+    "question": "What standard library feature establishes a variable to access previously written code?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 16
+      }
+    ],
+    "gold_answer": "import statement",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_26",
+    "category": "factual_paraphrased",
+    "question": "What is the name of the floating-point variable created in the meters-to-feet programming task?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 17
+      }
+    ],
+    "gold_answer": "meter2feet",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_27",
+    "category": "factual_paraphrased",
+    "question": "What built-in function is used to convert an integer Unicode code point into a single character string?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 17
+      }
+    ],
+    "gold_answer": "chr(i)",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_28",
+    "category": "factual_paraphrased",
+    "question": "Which specific encryption technique, historically utilized during the Roman Empire, involves replacing each letter of a message with one located a fixed number of positions further down the alphabet?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 5
+      }
+    ],
+    "gold_answer": "shift cipher",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_29",
+    "category": "factual_paraphrased",
+    "question": "What is the variable identifier assigned to the string literal \"Happy \" \"New Year\" in the poorly formatted snippet?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 25
+      }
+    ],
+    "gold_answer": "saying=",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_30",
+    "category": "factual_paraphrased",
+    "question": "According to the style guide recommendations, what is the appropriate modification for the variable identifier DogBreed?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 10
+      }
+    ],
+    "gold_answer": "dog_breed",
+    "is_absent": false
+  },
+  {
+    "id": "rq_b_abs_01",
+    "category": "absent_fact",
+    "question": "How do Python decorators with @functools.wraps preserve function metadata such as docstrings and names?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_b_abs_02",
+    "category": "absent_fact",
+    "question": "How can Python programs call C shared library functions and allocate foreign structures using the ctypes library?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_b_abs_03",
+    "category": "absent_fact",
+    "question": "What configuration tables are required in pyproject.toml to build wheel distributions for publishing packages to PyPI with Twine?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_b_abs_04",
+    "category": "absent_fact",
+    "question": "How does the Global Interpreter Lock (GIL) in CPython constrain CPU-bound multi-threading compared to multiprocessing?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_b_abs_05",
+    "category": "absent_fact",
+    "question": "How does the @dataclass decorator automatically synthesize __init__, __repr__, and __eq__ methods using type annotations?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_b_abs_06",
+    "category": "absent_fact",
+    "question": "How does asyncio.run() create and manage the asynchronous event loop when scheduling coroutines and TaskGroups?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  }
+]

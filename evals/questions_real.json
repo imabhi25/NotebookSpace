@@ -1,0 +1,446 @@
+[
+  {
+    "id": "rq01",
+    "category": "factual_paraphrased",
+    "question": "What kind of prefix is placed before a string literal to designate it as an f-string?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 6
+      }
+    ],
+    "gold_answer": "\"f\" or \"F\"",
+    "is_absent": false
+  },
+  {
+    "id": "rq02",
+    "category": "factual_paraphrased",
+    "question": "What type of function is always available for use without requiring an explicit import statement?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 16
+      }
+    ],
+    "gold_answer": "built-in function",
+    "is_absent": false
+  },
+  {
+    "id": "rq03",
+    "category": "factual_paraphrased",
+    "question": "In the second practice exercise where x equals 42 and y equals 0, what does y ultimately evaluate to?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 18
+      }
+    ],
+    "gold_answer": "5",
+    "is_absent": false
+  },
+  {
+    "id": "rq04",
+    "category": "factual_paraphrased",
+    "question": "What is the name of the online Q&A platform for software developers mentioned in the text?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 26
+      }
+    ],
+    "gold_answer": "Stack Overflow",
+    "is_absent": false
+  },
+  {
+    "id": "rq05",
+    "category": "factual_paraphrased",
+    "question": "What mechanism does the Python interpreter employ to automatically shift a variable's data type when common operations require it?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 4
+      }
+    ],
+    "gold_answer": "implicit type conversion",
+    "is_absent": false
+  },
+  {
+    "id": "rq06",
+    "category": "factual_paraphrased",
+    "question": "How many parameters are accepted by Python's built-in rounding utility?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 11
+      }
+    ],
+    "gold_answer": "two arguments",
+    "is_absent": false
+  },
+  {
+    "id": "rq07",
+    "category": "factual_paraphrased",
+    "question": "What visual indicator is used in Python code to show that a decision statement is placed inside another?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 22
+      }
+    ],
+    "gold_answer": "indentation level",
+    "is_absent": false
+  },
+  {
+    "id": "rq08",
+    "category": "factual_paraphrased",
+    "question": "What is the outcome when evaluating whether 8 is smaller than or equal to 7?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 28
+      }
+    ],
+    "gold_answer": "False",
+    "is_absent": false
+  },
+  {
+    "id": "rq09",
+    "category": "factual_paraphrased",
+    "question": "What is the term for a container capable of holding multiple items within a program?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 1
+      }
+    ],
+    "gold_answer": "container",
+    "is_absent": false
+  },
+  {
+    "id": "rq10",
+    "category": "factual_paraphrased",
+    "question": "What kind of mistake happens when a number is kept incorrectly as an estimate rather than its exact value?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 10
+      }
+    ],
+    "gold_answer": "round-off error",
+    "is_absent": false
+  },
+  {
+    "id": "rq11",
+    "category": "factual_paraphrased",
+    "question": "What is the name of the creator who started developing Python in 1982 while working at a Dutch research institute?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 24
+      }
+    ],
+    "gold_answer": "Guido van Rossum",
+    "is_absent": false
+  },
+  {
+    "id": "rq12",
+    "category": "factual_paraphrased",
+    "question": "What style guide recommends using four spaces for each level of indentation?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 6
+      }
+    ],
+    "gold_answer": "PEP 8",
+    "is_absent": false
+  },
+  {
+    "id": "rq13",
+    "category": "factual_paraphrased",
+    "question": "In the bread calculation example, what precedes every ingredient line?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 29
+      }
+    ],
+    "gold_answer": "two spaces",
+    "is_absent": false
+  },
+  {
+    "id": "rq14",
+    "category": "factual_paraphrased",
+    "question": "What numeric code point corresponds to the capital letter A according to the provided table?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 3
+      }
+    ],
+    "gold_answer": "65",
+    "is_absent": false
+  },
+  {
+    "id": "rq15",
+    "category": "factual_paraphrased",
+    "question": "What is the outcome of calling the Python round function when the ndigits parameter is not supplied?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 28
+      }
+    ],
+    "gold_answer": "returns the nearest integer to x",
+    "is_absent": false
+  },
+  {
+    "id": "rq16",
+    "category": "factual_paraphrased",
+    "question": "What built-in function is used to obtain the integer Unicode code point corresponding to a given character?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 17
+      }
+    ],
+    "gold_answer": "ord(c)",
+    "is_absent": false
+  },
+  {
+    "id": "rq17",
+    "category": "factual_paraphrased",
+    "question": "What symbol serves as the assignment operator in programming statements?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 8
+      }
+    ],
+    "gold_answer": "=",
+    "is_absent": false
+  },
+  {
+    "id": "rq18",
+    "category": "factual_paraphrased",
+    "question": "What term is used to describe the specific unit employed to divide an amount in these types of conversions?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 14
+      }
+    ],
+    "gold_answer": "modulus",
+    "is_absent": false
+  },
+  {
+    "id": "rq19",
+    "category": "factual_paraphrased",
+    "question": "What is the name of the logical operator that accepts a single condition operand and reverses its boolean outcome?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 12
+      }
+    ],
+    "gold_answer": "not",
+    "is_absent": false
+  },
+  {
+    "id": "rq20",
+    "category": "factual_paraphrased",
+    "question": "What built-in function is utilized to determine the number of characters present in a text value?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 11
+      }
+    ],
+    "gold_answer": "len()",
+    "is_absent": false
+  },
+  {
+    "id": "rq21",
+    "category": "factual_paraphrased",
+    "question": "Which specific social media and web platform is mentioned as being constructed using the Django framework in Python?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 27
+      }
+    ],
+    "gold_answer": "Instagram",
+    "is_absent": false
+  },
+  {
+    "id": "rq22",
+    "category": "factual_paraphrased",
+    "question": "Name the enterprise based in the Netherlands that evaluates the quality of software code and monitors language popularity.",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 25
+      }
+    ],
+    "gold_answer": "TIOBE",
+    "is_absent": false
+  },
+  {
+    "id": "rq23",
+    "category": "factual_paraphrased",
+    "question": "What number does an index sequence typically start at in Python lists?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 13
+      }
+    ],
+    "gold_answer": "0",
+    "is_absent": false
+  },
+  {
+    "id": "rq24",
+    "category": "factual_paraphrased",
+    "question": "What Python function does the hint suggest utilizing to prevent floating-point calculation errors?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 15
+      }
+    ],
+    "gold_answer": "round()",
+    "is_absent": false
+  },
+  {
+    "id": "rq25",
+    "category": "factual_paraphrased",
+    "question": "What is the function utilized alongside list indexes in the concepts in practice section?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 14
+      }
+    ],
+    "gold_answer": "len()",
+    "is_absent": false
+  },
+  {
+    "id": "rq26",
+    "category": "factual_paraphrased",
+    "question": "What does the math module constant 'math.pi' represent?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 17
+      }
+    ],
+    "gold_answer": "The ratio of the circumference to the diameter of a circle.",
+    "is_absent": false
+  },
+  {
+    "id": "rq27",
+    "category": "factual_paraphrased",
+    "question": "What is the name of the section covered immediately after number basics in the chapter outline?",
+    "expected_targets": [
+      {
+        "file": "chapter_01_statements.pdf",
+        "page": 1
+      }
+    ],
+    "gold_answer": "Error messages",
+    "is_absent": false
+  },
+  {
+    "id": "rq28",
+    "category": "factual_paraphrased",
+    "question": "Which built-in function should you use to find the memory location of a given object?",
+    "expected_targets": [
+      {
+        "file": "chapter_03_objects.pdf",
+        "page": 18
+      }
+    ],
+    "gold_answer": "id(object)",
+    "is_absent": false
+  },
+  {
+    "id": "rq29",
+    "category": "factual_paraphrased",
+    "question": "Which Python math function returns the smallest integer that is not less than the input value x?",
+    "expected_targets": [
+      {
+        "file": "chapter_02_expressions.pdf",
+        "page": 18
+      }
+    ],
+    "gold_answer": "math.ceil(x)",
+    "is_absent": false
+  },
+  {
+    "id": "rq30",
+    "category": "factual_paraphrased",
+    "question": "According to the Speed limits programming task, what exact message should be output if the vehicle's speed falls within the specified range?",
+    "expected_targets": [
+      {
+        "file": "chapter_04_decisions.pdf",
+        "page": 13
+      }
+    ],
+    "gold_answer": "Good driving",
+    "is_absent": false
+  },
+  {
+    "id": "rq_abs_01",
+    "category": "absent_fact",
+    "question": "How do Python decorators with @functools.wraps preserve function metadata such as docstrings and names?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_abs_02",
+    "category": "absent_fact",
+    "question": "How can Python programs call C shared library functions and allocate foreign structures using the ctypes library?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_abs_03",
+    "category": "absent_fact",
+    "question": "What configuration tables are required in pyproject.toml to build wheel distributions for publishing packages to PyPI with Twine?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_abs_04",
+    "category": "absent_fact",
+    "question": "How does the Global Interpreter Lock (GIL) in CPython constrain CPU-bound multi-threading compared to multiprocessing?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_abs_05",
+    "category": "absent_fact",
+    "question": "How does the @dataclass decorator automatically synthesize __init__, __repr__, and __eq__ methods using type annotations?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  },
+  {
+    "id": "rq_abs_06",
+    "category": "absent_fact",
+    "question": "How does asyncio.run() create and manage the asynchronous event loop when scheduling coroutines and TaskGroups?",
+    "expected_targets": [],
+    "gold_answer": "",
+    "is_absent": true,
+    "abstain_target": "not_found"
+  }
+]
