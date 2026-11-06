@@ -1084,7 +1084,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 return (
                                   <div className="user-message-inline-error" data-testid={`inline-error-${msg.id}`}>
                                     <span className="error-icon" aria-hidden="true">✕</span>
-                                    <span>Failed to generate response.</span>
+                                    <span>{nextMsg.content || 'Failed to generate response. Please try again.'}</span>
                                     <button
                                       type="button"
                                       className="user-turn-retry-btn"
