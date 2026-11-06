@@ -49,6 +49,7 @@ from ingestion.embedder import embed_batch, embed_text
 
 SYNTHETIC_QUESTIONS_FILE = PROJECT_ROOT / "evals" / "questions.json"
 REAL_QUESTIONS_FILE = PROJECT_ROOT / "evals" / "questions_real.json"
+REAL_QUESTIONS_B_FILE = PROJECT_ROOT / "evals" / "questions_real_b.json"
 SYNTHETIC_DOCS_DIR = PROJECT_ROOT / "docs" / "sample_docs"
 REAL_DOCS_DIR = PROJECT_ROOT / "evals" / "corpus_real"
 
@@ -227,14 +228,19 @@ def find_first_hit_rank(
     return None
 
 
-def run_evaluation(corpus: str = "synthetic", keep: bool = False):
+def run_evaluation(corpus: str = "synthetic", question_set: str = "a", keep: bool = False):
+    title_suffix = f" - SET {question_set.upper()}" if corpus == "real" else ""
     print("=" * 95)
-    print(f" NOTEBOOKSPACE COMPREHENSIVE RETRIEVAL BENCHMARK [{corpus.upper()} CORPUS]")
+    print(f" NOTEBOOKSPACE COMPREHENSIVE RETRIEVAL BENCHMARK [{corpus.upper()} CORPUS{title_suffix}]")
     print("=" * 95)
 
     check_database_host()
 
-    questions_file = REAL_QUESTIONS_FILE if corpus == "real" else SYNTHETIC_QUESTIONS_FILE
+    if corpus == "real":
+        questions_file = REAL_QUESTIONS_B_FILE if question_set.lower() == "b" else REAL_QUESTIONS_FILE
+    else:
+        questions_file = SYNTHETIC_QUESTIONS_FILE
+
     if not questions_file.exists():
         raise FileNotFoundError(f"Questions file not found: {questions_file}")
 
@@ -512,9 +518,15 @@ if __name__ == "__main__":
         help="Corpus to evaluate: 'synthetic' (default) or 'real' (evals/corpus_real)",
     )
     parser.add_argument(
+        "--set",
+        choices=["a", "b"],
+        default="a",
+        help="Question set for real corpus: 'a' (default) or 'b'",
+    )
+    parser.add_argument(
         "--keep",
         action="store_true",
         help="Keep eval user, subject, and chunks in the database for debugging (default: delete on completion)",
     )
     args = parser.parse_args()
-    run_evaluation(corpus=args.corpus, keep=args.keep)
+    run_evaluation(corpus=args.corpus, question_set=args.set, keep=args.keep)
