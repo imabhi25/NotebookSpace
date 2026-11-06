@@ -128,4 +128,35 @@ describe('Workspace navigation and progressive disclosure', () => {
     fireEvent.click(trigger); fireEvent.click(screen.getByRole('menuitem', { name: 'Notebook settings' }));
     expect(screen.getByLabelText('Response Length')).toBeVisible();
   });
+
+  it('supports three-segment right-panel tab switcher (Passage, Notes, Retrieval) with distinct active states', () => {
+    render(workspace());
+    fireEvent.click(right());
+
+    const passageTab = screen.getByRole('button', { name: 'Passage' });
+    const notesTab = screen.getByRole('button', { name: /^Notes/i });
+    const retrievalTab = screen.getByTestId('right-panel-tab-retrieval');
+
+    expect(passageTab).toHaveClass('active');
+    expect(notesTab).not.toHaveClass('active');
+    expect(retrievalTab).not.toHaveClass('active');
+
+    // Switch to Notes
+    fireEvent.click(notesTab);
+    expect(passageTab).not.toHaveClass('active');
+    expect(notesTab).toHaveClass('active');
+    expect(retrievalTab).not.toHaveClass('active');
+
+    // Switch to Retrieval
+    fireEvent.click(retrievalTab);
+    expect(passageTab).not.toHaveClass('active');
+    expect(notesTab).not.toHaveClass('active');
+    expect(retrievalTab).toHaveClass('active');
+
+    // Switch back to Passage
+    fireEvent.click(passageTab);
+    expect(passageTab).toHaveClass('active');
+    expect(notesTab).not.toHaveClass('active');
+    expect(retrievalTab).not.toHaveClass('active');
+  });
 });
