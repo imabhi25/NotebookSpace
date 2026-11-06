@@ -92,7 +92,40 @@ describe('Add sources dialog: link form (round-2 audit M3)', () => {
     expect(onPasteText).toHaveBeenCalledWith('Lecture 1 Notes', 'Binary search complexity is O(log n).');
   });
 
-  it('keeps the dialog open with a clear error message when Done is clicked with invalid paste fields', async () => {
+  it('upload a file, switch to Paste, leave fields empty, click Done -> closes with no error', async () => {
+    const onPasteText = vi.fn(noop);
+    const onClose = vi.fn();
+    render(
+      <SourceModal
+        isOpen
+        onUploadFiles={noop}
+        onPasteText={onPasteText}
+        onAddUrl={noop}
+        onClose={onClose}
+      />
+    );
+
+    // 1. Upload a file so Done button is displayed
+    const file = new File(['content'], 'test.txt', { type: 'text/plain' });
+    fireEvent.drop(screen.getByRole('button', { name: /Drag and drop files here/i }), {
+      dataTransfer: { files: [file], types: ['Files'] },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Add Source' }));
+    await screen.findByText('Upload Results');
+
+    // 2. Switch to Paste Text tab, leave fields empty
+    fireEvent.click(screen.getByRole('button', { name: 'Paste Text' }));
+    expect((screen.getByLabelText(/Source Title/) as HTMLInputElement).value).toBe('');
+    expect((screen.getByLabelText(/Text Content/) as HTMLTextAreaElement).value).toBe('');
+
+    // 3. Click Done -> simply closes dialog with no error
+    fireEvent.click(screen.getByRole('button', { name: 'Done' }));
+    expect(onClose).toHaveBeenCalled();
+    expect(onPasteText).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('keeps the dialog open with a clear error message when Done is clicked with only title filled', async () => {
     const onPasteText = vi.fn(noop);
     const onClose = vi.fn();
     render(
@@ -123,7 +156,7 @@ describe('Add sources dialog: link form (round-2 audit M3)', () => {
     expect(onPasteText).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toHaveTextContent('Please enter or paste the text content.');
 
-    // 3. Clear title and provide content but NO title
+    // 3. Clear title and provide content but NO title -> also stays open with error
     fireEvent.change(screen.getByLabelText(/Source Title/), { target: { value: '' } });
     fireEvent.change(screen.getByLabelText(/Text Content/), { target: { value: 'Some text content here' } });
     fireEvent.click(screen.getByRole('button', { name: 'Done' }));
