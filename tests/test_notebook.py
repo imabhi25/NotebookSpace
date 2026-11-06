@@ -596,7 +596,7 @@ def test_one_click_sample_notebook_in_guest_mode():
         sources = sources_res.json()
         assert len(sources) == 1
         src = sources[0]
-        assert src["file_name"] == "syllabus.pdf"
+        assert src["file_name"] == "cs401_course_overview.pdf"
         assert src["status"] == "ready"
 
         # 4. Check conversation and message with real scored retrieval
@@ -619,7 +619,7 @@ def test_one_click_sample_notebook_in_guest_mode():
         assert "Sample Answer" in asst_msg["content"]
         assert len(asst_msg["citations"]) > 0
         citation = asst_msg["citations"][0]
-        assert citation["file"] == "syllabus.pdf"
+        assert citation["file"] == "cs401_course_overview.pdf"
         assert citation["page"] == 2
 
         # Verify real scored retrieved items are present
@@ -640,7 +640,7 @@ def test_one_click_sample_notebook_in_guest_mode():
 
         # 6. Check passage endpoint returns chunk for the citation
         passages_res = client.get(
-            f"/passages?file=syllabus.pdf&page=2&subject_id={subj_id}&source_id={src['id']}",
+            f"/passages?file=cs401_course_overview.pdf&page=2&subject_id={subj_id}&source_id={src['id']}",
             headers=headers,
         )
         assert passages_res.status_code == 200

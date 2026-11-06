@@ -889,12 +889,18 @@ def get_starter_questions_endpoint(
     questions: list[str] = []
     titles = [s["title"] for s in ready_sources]
 
+    has_sample_overview = any("course_overview" in t.lower() or "overview" in t.lower() for t in titles)
     has_syllabus = any("syllabus" in t.lower() for t in titles)
     has_exam = any("exam" in t.lower() or "guide" in t.lower() for t in titles)
     has_schedule = any("schedule" in t.lower() or "lecture" in t.lower() for t in titles)
     has_assignment = any("assignment" in t.lower() or "project" in t.lower() for t in titles)
 
-    if has_syllabus:
+    if has_sample_overview:
+        questions.append("What is the late submission policy?")
+        questions.append("What is the full grading breakdown for the course?")
+        questions.append("What are the course topics covered by week?")
+        questions.append("When is the midterm examination and what is its weight?")
+    elif has_syllabus:
         questions.append("What is the grading breakdown and policy outlined in the syllabus?")
     if has_exam:
         questions.append("What are the exam dates, rules, and allowed materials?")
@@ -937,32 +943,62 @@ def create_sample_subject_endpoint(
     )
     subject_id = subj["id"]
 
-    # 1. Ingest small source (syllabus.pdf or synthetic fallback)
-    sample_pdf = Path(__file__).resolve().parent.parent / "docs" / "sample_docs" / "syllabus.pdf"
+    # 1. Ingest small source (cs401_course_overview.pdf or synthetic fallback)
+    sample_pdf = Path(__file__).resolve().parent.parent / "docs" / "sample_notebook" / "cs401_course_overview.pdf"
     if sample_pdf.is_file():
         content = sample_pdf.read_bytes()
         file_hash = hashlib.sha256(content).hexdigest()
         stream = io.BytesIO(content)
-        pages = parse_pdf_source(source=stream, file_name="syllabus.pdf")
+        pages = parse_pdf_source(source=stream, file_name="cs401_course_overview.pdf")
     else:
         synthetic_text = (
             "--- Page 1 ---\n"
-            "CS 401: Advanced Systems Programming - Course Syllabus\n"
-            "Instructor: Dr. Alex Mercer. Office hours: Tuesdays and Thursdays 2-4 PM.\n\n"
+            "CS 401: Systems Programming - Course Overview\n"
+            "Term: Fall 2026 | Credits: 4.0 | Location: Engineering Building Room 101.\n"
+            "Instructor: Course Staff (contact via course portal). Office Hours: Mondays and Wednesdays from 2:00 PM to 4:00 PM in Computer Science Building Room 204. Teaching Assistant Office Hours: Fridays from 10:00 AM to 12:00 PM online via course discussion forum.\n"
+            "Prerequisites: Students must have completed CS 201 (Data Structures and Algorithms) and CS 202 (Computer Architecture and Systems) with a grade of C or better. Proficiency in C/C++ programming and Unix command-line utilities is required.\n"
+            "Course Description: This course covers fundamental and advanced principles of systems programming, concurrency, memory management, and distributed systems. Students develop multi-threaded network services and high-performance storage components.\n\n"
             "--- Page 2 ---\n"
-            "Grading Breakdown and Course Policies\n"
-            "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.\n"
-            "Midterm Examination: 25 percent of total grade.\n"
+            "Grading Breakdown and Assessment Policies\n"
+            "Grading Breakdown: Course grades are computed from the following components (totaling exactly 100 percent):\n"
+            "- Programming Projects (4 assignments): 40 percent of total grade (10 percent each).\n"
+            "- Midterm Examination: 25 percent of total grade.\n"
+            "- Final Term Examination: 25 percent of total grade.\n"
+            "- Homework Problem Sets and Quizzes: 10 percent of total grade.\n"
+            "Grading Scale: A: 90-100 percent, B: 80-89 percent, C: 70-79 percent, D: 60-69 percent, F: below 60 percent.\n"
+            "Late Policy: Assignments submitted after the scheduled deadline will incur a penalty of 10 percent per day for up to 3 days late. Submissions more than 3 days late will receive zero credit. Medical and emergency accommodations require prior approval from the academic dean.\n\n"
+            "--- Page 3 ---\n"
+            "Examination Schedule and Midterm Details\n"
+            "Midterm Examination Date and Weight: The Midterm Examination is scheduled for Thursday, November 5, 2026, from 7:00 PM to 9:00 PM in Lecture Hall C. The midterm accounts for 25 percent of the overall course grade.\n"
+            "Midterm Scope and Allowed Materials: The examination covers all material from Weeks 1 through 7, including memory hierarchies, thread synchronization, and asynchronous I/O. The exam is closed-book; students may bring one double-sided letter-sized (8.5x11 inch) handwritten formula sheet.\n"
+            "Final Examination: The Final Examination will be held during university exam week on December 18, 2026, contributing 25 percent of the course grade. It is comprehensive with an emphasis on Weeks 8 through 14.\n\n"
+            "--- Page 4 ---\n"
+            "Weekly Course Schedule and Topics\n"
+            "Course Topics by Week:\n"
+            "- Week 1: Unix Environment, Tooling, Compilers, and Build Systems.\n"
+            "- Week 2: Memory Layout, Pointers, Stack and Heap Dynamic Allocation.\n"
+            "- Week 3: POSIX File I/O, File Descriptors, and System Calls.\n"
+            "- Week 4: Processes, Signals, IPC, and Process Management.\n"
+            "- Week 5: Threads, Pthreads Library, and Shared Memory.\n"
+            "- Week 6: Concurrency, Mutexes, Semaphores, and Race Condition Prevention.\n"
+            "- Week 7: Deadlocks, Condition Variables, and Thread Synchronization.\n"
+            "- Week 8: Midterm Examination Review and Midterm Exam.\n"
+            "- Week 9: Network Sockets, TCP/IP Communication, and Client-Server Protocols.\n"
+            "- Week 10: Asynchronous and Event-Driven I/O Architectures (epoll/kqueue).\n"
+            "- Week 11: Distributed Consensus, RPC Systems, and Fault Tolerance.\n"
+            "- Week 12: File System Design, Disk Layouts, and Crash Recovery.\n"
+            "- Week 13: Memory-Mapped Files, Caching Strategies, and Performance Profiling.\n"
+            "- Week 14: Final Review, Case Studies in Modern Operating Systems, and Project Presentations.\n"
         )
         content = synthetic_text.encode("utf-8")
         file_hash = hashlib.sha256(content).hexdigest()
-        pages = _pages_from_saved_content(synthetic_text, "syllabus.pdf")
+        pages = _pages_from_saved_content(synthetic_text, "cs401_course_overview.pdf")
 
     src = create_source(
         user_id=current_user["id"],
         subject_id=subject_id,
-        title="syllabus.pdf",
-        file_name="syllabus.pdf",
+        title="cs401_course_overview.pdf",
+        file_name="cs401_course_overview.pdf",
         source_type="pdf",
         file_hash=file_hash,
         status="processing",
@@ -1003,15 +1039,15 @@ def create_sample_subject_endpoint(
         user_id=current_user["id"],
         conversation_id=conv["id"],
         role="assistant",
-        content="**[Sample Answer]** According to the course syllabus, assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit [syllabus.pdf p.2].",
+        content="**[Sample Answer]** According to the course overview, assignments submitted after the scheduled deadline will incur a penalty of 10 percent per day for up to 3 days late. Submissions more than 3 days late will receive zero credit [cs401_course_overview.pdf p.2].",
         model="Sample",
         citations=[
             {
-                "file": "syllabus.pdf",
+                "file": "cs401_course_overview.pdf",
                 "page": 2,
                 "source_id": src["id"],
                 "source_version": 1,
-                "excerpt": "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.",
+                "excerpt": "Late Policy: Assignments submitted after the scheduled deadline will incur a penalty of 10 percent per day for up to 3 days late. Submissions more than 3 days late will receive zero credit.",
             }
         ],
         retrieved=real_retrieved,
