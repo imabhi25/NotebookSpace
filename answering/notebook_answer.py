@@ -3,14 +3,13 @@ import json
 import logging
 import os
 from pathlib import Path
-import re
 import time
 from typing import Any
 from uuid import UUID
 
 import copy
 
-from answering.llm import BaseCachedLLMClient, LLMClient, get_llm_client
+from answering.llm import BaseCachedLLMClient, LLMClient, LLMServiceError, get_llm_client
 from db.notebook_store import (
     search_scoped,
     save_message,
@@ -277,31 +276,30 @@ def answer_notebook_question(
         client.read_cache = False
     model_name = getattr(client, "model", "gemini")
 
+    def save_generation_failure(error: Exception):
+        logger.error("Failed to generate answer from LLM: %s", type(error).__name__)
+        category = error.category if isinstance(error, LLMServiceError) else "unavailable"
+        message = {
+            "quota": "The AI service has reached a usage or billing limit. Please try again later.",
+            "configuration": "The AI service is temporarily unavailable due to a configuration issue. Please try again later.",
+            "unavailable": "The AI service is temporarily unavailable. Please try again.",
+        }.get(category, "The AI service is temporarily unavailable. Please try again.")
+        return save_message(
+            user_id=user_id, conversation_id=conversation_id, role="assistant",
+            content=message, model=model_name, abstained=True,
+            abstain_reason="generation_failed", retrieved=retrieved,
+            selected_source_ids=[str(s) for s in selected_source_ids],
+            source_versions=source_versions, latency=time.perf_counter() - start_time,
+            db_url=db_url,
+        )
+
     try:
         resp = client.generate(system=system_prompt, user=user_prompt)
         llm_latency = resp.latency_seconds
         total_in_tok = resp.input_tokens
         total_out_tok = resp.output_tokens
     except Exception as e:
-        logger.error(f"Failed to generate answer from LLM: {e}", exc_info=True)
-        raw_err = str(e)
-        sanitized_err = re.sub(r'(?:AIza|AQ\.)[A-Za-z0-9_-]{15,}', '[REDACTED_KEY]', raw_err)
-        sanitized_err = re.sub(r'key=[A-Za-z0-9_-]+', 'key=[REDACTED]', sanitized_err)
-        latency = time.perf_counter() - start_time
-        return save_message(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            role="assistant",
-            content=f"Unable to generate response: {sanitized_err}",
-            model=model_name,
-            abstained=True,
-            abstain_reason="generation_failed",
-            retrieved=retrieved,
-            selected_source_ids=[str(s) for s in selected_source_ids],
-            source_versions=source_versions,
-            latency=latency,
-            db_url=db_url,
-        )
+        return save_generation_failure(e)
 
     def try_parse_json(text: str) -> dict[str, Any] | None:
         content = text.strip()
@@ -331,8 +329,8 @@ def answer_notebook_question(
             total_in_tok += retry_resp.input_tokens
             total_out_tok += retry_resp.output_tokens
             parsed = try_parse_json(retry_resp.text)
-        except Exception:
-            pass
+        except Exception as e:
+            return save_generation_failure(e)
 
     token_stats = {
         "input": total_in_tok,

@@ -15,6 +15,14 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+class LLMServiceError(RuntimeError):
+    """Provider failure with a safe category for the user interface."""
+
+    def __init__(self, category: str, detail: str):
+        super().__init__(detail)
+        self.category = category
+
+
 @dataclass(frozen=True)
 class LLMResponse:
     text: str
@@ -219,12 +227,12 @@ class GeminiLLMClient(BaseCachedLLMClient):
                         if delay_sec is not None and delay_sec > 60.0:
                             reset_dt = datetime.now(timezone.utc) + timedelta(seconds=delay_sec)
                             reset_iso = reset_dt.isoformat()
-                            raise RuntimeError(
+                            raise LLMServiceError("quota",
                                 f"LLM quota exhausted (status 429 {err_status or ''}). "
                                 f"Retry after {delay_sec:.1f}s (estimated reset: {reset_iso})."
                             )
                         elif err_status == "RESOURCE_EXHAUSTED":
-                            raise RuntimeError(
+                            raise LLMServiceError("quota",
                                 f"LLM quota exhausted (status 429 {err_status}). "
                                 "Quota window exceeded. Please wait for provider quota reset."
                             )
@@ -245,7 +253,12 @@ class GeminiLLMClient(BaseCachedLLMClient):
                     if resp.status_code >= 400 and current_model == models_to_try[-1]:
                         status_detail = f" {err_status}" if err_status else ""
                         detail_msg = f": {last_sanitized_err}" if last_sanitized_err else ""
-                        raise RuntimeError(f"LLM request failed with status {resp.status_code}{status_detail}{detail_msg}")
+                        category = (
+                            "quota" if resp.status_code == 429 or err_status == "RESOURCE_EXHAUSTED"
+                            else "configuration" if resp.status_code in (401, 403)
+                            else "unavailable"
+                        )
+                        raise LLMServiceError(category, f"LLM request failed with status {resp.status_code}{status_detail}{detail_msg}")
 
                 if data is not None:
                     break
