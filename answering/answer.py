@@ -6,7 +6,7 @@ import time
 from typing import Any
 from dotenv import load_dotenv
 
-from answering.llm import LLMClient, get_llm_client
+from answering.llm import LLMClient, get_llm_client, with_question_budget
 from answering.logger import log_answer
 from db.retrieval import search
 
@@ -158,7 +158,7 @@ def answer_question(
     user_prompt = f"Passages:\n{passages_text}\n\nQuestion: {question}"
 
     # 3. Call model with single retry on JSON parse failure
-    client = llm_client or get_llm_client()
+    client = with_question_budget(llm_client or get_llm_client())
     model_name = getattr(client, "model", None)
     resp = client.generate(system=system_prompt, user=user_prompt)
 

@@ -277,3 +277,33 @@ def test_failed_replace_does_not_retry_from_the_old_text(nb, monkeypatch):
     assert failed["source_type"] == "txt"
     # Retrying would otherwise mark the source ready again with the text it was replaced from.
     assert client.post(f"{base}/retry", headers=nb["h"]).status_code == 400
+
+
+def test_failed_answer_retry_removes_old_row_on_reload(nb, monkeypatch):
+    import answering.notebook_answer as na
+    from answering.llm import LLMResponse, LLMServiceError
+
+    class FailsThenSucceeds:
+        model = 'test'
+        calls = 0
+
+        def generate(self, system, user):
+            self.calls += 1
+            if self.calls == 1:
+                raise LLMServiceError('quota', 'provider detail')
+            return LLMResponse('{"supported": true, "answer": "A heap is a data structure.", "citations": []}', 1, 1, 0.1)
+
+    model = FailsThenSucceeds()
+    monkeypatch.setattr(na, 'get_llm_client', lambda: model)
+    monkeypatch.setattr(na, 'search_scoped', lambda **kwargs: [{'score': 0.9, 'text': 'A heap is a data structure.', 'file': 'heaps.txt', 'page': 1}])
+    url = f"/subjects/{nb['sid']}/conversations/{nb['conv']}/messages"
+    body = {'selected_source_ids': [nb['src']], 'question': 'What is a heap?'}
+    failed = client.post(url, json=body, headers=nb['h']).json()
+    assert failed['abstain_reason'] == 'generation_failed'
+    assert failed['abstained'] is False
+    retried = client.post(url, json={**body, 'is_retry': True, 'retry_message_id': failed['id']}, headers=nb['h'])
+    assert retried.status_code == 200
+    messages = client.get(url, headers=nb['h']).json()
+    assert [message['role'] for message in messages] == ['user', 'assistant']
+    assert failed['id'] not in [message['id'] for message in messages]
+    assert messages[-1]['id'] == retried.json()['id']
