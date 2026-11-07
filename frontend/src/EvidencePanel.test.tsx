@@ -76,9 +76,9 @@ describe('Evidence panel', () => {
     render(view());
     const claim = screen.getByRole('button', { name: /Claim: 50% in b\.pdf page 1/ });
     fireEvent.keyDown(claim, { key: 'Enter' });
-    await waitFor(() => expect(spy).toHaveBeenCalledWith('b.pdf', 1));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('b.pdf', 1, 'ev', 'b'));
     fireEvent.keyDown(screen.getByRole('button', { name: /Claim: 40% in a\.pdf page 2/ }), { key: ' ' });
-    await waitFor(() => expect(spy).toHaveBeenCalledWith('a.pdf', 2));
+    await waitFor(() => expect(spy).toHaveBeenCalledWith('a.pdf', 2, 'ev', 'a'));
   });
 
   it('ignores a stale passage response when a newer citation was opened', async () => {

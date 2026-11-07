@@ -140,6 +140,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const chatAreaRef = useRef<HTMLElement>(null);
   const contextPanelRef = useRef<HTMLElement>(null);
   const evidenceRef = useRef<HTMLElement>(null);
+  const selectedCardRef = useRef<HTMLElement>(null);
+  const [cardFocusTick, setCardFocusTick] = useState(0);
   const evidenceOpenerRef = useRef<HTMLElement | null>(null);
   const lastSendTimeRef = useRef<number>(0);
 
@@ -492,7 +494,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     setSelectedCitation({ ...cit, messageId });
     // Evidence appears under its answer; a citation with no answer on screen (a note's, or one picked
     // from the retrieval map) is shown with its source in the materials panel instead.
-    if (!messages.some((m) => m.id === messageId)) openContext('sources');
+    if (!messages.some((m) => m.id === messageId)) {
+      openContext('sources');
+      setCardFocusTick((t) => t + 1); // the control that was clicked is about to unmount
+    }
     loadPassages(cit);
   };
 
@@ -501,8 +506,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     const el = evidenceRef.current;
     if (!el || typeof el.scrollIntoView !== 'function') return;
     const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+    // Evidence taller than the thread area is aligned to its top, so Prev/Next/Close stay reachable.
+    const scroller = el.closest('.thread-scroll-container');
+    const tall = scroller ? el.getBoundingClientRect().height > scroller.clientHeight - 96 : false;
+    el.scrollIntoView({ block: tall ? 'start' : 'nearest', behavior: reduce ? 'auto' : 'smooth' });
   }, [selectedCitation?.messageId, selectedCitation?.file, selectedCitation?.page]);
+
+  // A citation chosen from a note or the retrieval map has no answer to anchor to: focus its card in the panel.
+  useEffect(() => {
+    if (cardFocusTick > 0) selectedCardRef.current?.focus();
+  }, [cardFocusTick]);
 
   // Collapse the evidence and hand focus back to the control that opened it.
   const closeEvidence = () => {
@@ -529,7 +542,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const loadPassages = async (cit: Citation) => {
     const requestId = ++passageRequestRef.current;
     const isLatest = () => requestId === passageRequestRef.current;
-    const matchingSource = sources.find((s) => s.id === cit.source_id);
+    const matchingSource =
+      sources.find((s) => s.id === cit.source_id) ??
+      (cit.source_id ? undefined : sources.find((s) => normalizeFileName(s.file_name) === normalizeFileName(cit.file)));
     const isHistoricalOnly =
       Boolean(cit.source_id && !matchingSource) ||
       Boolean(cit.source_id && matchingSource && typeof cit.source_version === 'number' && matchingSource.version !== cit.source_version);
@@ -540,10 +555,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       return;
     }
 
+    // A file that is not among this notebook's sources cannot be read back: do not look it up by name alone.
+    if (!matchingSource) {
+      setPassages([]);
+      setPassageLoading(false);
+      return;
+    }
+
     setPassageLoading(true);
     try {
-      const lookupFile = matchingSource?.file_name || cit.file;
-      const data = await api.getPassages(lookupFile, cit.page);
+      const lookupFile = matchingSource.file_name || cit.file;
+      // Scoped to this notebook and source, so a same-named file elsewhere can never be shown.
+      const data = await api.getPassages(lookupFile, cit.page, subject.id, matchingSource.id);
       // Backup guard: deduplicate passages by chunk_index & text
       const seen = new Set<string>();
       const deduped = data.filter((p) => {
@@ -638,6 +661,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     matchedSource.version !== selectedCitation.source_version
   );
   const isHistoricalOnly = isSourceDeleted || isSourceReplaced;
+  const isUnknownSource = Boolean(
+    selectedCitation && !selectedCitation.source_id &&
+    !sources.some((src) => normalizeFileName(src.file_name) === normalizeFileName(selectedCitation.file))
+  );
 
   // --------------------------------------------------------------------------
   // ANSWER ACTIONS
@@ -1379,7 +1406,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             }}
           >
             {selectedCitation && (
-              <section className="selected-source-card" aria-label="Selected source" data-testid="selected-source-card">
+              <section className="selected-source-card" aria-label="Selected source" data-testid="selected-source-card" ref={selectedCardRef} tabIndex={-1}>
                 <div className="selected-source-head">
                   <h3 className="selected-source-title">Selected source</h3>
                   <button type="button" className="selected-source-clear" onClick={closeEvidence}>Clear</button>
@@ -1394,6 +1421,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   {matchedSource && matchedSource.page_count > 0 && <div><dt>Pages</dt><dd>{matchedSource.page_count}</dd></div>}
                   {matchedSource && <div><dt>Status</dt><dd>{matchedSource.status}</dd></div>}
                 </dl>
+                {isUnknownSource && (
+                  <p className="selected-source-note">This file is not among the notebook&rsquo;s current sources.</p>
+                )}
                 {isHistoricalOnly && (
                   <p className="selected-source-note">
                     {isSourceDeleted ? 'This source was removed from the notebook.' : `Replaced since this answer (cited v${selectedCitation.source_version ?? 1}).`}
