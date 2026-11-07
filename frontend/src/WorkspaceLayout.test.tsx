@@ -35,8 +35,8 @@ function workspace(onBackToDashboard = vi.fn()) {
     onUpdateSettings={done} onCreateNote={done} onSaveAnswerAsNote={done}
     onUpdateNote={done} onDeleteNote={done} messages={[message]} chatLoading={false} />;
 }
-const left = () => screen.getByRole('button', { name: 'Toggle sources panel' });
-const right = () => screen.getByRole('button', { name: 'Toggle inspector panel' });
+const sourcesToggle = () => screen.getByRole('button', { name: 'Toggle sources panel' });
+const navToggle = () => screen.getByRole('button', { name: 'Toggle navigation' });
 const originalWidth = window.innerWidth;
 beforeEach(() => {
   window.innerWidth = 1440;
@@ -73,47 +73,59 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(window.location.pathname).toBe('/');
   });
 
-  it('starts with desktop sources open and the inspector disclosed on demand', () => {
+  it('starts with desktop sources open and has no separate inspector toggle', () => {
     render(workspace());
-    expect(left()).toHaveAttribute('aria-expanded', 'true');
-    expect(right()).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('complementary', { name: 'Inspector and Notes Panel' })).not.toBeInTheDocument();
-    fireEvent.click(right());
-    expect(screen.getByRole('complementary', { name: 'Inspector and Notes Panel' })).toBeVisible();
-    fireEvent.click(left());
-    expect(left()).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(left());
+    expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'true');
+    expect(navToggle()).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.queryByRole('button', { name: /inspector/i })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Inspector and Notes Panel' })).toBeNull();
+    fireEvent.click(sourcesToggle());
+    expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(sourcesToggle());
     expect(screen.getByRole('complementary', { name: 'Sources' })).toBeVisible();
   });
 
-  it.each([1440, 768, 390])('opens cited evidence consistently at %ipx', async width => {
+  it.each([1440, 768, 390])('opens cited evidence under the answer at %ipx without opening a panel', async width => {
     window.innerWidth = width;
     render(workspace());
+    const sourcesWasOpen = sourcesToggle().getAttribute('aria-expanded');
     fireEvent.click(screen.getByRole('button', { name: 'Citation: lecture.pdf page 1' }));
     await waitFor(() => expect(api.getPassages).toHaveBeenCalledWith('lecture.pdf', 1));
-    expect(right()).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('complementary', { name: 'Inspector and Notes Panel' })).toBeVisible();
-    if (width <= 960) {
-      expect(left()).toHaveAttribute('aria-expanded', 'false');
-      expect(screen.getByRole('complementary', { name: 'Inspector and Notes Panel' })).toHaveFocus();
-    }
+    const evidence = screen.getByTestId('inline-evidence');
+    expect(evidence).toBeVisible();
+    expect(evidence).toHaveAccessibleName('Evidence from lecture.pdf, page 1');
+    expect(evidence.closest('.assistant-message')).not.toBeNull();
+    expect(sourcesToggle().getAttribute('aria-expanded')).toBe(sourcesWasOpen);
   });
 
   it('starts compact screens closed, supports both panels, and restores focus on Escape', () => {
     window.innerWidth = 390;
     render(workspace());
-    expect(left()).toHaveAttribute('aria-expanded', 'false');
-    expect(right()).toHaveAttribute('aria-expanded', 'false');
+    expect(navToggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('heading', { name: subject.name })).toHaveTextContent(subject.name);
-    fireEvent.click(left()); fireEvent.click(right());
-    expect(left()).toHaveAttribute('aria-expanded', 'true');
-    expect(right()).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(navToggle()); fireEvent.click(sourcesToggle());
+    expect(navToggle()).toHaveAttribute('aria-expanded', 'true');
+    expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'true');
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(right()).toHaveAttribute('aria-expanded', 'false');
-    expect(right()).toHaveFocus();
+    expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(sourcesToggle()).toHaveFocus();
     fireEvent.keyDown(window, { key: 'Escape' });
-    expect(left()).toHaveAttribute('aria-expanded', 'false');
-    expect(left()).toHaveFocus();
+    expect(navToggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(navToggle()).toHaveFocus();
+  });
+
+  it('gives both phone panel toggles real button semantics, names and state', () => {
+    window.innerWidth = 390;
+    render(workspace());
+    for (const toggle of [navToggle(), sourcesToggle()]) {
+      expect(toggle.tagName).toBe('BUTTON');
+      expect(toggle).toHaveAttribute('type', 'button');
+      expect(toggle).toHaveAttribute('aria-expanded', 'false');
+      expect(toggle).toHaveAttribute('aria-controls');
+      expect(toggle).toHaveAttribute('title');
+      expect(document.getElementById(toggle.getAttribute('aria-controls')!)).not.toBeNull();
+    }
   });
 
   it('keeps notebook settings reachable through the keyboard-operated actions menu', () => {
@@ -131,34 +143,35 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(screen.getByLabelText('Response Length')).toBeVisible();
   });
 
-  it('supports three-segment right-panel tab switcher (Passage, Notes, Retrieval) with distinct active states', () => {
+  it('switches the materials panel between Sources, Notes and Retrieval', () => {
     render(workspace());
-    fireEvent.click(right());
-
-    const passageTab = screen.getByRole('button', { name: 'Passage' });
+    const sourcesTab = screen.getByRole('button', { name: 'Sources', pressed: true });
     const notesTab = screen.getByRole('button', { name: /^Notes/i });
     const retrievalTab = screen.getByTestId('right-panel-tab-retrieval');
+    expect(notesTab).toHaveAttribute('aria-pressed', 'false');
+    expect(retrievalTab).toHaveAttribute('aria-pressed', 'false');
 
-    expect(passageTab).toHaveClass('active');
-    expect(notesTab).not.toHaveClass('active');
-    expect(retrievalTab).not.toHaveClass('active');
-
-    // Switch to Notes
     fireEvent.click(notesTab);
-    expect(passageTab).not.toHaveClass('active');
-    expect(notesTab).toHaveClass('active');
-    expect(retrievalTab).not.toHaveClass('active');
+    expect(notesTab).toHaveAttribute('aria-pressed', 'true');
+    expect(sourcesTab).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('new-note-btn')).toBeVisible();
+    expect(screen.getByRole('complementary', { name: 'Saved notes' })).toBeVisible();
 
-    // Switch to Retrieval
     fireEvent.click(retrievalTab);
-    expect(passageTab).not.toHaveClass('active');
-    expect(notesTab).not.toHaveClass('active');
-    expect(retrievalTab).toHaveClass('active');
+    expect(retrievalTab).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('complementary', { name: 'Retrieval' })).toBeVisible();
 
-    // Switch back to Passage
-    fireEvent.click(passageTab);
-    expect(passageTab).toHaveClass('active');
-    expect(notesTab).not.toHaveClass('active');
-    expect(retrievalTab).not.toHaveClass('active');
+    fireEvent.click(sourcesTab);
+    expect(sourcesTab).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('add-source-btn')).toBeVisible();
+  });
+
+  it('opens saved notes in the materials panel from the navigation sidebar', () => {
+    window.innerWidth = 1024;
+    render(workspace());
+    expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByTestId('nav-saved-notes'));
+    expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('complementary', { name: 'Saved notes' })).toBeVisible();
   });
 });

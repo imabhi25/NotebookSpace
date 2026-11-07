@@ -51,7 +51,7 @@ describe('Evidence panel', () => {
     ]);
     render(view());
     fireEvent.click(screen.getByTestId('citation-chip-0'));
-    const pane = await screen.findByTestId('passage-pane');
+    const pane = await screen.findByTestId('inline-evidence');
     await waitFor(() => expect(within(pane).getByText(chunk)).toBeInTheDocument());
     expect(within(pane).getAllByText('Retrieved for this answer')).toHaveLength(1);
     expect(within(pane).queryByText('Cited Passage Match')).toBeNull();
@@ -60,14 +60,15 @@ describe('Evidence panel', () => {
     expect(within(pane).getByText(/Citations point to a page, not a sentence/)).toBeInTheDocument();
   });
 
-  it('exposes citation chips as pressed toggles that control the panel', async () => {
+  it('exposes citation chips as pressed toggles that control the evidence under the answer', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view());
     const chip = screen.getByTestId('citation-chip-0');
     expect(chip).toHaveAttribute('aria-pressed', 'false');
-    expect(chip).toHaveAttribute('aria-controls', 'workspace-inspector-panel');
+    expect(chip).not.toHaveAttribute('aria-controls');
     fireEvent.click(chip);
     await waitFor(() => expect(screen.getByTestId('citation-chip-0')).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.getByTestId('citation-chip-0')).toHaveAttribute('aria-controls', screen.getByTestId('inline-evidence').id);
   });
 
   it('lets keyboard users open a conflict claim with Enter and Space', async () => {
@@ -92,5 +93,100 @@ describe('Evidence panel', () => {
     releaseA([{ file_name: 'a.pdf', page_number: 2, chunk_index: 0, text: 'Stale A text' }]);
     await new Promise((r) => setTimeout(r, 20));
     expect(screen.queryByText('Stale A text')).toBeNull();
+  });
+
+  it('shows the evidence directly beneath its answer, with real file, page and passage text', async () => {
+    vi.spyOn(api, 'getPassages').mockResolvedValue([{ file_name: 'a.pdf', page_number: 2, chunk_index: 1, text: chunk }]);
+    render(view());
+    fireEvent.click(screen.getByTestId('citation-chip-0'));
+    const evidence = await screen.findByTestId('inline-evidence');
+    const answer = screen.getByTestId('answer-view');
+    expect(answer.contains(evidence)).toBe(true);
+    const chips = answer.querySelector('.chips-row')!;
+    const actions = answer.querySelector('.answer-action-toolbar')!;
+    expect(chips.compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(evidence.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(evidence.querySelector('.passage-doc-title')).toHaveTextContent('a.pdf');
+    expect(within(evidence).getByText('Page 2')).toBeInTheDocument();
+    await waitFor(() => expect(within(evidence).getByText(chunk)).toBeInTheDocument());
+    expect(evidence.querySelector('mark')).toBeNull();
+  });
+
+  it('collapses on Close and on Escape, and returns focus to the citation that opened it', async () => {
+    vi.spyOn(api, 'getPassages').mockResolvedValue([]);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(view());
+      const chip = screen.getByTestId('citation-chip-0');
+      chip.focus();
+      fireEvent.click(chip);
+      await screen.findByTestId('inline-evidence');
+      fireEvent.click(screen.getByRole('button', { name: 'Close evidence' }));
+      vi.advanceTimersByTime(10);
+      expect(screen.queryByTestId('inline-evidence')).toBeNull();
+      expect(screen.getByTestId('citation-chip-0')).toHaveFocus();
+
+      const chip1 = screen.getByTestId('citation-chip-1');
+      chip1.focus();
+      fireEvent.click(chip1);
+      const evidence = await screen.findByTestId('inline-evidence');
+      fireEvent.keyDown(evidence, { key: 'Escape' });
+      vi.advanceTimersByTime(10);
+      expect(screen.queryByTestId('inline-evidence')).toBeNull();
+      expect(screen.getByTestId('citation-chip-1')).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('steps between the answer\'s citations without losing the original opener', async () => {
+    vi.spyOn(api, 'getPassages').mockResolvedValue([]);
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      render(view());
+      const chip = screen.getByTestId('citation-chip-0');
+      chip.focus();
+      fireEvent.click(chip);
+      const evidence = await screen.findByTestId('inline-evidence');
+      expect(within(evidence).getByText('1/2')).toBeInTheDocument();
+      fireEvent.click(within(evidence).getByRole('button', { name: 'Next citation' }));
+      await waitFor(() => expect(within(screen.getByTestId('inline-evidence')).getByText('2/2')).toBeInTheDocument());
+      fireEvent.click(screen.getByRole('button', { name: 'Close evidence' }));
+      vi.advanceTimersByTime(10);
+      expect(screen.getByTestId('citation-chip-0')).toHaveFocus();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows selected-source details in the materials panel while the passage stays under the answer', async () => {
+    vi.spyOn(api, 'getPassages').mockResolvedValue([]);
+    render(view());
+    expect(screen.queryByTestId('selected-source-card')).toBeNull();
+    fireEvent.click(screen.getByTestId('citation-chip-1'));
+    const card = await screen.findByTestId('selected-source-card');
+    const panel = screen.getByRole('complementary', { name: 'Sources' });
+    expect(panel.contains(card)).toBe(true);
+    expect(within(card).getAllByText('b.pdf').length).toBeGreaterThan(0);
+    expect(within(card).getByText('Cited page')).toBeInTheDocument();
+    expect(within(card).getByText('v1')).toBeInTheDocument();
+    expect(within(card).queryByTestId('passage-content')).toBeNull(); // passage is inline, not duplicated
+    expect(screen.getAllByTestId('passage-content')).toHaveLength(1);
+    fireEvent.click(within(card).getByRole('button', { name: 'Clear' }));
+    expect(screen.queryByTestId('selected-source-card')).toBeNull();
+    expect(screen.queryByTestId('inline-evidence')).toBeNull();
+  });
+
+  it('shows the passage in the panel for a note citation that has no answer on screen', async () => {
+    vi.spyOn(api, 'getPassages').mockResolvedValue([{ file_name: 'a.pdf', page_number: 2, chunk_index: 0, text: 'Note-cited passage text.' }]);
+    const note = { id: 'n1', subject_id: subject.id, user_id: 'g', title: 'My note', content: 'body', is_saved_answer: false,
+      citations: [{ file: 'a.pdf', page: 2, source_id: 'a', source_version: 1 }], created_at: '2026-10-12', updated_at: '2026-10-12' };
+    const base = view();
+    render({ ...base, props: { ...base.props, notes: [note], messages: [] } });
+    fireEvent.click(screen.getByRole('button', { name: /^Notes/ }));
+    fireEvent.click(await screen.findByTestId('note-citation-chip-0'));
+    const card = await screen.findByTestId('selected-source-card');
+    expect(screen.queryByTestId('inline-evidence')).toBeNull();
+    await waitFor(() => expect(within(card).getByText('Note-cited passage text.')).toBeInTheDocument());
   });
 });
