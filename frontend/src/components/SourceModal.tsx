@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useModalFocus } from '../useModalFocus';
 
 export interface FileUploadResult {
   filename: string;
@@ -62,7 +63,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Focus trap and Escape key handling
+  // Reset the form whenever the dialog closes; apply files or a link passed in on open.
   useEffect(() => {
     if (!isOpen) {
       setUploadResults(null);
@@ -84,46 +85,10 @@ export const SourceModal: React.FC<SourceModalProps> = ({
       setUrlInput(initialUrl);
     }
 
-    // Auto-focus dialog container on open
-    const focusTimer = setTimeout(() => {
-      modalRef.current?.focus();
-    }, 50);
+  }, [isOpen]);
 
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.preventDefault();
-        onClose();
-        return;
-      }
-
-      if (e.key === 'Tab' && modalRef.current) {
-        const focusable = modalRef.current.querySelectorAll<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable.length === 0) return;
-        const first = focusable[0];
-        const last = focusable[focusable.length - 1];
-
-        if (e.shiftKey) {
-          if (document.activeElement === first) {
-            e.preventDefault();
-            last.focus();
-          }
-        } else {
-          if (document.activeElement === last) {
-            e.preventDefault();
-            first.focus();
-          }
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      clearTimeout(focusTimer);
-      window.removeEventListener('keydown', handleKeyDown);
-    };
-  }, [isOpen, onClose]);
+  // Focus moves in on open, Tab stays inside, Escape closes, and focus returns to the opener.
+  useModalFocus<HTMLDivElement>(isOpen, onClose, modalRef);
 
   if (!isOpen) return null;
 

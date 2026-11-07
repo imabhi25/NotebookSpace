@@ -21,6 +21,7 @@ import { useModalFocus } from '../useModalFocus';
 import { useMediaQuery } from '../viewport';
 import { RetrievalMapView } from './RetrievalMapView';
 import { WorkspaceNav } from './WorkspaceNav';
+import { EvidenceBody, InlineEvidence } from './EvidenceBody';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
@@ -124,7 +125,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // choice is remembered; where they are overlays they always start closed.
   const [isNavCollapsed, setIsNavCollapsed] = useState(() => compactViewport() || !readPanelPref(NAV_PREF_KEY));
   const [isContextCollapsed, setIsContextCollapsed] = useState(() => overlayViewport() || !readPanelPref(CONTEXT_PREF_KEY));
-  const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true);
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [titleBelowBar, setTitleBelowBar] = useState(compactViewport);
   const headerRef = useRef<HTMLElement>(null);
@@ -134,13 +134,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const contextToggleRef = useRef<HTMLButtonElement>(null);
   const navToggleRef = useRef<HTMLButtonElement>(null);
   const navPanelRef = useRef<HTMLElement>(null);
-  const inspectorToggleRef = useRef<HTMLButtonElement>(null);
   const menuRootRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const chatAreaRef = useRef<HTMLElement>(null);
   const contextPanelRef = useRef<HTMLElement>(null);
-  const inspectorPanelRef = useRef<HTMLElement>(null);
+  const evidenceRef = useRef<HTMLElement>(null);
+  const evidenceOpenerRef = useRef<HTMLElement | null>(null);
   const lastSendTimeRef = useRef<number>(0);
 
   useEffect(() => {
@@ -167,13 +167,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   };
   const closeNavPanel = () => { setNavCollapsed(true); navToggleRef.current?.focus(); };
   const closeContextPanel = () => { setContextCollapsed(true); contextToggleRef.current?.focus(); };
-  const closeInspector = () => { setIsInspectorCollapsed(true); inspectorToggleRef.current?.focus(); };
 
-  // The passage inspector is always an overlay for now; the materials panel is one below 1180px.
-  const inspectorOpen = !isInspectorCollapsed;
   const contextOverlayOpen = isContextOverlay && !isContextCollapsed;
   const navDrawerOpen = isCompact && !isNavCollapsed;
-  useModalFocus<HTMLElement>(inspectorOpen, closeInspector, inspectorPanelRef);
   useModalFocus<HTMLElement>(contextOverlayOpen, closeContextPanel, contextPanelRef);
   useModalFocus<HTMLElement>(navDrawerOpen, closeNavPanel, navPanelRef);
   const [evidenceFocusTick, setEvidenceFocusTick] = useState(0);
@@ -218,8 +214,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   }, [isCompact, subject.name, subject.course_code]);
 
   useEffect(() => {
-    if (chatAreaRef.current) chatAreaRef.current.inert = inspectorOpen || contextOverlayOpen || navDrawerOpen;
-  }, [inspectorOpen, contextOverlayOpen, navDrawerOpen]);
+    if (chatAreaRef.current) chatAreaRef.current.inert = contextOverlayOpen || navDrawerOpen;
+  }, [contextOverlayOpen, navDrawerOpen]);
 
   useEffect(() => {
     if (contextOverlayOpen && contextPanelRef.current) {
@@ -235,13 +231,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
   }, [navDrawerOpen]);
 
+  // Opened from the keyboard: move focus to the evidence that appeared under the answer.
   useEffect(() => {
-    if (inspectorOpen) inspectorPanelRef.current?.focus();
-  }, [inspectorOpen]);
-
-  // Opened from the keyboard on a docked layout: move focus to the evidence panel.
-  useEffect(() => {
-    if (evidenceFocusTick > 0) inspectorPanelRef.current?.focus();
+    if (evidenceFocusTick > 0) evidenceRef.current?.focus();
   }, [evidenceFocusTick]);
 
   useEffect(() => {
@@ -281,7 +273,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
 
   // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
-  const [rightPanelTab, setRightPanelTab] = useState<'passage' | 'notes' | 'retrieval'>('passage');
+  const [contextView, setContextView] = useState<'sources' | 'notes' | 'retrieval'>('sources');
   const [selectedRetrievalMessageId, setSelectedRetrievalMessageId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -346,6 +338,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Focus trap refs
   const createNoteModalRef = useModalFocus(isCreateNoteOpen, () => setIsCreateNoteOpen(false));
   const settingsModalRef = useModalFocus(isSettingsOpen, () => setIsSettingsOpen(false));
+  const renameModalRef = useModalFocus(Boolean(renamingSource), () => setRenamingSource(null));
 
   // Citation inspection state
   const [selectedCitation, setSelectedCitation] = useState<ActiveCitation | null>(null);
@@ -387,8 +380,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           setIsAddSourceOpen(false);
         } else if (isActionsOpen) {
           closeActions();
-        } else if (inspectorOpen) {
-          closeInspector();
         } else if (contextOverlayOpen) {
           closeContextPanel();
         } else if (navDrawerOpen) {
@@ -398,7 +389,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, inspectorOpen, contextOverlayOpen, navDrawerOpen]);
+  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, contextOverlayOpen, navDrawerOpen]);
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
@@ -479,19 +470,49 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // --------------------------------------------------------------------------
   // CITATION INSPECTION HANDLERS
   // --------------------------------------------------------------------------
-  const handleSelectCitation = (cit: Citation, messageId: string) => {
+  // Show a view in the materials panel, opening it (as an overlay where it is one) if it is closed.
+  const openContext = (view: 'sources' | 'notes' | 'retrieval') => {
+    setContextView(view);
+    setIsContextCollapsed(false);
+  };
+
+  const handleSelectCitation = (cit: Citation, messageId: string, options?: { keepOpener?: boolean }) => {
+    const active = document.activeElement;
+    if (!options?.keepOpener) {
+      evidenceOpenerRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
+    }
     try {
-      const active = document.activeElement;
       // :focus-visible matches only when the citation was activated from the keyboard.
-      if (active instanceof HTMLElement && active.matches(':focus-visible')) setEvidenceFocusTick((t) => t + 1);
+      if (active instanceof HTMLElement && active.matches(':focus-visible') && !options?.keepOpener) {
+        setEvidenceFocusTick((t) => t + 1);
+      }
     } catch {
       /* selector unsupported: skip */
     }
     setSelectedCitation({ ...cit, messageId });
-    setRightPanelTab('passage');
-    setIsInspectorCollapsed(false); // One open state for desktop, tablet, and phone.
-    if (isContextOverlay) setIsContextCollapsed(true); // Preserve citation focus when materials is an overlay.
+    // Evidence appears under its answer; a citation with no answer on screen (a note's, or one picked
+    // from the retrieval map) is shown with its source in the materials panel instead.
+    if (!messages.some((m) => m.id === messageId)) openContext('sources');
     loadPassages(cit);
+  };
+
+  // Keep newly opened evidence in view; smooth scrolling only when motion is welcome.
+  useEffect(() => {
+    const el = evidenceRef.current;
+    if (!el || typeof el.scrollIntoView !== 'function') return;
+    const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    el.scrollIntoView({ block: 'nearest', behavior: reduce ? 'auto' : 'smooth' });
+  }, [selectedCitation?.messageId, selectedCitation?.file, selectedCitation?.page]);
+
+  // Collapse the evidence and hand focus back to the control that opened it.
+  const closeEvidence = () => {
+    const opener = evidenceOpenerRef.current;
+    evidenceOpenerRef.current = null;
+    setSelectedCitation(null);
+    setTimeout(() => {
+      if (opener && opener.isConnected) opener.focus();
+      else chatAreaRef.current?.focus();
+    }, 0);
   };
 
   const handleSelectPassageFromRetrieval = (fileName: string, pageNumber: number) => {
@@ -561,13 +582,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   const handlePreviousCitation = () => {
     if (hasPreviousCitation && selectedCitation?.messageId) {
-      handleSelectCitation(activeCitations[currentCitationIndex - 1], selectedCitation.messageId);
+      handleSelectCitation(activeCitations[currentCitationIndex - 1], selectedCitation.messageId, { keepOpener: true });
     }
   };
 
   const handleNextCitation = () => {
     if (hasNextCitation && selectedCitation?.messageId) {
-      handleSelectCitation(activeCitations[currentCitationIndex + 1], selectedCitation.messageId);
+      handleSelectCitation(activeCitations[currentCitationIndex + 1], selectedCitation.messageId, { keepOpener: true });
     }
   };
 
@@ -633,9 +654,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     try {
       await onSaveAnswerAsNote(msg);
       setSavedNoteMsgId(msg.id);
-      setRightPanelTab('notes');
-      setIsInspectorCollapsed(false); // Auto-expand right panel on save note at every viewport.
-      if (isContextOverlay) setIsContextCollapsed(true);
+      openContext('notes');
       setTimeout(() => setSavedNoteMsgId(null), 2500);
     } finally {
       setSavingNoteMsgId(null);
@@ -644,9 +663,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   const handleSeeRetrieval = (messageId: string) => {
     setSelectedRetrievalMessageId(messageId);
-    setRightPanelTab('retrieval');
-    setIsInspectorCollapsed(false);
-    if (isContextOverlay) setIsContextCollapsed(true);
+    openContext('retrieval');
     setTimeout(() => {
       const retrievalTabBtn = document.querySelector<HTMLButtonElement>(
         '[data-testid="right-panel-tab-retrieval"]'
@@ -654,7 +671,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       if (retrievalTabBtn) {
         retrievalTabBtn.focus();
       } else {
-        inspectorPanelRef.current?.focus();
+        contextPanelRef.current?.focus();
       }
     }, 0);
   };
@@ -674,7 +691,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
 
   return (
-    <div className="workspace-root workspace-layout" data-nav-open={!isNavCollapsed} data-context-open={!isContextCollapsed} data-inspector-open={!isInspectorCollapsed}>
+    <div className="workspace-root workspace-layout" data-nav-open={!isNavCollapsed} data-context-open={!isContextCollapsed}>
       <input
         ref={replaceFileInputRef}
         type="file"
@@ -720,16 +737,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </svg>
             <span className="toggle-label">Sources</span>
           </button>
-          <button type="button" ref={inspectorToggleRef}
-            className={`workspace-toggle-btn ${!isInspectorCollapsed ? 'active' : ''}`}
-            onClick={() => setIsInspectorCollapsed(!isInspectorCollapsed)}
-            title={isInspectorCollapsed ? 'Show notes & passage inspector' : 'Hide notes & passage inspector'}
-            aria-label="Toggle inspector panel" aria-expanded={!isInspectorCollapsed} aria-controls="workspace-inspector-panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <rect x="3" y="6" width="18" height="12" rx="2" /><path d="M7 10h10M7 14h6" />
-            </svg>
-            <span className="toggle-label">{rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}</span>
-          </button>
           <div className="workspace-actions-menu" ref={menuRootRef}>
             <button type="button" ref={menuButtonRef} className="btn-icon workspace-top-icon-btn"
               aria-label="Notebook actions" title="Notebook actions" aria-haspopup="menu" aria-expanded={isActionsOpen}
@@ -766,11 +773,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           3-COLUMN WORKSPACE BODY
           ====================================================================== */}
       <div className="workspace-body">
-        {(inspectorOpen || contextOverlayOpen || navDrawerOpen) && (
+        {(contextOverlayOpen || navDrawerOpen) && (
           <div className="sidebar-overlay workspace-panels-overlay" aria-hidden="true"
             onClick={() => {
-              if (inspectorOpen) closeInspector();
-              else if (contextOverlayOpen) closeContextPanel();
+              if (contextOverlayOpen) closeContextPanel();
               else closeNavPanel();
             }} />
         )}
@@ -787,10 +793,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             onNewSession={onCreateConversation ? () => { void onCreateConversation(); if (isCompact) setNavCollapsed(true); } : undefined}
             onSelectSession={onSelectConversation ? (id) => { onSelectConversation(id); if (isCompact) setNavCollapsed(true); } : undefined}
             onOpenNotes={() => {
-              setRightPanelTab('notes');
-              setIsInspectorCollapsed(false);
+              openContext('notes');
               if (isCompact) setNavCollapsed(true);
-              if (isContextOverlay) setIsContextCollapsed(true);
             }}
             onCollapse={closeNavPanel}
             collapsed={isNavCollapsed}
@@ -934,7 +938,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       <div key={msg.id} className={`thread-turn turn-${msg.role}`}>
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
-                            <div className="user-message-bubble">{msg.content}</div>
+                            <h2 className="question-heading" data-testid="question-heading">{msg.content}</h2>
                           </div>
                         ) : (
                           <div className="assistant-message">
@@ -1127,7 +1131,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                             className={`chip ${isActive ? 'active' : ''}`}
                                             onClick={() => handleSelectCitation(cit, msg.id)}
                                             aria-pressed={isActive}
-                                            aria-controls="workspace-inspector-panel"
+                                            aria-controls={isActive ? `evidence-${msg.id}` : undefined}
                                             data-testid={`citation-chip-${cIdx}`}
                                           >
                                             <span className="chip-badge">[{cIdx + 1}]</span>
@@ -1139,6 +1143,26 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                       })}
                                     </div>
                                   </div>
+                                )}
+
+                                {/* Evidence for the selected citation, directly beneath the answer it supports */}
+                                {selectedCitation && selectedCitation.messageId === msg.id && (
+                                  <InlineEvidence
+                                    ref={evidenceRef}
+                                    citation={selectedCitation}
+                                    passages={passages}
+                                    loading={passageLoading}
+                                    retrievedChunks={retrievedMatchingChunks}
+                                    isHighlighted={isChunkHighlighted}
+                                    sourceRemoved={isSourceDeleted}
+                                    sourceReplaced={isSourceReplaced}
+                                    currentVersion={matchedSource?.version}
+                                    index={currentCitationIndex}
+                                    total={activeCitations.length}
+                                    onPrevious={handlePreviousCitation}
+                                    onNext={handleNextCitation}
+                                    onClose={closeEvidence}
+                                  />
                                 )}
 
                                 {/* Restrained Answer Actions (Copy, Save to Note, Retry) */}
@@ -1302,11 +1326,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <aside
           className={`workspace-sidebar workspace-context-panel ${!isContextCollapsed ? 'sidebar-open' : ''}`}
           id="workspace-sources-panel" aria-hidden={isContextCollapsed} ref={contextPanelRef} tabIndex={-1}
-          aria-label="Sources"
+          aria-label={contextView === 'notes' ? 'Saved notes' : contextView === 'retrieval' ? 'Retrieval' : 'Sources'}
         >
           {/* Sidebar Tab Header */}
           <div className="workspace-sidebar-header">
-            <h2 className="sources-panel-title">Sources</h2>
+            <h2 className="sources-panel-title">{contextView === 'notes' ? 'Saved notes' : contextView === 'retrieval' ? 'Retrieval' : 'Sources'}</h2>
 
             <button
               type="button"
@@ -1322,7 +1346,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </button>
           </div>
 
+          <div className="context-view-switcher sidebar-segment-switcher" role="group" aria-label="Panel view">
+            <button type="button" className={`segment-btn ${contextView === 'sources' ? 'active' : ''}`}
+              aria-pressed={contextView === 'sources'} onClick={() => setContextView('sources')}>Sources</button>
+            <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`}
+              aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
+            <button type="button" className={`segment-btn ${contextView === 'retrieval' ? 'active' : ''}`}
+              aria-pressed={contextView === 'retrieval'} onClick={() => setContextView('retrieval')}
+              data-testid="right-panel-tab-retrieval">Retrieval</button>
+          </div>
+
           {/* SOURCES: add / note actions, link search, selection row, then the list (or the drop zone when empty) */}
+          {contextView === 'sources' && (
           <div
             className={`sidebar-tab-content sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
             onDragOver={(e) => {
@@ -1343,6 +1378,46 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               }
             }}
           >
+            {selectedCitation && (
+              <section className="selected-source-card" aria-label="Selected source" data-testid="selected-source-card">
+                <div className="selected-source-head">
+                  <h3 className="selected-source-title">Selected source</h3>
+                  <button type="button" className="selected-source-clear" onClick={closeEvidence}>Clear</button>
+                </div>
+                <p className="selected-source-name" title={matchedSource?.title || selectedCitation.file}>
+                  {matchedSource?.title || selectedCitation.file}
+                </p>
+                <dl className="selected-source-meta">
+                  <div><dt>File</dt><dd>{selectedCitation.file}</dd></div>
+                  <div><dt>Cited page</dt><dd>{selectedCitation.page}</dd></div>
+                  {matchedSource && <div><dt>Version</dt><dd>v{matchedSource.version}</dd></div>}
+                  {matchedSource && matchedSource.page_count > 0 && <div><dt>Pages</dt><dd>{matchedSource.page_count}</dd></div>}
+                  {matchedSource && <div><dt>Status</dt><dd>{matchedSource.status}</dd></div>}
+                </dl>
+                {isHistoricalOnly && (
+                  <p className="selected-source-note">
+                    {isSourceDeleted ? 'This source was removed from the notebook.' : `Replaced since this answer (cited v${selectedCitation.source_version ?? 1}).`}
+                  </p>
+                )}
+                {matchedSource && (
+                  <button type="button" className="selected-source-view" onClick={() => handleOpenSourceViewer(matchedSource)}>
+                    View full source
+                  </button>
+                )}
+                {!messages.some((m) => m.id === selectedCitation.messageId) && (
+                  <EvidenceBody
+                    citation={selectedCitation}
+                    passages={passages}
+                    loading={passageLoading}
+                    retrievedChunks={retrievedMatchingChunks}
+                    isHighlighted={isChunkHighlighted}
+                    sourceRemoved={isSourceDeleted}
+                    sourceReplaced={isSourceReplaced}
+                    currentVersion={matchedSource?.version}
+                  />
+                )}
+              </section>
+            )}
             <div className="sources-action-row">
               <button type="button" className="sources-pill-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
@@ -1487,234 +1562,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               </>
             )}
           </div>
-        </aside>
-        </div>
-
-        {/* --------------------------------------------------------------------
-            3. RIGHT CONTEXTUAL PANEL: Supporting Passage OR Saved Notes
-            -------------------------------------------------------------------- */}
-        <aside
-          className={`workspace-right-panel ${!isInspectorCollapsed ? 'right-open' : ''}`}
-          id="workspace-inspector-panel" hidden={isInspectorCollapsed} ref={inspectorPanelRef} tabIndex={-1}
-          data-testid="passage-pane"
-          aria-label="Inspector and Notes Panel"
-          onKeyDown={(e) => {
-            // Docked: Escape closes while focus is inside. Overlay mode handles Escape in useModalFocus.
-            if (!inspectorOpen && e.key === 'Escape' && !e.defaultPrevented) {
-              e.stopPropagation();
-              closeInspector();
-            }
-          }}
-        >
-          {/* Right Panel Header with Dual Mode Switcher */}
-          <div className="right-panel-header">
-            <div className="sidebar-segment-switcher">
-              <button
-                type="button"
-                className={`segment-btn ${rightPanelTab === 'passage' ? 'active' : ''}`}
-                onClick={() => setRightPanelTab('passage')}
-              >
-                Passage
-              </button>
-              <button
-                type="button"
-                className={`segment-btn ${rightPanelTab === 'notes' ? 'active' : ''}`}
-                onClick={() => setRightPanelTab('notes')}
-              >
-                Notes ({notes.length})
-              </button>
-              <button
-                type="button"
-                className={`segment-btn ${rightPanelTab === 'retrieval' ? 'active' : ''}`}
-                onClick={() => setRightPanelTab('retrieval')}
-                data-testid="right-panel-tab-retrieval"
-              >
-                Retrieval
-              </button>
-            </div>
-
-            <div className="right-header-actions">
-              {/* Citation Step Controls when in Passage mode */}
-              {rightPanelTab === 'passage' && selectedCitation && (
-                <div className="citation-step-controls">
-                  <button
-                    type="button"
-                    className="btn-step"
-                    onClick={handlePreviousCitation}
-                    disabled={!hasPreviousCitation}
-                    aria-label="Previous citation"
-                    title="Previous citation"
-                  >
-                    Prev
-                  </button>
-                  {activeCitations.length > 0 && currentCitationIndex !== -1 && (
-                    <span
-                      className="citation-step-counter"
-                      aria-label={`Citation ${currentCitationIndex + 1} of ${activeCitations.length}`}
-                    >
-                      {currentCitationIndex + 1}/{activeCitations.length}
-                    </span>
-                  )}
-                  <button
-                    type="button"
-                    className="btn-step"
-                    onClick={handleNextCitation}
-                    disabled={!hasNextCitation}
-                    aria-label="Next citation"
-                    title="Next citation"
-                  >
-                    Next
-                  </button>
-                </div>
-              )}
-
-              <button
-                type="button"
-                className="panel-collapse-btn"
-                onClick={closeInspector}
-                title="Collapse inspector panel"
-                aria-label="Close source panel"
-              >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18" />
-                  <line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
-              </button>
-            </div>
-          </div>
-
-          {/* RIGHT PANEL CONTENT: PASSAGE VIEW */}
-          {rightPanelTab === 'passage' && (
-            <div className="right-panel-body">
-              {selectedCitation && (
-                <div className="passage-info-bar">
-                  <span className="passage-doc-title" title={selectedCitation.file}>
-                    {selectedCitation.file}
-                  </span>
-                  <span className="passage-page-badge">Page {selectedCitation.page}</span>
-                </div>
-              )}
-
-              {isHistoricalOnly && (
-                <div className="historical-citation-alert" role="alert" data-testid="historical-citation-alert">
-                  <div className="alert-badge">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <circle cx="12" cy="12" r="10" />
-                      <line x1="12" y1="8" x2="12" y2="12" />
-                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                    </svg>
-                    <span>
-                      {isSourceDeleted ? 'Original Source Removed' : `Source Replaced (v${selectedCitation?.source_version ?? 1})`}
-                    </span>
-                  </div>
-                  <p className="historical-notice-desc">
-                    {isSourceDeleted
-                      ? `The source "${selectedCitation?.file}" has been deleted from this notebook. Historical citation evidence is preserved below.`
-                      : `The source "${selectedCitation?.file}" was replaced with a newer version (currently v${matchedSource?.version}). Displaying verified historical excerpt captured at answer time:`}
-                  </p>
-                </div>
-              )}
-
-              {passageLoading ? (
-                <div className="passage-loading-state" role="status">
-                  <p className="empty-state">Loading passage text...</p>
-                  <div className="skeleton-loader" aria-hidden="true">
-                    <span className="skeleton-line line-long" />
-                    <span className="skeleton-line line-long" />
-                    <span className="skeleton-line line-long" />
-                    <span className="skeleton-line line-short" />
-                  </div>
-                </div>
-              ) : selectedCitation ? (
-                <div
-                  className="passage-content"
-                  data-testid="passage-content"
-                  key={`${selectedCitation.file}:${selectedCitation.page}`}
-                >
-                  <div className="passage-content-banner">
-                    Showing content from <strong>{selectedCitation.file}</strong> (Page {selectedCitation.page}):
-                  </div>
-
-                  {passages.length > 0 ? (
-                    <div className="passage-chunks-list">
-                      {passages.map((p, idx) => {
-                        const text = p.text || p.chunk_text || '';
-                        const highlighted = hasRetrievedChunkText && isChunkHighlighted(text, p.chunk_index);
-
-                        return (
-                          <div
-                            key={idx}
-                            className={`passage-chunk ${highlighted ? 'passage-chunk-highlighted' : ''}`}
-                          >
-                            {highlighted && (
-                              <div className="chunk-highlight-badge">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                </svg>
-                                <span>Retrieved for this answer</span>
-                              </div>
-                            )}
-                            <p className="passage-chunk-text">{text}</p>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : hasRetrievedChunkText ? (
-                    <div className="passage-chunks-list">
-                      {retrievedMatchingChunks.map((r, idx) => (
-                        <div key={idx} className="passage-chunk passage-chunk-highlighted">
-                          <div className="chunk-highlight-badge">
-                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                            </svg>
-                            <span>Retrieved for this answer</span>
-                          </div>
-                          <p className="passage-chunk-text">{r.text || r.chunk_text}</p>
-                        </div>
-                      ))}
-                    </div>
-                  ) : selectedCitation.excerpt ? (
-                    <div className="passage-chunks-list">
-                      <div className="passage-chunk passage-chunk-highlighted">
-                        <div className="chunk-highlight-badge">
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-                            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                          </svg>
-                          <span>Historical Verified Excerpt</span>
-                        </div>
-                        <p className="passage-chunk-text">{selectedCitation.excerpt}</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="empty-state">No text chunks found for this page.</p>
-                  )}
-                  <p className="evidence-note">
-                    Citations point to a page, not a sentence, so no single sentence is marked.
-                    {hasRetrievedChunkText ? ' Highlighted passages are the ones retrieved for this answer.' : ''}
-                  </p>
-                </div>
-              ) : (
-                <div className="right-panel-empty-state">
-                  <div className="empty-icon-circle">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75">
-                      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                      <polyline points="14 2 14 8 20 8" />
-                      <line x1="16" y1="13" x2="8" y2="13" />
-                      <line x1="16" y1="17" x2="8" y2="17" />
-                      <polyline points="10 9 9 9 8 9" />
-                    </svg>
-                  </div>
-                  <h3>Supporting Passage</h3>
-                  <p>
-                    Click any citation chip or conflict card in the chat to inspect its cited source passage here.
-                  </p>
-                </div>
-              )}
-            </div>
           )}
 
           {/* RIGHT PANEL CONTENT: SAVED NOTES VIEW */}
-          {rightPanelTab === 'notes' && (
+          {contextView === 'notes' && (
             <div className="right-panel-body">
               <button
                 type="button"
@@ -1841,8 +1692,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </div>
           )}
 
+
           {/* RIGHT PANEL CONTENT: RETRIEVAL MAP VIEW */}
-          {rightPanelTab === 'retrieval' && (
+          {contextView === 'retrieval' && (
             <div className="right-panel-body retrieval-panel-body">
               <RetrievalMapView
                 subjectId={subject.id}
@@ -1854,7 +1706,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               />
             </div>
           )}
+
         </aside>
+        </div>
+
       </div>
 
       {/* ======================================================================
@@ -1882,7 +1737,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {/* Rename Source Modal */}
       {renamingSource && (
         <div className="modal-backdrop" onClick={() => setRenamingSource(null)}>
-          <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+          <div ref={renameModalRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Rename source"
+            className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Rename Source</h2>
               <button type="button" className="modal-close-btn" onClick={() => setRenamingSource(null)} aria-label="Close">

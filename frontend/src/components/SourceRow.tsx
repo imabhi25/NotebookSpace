@@ -112,8 +112,9 @@ export const SourceRow: React.FC<SourceRowProps> = ({
     };
   }, [isMenuOpen]);
 
+  // Focus goes back to the menu button first, so a dialog the action opens remembers a control that outlives the menu.
   const run = (action: () => void) => () => {
-    closeMenu(false);
+    closeMenu(true);
     action();
   };
 

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Source } from '../types';
+import { useModalFocus } from '../useModalFocus';
 
 interface SourceViewerModalProps {
   source: Source | null;
@@ -7,25 +8,17 @@ interface SourceViewerModalProps {
 }
 
 export const SourceViewerModal: React.FC<SourceViewerModalProps> = ({ source, onClose }) => {
-  React.useEffect(() => {
-    if (!source) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [source, onClose]);
+  const modalRef = useModalFocus<HTMLDivElement>(Boolean(source), onClose);
 
   if (!source) return null;
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content modal-content-lg" onClick={(e) => e.stopPropagation()}>
+      <div ref={modalRef} tabIndex={-1} role="dialog" aria-modal="true" aria-labelledby="source-viewer-title"
+        className="modal-content modal-content-lg" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
           <div className="source-viewer-header-info">
-            <h2>{source.title}</h2>
+            <h2 id="source-viewer-title">{source.title}</h2>
             <div className="source-viewer-meta-row">
               <span className="source-type-pill">{source.source_type.toUpperCase()}</span>
               <span>{source.page_count} {source.page_count === 1 ? 'page' : 'pages'}</span>
