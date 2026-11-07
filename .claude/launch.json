@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "redesign-api",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["-c", "cd /Users/abhisingh/Downloads/NotebookSpace-redesign && ALLOWED_ORIGINS=http://localhost:5180 exec /Users/abhisingh/Downloads/NotebookSpace/.venv/bin/uvicorn api.main:app --port 8001"],
+      "port": 8001
+    },
+    {
+      "name": "redesign-web",
+      "runtimeExecutable": "/bin/bash",
+      "runtimeArgs": ["-c", "cd /Users/abhisingh/Downloads/NotebookSpace-redesign/frontend && export PATH=/Users/abhisingh/.nvm/versions/node/v24.13.1/bin:$PATH && VITE_API_BASE_URL=http://localhost:8001 exec npx vite --port 5180 --strictPort"],
+      "port": 5180
+    }
+  ]
+}
