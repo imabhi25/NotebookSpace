@@ -113,6 +113,7 @@ button, input[type="file"], .btn {
 .chat-app-root {
   display: flex;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   background-color: var(--bg-app);
@@ -1432,6 +1433,7 @@ button, input[type="file"], .btn {
     min-width: 0;
     height: auto;
     max-height: 75vh;
+    max-height: 75dvh;
     border-left: none;
     border-top: var(--size-2) solid var(--border);
     border-radius: var(--radius-lg) var(--radius-lg) 0 0;
@@ -1463,6 +1465,7 @@ button, input[type="file"], .btn {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   background-color: var(--bg-app);
@@ -1597,6 +1600,7 @@ button, input[type="file"], .btn {
   display: flex;
   flex: 1;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   position: relative;
@@ -2154,6 +2158,7 @@ button, input[type="file"], .btn {
   display: flex;
   flex-direction: column;
   height: 100vh;
+  height: 100dvh;
   width: 100vw;
   overflow: hidden;
   background: var(--bg-app);
@@ -2393,6 +2398,7 @@ button, input[type="file"], .btn {
   display: flex;
   flex: 1;
   height: calc(100vh - var(--size-52));
+  height: calc(100dvh - var(--size-52));
   overflow: hidden;
   position: relative;
   width: 100vw;
@@ -3303,6 +3309,7 @@ button, input[type="file"], .btn {
   width: 100%;
   max-width: var(--size-520);
   max-height: 90vh;
+  max-height: 90dvh;
   overflow-y: auto;
   box-shadow: var(--shadow-high);
 }
@@ -3649,6 +3656,7 @@ button, input[type="file"], .btn {
 .source-viewer-body {
   padding: var(--space-5) var(--space-6);
   max-height: 60vh;
+  max-height: 60dvh;
   overflow-y: auto;
 }
 
@@ -3813,6 +3821,7 @@ button, input[type="file"], .btn {
     padding: 0 !important;
     gap: 0 !important;
     height: calc(100vh - var(--size-52)) !important;
+    height: calc(100dvh - var(--size-52)) !important;
   }
 
   .workspace-main-area {

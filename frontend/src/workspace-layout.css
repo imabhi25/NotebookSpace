@@ -140,3 +140,18 @@
     width: auto !important; max-width: none;
   }
 }
+
+/* Between the compact breakpoint and 1180px the evidence panel overlays the chat instead of
+   squeezing it: the chat keeps a readable width and the panel gets a scrim, like on small screens. */
+@media (min-width: 961px) and (max-width: 1180px) {
+  .workspace-layout .workspace-panels-overlay { position: absolute; inset: 0; z-index: 30; }
+  .workspace-layout aside.workspace-right-panel {
+    position: absolute; top: var(--space-3); bottom: var(--space-3); right: var(--space-3); left: auto;
+    width: min(var(--size-350), calc(100% - var(--space-6))) !important; max-width: calc(100% - var(--space-6));
+    height: auto; flex: none; border-radius: var(--radius-lg) !important; z-index: 41;
+    box-shadow: var(--shadow-4);
+  }
+}
+
+/* The tab switcher takes its own row so Passage / Notes / Retrieval never overlap the citation stepper. */
+.workspace-layout .right-panel-header .sidebar-segment-switcher { flex: 1 1 100%; min-width: 0; }
