@@ -1,3 +1,4 @@
+import { ModalShell } from './ModalShell';
 import React, { useState, useRef } from 'react';
 
 interface SourceModalProps {
@@ -87,8 +88,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
+    <ModalShell onClose={onClose} size="modal-content-md" label="Add sources">
         <div className="modal-header">
           <h2>Add Sources to Subject</h2>
           <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
@@ -256,7 +256,6 @@ export const SourceModal: React.FC<SourceModalProps> = ({
             </button>
           </div>
         </form>
-      </div>
-    </div>
+      </ModalShell>
   );
 };

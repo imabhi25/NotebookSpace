@@ -16,6 +16,9 @@ import { SourceModal } from './SourceModal';
 import { SourceViewerModal } from './SourceViewerModal';
 import { SourcePanel } from './SourcePanel';
 import { Composer } from './Composer';
+import { BrandMark } from './BrandMark';
+import { ModalShell } from './ModalShell';
+import { useDialog, useMediaQuery } from '../hooks';
 
 interface SubjectWorkspaceViewProps {
   subject: Subject;
@@ -90,6 +93,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Mobile drawer
   const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState(false);
 
+  const isMobileViewport = useMediaQuery('(max-width: 768px)');
+  const drawerActive = isMobileViewport && isSidebarOpenMobile;
+  const sidebarRef = useDialog<HTMLElement>(drawerActive, () => setIsSidebarOpenMobile(false));
+
+  // Desktop: supporting panels can be collapsed. On narrower desktops the sources
+  // sidebar starts collapsed so the conversation keeps a comfortable reading width.
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(() =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(min-width: 769px) and (max-width: 1180px)').matches
+  );
+
   // Modals
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
   const [viewingSource, setViewingSource] = useState<Source | null>(null);
@@ -118,6 +133,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [replacingSourceId, setReplacingSourceId] = useState<string | null>(null);
 
   const threadBottomRef = useRef<HTMLDivElement>(null);
+  const passageRequestRef = useRef(0);
+  const [evidenceFocusTick, setEvidenceFocusTick] = useState(0);
+  const citationTriggerRef = useRef<HTMLElement | null>(null);
 
   const handleOpenSourceViewer = async (s: Source) => {
     setViewingSource(s);
@@ -174,13 +192,34 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Citation click handler
   const handleSelectCitation = (cit: Citation, messageId: string) => {
+    const active = document.activeElement;
+    if (active instanceof HTMLElement && active.closest('.thread-scroll-container')) {
+      citationTriggerRef.current = active;
+      try {
+        // :focus-visible matches only when the citation was activated from the keyboard.
+        if (active.matches(':focus-visible')) setEvidenceFocusTick((t) => t + 1);
+      } catch {
+        /* selector unsupported: skip */
+      }
+    }
     setSelectedCitation({ ...cit, messageId });
     setIsSourcePanelOpen(true);
     // Find passages for citation
     loadPassages(cit);
   };
 
+  const closeEvidence = () => {
+    setIsSourcePanelOpen(false);
+    setSelectedCitation(null);
+    const trigger = citationTriggerRef.current;
+    citationTriggerRef.current = null;
+    if (trigger && trigger.isConnected) {
+      window.setTimeout(() => trigger.focus(), 0);
+    }
+  };
+
   const loadPassages = async (cit: Citation) => {
+    const requestId = ++passageRequestRef.current;
     // Check if source was deleted or replaced
     const matchingSource = sources.find((s) => s.id === cit.source_id);
     const isHistoricalOnly =
@@ -190,17 +229,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (isHistoricalOnly) {
       // Historical citation: do not query current source passages to prevent silent substitution
       setPassages([]);
+      setPassageLoading(false);
       return;
     }
 
     setPassageLoading(true);
     try {
       const data = await api.getPassages(cit.file, cit.page);
-      setPassages(data);
+      if (requestId === passageRequestRef.current) setPassages(data);
     } catch {
-      setPassages([]);
+      if (requestId === passageRequestRef.current) setPassages([]);
     } finally {
-      setPassageLoading(false);
+      if (requestId === passageRequestRef.current) setPassageLoading(false);
     }
   };
 
@@ -261,7 +301,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       )}
 
       {/* 1. LEFT WORKSPACE SIDEBAR */}
-      <aside className={`workspace-sidebar ${isSidebarOpenMobile ? 'sidebar-open' : ''}`}>
+      <aside
+        ref={sidebarRef}
+        id="workspace-sidebar"
+        {...(drawerActive ? { role: 'dialog', 'aria-modal': true, tabIndex: -1 } : {})}
+        className={`workspace-sidebar ${isSidebarOpenMobile ? 'sidebar-open' : ''} ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+        aria-label="Notebook sources, chats and notes"
+      >
         {/* Subject Navigation Header */}
         <div className="workspace-sidebar-header">
           <button
@@ -399,7 +445,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
                     return (
                       <li key={s.id} className={`workspace-source-item ${isSelected ? 'selected' : ''}`}>
-                        <div className="source-checkbox-col">
+                        <label className="source-checkbox-col">
                           <input
                             type="checkbox"
                             checked={isSelected}
@@ -408,13 +454,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             aria-label={`Select ${s.title}`}
                             data-testid={`source-checkbox-${s.id}`}
                           />
-                        </div>
+                        </label>
 
                         <div
                           className="source-info-col"
                           onClick={() => isReady && handleToggleSource(s.id)}
-                          role="button"
-                          tabIndex={0}
                         >
                           <div className="source-title-row">
                             <span className="source-title-text" title={s.title}>
@@ -540,14 +584,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <li
                     key={c.id}
                     className={`workspace-conv-item ${isActive ? 'active' : ''}`}
-                    onClick={() => onSelectConversation(c.id)}
                   >
-                    <div className="conv-title-col" title={c.title}>
+                    <button
+                      type="button"
+                      className="conv-title-col conv-open-btn"
+                      title={c.title}
+                      aria-current={isActive ? 'true' : undefined}
+                      onClick={() => onSelectConversation(c.id)}
+                    >
                       <span className="conv-title-text">{c.title}</span>
                       <span className="conv-meta-text">
                         {c.message_count ? `${c.message_count} messages` : 'Empty chat'}
                       </span>
-                    </div>
+                    </button>
                     <div className="conv-actions-col" onClick={(e) => e.stopPropagation()}>
                       <button
                         type="button"
@@ -635,25 +684,27 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               ) : (
                 <ul className="workspace-notes-ul">
                   {filteredNotes.map((n) => (
-                    <li
-                      key={n.id}
-                      className="workspace-note-item"
-                      onClick={() => {
-                        setEditingNote(n);
-                        setNoteFormTitle(n.title);
-                        setNoteFormContent(n.content);
-                        setIsCreateNoteOpen(true);
-                      }}
-                    >
-                      <div className="note-card-top">
-                        <span className="note-title-text">{n.title}</span>
-                        {n.is_saved_answer ? (
-                          <span className="saved-answer-tag">Saved Answer</span>
-                        ) : (
-                          <span className="personal-note-tag">Note</span>
-                        )}
-                      </div>
-                      <p className="note-snippet-text">{n.content}</p>
+                    <li key={n.id} className="workspace-note-item">
+                      <button
+                        type="button"
+                        className="note-open-btn"
+                        onClick={() => {
+                          setEditingNote(n);
+                          setNoteFormTitle(n.title);
+                          setNoteFormContent(n.content);
+                          setIsCreateNoteOpen(true);
+                        }}
+                      >
+                        <span className="note-card-top">
+                          <span className="note-title-text">{n.title}</span>
+                          {n.is_saved_answer ? (
+                            <span className="saved-answer-tag">Saved Answer</span>
+                          ) : (
+                            <span className="personal-note-tag">Note</span>
+                          )}
+                        </span>
+                        <span className="note-snippet-text">{n.content}</span>
+                      </button>
                       <div className="note-card-footer" onClick={(e) => e.stopPropagation()}>
                         <span className="note-date">
                           {new Date(n.updated_at).toLocaleDateString()}
@@ -733,10 +784,25 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       </aside>
 
       {/* 2. MAIN CONVERSATION AREA */}
-      <div className="workspace-main-area">
+      <div className="workspace-main-area" tabIndex={-1} data-focus-fallback>
         {/* Workspace Top Header */}
         <header className="workspace-header">
           <div className="workspace-header-left">
+            <button
+              type="button"
+              className="btn-icon panel-toggle-btn"
+              onClick={() => setIsSidebarCollapsed((v) => !v)}
+              aria-expanded={!isSidebarCollapsed}
+              aria-controls="workspace-sidebar"
+              aria-label={isSidebarCollapsed ? 'Show sources panel' : 'Hide sources panel'}
+              title={isSidebarCollapsed ? 'Show sources panel' : 'Hide sources panel'}
+              data-testid="sidebar-collapse-btn"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="3" />
+                <line x1="9" y1="4" x2="9" y2="20" />
+              </svg>
+            </button>
             <button
               type="button"
               className="btn-icon mobile-menu-btn"
@@ -761,6 +827,27 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             {isDemoMode && <span className="demo-pill">Public demo</span>}
             <button
               type="button"
+              className={`btn-icon panel-toggle-btn evidence-toggle-btn ${isSourcePanelOpen ? 'is-on' : ''}`}
+              onClick={() => {
+                if (isSourcePanelOpen) {
+                  closeEvidence();
+                } else {
+                  setIsSourcePanelOpen(true);
+                }
+              }}
+              aria-expanded={isSourcePanelOpen}
+              aria-controls="evidence-panel"
+              aria-label={isSourcePanelOpen ? 'Hide evidence panel' : 'Show evidence panel'}
+              title={isSourcePanelOpen ? 'Hide evidence panel' : 'Show evidence panel'}
+              data-testid="evidence-toggle-btn"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="3" />
+                <line x1="15" y1="4" x2="15" y2="20" />
+              </svg>
+            </button>
+            <button
+              type="button"
               className="btn-icon"
               title="New Conversation"
               onClick={onCreateConversation}
@@ -779,7 +866,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <main className="empty-state-scroll-container">
             <div className="empty-state-centered-box">
               <div className="empty-state-brand-mark" aria-hidden="true">
-                <span className="brand-logo-letter empty-state-logo-letter">N</span>
+                <BrandMark size={44} />
               </div>
               <h1 className="empty-state-heading">What would you like to understand?</h1>
               <p className="empty-state-subtext">
@@ -836,7 +923,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <>
             <main className="thread-scroll-container">
               <div className="thread-content-max">
-                <div className="thread-messages-list">
+                <div className="thread-messages-list" role="log" aria-label="Conversation">
                   {messages.map((msg) => (
                     <div key={msg.id} className={`thread-turn turn-${msg.role}`}>
                       {msg.role === 'user' ? (
@@ -887,7 +974,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                           <div
                                             key={clIdx}
                                             className="conflict-source-card"
+                                            role="button"
+                                            tabIndex={0}
+                                            aria-label={`Claim: ${claim.value} in ${claim.file} page ${claim.page}`}
                                             onClick={() => handleSelectCitation({ file: claim.file, page: claim.page }, msg.id)}
+                                            onKeyDown={(e) => {
+                                              if (e.key === 'Enter' || e.key === ' ') {
+                                                e.preventDefault();
+                                                handleSelectCitation({ file: claim.file, page: claim.page }, msg.id);
+                                              }
+                                            }}
                                           >
                                             <div className="source-value">&ldquo;{claim.value}&rdquo;</div>
                                             <div className="source-meta">
@@ -915,7 +1011,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               {/* 4. Citation Chips */}
                               {msg.citations && msg.citations.length > 0 && (
                                 <div className="citations-section">
-                                  <div className="chips-row">
+                                  <div className="chips-row" role="group" aria-label="Sources cited in this answer">
                                     {msg.citations.map((cit, cIdx) => {
                                       const isActive =
                                         selectedCitation?.messageId === msg.id &&
@@ -928,6 +1024,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                           type="button"
                                           className={`chip ${isActive ? 'active' : ''}`}
                                           onClick={() => handleSelectCitation(cit, msg.id)}
+                                          aria-pressed={isActive}
+                                          aria-controls="evidence-panel"
                                           data-testid={`citation-chip-${cIdx}`}
                                         >
                                           <span className="chip-badge">[{cIdx + 1}]</span>
@@ -940,7 +1038,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               )}
 
                               {/* 5. Answer Actions Bar (Copy & Save to Note) */}
-                              <div className="answer-action-toolbar">
+                              <div className="answer-action-toolbar" role="group" aria-label="Answer actions">
                                 <button
                                   type="button"
                                   className="answer-action-btn"
@@ -1072,11 +1170,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             handleSelectCitation(cit, selectedCitation.messageId);
           }
         }}
-        onClose={() => {
-          setIsSourcePanelOpen(false);
-          setSelectedCitation(null);
-        }}
+        onClose={closeEvidence}
         isOpen={isSourcePanelOpen}
+        focusRequest={evidenceFocusTick}
       />
 
       {/* Modals */}
@@ -1095,8 +1191,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
       {/* Rename Source Modal */}
       {renamingSource && (
-        <div className="modal-backdrop" onClick={() => setRenamingSource(null)}>
-          <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+        <ModalShell onClose={() => setRenamingSource(null)} size="modal-content-sm" label="Rename source">
             <div className="modal-header">
               <h2>Rename Source</h2>
               <button type="button" className="modal-close-btn" onClick={() => setRenamingSource(null)}>
@@ -1133,14 +1228,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </ModalShell>
       )}
 
       {/* Create / Edit Note Modal */}
       {isCreateNoteOpen && (
-        <div className="modal-backdrop" onClick={() => setIsCreateNoteOpen(false)}>
-          <div className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
+        <ModalShell onClose={() => setIsCreateNoteOpen(false)} size="modal-content-md" label={editingNote ? 'Edit note' : 'Create personal note'}>
             <div className="modal-header">
               <h2>{editingNote ? 'Edit Note' : 'Create Personal Note'}</h2>
               <button type="button" className="modal-close-btn" onClick={() => setIsCreateNoteOpen(false)}>
@@ -1192,8 +1285,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </ModalShell>
       )}
     </div>
   );

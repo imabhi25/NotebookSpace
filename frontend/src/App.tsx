@@ -22,6 +22,9 @@ import { Sidebar } from './components/Sidebar';
 import { Composer } from './components/Composer';
 import { AssistantMessage } from './components/AssistantMessage';
 import { SourcePanel } from './components/SourcePanel';
+import { ThemeToggle } from './components/ThemeToggle';
+import { BrandMark } from './components/BrandMark';
+import { useKeyboardInset } from './hooks';
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
@@ -50,6 +53,7 @@ export function App({
   isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || isDemoFromQuery,
   defaultView,
 }: AppProps = {}) {
+  useKeyboardInset();
   // --------------------------------------------------------------------------
   // NAVIGATION ROUTING STATE
   // --------------------------------------------------------------------------
@@ -720,11 +724,9 @@ export function App({
             onClick={() => navigateTo('notebooks')}
             title="NotebookSpace Home"
           >
-            <span className="brand-mark-wrapper" aria-hidden="true">
-              <span className="brand-logo-letter">N</span>
-            </span>
+            <BrandMark />
             <div className="brand-text">
-              <span className="top-brand-title">NotebookSpace</span>
+              <span className="top-brand-title">Notebook<span className="top-brand-accent">Space</span></span>
             </div>
           </button>
 
@@ -748,6 +750,7 @@ export function App({
         </div>
 
         <div className="top-nav-right">
+          <ThemeToggle />
           {currentUser ? (
             <>
               <span className="user-email-tag" title={currentUser.email}>

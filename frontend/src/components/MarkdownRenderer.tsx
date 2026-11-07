@@ -11,6 +11,27 @@ interface MarkdownRendererProps {
 }
 
 /**
+ * Inline emphasis: **bold**, *italic*, `code`. Produces React elements only (no raw HTML).
+ */
+function renderInline(text: string, keyPrefix: string): React.ReactNode[] {
+  const out: React.ReactNode[] = [];
+  const re = /(`[^`\n]+`|\*\*[^*\n]+\*\*|(?<![*\w])\*[^*\n]+\*(?![*\w]))/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    if (m.index > last) out.push(text.slice(last, m.index));
+    const raw = m[0];
+    const k = `${keyPrefix}-${m.index}`;
+    if (raw.startsWith('`')) out.push(<code key={k} className="md-inline-code">{raw.slice(1, -1)}</code>);
+    else if (raw.startsWith('**')) out.push(<strong key={k}>{raw.slice(2, -2)}</strong>);
+    else out.push(<em key={k}>{raw.slice(1, -1)}</em>);
+    last = m.index + raw.length;
+  }
+  if (last < text.length) out.push(text.slice(last));
+  return out;
+}
+
+/**
  * Safely parse and render math expressions ($...$ and $$...$$).
  */
 function renderMath(text: string): React.ReactNode[] {
@@ -26,7 +47,7 @@ function renderMath(text: string): React.ReactNode[] {
     const raw = match[0];
 
     if (start > lastIdx) {
-      parts.push(text.slice(lastIdx, start));
+      parts.push(...renderInline(text.slice(lastIdx, start), `i${start}a`));
     }
 
     const isDisplay = raw.startsWith('$$');
@@ -52,7 +73,7 @@ function renderMath(text: string): React.ReactNode[] {
   }
 
   if (lastIdx < text.length) {
-    parts.push(text.slice(lastIdx));
+    parts.push(...renderInline(text.slice(lastIdx), `i${lastIdx}b`));
   }
 
   return parts;
@@ -200,13 +221,20 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       continue;
     }
 
-    // Bullet points
+    // Bullet points (consecutive items share one <ul>)
     if (line.startsWith('- ') || line.startsWith('* ')) {
-      blocks.push(
-        <li key={`li-${i}`} className="md-list-item">
-          {renderTextWithCitations(line.slice(2), citations, isThisMessageSelected, selectedCitation, onSelectCitation)}
-        </li>
-      );
+      const items: React.ReactNode[] = [];
+      let j = i;
+      while (j < lines.length && (lines[j].startsWith('- ') || lines[j].startsWith('* '))) {
+        items.push(
+          <li key={`li-${j}`} className="md-list-item">
+            {renderTextWithCitations(lines[j].slice(2), citations, isThisMessageSelected, selectedCitation, onSelectCitation)}
+          </li>
+        );
+        j++;
+      }
+      blocks.push(<ul key={`ul-${i}`} className="md-list">{items}</ul>);
+      i = j - 1;
       continue;
     }
 

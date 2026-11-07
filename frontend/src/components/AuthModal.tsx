@@ -1,3 +1,4 @@
+import { ModalShell } from './ModalShell';
 import React, { useState } from 'react';
 import { api } from '../api';
 import { User } from '../types';
@@ -59,8 +60,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+    <ModalShell onClose={onClose} size="modal-content-sm" label="Sign in">
         <div className="modal-header">
           <h2>{mode === 'login' ? 'Sign In to NotebookSpace' : 'Create Account'}</h2>
           <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
@@ -163,7 +163,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             )}
           </div>
         </div>
-      </div>
-    </div>
+      </ModalShell>
   );
 };

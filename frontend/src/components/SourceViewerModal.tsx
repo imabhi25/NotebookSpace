@@ -1,3 +1,4 @@
+import { ModalShell } from './ModalShell';
 import React from 'react';
 import { Source } from '../types';
 
@@ -10,8 +11,7 @@ export const SourceViewerModal: React.FC<SourceViewerModalProps> = ({ source, on
   if (!source) return null;
 
   return (
-    <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content modal-content-lg" onClick={(e) => e.stopPropagation()}>
+    <ModalShell onClose={onClose} size="modal-content-lg" label="Source content">
         <div className="modal-header">
           <div className="source-viewer-header-info">
             <h2>{source.title}</h2>
@@ -56,7 +56,6 @@ export const SourceViewerModal: React.FC<SourceViewerModalProps> = ({ source, on
             Close
           </button>
         </div>
-      </div>
-    </div>
+      </ModalShell>
   );
 };
