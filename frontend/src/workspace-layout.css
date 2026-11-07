@@ -240,8 +240,6 @@
   background: var(--color-surface-raised); border: var(--border-width) solid var(--color-border-sheet);
   border-radius: var(--radius-lg); padding: var(--space-3) var(--space-4) var(--space-4); outline: none;
   animation: evidence-expand var(--motion-panel) var(--motion-ease-out-cubic) both;
-  /* The composer overlays the bottom of the thread, so keep scrolled-to evidence clear of it. */
-  scroll-margin-top: var(--space-4); scroll-margin-bottom: 200px;
 }
 .inline-evidence:focus-visible { box-shadow: var(--shadow-focus); }
 @keyframes evidence-expand { from { opacity: 0; transform: translateY(-6px); } }
@@ -296,3 +294,35 @@
   .inline-evidence-close, .selected-source-clear, .selected-source-view { transition: none; }
   .workspace-layout .workspace-panels-overlay { transition: none; animation: none; }
 }
+
+/* ---- Thread scroll container: the composer overlaps its last 32px, so reserve that space ----
+   Padding keeps the end of the thread (including long evidence and the status strip) clear of the composer;
+   scroll-padding makes keyboard focus, scrollIntoView and find-in-page land clear of it too.
+   The bottom safe-area inset and the on-screen keyboard are already applied to the composer itself, which sits
+   below this container, so they are not added here (that would count them twice). Side insets matter in landscape. */
+.workspace-layout .thread-scroll-container {
+  padding-bottom: calc(var(--space-8) + var(--space-6));
+  scroll-padding-block: var(--space-4) calc(var(--space-8) + var(--space-4));
+  overscroll-behavior: contain;
+}
+@media (max-width: 960px) {
+  .workspace-layout .thread-scroll-container {
+    padding-left: max(var(--space-5), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--space-5), env(safe-area-inset-right, 0px));
+  }
+  .workspace-layout .workspace-main-area .composer-container {
+    padding-left: max(var(--space-5), env(safe-area-inset-left, 0px));
+    padding-right: max(var(--space-5), env(safe-area-inset-right, 0px));
+  }
+}
+
+/* With the on-screen keyboard up on a phone there is little height left: give it to the conversation by hiding
+   the dismissible privacy banner, the repeated notebook title and the "sources selected" row until the keyboard closes. */
+@media (max-width: 960px) {
+  html[data-keyboard="open"] [data-testid="guest-workspace-banner"],
+  html[data-keyboard="open"] .workspace-notebook-heading,
+  html[data-keyboard="open"] .workspace-chat-context { display: none; }
+}
+
+.selected-source-card:focus { outline: none; }
+.selected-source-card:focus-visible { box-shadow: var(--shadow-focus); }

@@ -498,7 +498,7 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
                 className="btn btn-secondary btn-sm"
                 onClick={() => onSelectPassage(activeChunk.file_name, activeChunk.page_number)}
               >
-                Open in Passage Inspector &rarr;
+                Show passage and source &rarr;
               </button>
             </div>
           )}
