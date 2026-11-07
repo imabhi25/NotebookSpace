@@ -395,7 +395,7 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: v
 .spinner-large { width: var(--space-7); height: var(--space-7); }
 .spinner-inline { width: var(--icon-size); height: var(--icon-size); }
 .source-loading-state { padding: var(--space-8) var(--space-4); }
-.workspace-loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: calc(100vh - var(--layout-loading-offset)); gap: var(--space-4); }
+.workspace-loading-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: calc(100vh - var(--layout-loading-offset)); height: calc(100dvh - var(--layout-loading-offset)); gap: var(--space-4); }
 .loading-caption { font-size: var(--type-body); color: var(--color-text-secondary); margin: 0; }
 
 /* ---------- Entrances: only for things that appear occasionally ---------- */
@@ -431,7 +431,7 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: v
 @media (max-width: 960px) {
   .workspace-sidebar.sidebar-open, .workspace-right-panel.right-open { box-shadow: var(--shadow-4); }
 }
-@media (max-width: 768px) {
+@media (max-width: 768px), (pointer: coarse) {
   .notebooks-sidebar.mobile-open { box-shadow: var(--shadow-4); }
   button, input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]), select, [role="button"] { min-height: var(--target-mobile) !important; }
   button, [role="button"] { min-width: var(--target-mobile) !important; }
@@ -455,7 +455,7 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: v
   .workspace-sidebar.sidebar-open { width: var(--drawer-width-phone) !important; min-width: var(--drawer-width-phone) !important; max-width: none; }
   .source-actions-col { flex-wrap: nowrap; }
 }
-@media (max-width: 768px) { .composer-input { min-height: var(--target-mobile); padding-block: var(--space-3); } }
+@media (max-width: 768px), (pointer: coarse) { .composer-input { min-height: var(--target-mobile); padding-block: var(--space-3); } }
 
 /* ==========================================================================
    Front-page polish: motion for every toggle, filter row, settings, empty state
@@ -1024,7 +1024,7 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
   .panel-toggle-btn:hover { color: var(--color-text-primary); border-color: var(--color-border-strong); background: var(--color-surface-raised); }
   .sources-resize-handle:hover::after { opacity: 0.55; }
 }
-@media (max-width: 768px) {
+@media (max-width: 768px), (pointer: coarse) {
   .source-row { padding-block: var(--space-1); column-gap: var(--space-2); }
   .source-row-more { width: var(--target-mobile); height: var(--target-mobile); }
   .source-row-checkbox { width: var(--icon-size); height: var(--icon-size); margin: 0 var(--space-3) 0 var(--space-2); min-height: 0 !important; }
@@ -1616,3 +1616,40 @@ aside .retrieval-svg,
 }
 
 
+
+
+/* ---------- Evidence panel honesty note ---------- */
+.evidence-note { margin-top: var(--space-3); font-size: var(--type-caption); line-height: var(--leading-caption); color: var(--color-text-muted); }
+[data-focus-fallback]:focus { outline: none; }
+
+/* ---------- Mobile composer: lift above the on-screen keyboard ---------- */
+/* --kb-inset comes from the Visual Viewport API (0 when the browser already resizes the layout viewport). */
+@media (max-width: 960px) {
+  .workspace-main-area .composer-container {
+    padding-bottom: calc(var(--space-2) + env(safe-area-inset-bottom, 0px) + var(--kb-inset, 0px));
+  }
+  html[data-keyboard="open"] .composer-footer-note,
+  html[data-keyboard="open"] .composer-disclaimer-note { display: none; }
+}
+@media (max-width: 768px) {
+  /* 16px stops iOS from zooming the page when a field gains focus. */
+  input:not([type="checkbox"]):not([type="radio"]), textarea, select { font-size: max(16px, 1em); }
+}
+
+/* ---------- Touch: 44px hit area for the source checkboxes (box drawn inside a transparent 44px input) ---------- */
+@media (max-width: 768px), (pointer: coarse) {
+  .source-row-checkbox {
+    appearance: none; width: var(--target-mobile) !important; height: var(--target-mobile) !important; min-height: var(--target-mobile) !important;
+    display: grid; place-items: center; padding: 0; margin: 0 !important; border: 0; background: var(--color-transparent); cursor: pointer;
+  }
+  .source-row-checkbox::before {
+    content: ''; width: var(--icon-size); height: var(--icon-size); display: grid; place-items: center;
+    border: var(--border-width) solid var(--color-border-strong); border-radius: var(--radius-xs); background: var(--color-surface);
+    color: var(--color-on-accent); font-size: var(--type-caption); line-height: var(--leading-caption);
+  }
+  .source-row-checkbox:checked::before,
+  .source-row-checkbox:indeterminate::before { content: '✓'; background: var(--color-accent); border-color: var(--color-accent); }
+  .source-row-checkbox:indeterminate::before { content: '–'; }
+  .source-row-checkbox:disabled { cursor: not-allowed; opacity: 0.5; }
+  .sources-select-all { min-height: var(--target-mobile); }
+}

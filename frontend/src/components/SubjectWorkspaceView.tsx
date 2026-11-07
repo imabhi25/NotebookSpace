@@ -18,6 +18,7 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 import { lazyView, preloadWhenIdle } from '../lazyView';
 import { SourceRow } from './SourceRow';
 import { useModalFocus } from '../useModalFocus';
+import { useMediaQuery } from '../viewport';
 import { RetrievalMapView } from './RetrievalMapView';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
@@ -129,6 +130,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const closeLeftPanel = () => { setIsLeftCollapsed(true); leftToggleRef.current?.focus(); };
   const closeRightPanel = () => { setIsRightCollapsed(true); rightToggleRef.current?.focus(); };
 
+  // Below 1180px the evidence panel would squeeze the chat under a readable width, so it
+  // becomes an overlay dialog (as both panels already are on small screens).
+  const isEvidenceOverlayWidth = useMediaQuery('(max-width: 1180px)');
+  const isEvidenceOverlay = isEvidenceOverlayWidth || isCompact;
+  const rightOverlayOpen = isEvidenceOverlay && !isRightCollapsed;
+  const leftDrawerOpen = isCompact && !isLeftCollapsed;
+  useModalFocus<HTMLElement>(rightOverlayOpen, closeRightPanel, rightPanelRef);
+  useModalFocus<HTMLElement>(leftDrawerOpen, closeLeftPanel, leftPanelRef);
+  const [evidenceFocusTick, setEvidenceFocusTick] = useState(0);
+  const passageRequestRef = useRef(0);
+
   useEffect(() => {
     let wasCompact = compactViewport();
     const onResize = () => {
@@ -165,16 +177,21 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   }, [isCompact, subject.name, subject.course_code]);
 
   useEffect(() => {
-    if (chatAreaRef.current) chatAreaRef.current.inert = isCompact && (!isLeftCollapsed || !isRightCollapsed);
-  }, [isCompact, isLeftCollapsed, isRightCollapsed]);
+    if (chatAreaRef.current) chatAreaRef.current.inert = (isCompact && (!isLeftCollapsed || !isRightCollapsed)) || rightOverlayOpen;
+  }, [isCompact, isLeftCollapsed, isRightCollapsed, rightOverlayOpen]);
 
   useEffect(() => {
     if (isCompact && !isLeftCollapsed) leftPanelRef.current?.focus();
   }, [isCompact, isLeftCollapsed]);
 
   useEffect(() => {
-    if (isCompact && !isRightCollapsed) rightPanelRef.current?.focus();
-  }, [isCompact, isRightCollapsed]);
+    if (isEvidenceOverlay && !isRightCollapsed) rightPanelRef.current?.focus();
+  }, [isEvidenceOverlay, isRightCollapsed]);
+
+  // Opened from the keyboard on a docked layout: move focus to the evidence panel.
+  useEffect(() => {
+    if (evidenceFocusTick > 0) rightPanelRef.current?.focus();
+  }, [evidenceFocusTick]);
 
   useEffect(() => {
     if (!isActionsOpen) return;
@@ -373,16 +390,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           setIsAddSourceOpen(false);
         } else if (isActionsOpen) {
           closeActions();
-        } else if (isCompact && !isRightCollapsed) {
+        } else if (rightOverlayOpen) {
           closeRightPanel();
-        } else if (isCompact && !isLeftCollapsed) {
+        } else if (leftDrawerOpen) {
           closeLeftPanel();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, isCompact, isLeftCollapsed, isRightCollapsed]);
+  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, rightOverlayOpen, leftDrawerOpen]);
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
@@ -464,6 +481,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // CITATION INSPECTION HANDLERS
   // --------------------------------------------------------------------------
   const handleSelectCitation = (cit: Citation, messageId: string) => {
+    try {
+      const active = document.activeElement;
+      // :focus-visible matches only when the citation was activated from the keyboard.
+      if (active instanceof HTMLElement && active.matches(':focus-visible')) setEvidenceFocusTick((t) => t + 1);
+    } catch {
+      /* selector unsupported: skip */
+    }
     setSelectedCitation({ ...cit, messageId });
     setRightPanelTab('passage');
     setIsRightCollapsed(false); // One open state for desktop, tablet, and phone.
@@ -483,6 +507,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   };
 
   const loadPassages = async (cit: Citation) => {
+    const requestId = ++passageRequestRef.current;
+    const isLatest = () => requestId === passageRequestRef.current;
     const matchingSource = sources.find((s) => s.id === cit.source_id);
     const isHistoricalOnly =
       Boolean(cit.source_id && !matchingSource) ||
@@ -490,6 +516,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
     if (isHistoricalOnly) {
       setPassages([]);
+      setPassageLoading(false);
       return;
     }
 
@@ -505,11 +532,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         seen.add(key);
         return true;
       });
-      setPassages(deduped);
+      if (isLatest()) setPassages(deduped);
     } catch {
-      setPassages([]);
+      if (isLatest()) setPassages([]);
     } finally {
-      setPassageLoading(false);
+      if (isLatest()) setPassageLoading(false);
     }
   };
 
@@ -730,6 +757,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           3-COLUMN WORKSPACE BODY
           ====================================================================== */}
       <div className="workspace-body" ref={workspaceBodyRef}>
+        {!isCompact && rightOverlayOpen && (
+          <div className="sidebar-overlay workspace-panels-overlay" aria-hidden="true" onClick={closeRightPanel} />
+        )}
         {isCompact && (!isLeftCollapsed || !isRightCollapsed) && (
           <div className="sidebar-overlay workspace-panels-overlay" aria-hidden="true"
             onClick={() => { setIsLeftCollapsed(true); setIsRightCollapsed(true); leftToggleRef.current?.focus(); }} />
@@ -957,7 +987,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         {/* --------------------------------------------------------------------
             2. CENTER CHAT AREA: ChatGPT / Claude Reading Experience
             -------------------------------------------------------------------- */}
-        <section className="workspace-main-area" aria-label="Chat" ref={chatAreaRef}>
+        <section className="workspace-main-area" aria-label="Chat" ref={chatAreaRef} tabIndex={-1} data-focus-fallback>
           <div className="workspace-chat-context">
             <span className="selected-sources-pill" data-testid="selected-sources-pill">
               {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
@@ -1230,9 +1260,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                             <div
                                               key={clIdx}
                                               className="conflict-source-card"
+                                              role="button"
+                                              tabIndex={0}
+                                              aria-label={`Claim: ${claim.value} in ${claim.file} page ${claim.page}`}
                                               onClick={() =>
                                                 handleSelectCitation({ file: claim.file, page: claim.page }, msg.id)
                                               }
+                                              onKeyDown={(e) => {
+                                                if (e.key === 'Enter' || e.key === ' ') {
+                                                  e.preventDefault();
+                                                  handleSelectCitation({ file: claim.file, page: claim.page }, msg.id);
+                                                }
+                                              }}
                                             >
                                               <div className="source-value">&ldquo;{claim.value}&rdquo;</div>
                                               <div className="source-meta">
@@ -1260,7 +1299,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 {/* Citation Chips Row */}
                                 {msg.citations && msg.citations.length > 0 && (
                                   <div className="citations-section">
-                                    <div className="chips-row">
+                                    <div className="chips-row" role="group" aria-label="Sources cited in this answer">
                                       {msg.citations.map((cit, cIdx) => {
                                         const isActive =
                                           selectedCitation?.messageId === msg.id &&
@@ -1274,6 +1313,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                             type="button"
                                             className={`chip ${isActive ? 'active' : ''}`}
                                             onClick={() => handleSelectCitation(cit, msg.id)}
+                                            aria-pressed={isActive}
+                                            aria-controls="workspace-inspector-panel"
                                             data-testid={`citation-chip-${cIdx}`}
                                           >
                                             <span className="chip-badge">[{cIdx + 1}]</span>
@@ -1447,6 +1488,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           id="workspace-inspector-panel" hidden={isRightCollapsed} ref={rightPanelRef} tabIndex={-1}
           data-testid="passage-pane"
           aria-label="Inspector and Notes Panel"
+          onKeyDown={(e) => {
+            // Docked: Escape closes while focus is inside. Overlay mode handles Escape in useModalFocus.
+            if (!rightOverlayOpen && e.key === 'Escape' && !e.defaultPrevented) {
+              e.stopPropagation();
+              closeRightPanel();
+            }
+          }}
         >
           {/* Right Panel Header with Dual Mode Switcher */}
           <div className="right-panel-header">
@@ -1593,7 +1641,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
                                   <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                                 </svg>
-                                <span>Cited Passage Match</span>
+                                <span>Retrieved for this answer</span>
                               </div>
                             )}
                             <p className="passage-chunk-text">{text}</p>
@@ -1609,7 +1657,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
                               <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
                             </svg>
-                            <span>Cited Passage Match</span>
+                            <span>Retrieved for this answer</span>
                           </div>
                           <p className="passage-chunk-text">{r.text || r.chunk_text}</p>
                         </div>
@@ -1630,6 +1678,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   ) : (
                     <p className="empty-state">No text chunks found for this page.</p>
                   )}
+                  <p className="evidence-note">
+                    Citations point to a page, not a sentence, so no single sentence is marked.
+                    {hasRetrievedChunkText ? ' Highlighted passages are the ones retrieved for this answer.' : ''}
+                  </p>
                 </div>
               ) : (
                 <div className="right-panel-empty-state">

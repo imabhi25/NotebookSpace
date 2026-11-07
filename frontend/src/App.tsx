@@ -22,6 +22,7 @@ import { Sidebar } from './components/Sidebar';
 import { Composer } from './components/Composer';
 import { AssistantMessage } from './components/AssistantMessage';
 import { SourcePanel } from './components/SourcePanel';
+import { useKeyboardInset } from './viewport';
 
 const API_BASE_URL = (
   import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
@@ -56,6 +57,7 @@ export function App({
   isDemoMode = import.meta.env.VITE_DEMO_MODE === 'true' || isDemoFromQuery,
   defaultView,
 }: AppProps = {}) {
+  useKeyboardInset();
   // Fetch the workspace code in the background so opening a notebook does not wait on it.
   useEffect(() => {
     preloadWhenIdle(SubjectWorkspaceView);
