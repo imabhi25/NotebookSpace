@@ -39,7 +39,7 @@ if (!(window as any).PointerEvent) {
   };
 }
 const originalWidth = window.innerWidth;
-beforeEach(() => { window.innerWidth = 1440; });
+beforeEach(() => { window.innerWidth = 1440; window.localStorage.clear(); });
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 
 describe('Sources panel', () => {
@@ -120,16 +120,19 @@ describe('Sources panel', () => {
     expect(within(panel()).getByText('Lecture 7.pdf')).toBeInTheDocument();
   });
 
-  it('has no chat-switching UI anywhere, even when the notebook has several stored conversations', () => {
-    render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    expect(screen.queryByText(/Chats/)).toBeNull();
-    expect(screen.queryByText(/Recent Chats/i)).toBeNull();
-    expect(screen.queryByText('Exam prep')).toBeNull();
-    expect(screen.queryByText('Older chat')).toBeNull();
-    expect(screen.queryByRole('button', { name: /New conversation/i })).toBeNull();
-    expect(screen.queryByRole('button', { name: /chats panel/i })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse sources panel' }));
-    expect(screen.getAllByRole('button', { name: /Open .* panel/ })).toHaveLength(1);
+  it('keeps chat switching in the navigation sidebar and out of the sources panel', () => {
+    const onSelect = vi.fn();
+    render(React.cloneElement(workspace([src('a', 'Syllabus.pdf')], ['a']), { onSelectConversation: onSelect }));
+    expect(within(panel()).queryByText('Exam prep')).toBeNull();
+    expect(within(panel()).queryByRole('button', { name: /New session/i })).toBeNull();
+    const nav = screen.getByRole('complementary', { name: 'Navigation' });
+    const rows = within(nav).getAllByRole('button').filter((b) => b.classList.contains('workspace-nav-row'));
+    expect(within(nav).getByRole('button', { name: 'Exam prep' })).toHaveAttribute('aria-current', 'true');
+    expect(within(nav).getByRole('button', { name: 'Older chat' })).not.toHaveAttribute('aria-current');
+    expect(rows.length).toBeGreaterThanOrEqual(3); // two sessions + saved notes
+    fireEvent.click(within(nav).getByRole('button', { name: 'Older chat' }));
+    expect(onSelect).toHaveBeenCalledWith('c2');
+    expect(within(nav).getByTestId('nav-saved-notes')).toHaveTextContent('Saved notes');
   });
 
   it('rows have one always-present menu button and checkbox, and no separate action icons', () => {
@@ -158,45 +161,48 @@ describe('Sources panel', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('resizes between limits, remembers the width, and resets on double-click', () => {
-    window.localStorage.removeItem('notebookspace_sources_panel_width');
-    const { unmount } = render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    const slot = () => document.querySelector('.sources-slot') as HTMLElement;
-    const handle = () => screen.getByRole('separator', { name: 'Resize sources panel' });
-    expect(handle()).not.toHaveAttribute('tabindex');
-    vi.spyOn(panel(), 'getBoundingClientRect').mockReturnValue({ width: 360 } as DOMRect);
-
-    fireEvent.pointerDown(handle(), { button: 0, clientX: 360, pointerId: 1 });
-    fireEvent.pointerMove(handle(), { clientX: 420, pointerId: 1 });
-    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('420px');
-    expect(slot()).toHaveClass('is-resizing');
-    fireEvent.pointerMove(handle(), { clientX: 900, pointerId: 1 });
-    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('560px');
-    fireEvent.pointerMove(handle(), { clientX: 100, pointerId: 1 });
-    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('300px');
-    fireEvent.pointerUp(handle(), { clientX: 400, pointerId: 1 });
-    expect(slot()).not.toHaveClass('is-resizing');
-    expect(window.localStorage.getItem('notebookspace_sources_panel_width')).toBe('400');
-
-    unmount();
+  it('is a fixed-width floating panel with no resize handle', () => {
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('400px');
-    fireEvent.doubleClick(handle());
-    expect(slot().style.getPropertyValue('--sources-panel-user-width')).toBe('');
-    expect(window.localStorage.getItem('notebookspace_sources_panel_width')).toBeNull();
+    expect(screen.queryByRole('separator', { name: 'Resize sources panel' })).toBeNull();
+    expect(panel()).toHaveClass('workspace-context-panel');
+    expect(panel().closest('.context-slot')).not.toHaveClass('is-collapsed');
   });
 
-  it('collapses to a rail with a single toggle, and takes the hidden side out of reach', () => {
+  it('collapses from its own button, reopens from the top bar, and takes the hidden side out of reach', () => {
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    expect(screen.queryByRole('button', { name: 'Open sources panel' })).toBeNull();
+    const toggle = screen.getByRole('button', { name: 'Toggle sources panel' });
+    expect(toggle).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Collapse sources panel' }));
     expect(screen.queryByRole('complementary', { name: 'Sources' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: 'Select Syllabus.pdf' })).toBeNull();
-    const rail = screen.getByRole('navigation', { name: 'Sources' });
-    expect(within(rail).getAllByRole('button')).toHaveLength(1);
-    fireEvent.click(within(rail).getByRole('button', { name: 'Open sources panel' }));
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveFocus();
+    fireEvent.click(toggle);
     expect(panel()).toBeInTheDocument();
-    expect(screen.queryByRole('navigation', { name: 'Sources' })).toBeNull();
+  });
+
+  it('remembers each panel preference independently while docked', () => {
+    const { unmount } = render(workspace([src('a', 'Syllabus.pdf')], ['a']));
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
+    expect(window.localStorage.getItem('notebookspace_context_open')).toBe('0');
+    expect(window.localStorage.getItem('notebookspace_nav_open')).toBeNull();
+    unmount();
+    render(workspace([src('a', 'Syllabus.pdf')], ['a']));
+    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Toggle navigation' })).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }));
+    expect(window.localStorage.getItem('notebookspace_nav_open')).toBe('0');
+    expect(screen.queryByRole('complementary', { name: 'Navigation' })).toBeNull();
+  });
+
+  it('starts as overlays at tablet and phone widths and does not store their open state', () => {
+    window.innerWidth = 1024;
+    render(workspace([src('a', 'Syllabus.pdf')], ['a']));
+    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Toggle navigation' })).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
+    expect(panel()).toBeVisible();
+    expect(window.localStorage.getItem('notebookspace_context_open')).toBeNull();
   });
 
   it('opening a notebook lands straight in its conversation', async () => {

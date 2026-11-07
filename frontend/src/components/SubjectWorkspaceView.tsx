@@ -20,11 +20,30 @@ import { SourceRow } from './SourceRow';
 import { useModalFocus } from '../useModalFocus';
 import { useMediaQuery } from '../viewport';
 import { RetrievalMapView } from './RetrievalMapView';
+import { WorkspaceNav } from './WorkspaceNav';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
 import { Composer } from './Composer';
+
+const NAV_PREF_KEY = 'notebookspace_nav_open';
+const CONTEXT_PREF_KEY = 'notebookspace_context_open';
+function readPanelPref(key: string): boolean {
+  try {
+    const stored = window.localStorage.getItem(key);
+    return stored === null ? true : stored === '1';
+  } catch {
+    return true;
+  }
+}
+function writePanelPref(key: string, open: boolean): void {
+  try {
+    window.localStorage.setItem(key, open ? '1' : '0');
+  } catch {
+    /* storage unavailable: the choice still applies for this visit */
+  }
+}
 
 interface SubjectWorkspaceViewProps {
   subject: Subject;
@@ -65,8 +84,11 @@ interface SubjectWorkspaceViewProps {
 export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   subject,
   sources,
+  conversations,
   notes,
   activeConversationId,
+  onSelectConversation,
+  onCreateConversation,
   selectedSourceIds,
   starterQuestions,
   isDemoMode,
@@ -96,23 +118,29 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // LAYOUT STATE: Independently Collapsible Side Panels
   // --------------------------------------------------------------------------
   const compactViewport = () => typeof window !== 'undefined' && window.innerWidth <= 960;
+  const overlayViewport = () => typeof window !== 'undefined' && window.innerWidth <= 1180;
   const [isCompact, setIsCompact] = useState(compactViewport);
-  const [isLeftCollapsed, setIsLeftCollapsed] = useState(compactViewport);
-  const [isRightCollapsed, setIsRightCollapsed] = useState(true);
+  // Navigation (left) and materials (right) collapse independently. Where they are docked the
+  // choice is remembered; where they are overlays they always start closed.
+  const [isNavCollapsed, setIsNavCollapsed] = useState(() => compactViewport() || !readPanelPref(NAV_PREF_KEY));
+  const [isContextCollapsed, setIsContextCollapsed] = useState(() => overlayViewport() || !readPanelPref(CONTEXT_PREF_KEY));
+  const [isInspectorCollapsed, setIsInspectorCollapsed] = useState(true);
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [titleBelowBar, setTitleBelowBar] = useState(compactViewport);
   const headerRef = useRef<HTMLElement>(null);
   const backButtonRef = useRef<HTMLButtonElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   const titleMeasureRef = useRef<HTMLDivElement>(null);
-  const leftToggleRef = useRef<HTMLButtonElement>(null);
-  const rightToggleRef = useRef<HTMLButtonElement>(null);
+  const contextToggleRef = useRef<HTMLButtonElement>(null);
+  const navToggleRef = useRef<HTMLButtonElement>(null);
+  const navPanelRef = useRef<HTMLElement>(null);
+  const inspectorToggleRef = useRef<HTMLButtonElement>(null);
   const menuRootRef = useRef<HTMLDivElement>(null);
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const chatAreaRef = useRef<HTMLElement>(null);
-  const leftPanelRef = useRef<HTMLElement>(null);
-  const rightPanelRef = useRef<HTMLElement>(null);
+  const contextPanelRef = useRef<HTMLElement>(null);
+  const inspectorPanelRef = useRef<HTMLElement>(null);
   const lastSendTimeRef = useRef<number>(0);
 
   useEffect(() => {
@@ -127,17 +155,27 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
     onStopGeneration?.();
   };
-  const closeLeftPanel = () => { setIsLeftCollapsed(true); leftToggleRef.current?.focus(); };
-  const closeRightPanel = () => { setIsRightCollapsed(true); rightToggleRef.current?.focus(); };
+  // Below 1180px the materials panel is an on-demand overlay; below 961px navigation is a drawer.
+  const isContextOverlay = useMediaQuery('(max-width: 1180px)', overlayViewport()) || isCompact;
+  const setNavCollapsed = (collapsed: boolean, remember = true) => {
+    setIsNavCollapsed(collapsed);
+    if (remember && !isCompact) writePanelPref(NAV_PREF_KEY, !collapsed);
+  };
+  const setContextCollapsed = (collapsed: boolean, remember = true) => {
+    setIsContextCollapsed(collapsed);
+    if (remember && !isContextOverlay) writePanelPref(CONTEXT_PREF_KEY, !collapsed);
+  };
+  const closeNavPanel = () => { setNavCollapsed(true); navToggleRef.current?.focus(); };
+  const closeContextPanel = () => { setContextCollapsed(true); contextToggleRef.current?.focus(); };
+  const closeInspector = () => { setIsInspectorCollapsed(true); inspectorToggleRef.current?.focus(); };
 
-  // Below 1180px the evidence panel would squeeze the chat under a readable width, so it
-  // becomes an overlay dialog (as both panels already are on small screens).
-  const isEvidenceOverlayWidth = useMediaQuery('(max-width: 1180px)');
-  const isEvidenceOverlay = isEvidenceOverlayWidth || isCompact;
-  const rightOverlayOpen = isEvidenceOverlay && !isRightCollapsed;
-  const leftDrawerOpen = isCompact && !isLeftCollapsed;
-  useModalFocus<HTMLElement>(rightOverlayOpen, closeRightPanel, rightPanelRef);
-  useModalFocus<HTMLElement>(leftDrawerOpen, closeLeftPanel, leftPanelRef);
+  // The passage inspector is always an overlay for now; the materials panel is one below 1180px.
+  const inspectorOpen = !isInspectorCollapsed;
+  const contextOverlayOpen = isContextOverlay && !isContextCollapsed;
+  const navDrawerOpen = isCompact && !isNavCollapsed;
+  useModalFocus<HTMLElement>(inspectorOpen, closeInspector, inspectorPanelRef);
+  useModalFocus<HTMLElement>(contextOverlayOpen, closeContextPanel, contextPanelRef);
+  useModalFocus<HTMLElement>(navDrawerOpen, closeNavPanel, navPanelRef);
   const [evidenceFocusTick, setEvidenceFocusTick] = useState(0);
   const passageRequestRef = useRef(0);
 
@@ -148,11 +186,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       if (next === wasCompact) return;
       wasCompact = next;
       setIsCompact(next);
-      setIsLeftCollapsed(next);
     };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
+
+  // Crossing a breakpoint switches between docked (remembered) and overlay (closed) states.
+  useEffect(() => { setIsNavCollapsed(isCompact || !readPanelPref(NAV_PREF_KEY)); }, [isCompact]);
+  useEffect(() => { setIsContextCollapsed(isContextOverlay || !readPanelPref(CONTEXT_PREF_KEY)); }, [isContextOverlay]);
 
   // An unusually long title moves below the controls instead of wrapping the bar or losing text.
   useLayoutEffect(() => {
@@ -177,20 +218,30 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   }, [isCompact, subject.name, subject.course_code]);
 
   useEffect(() => {
-    if (chatAreaRef.current) chatAreaRef.current.inert = (isCompact && (!isLeftCollapsed || !isRightCollapsed)) || rightOverlayOpen;
-  }, [isCompact, isLeftCollapsed, isRightCollapsed, rightOverlayOpen]);
+    if (chatAreaRef.current) chatAreaRef.current.inert = inspectorOpen || contextOverlayOpen || navDrawerOpen;
+  }, [inspectorOpen, contextOverlayOpen, navDrawerOpen]);
 
   useEffect(() => {
-    if (isCompact && !isLeftCollapsed) leftPanelRef.current?.focus();
-  }, [isCompact, isLeftCollapsed]);
+    if (contextOverlayOpen && contextPanelRef.current) {
+      contextPanelRef.current.inert = false; // the inert sync below has not run yet in this commit
+      contextPanelRef.current.focus();
+    }
+  }, [contextOverlayOpen]);
 
   useEffect(() => {
-    if (isEvidenceOverlay && !isRightCollapsed) rightPanelRef.current?.focus();
-  }, [isEvidenceOverlay, isRightCollapsed]);
+    if (navDrawerOpen && navPanelRef.current) {
+      navPanelRef.current.inert = false;
+      navPanelRef.current.focus();
+    }
+  }, [navDrawerOpen]);
+
+  useEffect(() => {
+    if (inspectorOpen) inspectorPanelRef.current?.focus();
+  }, [inspectorOpen]);
 
   // Opened from the keyboard on a docked layout: move focus to the evidence panel.
   useEffect(() => {
-    if (evidenceFocusTick > 0) rightPanelRef.current?.focus();
+    if (evidenceFocusTick > 0) inspectorPanelRef.current?.focus();
   }, [evidenceFocusTick]);
 
   useEffect(() => {
@@ -218,69 +269,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
   };
 
-  // Left sidebar active tab: 'sources' | 'conversations'
   const [isPanelDragOver, setIsPanelDragOver] = useState(false);
 
-  // Sources panel width: a fixed default the user can drag between limits; the choice is remembered.
-  const SOURCES_WIDTH_KEY = 'notebookspace_sources_panel_width';
-  const SOURCES_WIDTH_MIN = 300;
-  const SOURCES_WIDTH_MAX = 560;
-  // The chat keeps at least this much room (plus the body padding and gap), so the panel can never cover it.
-  const CHAT_MIN_WIDTH = 420;
-  const workspaceBodyRef = useRef<HTMLDivElement>(null);
-  const sourcesWidthLimit = () => {
-    const bodyWidth = workspaceBodyRef.current?.clientWidth || 0;
-    if (!bodyWidth) return SOURCES_WIDTH_MAX;
-    return Math.max(SOURCES_WIDTH_MIN, Math.min(SOURCES_WIDTH_MAX, bodyWidth - CHAT_MIN_WIDTH - 36));
-  };
-  const clampSourcesWidth = (value: number) => Math.round(Math.min(sourcesWidthLimit(), Math.max(SOURCES_WIDTH_MIN, value)));
-  const [sourcesWidth, setSourcesWidth] = useState<number | null>(() => {
-    try {
-      const stored = Number(window.localStorage.getItem(SOURCES_WIDTH_KEY));
-      return stored ? clampSourcesWidth(stored) : null;
-    } catch {
-      return null;
-    }
-  });
-  const [isResizingSources, setIsResizingSources] = useState(false);
-  const resizeStart = useRef<{ pointerX: number; width: number } | null>(null);
-  const railRef = useRef<HTMLElement>(null);
-  const handleResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.button !== 0 || !leftPanelRef.current) return;
-    e.preventDefault();
-    e.currentTarget.setPointerCapture?.(e.pointerId);
-    resizeStart.current = { pointerX: e.clientX, width: leftPanelRef.current.getBoundingClientRect().width };
-    setIsResizingSources(true);
-  };
-  const handleResizeMove = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!resizeStart.current) return;
-    setSourcesWidth(clampSourcesWidth(resizeStart.current.width + e.clientX - resizeStart.current.pointerX));
-  };
-  const handleResizeEnd = (e: React.PointerEvent<HTMLDivElement>) => {
-    if (!resizeStart.current) return;
-    const width = clampSourcesWidth(resizeStart.current.width + e.clientX - resizeStart.current.pointerX);
-    resizeStart.current = null;
-    setIsResizingSources(false);
-    setSourcesWidth(width);
-    try {
-      window.localStorage.setItem(SOURCES_WIDTH_KEY, String(width));
-    } catch {
-      // ignore
-    }
-  };
-  const handleResizeReset = () => {
-    setSourcesWidth(null);
-    try {
-      window.localStorage.removeItem(SOURCES_WIDTH_KEY);
-    } catch {
-      // ignore
-    }
-  };
-  // Whichever of the panel and the rail is not showing is taken out of the tab order and the accessibility tree.
+  // Whichever panels are collapsed are removed from the tab order and the accessibility tree.
   useEffect(() => {
-    if (leftPanelRef.current) leftPanelRef.current.inert = isLeftCollapsed;
-    if (railRef.current) railRef.current.inert = !isLeftCollapsed;
-  }, [isLeftCollapsed]);
+    if (contextPanelRef.current) contextPanelRef.current.inert = isContextCollapsed;
+  }, [isContextCollapsed]);
+  useEffect(() => {
+    if (navPanelRef.current) navPanelRef.current.inert = isNavCollapsed;
+  }, [isNavCollapsed]);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
 
   // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
@@ -390,16 +387,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           setIsAddSourceOpen(false);
         } else if (isActionsOpen) {
           closeActions();
-        } else if (rightOverlayOpen) {
-          closeRightPanel();
-        } else if (leftDrawerOpen) {
-          closeLeftPanel();
+        } else if (inspectorOpen) {
+          closeInspector();
+        } else if (contextOverlayOpen) {
+          closeContextPanel();
+        } else if (navDrawerOpen) {
+          closeNavPanel();
         }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, rightOverlayOpen, leftDrawerOpen]);
+  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, inspectorOpen, contextOverlayOpen, navDrawerOpen]);
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
@@ -490,8 +489,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
     setSelectedCitation({ ...cit, messageId });
     setRightPanelTab('passage');
-    setIsRightCollapsed(false); // One open state for desktop, tablet, and phone.
-    if (isCompact) setIsLeftCollapsed(true); // Preserve citation focus on small screens.
+    setIsInspectorCollapsed(false); // One open state for desktop, tablet, and phone.
+    if (isContextOverlay) setIsContextCollapsed(true); // Preserve citation focus when materials is an overlay.
     loadPassages(cit);
   };
 
@@ -635,8 +634,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       await onSaveAnswerAsNote(msg);
       setSavedNoteMsgId(msg.id);
       setRightPanelTab('notes');
-      setIsRightCollapsed(false); // Auto-expand right panel on save note at every viewport.
-      if (isCompact) setIsLeftCollapsed(true);
+      setIsInspectorCollapsed(false); // Auto-expand right panel on save note at every viewport.
+      if (isContextOverlay) setIsContextCollapsed(true);
       setTimeout(() => setSavedNoteMsgId(null), 2500);
     } finally {
       setSavingNoteMsgId(null);
@@ -646,8 +645,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const handleSeeRetrieval = (messageId: string) => {
     setSelectedRetrievalMessageId(messageId);
     setRightPanelTab('retrieval');
-    setIsRightCollapsed(false);
-    if (isCompact) setIsLeftCollapsed(true);
+    setIsInspectorCollapsed(false);
+    if (isContextOverlay) setIsContextCollapsed(true);
     setTimeout(() => {
       const retrievalTabBtn = document.querySelector<HTMLButtonElement>(
         '[data-testid="right-panel-tab-retrieval"]'
@@ -655,7 +654,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       if (retrievalTabBtn) {
         retrievalTabBtn.focus();
       } else {
-        rightPanelRef.current?.focus();
+        inspectorPanelRef.current?.focus();
       }
     }, 0);
   };
@@ -675,7 +674,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
 
   return (
-    <div className="workspace-root workspace-layout" data-left-open={!isLeftCollapsed} data-right-open={!isRightCollapsed}>
+    <div className="workspace-root workspace-layout" data-nav-open={!isNavCollapsed} data-context-open={!isContextCollapsed} data-inspector-open={!isInspectorCollapsed}>
       <input
         ref={replaceFileInputRef}
         type="file"
@@ -687,6 +686,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       <div className="workspace-subject-pill workspace-subject-pill-name workspace-title-measure"
         ref={titleMeasureRef} aria-hidden="true" data-title={`${subject.name} ${subject.course_code || ''}`} />
       <header className="workspace-top-bar workspace-control-bar" ref={headerRef}>
+        <button type="button" ref={navToggleRef}
+          className={`workspace-toggle-btn workspace-nav-toggle ${!isNavCollapsed ? 'active' : ''}`}
+          onClick={() => setNavCollapsed(!isNavCollapsed)}
+          title={isNavCollapsed ? 'Show navigation' : 'Hide navigation'}
+          aria-label="Toggle navigation" aria-expanded={!isNavCollapsed} aria-controls="workspace-nav-panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" />
+          </svg>
+          <span className="toggle-label">Sessions</span>
+        </button>
         <button type="button" className="workspace-back-btn" ref={backButtonRef}
           onClick={onBackToDashboard} title="Back to notebooks dashboard" aria-label="Back to notebooks dashboard">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
@@ -701,23 +710,23 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           </div>
         )}
         <div className="workspace-top-right workspace-essential-actions" ref={actionsRef}>
-          <button type="button" ref={leftToggleRef}
-            className={`workspace-toggle-btn ${!isLeftCollapsed ? 'active' : ''}`}
-            onClick={() => setIsLeftCollapsed(!isLeftCollapsed)}
-            title={isLeftCollapsed ? 'Show sources panel' : 'Hide sources panel'}
-            aria-label="Toggle sources panel" aria-expanded={!isLeftCollapsed} aria-controls="workspace-sources-panel">
+          <button type="button" ref={contextToggleRef}
+            className={`workspace-toggle-btn ${!isContextCollapsed ? 'active' : ''}`}
+            onClick={() => setContextCollapsed(!isContextCollapsed)}
+            title={isContextCollapsed ? 'Show sources panel' : 'Hide sources panel'}
+            aria-label="Toggle sources panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M9 3v18" />
+              <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M15 3v18" />
             </svg>
             <span className="toggle-label">Sources</span>
           </button>
-          <button type="button" ref={rightToggleRef}
-            className={`workspace-toggle-btn ${!isRightCollapsed ? 'active' : ''}`}
-            onClick={() => setIsRightCollapsed(!isRightCollapsed)}
-            title={isRightCollapsed ? 'Show notes & passage inspector' : 'Hide notes & passage inspector'}
-            aria-label="Toggle inspector panel" aria-expanded={!isRightCollapsed} aria-controls="workspace-inspector-panel">
+          <button type="button" ref={inspectorToggleRef}
+            className={`workspace-toggle-btn ${!isInspectorCollapsed ? 'active' : ''}`}
+            onClick={() => setIsInspectorCollapsed(!isInspectorCollapsed)}
+            title={isInspectorCollapsed ? 'Show notes & passage inspector' : 'Hide notes & passage inspector'}
+            aria-label="Toggle inspector panel" aria-expanded={!isInspectorCollapsed} aria-controls="workspace-inspector-panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M15 3v18" />
+              <rect x="3" y="6" width="18" height="12" rx="2" /><path d="M7 10h10M7 14h6" />
             </svg>
             <span className="toggle-label">{rightPanelTab === 'passage' && selectedCitation ? 'Passage' : 'Notes'}</span>
           </button>
@@ -756,231 +765,35 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {/* ======================================================================
           3-COLUMN WORKSPACE BODY
           ====================================================================== */}
-      <div className="workspace-body" ref={workspaceBodyRef}>
-        {!isCompact && rightOverlayOpen && (
-          <div className="sidebar-overlay workspace-panels-overlay" aria-hidden="true" onClick={closeRightPanel} />
-        )}
-        {isCompact && (!isLeftCollapsed || !isRightCollapsed) && (
+      <div className="workspace-body">
+        {(inspectorOpen || contextOverlayOpen || navDrawerOpen) && (
           <div className="sidebar-overlay workspace-panels-overlay" aria-hidden="true"
-            onClick={() => { setIsLeftCollapsed(true); setIsRightCollapsed(true); leftToggleRef.current?.focus(); }} />
+            onClick={() => {
+              if (inspectorOpen) closeInspector();
+              else if (contextOverlayOpen) closeContextPanel();
+              else closeNavPanel();
+            }} />
         )}
-        <div
-          className={`sources-slot ${isLeftCollapsed ? 'is-collapsed' : ''} ${isResizingSources ? 'is-resizing' : ''}`}
-          style={sourcesWidth ? ({ '--sources-panel-user-width': `${sourcesWidth}px` } as React.CSSProperties) : undefined}
-        >
-          <nav className="workspace-sources-rail" aria-label="Sources" ref={railRef} aria-hidden={!isLeftCollapsed}>
-            <button type="button" className="panel-toggle-btn" aria-label="Open sources panel" title="Open sources panel"
-              aria-controls="workspace-sources-panel" aria-expanded={false}
-              onClick={() => setIsLeftCollapsed(false)}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="16" rx="3.5" />
-                <line x1="9" y1="9" x2="9" y2="15" />
-              </svg>
-            </button>
-          </nav>
-        {/* --------------------------------------------------------------------
-            1. LEFT PANEL: NotebookLM's Source Workflow & Compact History
-            -------------------------------------------------------------------- */}
-        <aside
-          className={`workspace-sidebar ${!isLeftCollapsed ? 'sidebar-open' : ''}`}
-          id="workspace-sources-panel" aria-hidden={isLeftCollapsed} ref={leftPanelRef} tabIndex={-1}
-          aria-label="Sources"
-        >
-          {/* Sidebar Tab Header */}
-          <div className="workspace-sidebar-header">
-            <h2 className="sources-panel-title">Sources</h2>
-
-            <button
-              type="button"
-              className="panel-collapse-btn panel-toggle-btn"
-              onClick={closeLeftPanel}
-              title="Collapse sources panel"
-              aria-label="Collapse sources panel"
-            >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="16" rx="3.5" />
-                <line x1="9" y1="9" x2="9" y2="15" />
-              </svg>
-            </button>
-          </div>
-
-          {/* SOURCES: add / note actions, link search, selection row, then the list (or the drop zone when empty) */}
-          <div
-            className={`sidebar-tab-content sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
-            onDragOver={(e) => {
-              if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
-              e.preventDefault();
-              setIsPanelDragOver(true);
+        {/* LEFT: navigation (notebook, sessions, saved notes) */}
+        <div className={`nav-slot ${isNavCollapsed ? 'is-collapsed' : ''}`}>
+          <WorkspaceNav
+            ref={navPanelRef}
+            subjectName={subject.name}
+            courseCode={subject.course_code}
+            conversations={conversations ?? []}
+            activeConversationId={activeConversationId}
+            notesCount={notes.length}
+            onBackToDashboard={onBackToDashboard}
+            onNewSession={onCreateConversation ? () => { void onCreateConversation(); if (isCompact) setNavCollapsed(true); } : undefined}
+            onSelectSession={onSelectConversation ? (id) => { onSelectConversation(id); if (isCompact) setNavCollapsed(true); } : undefined}
+            onOpenNotes={() => {
+              setRightPanelTab('notes');
+              setIsInspectorCollapsed(false);
+              if (isCompact) setNavCollapsed(true);
+              if (isContextOverlay) setIsContextCollapsed(true);
             }}
-            onDragLeave={(e) => {
-              if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsPanelDragOver(false);
-            }}
-            onDrop={(e) => {
-              e.preventDefault();
-              setIsPanelDragOver(false);
-              const files = Array.from(e.dataTransfer?.files || []);
-              if (files.length > 0) {
-                setDroppedFiles(files);
-                setIsAddSourceOpen(true);
-              }
-            }}
-          >
-            <div className="sources-action-row">
-              <button type="button" className="sources-pill-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Add sources</span>
-              </button>
-              <button type="button" className="sources-pill-btn" onClick={() => setIsCreateNoteOpen(true)} data-testid="create-note-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Create note</span>
-              </button>
-            </div>
-
-            <form className="sources-web-search" role="search" aria-label="Add a web page as a source" onSubmit={handleWebSearch}>
-              <input
-                type="search"
-                className="sources-web-input"
-                placeholder="Search the web for new sources"
-                aria-label="Search the web for new sources"
-                value={webQuery}
-                onChange={(e) => { setWebQuery(e.target.value); if (webHint) setWebHint(''); }}
-              />
-              <div className="sources-web-controls">
-                <label className="sources-select">
-                  <span className="sr-only">Where to search</span>
-                  <select defaultValue="web" aria-label="Where to search">
-                    <option value="web">Web</option>
-                  </select>
-                </label>
-                <label className="sources-select">
-                  <span className="sr-only">Research depth</span>
-                  <select defaultValue="fast" aria-label="Research depth">
-                    <option value="fast">Fast Research</option>
-                    <option value="deep" disabled>Deep Research (soon)</option>
-                  </select>
-                </label>
-                <button type="submit" className="sources-web-go" aria-label="Add this link as a source" title="Add this link as a source">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <line x1="5" y1="12" x2="19" y2="12" />
-                    <polyline points="13 6 19 12 13 18" />
-                  </svg>
-                </button>
-              </div>
-              {webHint && <p className="sources-web-hint" role="status">{webHint}</p>}
-            </form>
-
-            {sources.length === 0 ? (
-              <button
-                type="button"
-                className="sources-drop-zone"
-                onClick={() => setIsAddSourceOpen(true)}
-                data-testid="sources-drop-zone"
-              >
-                <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                <span className="sources-drop-title">Drop PDFs here or click to browse</span>
-                <span className="sources-drop-hint">PDFs, links, pasted text</span>
-              </button>
-            ) : (
-              <>
-                <div className="sources-select-row">
-                  <button
-                    type="button"
-                    className={`sources-filter-btn ${isFilterOpen ? 'active' : ''}`}
-                    aria-label="Filter sources by name"
-                    aria-pressed={isFilterOpen}
-                    title="Filter sources by name"
-                    onClick={() => { setIsFilterOpen((open) => !open); setSourceSearch(''); }}
-                  >
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-                      <line x1="4" y1="7" x2="20" y2="7" />
-                      <line x1="7" y1="12" x2="17" y2="12" />
-                      <line x1="10" y1="17" x2="14" y2="17" />
-                    </svg>
-                  </button>
-                  <label className="sources-select-all">
-                    <span>Select all</span>
-                    <input
-                      type="checkbox"
-                      ref={selectAllRef}
-                      className="source-row-checkbox"
-                      checked={allReadySelected}
-                      disabled={readySources.length === 0}
-                      onChange={() => (allReadySelected ? handleClearSources() : handleSelectAllSources())}
-                      aria-label="Select all sources"
-                    />
-                  </label>
-                </div>
-                <p className="sr-only" aria-live="polite">
-                  {selectedSourceIds.length} of {readySources.length} selected
-                </p>
-
-                {isFilterOpen && (
-                  <div className="source-search-container">
-                    <input
-                      type="text"
-                      placeholder="Filter sources..."
-                      aria-label="Filter sources by name"
-                      value={sourceSearch}
-                      onChange={(e) => setSourceSearch(e.target.value)}
-                      className="source-search-input"
-                      autoFocus
-                    />
-                  </div>
-                )}
-
-                <div className="sources-list-scroll">
-                  {filteredSources.length === 0 ? (
-                    <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
-                  ) : (
-                    <ul className="workspace-sources-ul">
-                      {filteredSources.map((s) => (
-                        <SourceRow
-                          key={s.id}
-                          source={s}
-                          isSelected={selectedSourceIds.includes(s.id)}
-                          onToggle={() => handleToggleSource(s.id)}
-                          onView={() => handleOpenSourceViewer(s)}
-                          onRename={() => {
-                            setRenamingSource(s);
-                            setNewSourceTitle(s.title);
-                          }}
-                          onRetry={() => onRetrySource(s.id)}
-                          onReplace={() => handleTriggerReplace(s.id)}
-                          onRemove={() => {
-                            if (window.confirm(`Remove source "${s.title}" from this notebook?`)) {
-                              onDeleteSource(s.id);
-                            }
-                          }}
-                        />
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-        </aside>
-          <div
-            className="sources-resize-handle"
-            role="separator"
-            aria-orientation="vertical"
-            aria-label="Resize sources panel"
-            title="Drag to resize. Double-click to reset."
-            onPointerDown={handleResizeStart}
-            onPointerMove={handleResizeMove}
-            onPointerUp={handleResizeEnd}
-            onPointerCancel={handleResizeEnd}
-            onDoubleClick={handleResizeReset}
+            onCollapse={closeNavPanel}
+            collapsed={isNavCollapsed}
           />
         </div>
 
@@ -1480,19 +1293,216 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           )}
         </section>
 
+        <div
+          className={`context-slot ${isContextCollapsed ? 'is-collapsed' : ''}`}
+        >
+        {/* --------------------------------------------------------------------
+            RIGHT: floating materials panel (sources)
+            -------------------------------------------------------------------- */}
+        <aside
+          className={`workspace-sidebar workspace-context-panel ${!isContextCollapsed ? 'sidebar-open' : ''}`}
+          id="workspace-sources-panel" aria-hidden={isContextCollapsed} ref={contextPanelRef} tabIndex={-1}
+          aria-label="Sources"
+        >
+          {/* Sidebar Tab Header */}
+          <div className="workspace-sidebar-header">
+            <h2 className="sources-panel-title">Sources</h2>
+
+            <button
+              type="button"
+              className="panel-collapse-btn panel-toggle-btn"
+              onClick={closeContextPanel}
+              title="Collapse sources panel"
+              aria-label="Collapse sources panel"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <rect x="3" y="4" width="18" height="16" rx="3.5" />
+                <line x1="9" y1="9" x2="9" y2="15" />
+              </svg>
+            </button>
+          </div>
+
+          {/* SOURCES: add / note actions, link search, selection row, then the list (or the drop zone when empty) */}
+          <div
+            className={`sidebar-tab-content sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
+            onDragOver={(e) => {
+              if (!Array.from(e.dataTransfer?.types || []).includes('Files')) return;
+              e.preventDefault();
+              setIsPanelDragOver(true);
+            }}
+            onDragLeave={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsPanelDragOver(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsPanelDragOver(false);
+              const files = Array.from(e.dataTransfer?.files || []);
+              if (files.length > 0) {
+                setDroppedFiles(files);
+                setIsAddSourceOpen(true);
+              }
+            }}
+          >
+            <div className="sources-action-row">
+              <button type="button" className="sources-pill-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Add sources</span>
+              </button>
+              <button type="button" className="sources-pill-btn" onClick={() => setIsCreateNoteOpen(true)} data-testid="create-note-btn">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" />
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+                <span>Create note</span>
+              </button>
+            </div>
+
+            <form className="sources-web-search" role="search" aria-label="Add a web page as a source" onSubmit={handleWebSearch}>
+              <input
+                type="search"
+                className="sources-web-input"
+                placeholder="Search the web for new sources"
+                aria-label="Search the web for new sources"
+                value={webQuery}
+                onChange={(e) => { setWebQuery(e.target.value); if (webHint) setWebHint(''); }}
+              />
+              <div className="sources-web-controls">
+                <label className="sources-select">
+                  <span className="sr-only">Where to search</span>
+                  <select defaultValue="web" aria-label="Where to search">
+                    <option value="web">Web</option>
+                  </select>
+                </label>
+                <label className="sources-select">
+                  <span className="sr-only">Research depth</span>
+                  <select defaultValue="fast" aria-label="Research depth">
+                    <option value="fast">Fast Research</option>
+                    <option value="deep" disabled>Deep Research (soon)</option>
+                  </select>
+                </label>
+                <button type="submit" className="sources-web-go" aria-label="Add this link as a source" title="Add this link as a source">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                    <polyline points="13 6 19 12 13 18" />
+                  </svg>
+                </button>
+              </div>
+              {webHint && <p className="sources-web-hint" role="status">{webHint}</p>}
+            </form>
+
+            {sources.length === 0 ? (
+              <button
+                type="button"
+                className="sources-drop-zone"
+                onClick={() => setIsAddSourceOpen(true)}
+                data-testid="sources-drop-zone"
+              >
+                <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" y1="3" x2="12" y2="15" />
+                </svg>
+                <span className="sources-drop-title">Drop PDFs here or click to browse</span>
+                <span className="sources-drop-hint">PDFs, links, pasted text</span>
+              </button>
+            ) : (
+              <>
+                <div className="sources-select-row">
+                  <button
+                    type="button"
+                    className={`sources-filter-btn ${isFilterOpen ? 'active' : ''}`}
+                    aria-label="Filter sources by name"
+                    aria-pressed={isFilterOpen}
+                    title="Filter sources by name"
+                    onClick={() => { setIsFilterOpen((open) => !open); setSourceSearch(''); }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+                      <line x1="4" y1="7" x2="20" y2="7" />
+                      <line x1="7" y1="12" x2="17" y2="12" />
+                      <line x1="10" y1="17" x2="14" y2="17" />
+                    </svg>
+                  </button>
+                  <label className="sources-select-all">
+                    <span>Select all</span>
+                    <input
+                      type="checkbox"
+                      ref={selectAllRef}
+                      className="source-row-checkbox"
+                      checked={allReadySelected}
+                      disabled={readySources.length === 0}
+                      onChange={() => (allReadySelected ? handleClearSources() : handleSelectAllSources())}
+                      aria-label="Select all sources"
+                    />
+                  </label>
+                </div>
+                <p className="sr-only" aria-live="polite">
+                  {selectedSourceIds.length} of {readySources.length} selected
+                </p>
+
+                {isFilterOpen && (
+                  <div className="source-search-container">
+                    <input
+                      type="text"
+                      placeholder="Filter sources..."
+                      aria-label="Filter sources by name"
+                      value={sourceSearch}
+                      onChange={(e) => setSourceSearch(e.target.value)}
+                      className="source-search-input"
+                      autoFocus
+                    />
+                  </div>
+                )}
+
+                <div className="sources-list-scroll">
+                  {filteredSources.length === 0 ? (
+                    <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
+                  ) : (
+                    <ul className="workspace-sources-ul">
+                      {filteredSources.map((s) => (
+                        <SourceRow
+                          key={s.id}
+                          source={s}
+                          isSelected={selectedSourceIds.includes(s.id)}
+                          onToggle={() => handleToggleSource(s.id)}
+                          onView={() => handleOpenSourceViewer(s)}
+                          onRename={() => {
+                            setRenamingSource(s);
+                            setNewSourceTitle(s.title);
+                          }}
+                          onRetry={() => onRetrySource(s.id)}
+                          onReplace={() => handleTriggerReplace(s.id)}
+                          onRemove={() => {
+                            if (window.confirm(`Remove source "${s.title}" from this notebook?`)) {
+                              onDeleteSource(s.id);
+                            }
+                          }}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </aside>
+        </div>
+
         {/* --------------------------------------------------------------------
             3. RIGHT CONTEXTUAL PANEL: Supporting Passage OR Saved Notes
             -------------------------------------------------------------------- */}
         <aside
-          className={`workspace-right-panel ${!isRightCollapsed ? 'right-open' : ''}`}
-          id="workspace-inspector-panel" hidden={isRightCollapsed} ref={rightPanelRef} tabIndex={-1}
+          className={`workspace-right-panel ${!isInspectorCollapsed ? 'right-open' : ''}`}
+          id="workspace-inspector-panel" hidden={isInspectorCollapsed} ref={inspectorPanelRef} tabIndex={-1}
           data-testid="passage-pane"
           aria-label="Inspector and Notes Panel"
           onKeyDown={(e) => {
             // Docked: Escape closes while focus is inside. Overlay mode handles Escape in useModalFocus.
-            if (!rightOverlayOpen && e.key === 'Escape' && !e.defaultPrevented) {
+            if (!inspectorOpen && e.key === 'Escape' && !e.defaultPrevented) {
               e.stopPropagation();
-              closeRightPanel();
+              closeInspector();
             }
           }}
         >
@@ -1561,7 +1571,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <button
                 type="button"
                 className="panel-collapse-btn"
-                onClick={closeRightPanel}
+                onClick={closeInspector}
                 title="Collapse inspector panel"
                 aria-label="Close source panel"
               >

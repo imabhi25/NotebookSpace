@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, onTestFinished } from 'vitest';
 import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { DashboardView } from './components/DashboardView';
@@ -346,6 +346,11 @@ describe('SubjectWorkspaceView component', () => {
   });
 
   it('renders sources with checkboxes and toggles selection', () => {
+    // The sources panel is docked from 1181px up; below that it is an on-demand overlay.
+    const priorWidth = window.innerWidth;
+    window.innerWidth = 1440;
+    window.localStorage.clear();
+    onTestFinished(() => { window.innerWidth = priorWidth; });
     const handleSelectSources = vi.fn();
 
     render(
