@@ -40,6 +40,7 @@ const right = () => screen.getByRole('button', { name: 'Toggle inspector panel' 
 const originalWidth = window.innerWidth;
 beforeEach(() => {
   window.innerWidth = 1440;
+  window.localStorage.clear();
   vi.spyOn(api, 'getPassages').mockResolvedValue([]);
 });
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
@@ -80,7 +81,8 @@ describe('Workspace navigation and progressive disclosure', () => {
     fireEvent.click(right());
     expect(screen.getByRole('complementary', { name: 'Inspector and Notes Panel' })).toBeVisible();
     fireEvent.click(left());
-    fireEvent.click(screen.getByRole('button', { name: 'Open sources panel' }));
+    expect(left()).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(left());
     expect(screen.getByRole('complementary', { name: 'Sources' })).toBeVisible();
   });
 

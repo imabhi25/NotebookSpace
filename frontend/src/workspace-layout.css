@@ -39,57 +39,122 @@
 .workspace-layout .workspace-body {
   container-type: inline-size;
   flex: 1; min-height: 0; min-width: 0; width: 100%; position: relative;
-  display: flex; align-items: stretch; gap: var(--space-3);
-  padding: var(--space-3); overflow: hidden;
+  display: flex; align-items: stretch; gap: 0;
+  padding: var(--space-3) 0 var(--space-3) var(--space-3); overflow: hidden;
 }
-.workspace-layout aside.workspace-sidebar,
-.workspace-layout aside.workspace-right-panel {
-  position: static; height: auto; min-height: 0; min-width: 0 !important;
-  max-width: 100%; transform: none; visibility: visible;
-  opacity: 1; pointer-events: auto; margin: 0; z-index: auto;
+
+/* ============================================================
+   Three areas: navigation (left) · study workspace · floating materials panel (right)
+   ============================================================ */
+.workspace-layout {
+  --nav-w: 240px;
+  --ctx-w: clamp(300px, 24vw, 320px);
+  --ctx-inset: var(--space-5);
+  --content-max: 800px;
 }
-/* The sources slot animates its width; the panel inside keeps its full width so its content never reflows mid-animation. */
-.workspace-layout .sources-slot {
-  /* The chosen width, held between the floor and whatever leaves the chat its minimum room. */
-  --sources-panel-shown: min(var(--sources-panel-user-width), max(var(--sources-panel-min), calc(100cqw - var(--sources-chat-min) - var(--space-6))));
-  position: relative; display: flex; flex: 0 0 auto; min-width: 0; min-height: 0; overflow: clip;
-  width: var(--sources-panel-shown);
+
+/* ---- Slots: animate width so the chat reflows smoothly; panels keep their own width inside. ---- */
+.workspace-layout .nav-slot,
+.workspace-layout .context-slot {
+  position: relative; display: flex; flex-direction: column; flex: 0 0 auto; min-width: 0; min-height: 0; overflow: clip;
   transition: width var(--motion-panel-resize) var(--motion-ease-out-cubic);
 }
-.workspace-layout .sources-slot.is-collapsed { width: var(--target-mobile); }
-.workspace-layout .sources-slot.is-resizing { transition: none; }
-.workspace-layout .sources-slot aside.workspace-sidebar {
-  width: var(--sources-panel-shown) !important; flex: 0 0 var(--sources-panel-shown);
+.workspace-layout .nav-slot { width: calc(var(--nav-w) + var(--space-3)); }
+.workspace-layout .nav-slot.is-collapsed { width: 0; }
+.workspace-layout .context-slot { width: calc(var(--ctx-w) + var(--space-3) + var(--ctx-inset)); }
+.workspace-layout .context-slot.is-collapsed { width: var(--space-3); }
+
+/* ---- Left navigation ---- */
+.workspace-layout aside.workspace-nav {
+  width: var(--nav-w); flex: 1 1 auto; min-height: 0; margin-right: var(--space-3);
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-1) var(--space-2) var(--space-2) var(--space-1);
+  background: transparent; outline: none;
   transition: opacity var(--motion-fast) var(--motion-ease), visibility 0s linear 0s;
 }
-.workspace-layout .sources-slot.is-collapsed aside.workspace-sidebar {
+.workspace-layout .nav-slot.is-collapsed aside.workspace-nav {
   opacity: 0; visibility: hidden; pointer-events: none;
   transition: opacity var(--motion-exit) var(--motion-ease), visibility 0s linear var(--motion-panel-resize);
 }
-.workspace-layout .sources-slot .workspace-sources-rail {
-  position: absolute; top: 0; left: 0; bottom: 0; opacity: 0; visibility: hidden; pointer-events: none;
-  transition: opacity var(--motion-exit) var(--motion-ease), visibility 0s linear var(--motion-exit);
+.workspace-nav-header { display: flex; align-items: center; gap: var(--space-1); }
+.workspace-nav-notebook {
+  flex: 1; min-width: 0; min-height: var(--size-44, 44px); display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3); text-align: left; cursor: pointer;
+  color: var(--color-text-primary); background: transparent; border: var(--border-width) solid transparent; border-radius: var(--radius-control);
+  transition: background-color var(--motion-fast) var(--motion-ease), transform var(--motion-press) var(--motion-ease);
 }
-.workspace-layout .sources-slot.is-collapsed .workspace-sources-rail {
-  opacity: 1; visibility: visible; pointer-events: auto;
-  transition: opacity var(--motion-panel-resize) var(--motion-ease-out-cubic) var(--motion-press), visibility 0s linear 0s;
+.workspace-nav-notebook:hover { background: var(--color-surface-hover); }
+.workspace-nav-notebook:active, .workspace-nav-row:active, .workspace-nav-new:active { transform: scale(var(--press-scale)); }
+.workspace-nav-notebook svg { width: 14px; height: 14px; flex: 0 0 auto; color: var(--color-text-muted); }
+.workspace-nav-notebook-text { min-width: 0; display: flex; flex-direction: column; }
+.workspace-nav-notebook-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-nav-notebook-code { font-size: var(--type-caption); color: var(--color-text-muted); }
+.workspace-nav-new {
+  display: flex; align-items: center; gap: var(--space-2); min-height: 40px; padding: var(--space-2) var(--space-3);
+  cursor: pointer; font-weight: 500; color: var(--color-text-primary);
+  background: var(--color-surface); border: var(--border-width) solid var(--color-border-strong); border-radius: var(--radius-control);
+  box-shadow: var(--shadow-1);
+  transition: background-color var(--motion-fast) var(--motion-ease), transform var(--motion-press) var(--motion-ease);
 }
-.sources-resize-handle {
-  position: absolute; top: 0; bottom: 0; right: 0; width: var(--resize-handle-width); z-index: 20;
-  cursor: col-resize; touch-action: none;
+.workspace-nav-new:hover:not(:disabled) { background: var(--color-surface-hover); }
+.workspace-nav-new:disabled { opacity: 0.5; cursor: not-allowed; }
+.workspace-nav-section { display: flex; flex-direction: column; min-height: 0; flex: 1 1 auto; }
+.workspace-nav-heading {
+  margin: 0 0 var(--space-1); padding: 0 var(--space-3);
+  font-size: var(--type-caption); font-weight: 600; letter-spacing: 0.02em; color: var(--color-text-muted);
 }
-.sources-slot.is-collapsed .sources-resize-handle { display: none; }
+.workspace-nav-list { list-style: none; margin: 0; padding: 0; overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 2px; }
+.workspace-nav-empty { margin: 0; padding: var(--space-2) var(--space-3); font-size: var(--type-caption); color: var(--color-text-muted); }
+.workspace-nav-row {
+  width: 100%; min-height: 36px; display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-1) var(--space-3); text-align: left; cursor: pointer;
+  color: var(--color-text-secondary, var(--color-text-primary)); background: transparent;
+  border: var(--border-width) solid transparent; border-radius: var(--radius-control);
+  transition: background-color var(--motion-fast) var(--motion-ease), transform var(--motion-press) var(--motion-ease);
+}
+.workspace-nav-row:hover { background: var(--color-surface-hover); }
+.workspace-nav-row.active { background: var(--color-surface-raised); color: var(--color-text-primary); font-weight: 600; }
+.workspace-nav-row svg { flex: 0 0 auto; color: var(--color-text-muted); }
+.workspace-nav-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-nav-count { font-size: var(--type-caption); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.workspace-nav-footer { border-top: var(--border-width) solid var(--color-border-sheet); padding-top: var(--space-2); }
+
+/* ---- Middle: readable column, composer anchored inside it ---- */
+.workspace-layout .workspace-main-area { flex: 1 1 0; min-width: 0; min-height: 0; width: auto; height: auto; }
+.workspace-layout .thread-content-max { width: 100%; min-width: 0; max-width: var(--content-max); margin-inline: auto; }
+.workspace-layout .workspace-main-area .composer-container { width: 100%; max-width: var(--content-max); margin-inline: auto; box-sizing: border-box; }
+
+/* ---- Right: floating, content-height materials panel ---- */
+.workspace-layout .context-slot aside.workspace-context-panel {
+  position: sticky; top: var(--ctx-inset); z-index: 1;
+  width: var(--ctx-w) !important; min-width: 0 !important; max-width: none;
+  height: auto; flex: 0 1 auto; min-height: 0;
+  margin: var(--ctx-inset) var(--ctx-inset) var(--ctx-inset) var(--space-3);
+  display: flex; flex-direction: column; overflow: hidden; transform: none;
+  background: var(--color-surface); border: var(--border-width) solid var(--color-border-sheet);
+  border-radius: var(--radius-xl) !important;
+  box-shadow: var(--shadow-3);
+  outline: none;
+  transition: opacity var(--motion-fast) var(--motion-ease), transform var(--motion-panel) var(--motion-ease-out-cubic), visibility 0s linear 0s;
+}
+.workspace-layout .context-slot aside.workspace-context-panel .sidebar-tab-content { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.workspace-layout .context-slot.is-collapsed aside.workspace-context-panel {
+  opacity: 0; visibility: hidden; pointer-events: none; transform: translateX(var(--space-4));
+  transition: opacity var(--motion-exit) var(--motion-ease), transform var(--motion-panel) var(--motion-ease-out-cubic), visibility 0s linear var(--motion-panel-resize);
+}
+
+/* ---- Passage inspector: an overlay at every width until the passage moves inline ---- */
+.workspace-layout .workspace-panels-overlay { position: absolute; inset: 0; z-index: 30; }
 .workspace-layout aside.workspace-right-panel {
-  width: var(--size-350) !important; flex: 0 0 var(--size-350);
+  position: absolute; top: var(--space-3); bottom: var(--space-3); right: var(--space-3); left: auto;
+  width: min(var(--size-350), calc(100% - var(--space-6))) !important; max-width: calc(100% - var(--space-6));
+  min-width: 0 !important; height: auto; flex: none; margin: 0; z-index: 43;
+  border-radius: var(--radius-lg) !important; box-shadow: var(--shadow-4);
 }
 .workspace-layout [hidden] { display: none !important; }
-.workspace-layout .workspace-main-area {
-  flex: 1; min-width: 0; min-height: 0; width: auto; height: auto;
-}
 .workspace-layout .thread-scroll-container,
 .workspace-layout .sidebar-tab-content,
 .workspace-layout .right-panel-body { min-height: 0; min-width: 0; }
-.workspace-layout .thread-content-max { width: 100%; min-width: 0; max-width: var(--reading-measure); }
 .workspace-chat-context {
   display: flex; align-items: center; flex-wrap: wrap;
   gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-6);
@@ -100,58 +165,63 @@
   overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
 }
 .workspace-chat-context .selected-sources-pill { margin-left: auto; white-space: nowrap; }
-.workspace-sources-rail {
-  width: var(--target-mobile); flex: 0 0 var(--target-mobile);
-  display: flex; flex-direction: column; align-items: center; gap: var(--space-2);
-}
 .workspace-layout .right-panel-header { flex-wrap: wrap; }
 .workspace-layout .right-header-actions { margin-left: auto; }
+/* The tab switcher takes its own row so Passage / Notes / Retrieval never overlap the citation stepper. */
+.workspace-layout .right-panel-header .sidebar-segment-switcher { flex: 1 1 100%; min-width: 0; }
 
+/* ---- Around 1024px: materials becomes an on-demand overlay; the conversation keeps its width ---- */
+@media (max-width: 1180px) {
+  .workspace-layout .context-slot { position: static; width: 0 !important; overflow: visible; }
+  .workspace-layout .workspace-body { padding-right: var(--space-3); }
+  .workspace-layout .context-slot aside.workspace-context-panel {
+    position: absolute; top: var(--space-3); right: var(--space-3); margin: 0; z-index: 41;
+    max-height: calc(100% - var(--space-6)); box-shadow: var(--shadow-4);
+  }
+}
+
+/* ---- Phone and small tablet: study workspace only; navigation is a drawer, materials a bottom sheet ---- */
 @media (max-width: 960px) {
   .workspace-layout .workspace-control-bar { gap: var(--space-2); }
   .workspace-layout .workspace-essential-actions { gap: var(--space-1); }
   .workspace-layout .workspace-back-btn span { display: inline; }
-  .workspace-layout .workspace-essential-actions .toggle-label { display: none; }
-  .workspace-layout .sources-slot { display: contents; }
-  .workspace-layout .sources-slot .workspace-sources-rail, .workspace-layout .sources-resize-handle { display: none; }
-  .workspace-layout .sources-slot.is-collapsed aside.workspace-sidebar { display: none; }
-  .workspace-layout .workspace-panels-overlay { position: absolute; inset: 0; z-index: 30; }
-  .workspace-layout aside.workspace-sidebar,
-  .workspace-layout aside.workspace-right-panel {
-    position: absolute; top: var(--space-3); bottom: var(--space-3);
-    width: min(var(--size-350), calc(100% - var(--space-6))) !important;
-    max-width: calc(100% - var(--space-6)); height: auto; flex: none;
-    border-radius: var(--radius-lg) !important; z-index: 40;
+  .workspace-layout .workspace-control-bar .toggle-label { display: none; }
+  .workspace-layout .workspace-body { padding-left: var(--space-3); }
+  .workspace-layout .nav-slot { position: static; width: 0 !important; overflow: visible; }
+  .workspace-layout aside.workspace-nav {
+    position: absolute; top: var(--space-3); bottom: var(--space-3); left: var(--space-3); margin: 0; z-index: 42;
+    width: min(300px, calc(100% - var(--space-6)));
+    padding: var(--space-3); background: var(--color-surface); border: var(--border-width) solid var(--color-border-sheet);
+    border-radius: var(--radius-lg); box-shadow: var(--shadow-4);
+    transition: opacity var(--motion-fast) var(--motion-ease), transform var(--motion-panel) var(--motion-ease-out-cubic), visibility 0s linear 0s;
   }
-  .workspace-layout aside.workspace-sidebar { left: var(--space-3); right: auto; }
-  .workspace-layout aside.workspace-right-panel { right: var(--space-3); left: auto; }
-  /* Panels are overlays here, never a split: the one opened last sits on top. */
-  .workspace-layout[data-left-open="true"][data-right-open="true"] aside.workspace-right-panel { z-index: 41; }
+  .workspace-layout .nav-slot.is-collapsed aside.workspace-nav { transform: translateX(calc(-1 * var(--space-4))); }
+  .workspace-layout .context-slot aside.workspace-context-panel {
+    top: auto; right: var(--space-2); left: var(--space-2); bottom: var(--space-2);
+    width: auto !important; max-height: min(78dvh, calc(100% - var(--space-4)));
+    border-radius: var(--radius-xl) !important;
+  }
+  .workspace-layout .context-slot.is-collapsed aside.workspace-context-panel { transform: translateY(var(--space-6)); }
 }
-
 @media (max-width: 640px) {
   .workspace-layout .workspace-control-bar { padding-inline: var(--space-3); }
   .workspace-layout .workspace-body { padding: var(--space-2); }
   .workspace-layout .workspace-chat-context { padding-inline: var(--space-4); }
-  /* Phone: each panel is a full overlay drawer. */
-  .workspace-layout aside.workspace-sidebar,
-  .workspace-layout aside.workspace-right-panel {
-    left: var(--space-2); right: var(--space-2); top: var(--space-2); bottom: var(--space-2);
-    width: auto !important; max-width: none;
-  }
+  .workspace-layout aside.workspace-right-panel { left: var(--space-2); right: var(--space-2); top: var(--space-2); bottom: var(--space-2); width: auto !important; max-width: none; }
+  .workspace-layout aside.workspace-nav { top: var(--space-2); bottom: var(--space-2); left: var(--space-2); }
 }
 
-/* Between the compact breakpoint and 1180px the evidence panel overlays the chat instead of
-   squeezing it: the chat keeps a readable width and the panel gets a scrim, like on small screens. */
-@media (min-width: 961px) and (max-width: 1180px) {
-  .workspace-layout .workspace-panels-overlay { position: absolute; inset: 0; z-index: 30; }
-  .workspace-layout aside.workspace-right-panel {
-    position: absolute; top: var(--space-3); bottom: var(--space-3); right: var(--space-3); left: auto;
-    width: min(var(--size-350), calc(100% - var(--space-6))) !important; max-width: calc(100% - var(--space-6));
-    height: auto; flex: none; border-radius: var(--radius-lg) !important; z-index: 41;
-    box-shadow: var(--shadow-4);
-  }
+/* ---- Touch: 44px rows ---- */
+@media (pointer: coarse), (max-width: 768px) {
+  .workspace-nav-row, .workspace-nav-new { min-height: var(--target-mobile); }
 }
 
-/* The tab switcher takes its own row so Passage / Notes / Retrieval never overlap the citation stepper. */
-.workspace-layout .right-panel-header .sidebar-segment-switcher { flex: 1 1 100%; min-width: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .workspace-layout .nav-slot, .workspace-layout .context-slot,
+  .workspace-layout aside.workspace-nav, .workspace-layout .context-slot aside.workspace-context-panel,
+  .workspace-nav-row, .workspace-nav-new, .workspace-nav-notebook { transition: none !important; }
+  .workspace-nav-row:active, .workspace-nav-new:active, .workspace-nav-notebook:active { transform: none; }
+}
+
+/* The materials panel collapses toward the right edge, so its collapse icon points that way. */
+.workspace-layout .context-slot .panel-collapse-btn svg { transform: scaleX(-1); }
