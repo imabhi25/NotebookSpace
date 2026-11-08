@@ -116,27 +116,27 @@ describe('Retrieval map inside the materials panel (mocked API)', () => {
     ],
   };
 
-  it('lists retrieved passages, selects one, and returns to Sources with its card, then back to Retrieval', async () => {
+  it('lists retrieved passages, selects one, and returns to the study panel with its card, then back to Retrieval', async () => {
     vi.spyOn(api, 'getRetrievalMap').mockResolvedValue(map);
     vi.spyOn(api, 'getPassages').mockResolvedValue([{ file_name: LONG, page_number: 3, chunk_index: 1, text: 'Week 12 review.' }]);
     render(view([mkSource('a', 'a.pdf'), mkSource('c', LONG)]));
     fireEvent.click(screen.getByTestId('see-retrieval-btn-m'));
     await screen.findByTestId('retrieval-map-view');
-    expect(screen.getByRole('complementary', { name: 'Retrieval' })).toBeVisible();
+    expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
     const rows = screen.getAllByTestId(/retrieved-passage-row-/);
     expect(rows).toHaveLength(2);
     fireEvent.click(screen.getByTestId('retrieved-passage-row-2'));
     expect(screen.getByTestId('retrieval-inspector')).toHaveTextContent(LONG);
     fireEvent.click(screen.getByRole('button', { name: /Show passage and source/ }));
 
-    const panel = await screen.findByRole('complementary', { name: 'Sources' });
+    const panel = await screen.findByRole('complementary', { name: 'Study panel' });
     const card = within(panel).getByTestId('selected-source-card');
     expect(card).toHaveTextContent(LONG);
     expect(within(card).getByTestId('selected-source-line')).toHaveTextContent('Page 3');
     await waitFor(() => expect(within(card).getByText('Week 12 review.')).toBeInTheDocument());
     expect(screen.queryByTestId('inline-evidence')).toBeNull();
     expect(card).toHaveFocus();
-    expect(screen.getByRole('button', { name: 'Sources', pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Notes/, pressed: true })).toBeInTheDocument();
 
     fireEvent.click(screen.getByTestId('right-panel-tab-retrieval'));
     await screen.findByTestId('retrieval-map-view');

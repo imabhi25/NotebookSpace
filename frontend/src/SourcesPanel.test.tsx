@@ -31,6 +31,7 @@ const workspace = (sources: Source[], selected: string[], onSelectSources = vi.f
     onUpdateNote={done} onDeleteNote={done} messages={[]} chatLoading={false} />
 );
 const panel = () => screen.getByRole('complementary', { name: 'Sources' });
+const study = () => screen.getByRole('complementary', { name: 'Study panel' });
 // jsdom has no PointerEvent; a MouseEvent carries the fields the resize handle reads.
 if (!(window as any).PointerEvent) {
   (window as any).PointerEvent = class extends MouseEvent {
@@ -52,7 +53,8 @@ describe('Sources panel', () => {
     expect(within(panel()).queryByText('Select all')).toBeNull();
     expect(screen.queryByText('No materials added yet.')).toBeNull();
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
-    expect(within(panel()).getByRole('button', { name: 'Create note' })).toBeInTheDocument();
+    expect(within(panel()).queryByRole('button', { name: 'Create note' })).toBeNull(); // notes live in the study panel
+    expect(within(panel()).getByRole('button', { name: /Switch notebook/ })).toBeInTheDocument();
     expect(within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' })).toBeInTheDocument();
     expect(within(panel()).queryByRole('combobox', { name: 'Where to search' })).toBeNull(); // the single-option select was removed
     expect(within(panel()).queryByRole('combobox', { name: 'Research depth' })).toBeNull(); // the disabled depth selector was removed
@@ -107,32 +109,29 @@ describe('Sources panel', () => {
     expect(bar).toHaveValue('');
   });
 
-  it('Create note opens the note dialog, and the filter button reveals a name filter', () => {
+  it('Find in sources filters the list by name; Create note lives in the study panel', () => {
     render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a']));
-    fireEvent.click(within(panel()).getByRole('button', { name: 'Create note' }));
-    expect(screen.getByRole('heading', { name: 'Create Note' })).toBeInTheDocument();
-    fireEvent.keyDown(window, { key: 'Escape' });
-
-    expect(within(panel()).queryByRole('textbox', { name: 'Filter sources by name' })).toBeNull();
-    fireEvent.click(within(panel()).getByRole('button', { name: 'Filter sources by name' }));
-    fireEvent.change(within(panel()).getByRole('textbox', { name: 'Filter sources by name' }), { target: { value: 'lect' } });
+    expect(within(panel()).getByRole('heading', { name: /In this notebook/ })).toHaveTextContent('2');
+    expect(within(panel()).getByTestId('rail-selected-count')).toHaveTextContent('1 source selected');
+    fireEvent.change(within(panel()).getByRole('searchbox', { name: 'Find in sources' }), { target: { value: 'lect' } });
     expect(within(panel()).queryByText('Syllabus.pdf')).toBeNull();
     expect(within(panel()).getByText('Lecture 7.pdf')).toBeInTheDocument();
+
+    fireEvent.click(within(study()).getByTestId('new-note-btn'));
+    expect(screen.getByRole('heading', { name: 'Create Note' })).toBeInTheDocument();
   });
 
-  it('keeps chat switching in the navigation sidebar and out of the sources panel', () => {
+  it('keeps chat switching in the study panel and out of the sources rail', () => {
     const onSelect = vi.fn();
     render(React.cloneElement(workspace([src('a', 'Syllabus.pdf')], ['a']), { onSelectConversation: onSelect }));
     expect(within(panel()).queryByText('Exam prep')).toBeNull();
     expect(within(panel()).queryByRole('button', { name: /New session/i })).toBeNull();
-    const nav = screen.getByRole('complementary', { name: 'Navigation' });
-    const rows = within(nav).getAllByRole('button').filter((b) => b.classList.contains('workspace-nav-row'));
-    expect(within(nav).getByRole('button', { name: 'Exam prep' })).toHaveAttribute('aria-current', 'true');
-    expect(within(nav).getByRole('button', { name: 'Older chat' })).not.toHaveAttribute('aria-current');
-    expect(rows.length).toBeGreaterThanOrEqual(3); // two sessions + saved notes
-    fireEvent.click(within(nav).getByRole('button', { name: 'Older chat' }));
+    fireEvent.click(within(study()).getByTestId('right-panel-tab-sessions'));
+    expect(within(study()).getByRole('button', { name: 'Exam prep' })).toHaveAttribute('aria-current', 'true');
+    expect(within(study()).getByRole('button', { name: 'Older chat' })).not.toHaveAttribute('aria-current');
+    expect(within(study()).getByTestId('nav-new-session')).toBeInTheDocument();
+    fireEvent.click(within(study()).getByRole('button', { name: 'Older chat' }));
     expect(onSelect).toHaveBeenCalledWith('c2');
-    expect(within(nav).getByTestId('nav-saved-notes')).toHaveTextContent('Saved notes');
   });
 
   it('rows have one always-present menu button and checkbox, and no separate action icons', () => {
@@ -161,18 +160,19 @@ describe('Sources panel', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('is a fixed-width floating panel with no resize handle', () => {
+  it('is a fixed-width floating study panel with no resize handle', () => {
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
     expect(screen.queryByRole('separator', { name: 'Resize sources panel' })).toBeNull();
-    expect(panel()).toHaveClass('workspace-context-panel');
-    expect(panel().closest('.context-slot')).not.toHaveClass('is-collapsed');
+    expect(study()).toHaveClass('workspace-context-panel');
+    expect(study().closest('.context-slot')).not.toHaveClass('is-collapsed');
+    expect(panel().closest('.nav-slot')).not.toHaveClass('is-collapsed');
   });
 
-  it('collapses from its own button, reopens from the top bar, and takes the hidden side out of reach', () => {
+  it('collapses the Sources rail from its own button, reopens from the top bar, and takes it out of reach', () => {
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
     const toggle = screen.getByRole('button', { name: 'Toggle sources panel' });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse sources panel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Hide sources panel' }));
     expect(screen.queryByRole('complementary', { name: 'Sources' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: 'Select Syllabus.pdf' })).toBeNull();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -181,27 +181,38 @@ describe('Sources panel', () => {
     expect(panel()).toBeInTheDocument();
   });
 
+  it('collapses the study panel from its own button and returns focus to its toggle', () => {
+    render(workspace([src('a', 'Syllabus.pdf')], ['a']));
+    const toggle = screen.getByRole('button', { name: 'Toggle study panel' });
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse study panel' }));
+    expect(screen.queryByRole('complementary', { name: 'Study panel' })).toBeNull();
+    expect(toggle).toHaveAttribute('aria-expanded', 'false');
+    expect(toggle).toHaveFocus();
+    fireEvent.click(toggle);
+    expect(study()).toBeInTheDocument();
+  });
+
   it('remembers each panel preference independently while docked', () => {
     const { unmount } = render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle study panel' }));
     expect(window.localStorage.getItem('notebookspace_context_open')).toBe('0');
     expect(window.localStorage.getItem('notebookspace_nav_open')).toBeNull();
     unmount();
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('button', { name: 'Toggle navigation' })).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle navigation' }));
+    expect(screen.getByRole('button', { name: 'Toggle study panel' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
     expect(window.localStorage.getItem('notebookspace_nav_open')).toBe('0');
-    expect(screen.queryByRole('complementary', { name: 'Navigation' })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: 'Sources' })).toBeNull();
   });
 
-  it('starts as overlays at tablet and phone widths and does not store their open state', () => {
+  it('starts the study panel as an overlay at tablet width and does not store its open state', () => {
     window.innerWidth = 1024;
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('button', { name: 'Toggle navigation' })).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
-    expect(panel()).toBeVisible();
+    expect(screen.getByRole('button', { name: 'Toggle study panel' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle study panel' }));
+    expect(study()).toBeVisible();
     expect(window.localStorage.getItem('notebookspace_context_open')).toBeNull();
   });
 

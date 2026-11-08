@@ -166,7 +166,7 @@ describe('Evidence panel', () => {
     expect(screen.queryByTestId('selected-source-card')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
     const card = await screen.findByTestId('selected-source-card');
-    const panel = screen.getByRole('complementary', { name: 'Sources' });
+    const panel = screen.getByRole('complementary', { name: 'Study panel' });
     expect(panel.contains(card)).toBe(true);
     expect(within(card).getAllByText('b.pdf').length).toBeGreaterThan(0);
     expect(within(card).getByTestId('selected-source-line')).toHaveTextContent('Page 1');
