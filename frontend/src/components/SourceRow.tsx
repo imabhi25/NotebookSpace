@@ -1,3 +1,4 @@
+import { ReferenceIcon } from './ReferenceIcon';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Source } from '../types';
@@ -124,7 +125,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
       className={`source-row ${isSelected ? 'selected' : ''} ${isMenuOpen ? 'menu-open' : ''} source-row-${s.status}`}
     >
       <span className={`source-type-badge type-${type}`} aria-hidden="true">
-        {info.badge}
+        <ReferenceIcon name="file" size={18} />
       </span>
 
       <div
