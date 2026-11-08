@@ -151,7 +151,7 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
       }}
     >
       <div className="inline-evidence-header">
-        <h3 className="inline-evidence-title">Evidence</h3>
+        <h3 className="inline-evidence-title">Evidence{index >= 0 && total > 0 ? <span className="inline-evidence-count"> {index + 1} of {total}</span> : null}</h3>
         <div className="inline-evidence-actions">
           {total > 1 && index >= 0 && (
             <div className="citation-step-controls">

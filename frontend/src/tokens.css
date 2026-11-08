@@ -8,22 +8,24 @@
 
   /* 1. Palette, light theme: crisp white surfaces on a faint cool-grey ground, soft ink, one accent (blue, hue 262).
      Every colour token here has a dark counterpart in the [data-theme="dark"] block at the end of this file. */
-  --color-desk: oklch(0.975 0.002 260);
+  --color-desk: #F5F5F7;
   --color-background: var(--color-desk);
-  --color-surface: oklch(1 0 0);
-  --color-surface-raised: oklch(0.968 0.003 260);
-  --color-surface-hover: oklch(0.945 0.004 260);
-  --color-surface-active: oklch(0.918 0.005 260);
-  --color-border: oklch(0.905 0.004 260);
-  --color-border-strong: oklch(0.81 0.006 260);
-  --color-border-sheet: oklch(0.25 0.01 260 / 0.11);
-  --color-text-primary: oklch(0.22 0.008 260);
-  --color-text-secondary: oklch(0.41 0.008 260);
-  --color-text-muted: oklch(0.47 0.008 260);
-  --color-on-accent: oklch(0.99 0.004 262);
-  --color-accent: oklch(0.45 0.125 262);
-  --color-accent-hover: oklch(0.39 0.125 262);
-  --color-accent-bright: oklch(0.52 0.13 262);
+  --color-surface: #FFFFFF;
+  --color-surface-raised: #F7F7F9;
+  --color-surface-hover: #EEEEF1;
+  --color-surface-active: #E4E4E8;
+  --color-border: #E4E4E8;
+  --color-border-strong: #C9CBD1;
+  --color-border-sheet: #E4E4E8;
+  --color-text-primary: #1D1D1F;
+  --color-text-secondary: #686D73;
+  --color-text-muted: #686D73;
+  --color-on-accent: #FFFFFF;
+  --color-accent: #345D88;
+  --color-accent-hover: #284A6D;
+  --color-accent-bright: #3F6C9C;
+  /* Evidence highlight: the retrieved passage, never a sentence. */
+  --color-evidence: #EEF4FA;
   --color-accent-soft: color-mix(in oklab, var(--color-accent) 8%, var(--color-surface));
   --color-accent-soft-strong: color-mix(in oklab, var(--color-accent) 14%, var(--color-surface));
   --color-accent-border: color-mix(in oklab, var(--color-accent) 32%, var(--color-surface));
@@ -52,7 +54,7 @@
   --tone-4: color-mix(in oklab, var(--color-danger-border) 34%, var(--color-surface));
   --tone-5: color-mix(in oklab, var(--color-marker-edge) 30%, var(--color-surface));
   --tone-6: var(--color-surface-active);
-  --theme-color: oklch(0.975 0.002 260);
+  --theme-color: #F5F5F7;
 
   /* Type: locally available SF Pro, with platform system sans-serif fallbacks. */
   --font-family-ui: "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -322,21 +324,22 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
 
-  --color-desk: oklch(0.165 0.004 260);
-  --color-surface: oklch(0.212 0.005 260);
-  --color-surface-raised: oklch(0.245 0.006 260);
-  --color-surface-hover: oklch(0.28 0.007 260);
-  --color-surface-active: oklch(0.32 0.008 260);
-  --color-border: oklch(0.3 0.007 260);
-  --color-border-strong: oklch(0.43 0.009 260);
-  --color-border-sheet: oklch(1 0 0 / 0.09);
-  --color-text-primary: oklch(0.93 0.004 260);
-  --color-text-secondary: oklch(0.76 0.006 260);
-  --color-text-muted: oklch(0.7 0.007 260);
-  --color-on-accent: oklch(0.18 0.03 262);
-  --color-accent: oklch(0.77 0.105 262);
-  --color-accent-hover: oklch(0.83 0.085 262);
-  --color-accent-bright: oklch(0.81 0.095 262);
+  --color-desk: #0F1012;
+  --color-surface: #1A1B1E;
+  --color-surface-raised: #202125;
+  --color-surface-hover: #2A2B30;
+  --color-surface-active: #34363B;
+  --color-border: #2E3036;
+  --color-border-strong: #484B53;
+  --color-border-sheet: #2E3036;
+  --color-text-primary: #F5F5F7;
+  --color-text-secondary: #A5AAB1;
+  --color-text-muted: #A5AAB1;
+  --color-on-accent: #0F1012;
+  --color-accent: #8FB4DC;
+  --color-accent-hover: #A9C7E8;
+  --color-accent-bright: #9CBFE4;
+  --color-evidence: #1E2A38;
   --color-overlay: oklch(0 0 0 / 0.62);
   --color-highlight-top: oklch(1 0 0 / 0.05);
   --color-highlight-soft: oklch(1 0 0 / 0.3);
@@ -358,7 +361,7 @@
   --tone-4: color-mix(in oklab, var(--color-danger-border) 55%, var(--color-surface-raised));
   --tone-5: color-mix(in oklab, var(--color-marker-edge) 45%, var(--color-surface-raised));
   --tone-6: var(--color-surface-active);
-  --theme-color: oklch(0.165 0.004 260);
+  --theme-color: #0F1012;
 
   --shadow-ink: oklch(0 0 0);
   --shadow-accent-ink: oklch(0 0 0);

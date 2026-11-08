@@ -435,7 +435,7 @@ describe('SubjectWorkspaceView component', () => {
     );
 
     expect(screen.getByText(/What is the grading policy\?/i)).toBeInTheDocument();
-    const citationChip = screen.getByRole('button', { name: /Syllabus\.pdf p\.2/i });
+    const citationChip = screen.getByRole('button', { name: /^Citation 1: Syllabus\.pdf, page 2/i });
     expect(citationChip).toBeInTheDocument();
 
     fireEvent.click(citationChip);
@@ -488,7 +488,7 @@ describe('SubjectWorkspaceView component', () => {
 
     const seeRetrievalBtn = screen.getByTestId('see-retrieval-btn-msg-2');
     expect(seeRetrievalBtn).toBeInTheDocument();
-    expect(seeRetrievalBtn).toHaveAccessibleName('See retrieval');
+    expect(seeRetrievalBtn).toHaveAccessibleName('Retrieval details');
   });
 
   it('hides See retrieval link when abstained with no retrieved passages, but shows when passages exist', () => {

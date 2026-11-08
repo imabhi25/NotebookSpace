@@ -574,7 +574,7 @@ describe('NotebookSpace UI', () => {
     expect(screen.getByRole('button', { name: 'Do the syllabi disagree?' })).toBeInTheDocument();
     expect(screen.getAllByText('NotebookSpace').length).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getByText('NotebookSpace answers questions with verified citations from uploaded materials.')
+      screen.getByText('Answers cite pages from your materials. Check the passage before relying on it.')
     ).toBeInTheDocument();
     expect(
       screen.getByText('Independent student project, not affiliated with Google.')
@@ -588,7 +588,7 @@ describe('NotebookSpace UI', () => {
     expect(screen.getByText('NotebookSpace', { selector: '.brand-title' })).toBeInTheDocument();
     expect(screen.getAllByText('N').length).toBeGreaterThanOrEqual(1);
     expect(
-      screen.getByText('NotebookSpace answers questions with verified citations from uploaded materials.')
+      screen.getByText('Answers cite pages from your materials. Check the passage before relying on it.')
     ).toBeInTheDocument();
     expect(
       screen.getByText('Independent student project, not affiliated with Google.')

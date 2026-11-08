@@ -50,7 +50,7 @@ describe('Evidence panel', () => {
       { file_name: 'a.pdf', page_number: 2, chunk_index: 1, text: chunk },
     ]);
     render(view());
-    fireEvent.click(screen.getByTestId('citation-chip-0'));
+    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
     const pane = await screen.findByTestId('inline-evidence');
     await waitFor(() => expect(within(pane).getByText(chunk)).toBeInTheDocument());
     expect(within(pane).getAllByText('Retrieved for this answer')).toHaveLength(1);
@@ -60,15 +60,17 @@ describe('Evidence panel', () => {
     expect(within(pane).getByText(/Citations point to a page, not a sentence/)).toBeInTheDocument();
   });
 
-  it('exposes citation chips as pressed toggles that control the evidence under the answer', async () => {
+  it('exposes citation markers as pressed toggles, and the Evidence button controls the evidence under the answer', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view());
-    const chip = screen.getByTestId('citation-chip-0');
+    const chip = screen.getByRole('button', { name: /^Citation 1:/ });
     expect(chip).toHaveAttribute('aria-pressed', 'false');
-    expect(chip).not.toHaveAttribute('aria-controls');
+    const evidenceBtn = screen.getByRole('button', { name: /^Evidence, 2 cited passages/ });
+    expect(evidenceBtn).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(chip);
-    await waitFor(() => expect(screen.getByTestId('citation-chip-0')).toHaveAttribute('aria-pressed', 'true'));
-    expect(screen.getByTestId('citation-chip-0')).toHaveAttribute('aria-controls', screen.getByTestId('inline-evidence').id);
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.getByRole('button', { name: /^Evidence, 2 cited passages/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: /^Evidence, 2 cited passages/ })).toHaveAttribute('aria-controls', screen.getByTestId('inline-evidence').id);
   });
 
   it('lets keyboard users open a conflict claim with Enter and Space', async () => {
@@ -87,8 +89,8 @@ describe('Evidence panel', () => {
     vi.spyOn(api, 'getPassages').mockImplementation((file: string) =>
       file === 'a.pdf' ? pendingA : Promise.resolve([{ file_name: 'b.pdf', page_number: 1, chunk_index: 0, text: 'B text' }]));
     render(view());
-    fireEvent.click(screen.getByTestId('citation-chip-0'));
-    fireEvent.click(screen.getByTestId('citation-chip-1'));
+    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
+    fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
     await waitFor(() => expect(screen.getByText('B text')).toBeInTheDocument());
     releaseA([{ file_name: 'a.pdf', page_number: 2, chunk_index: 0, text: 'Stale A text' }]);
     await new Promise((r) => setTimeout(r, 20));
@@ -98,14 +100,13 @@ describe('Evidence panel', () => {
   it('shows the evidence directly beneath its answer, with real file, page and passage text', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([{ file_name: 'a.pdf', page_number: 2, chunk_index: 1, text: chunk }]);
     render(view());
-    fireEvent.click(screen.getByTestId('citation-chip-0'));
+    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
     const evidence = await screen.findByTestId('inline-evidence');
     const answer = screen.getByTestId('answer-view');
     expect(answer.contains(evidence)).toBe(true);
-    const chips = answer.querySelector('.chips-row')!;
     const actions = answer.querySelector('.answer-action-toolbar')!;
-    expect(chips.compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(evidence.compareDocumentPosition(actions) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(answer.querySelector('.chips-row')).toBeNull(); // no separate chip row: markers and the Evidence button reach every passage
+    expect(actions.compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // actions first, evidence beneath
     expect(evidence.querySelector('.passage-doc-title')).toHaveTextContent('a.pdf');
     expect(within(evidence).getByText('Page 2')).toBeInTheDocument();
     await waitFor(() => expect(within(evidence).getByText(chunk)).toBeInTheDocument());
@@ -117,23 +118,23 @@ describe('Evidence panel', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       render(view());
-      const chip = screen.getByTestId('citation-chip-0');
+      const chip = screen.getByRole('button', { name: /^Citation 1:/ });
       chip.focus();
       fireEvent.click(chip);
       await screen.findByTestId('inline-evidence');
       fireEvent.click(screen.getByRole('button', { name: 'Close evidence' }));
       vi.advanceTimersByTime(10);
       expect(screen.queryByTestId('inline-evidence')).toBeNull();
-      expect(screen.getByTestId('citation-chip-0')).toHaveFocus();
+      expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveFocus();
 
-      const chip1 = screen.getByTestId('citation-chip-1');
+      const chip1 = screen.getByRole('button', { name: /^Citation 2:/ });
       chip1.focus();
       fireEvent.click(chip1);
       const evidence = await screen.findByTestId('inline-evidence');
       fireEvent.keyDown(evidence, { key: 'Escape' });
       vi.advanceTimersByTime(10);
       expect(screen.queryByTestId('inline-evidence')).toBeNull();
-      expect(screen.getByTestId('citation-chip-1')).toHaveFocus();
+      expect(screen.getByRole('button', { name: /^Citation 2:/ })).toHaveFocus();
     } finally {
       vi.useRealTimers();
     }
@@ -144,7 +145,7 @@ describe('Evidence panel', () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       render(view());
-      const chip = screen.getByTestId('citation-chip-0');
+      const chip = screen.getByRole('button', { name: /^Citation 1:/ });
       chip.focus();
       fireEvent.click(chip);
       const evidence = await screen.findByTestId('inline-evidence');
@@ -153,7 +154,7 @@ describe('Evidence panel', () => {
       await waitFor(() => expect(within(screen.getByTestId('inline-evidence')).getByText('2/2')).toBeInTheDocument());
       fireEvent.click(screen.getByRole('button', { name: 'Close evidence' }));
       vi.advanceTimersByTime(10);
-      expect(screen.getByTestId('citation-chip-0')).toHaveFocus();
+      expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveFocus();
     } finally {
       vi.useRealTimers();
     }
@@ -163,13 +164,13 @@ describe('Evidence panel', () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view());
     expect(screen.queryByTestId('selected-source-card')).toBeNull();
-    fireEvent.click(screen.getByTestId('citation-chip-1'));
+    fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
     const card = await screen.findByTestId('selected-source-card');
     const panel = screen.getByRole('complementary', { name: 'Sources' });
     expect(panel.contains(card)).toBe(true);
     expect(within(card).getAllByText('b.pdf').length).toBeGreaterThan(0);
-    expect(within(card).getByText('Cited page')).toBeInTheDocument();
-    expect(within(card).getByText('v1')).toBeInTheDocument();
+    expect(within(card).getByTestId('selected-source-line')).toHaveTextContent('Page 1');
+    expect(within(card).getByTestId('selected-source-line')).toHaveTextContent('v1');
     expect(within(card).queryByTestId('passage-content')).toBeNull(); // passage is inline, not duplicated
     expect(screen.getAllByTestId('passage-content')).toHaveLength(1);
     fireEvent.click(within(card).getByRole('button', { name: 'Clear' }));
