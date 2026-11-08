@@ -22,6 +22,7 @@ import { useMediaQuery } from '../viewport';
 import { RetrievalMapView } from './RetrievalMapView';
 import { WorkspaceNav } from './WorkspaceNav';
 import { EvidenceBody, InlineEvidence } from './EvidenceBody';
+import { abstainCopy } from '../abstain';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
@@ -1011,88 +1012,66 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                           <div className="assistant-message">
                             {/* 1. Abstention / Not Found view */}
                             {msg.abstained || msg.abstain_reason === 'generation_failed' ? (
-                              <div
-                                className={`card-not-found ${
-                                  msg.abstain_reason === 'generation_failed' ? 'card-generation-failed' : ''
-                                } ${msg.abstain_reason === 'stopped' ? 'card-generation-stopped' : ''}`}
-                                data-testid="abstained-view"
-                              >
-                                <div
-                                  className={`not-found-badge ${
-                                    msg.abstain_reason === 'generation_failed' ? 'badge-failed' : ''
-                                  } ${msg.abstain_reason === 'stopped' ? 'badge-stopped' : ''}`}
-                                >
-                                  {msg.abstain_reason === 'generation_failed'
-                                    ? 'GENERATION FAILED'
-                                    : msg.abstain_reason === 'stopped'
-                                    ? 'STOPPED'
-                                    : 'NOT FOUND IN YOUR DOCUMENTS'}
-                                </div>
-                                <div className="abstain-reason">{msg.content}</div>
-
-                                {/* Retry Action Toolbar */}
-                                <div className="answer-action-toolbar">
-                                  <button
-                                    type="button"
-                                    className="answer-action-btn"
-                                    onClick={() => {
-                                      const msgIdx = messages.findIndex((m) => m.id === msg.id);
-                                      const prevUser = [...messages.slice(0, msgIdx)]
-                                        .reverse()
-                                        .find((m) => m.role === 'user');
-                                      if (prevUser) {
-                                        onSendMessage(prevUser.content, {
-                                          is_retry: true,
-                                          retry_message_id: msg.id,
-                                        });
-                                      }
-                                    }}
-                                    title="Retry question with current sources"
-                                    aria-label="Retry question"
-                                    data-testid={`retry-btn-${msg.id}`}
+                              (() => {
+                                const copy = abstainCopy(msg, selectedSourceIds.length);
+                                return (
+                                  <div
+                                    className={`answer-notice ${copy.tone === 'error' ? 'answer-notice-error' : ''}`}
+                                    data-testid="abstained-view"
+                                    role={copy.tone === 'error' ? 'alert' : 'status'}
                                   >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="1 4 1 10 7 10" />
-                                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                    <svg className="answer-notice-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                      <circle cx="12" cy="12" r="9" />
+                                      <line x1="12" y1="8" x2="12" y2="12.5" />
+                                      <line x1="12" y1="16" x2="12.01" y2="16" />
                                     </svg>
-                                    <span>Retry</span>
-                                  </button>
-                                  {msg.retrieved && msg.retrieved.length > 0 && (
-                                    <button
-                                      type="button"
-                                      className="answer-action-btn"
-                                      onClick={() => handleSeeRetrieval(msg.id)}
-                                      title="Retrieval details"
-                                      aria-label="Retrieval details"
-                                      data-testid={`see-retrieval-btn-${msg.id}`}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                        <circle cx="11" cy="11" r="8" />
-                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                      </svg>
-                                      <span>Retrieval details</span>
-                                    </button>
-                                  )}
-                                </div>
-
-                                {msg.retrieved && msg.retrieved.length > 0 && (
-                                  <div className="related-passages-section">
-                                    <h4 className="related-passages-title">Passages checked</h4>
-                                    <ul className="related-passages-list">
-                                      {msg.retrieved.map((r, rIdx) => (
-                                        <li key={rIdx} className="related-passage-item">
-                                          <span>
-                                            {r.title || r.file_name} (Page {r.page || r.page_number})
-                                          </span>
-                                          <span className="related-score">
-                                            Score: {r.score?.toFixed(3)}
-                                          </span>
-                                        </li>
-                                      ))}
-                                    </ul>
+                                    <div className="answer-notice-main">
+                                      <h3 className="answer-notice-title">{copy.title}</h3>
+                                      <p className="answer-notice-body">{copy.body}</p>
+                                      {copy.hint && <p className="answer-notice-hint">{copy.hint}</p>}
+                                      <div className="answer-notice-actions">
+                                        <button
+                                          type="button"
+                                          className="answer-notice-btn answer-notice-primary"
+                                          onClick={() => {
+                                            const msgIdx = messages.findIndex((m) => m.id === msg.id);
+                                            const prevUser = [...messages.slice(0, msgIdx)].reverse().find((m) => m.role === 'user');
+                                            if (prevUser) {
+                                              onSendMessage(prevUser.content, { is_retry: true, retry_message_id: msg.id });
+                                            }
+                                          }}
+                                          title="Retry question with current sources"
+                                          aria-label="Retry question"
+                                          data-testid={`retry-btn-${msg.id}`}
+                                        >
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                            <polyline points="1 4 1 10 7 10" />
+                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                          </svg>
+                                          <span>Retry</span>
+                                        </button>
+                                        {copy.tone !== 'error' && msg.abstain_reason !== 'stopped' && (
+                                          <button type="button" className="answer-notice-btn" onClick={() => openContext('sources')} data-testid={`choose-materials-btn-${msg.id}`}>
+                                            Choose materials
+                                          </button>
+                                        )}
+                                        {msg.retrieved && msg.retrieved.length > 0 && (
+                                          <button
+                                            type="button"
+                                            className="answer-notice-btn"
+                                            onClick={() => handleSeeRetrieval(msg.id)}
+                                            title="Retrieval details"
+                                            aria-label="Retrieval details"
+                                            data-testid={`see-retrieval-btn-${msg.id}`}
+                                          >
+                                            Retrieval details
+                                          </button>
+                                        )}
+                                      </div>
+                                    </div>
                                   </div>
-                                )}
-                              </div>
+                                );
+                              })()
                             ) : (
                               <div className="answer-view-container" data-testid="answer-view">
                                 {/* Earlier source version warning */}
@@ -1292,7 +1271,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               </div>
                             )}
 
-                            {/* Status Strip */}
+                            {/* Status Strip (answers only) */}
+                            {!(msg.abstained || msg.abstain_reason === 'generation_failed') && (
                             <div className="status-strip" data-testid="status-strip">
                               {typeof msg.latency === 'number' && (
                                 <div className="status-strip-item">
@@ -1310,6 +1290,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 </div>
                               )}
                             </div>
+                            )}
                           </div>
                         )}
                       </div>
@@ -1386,7 +1367,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         >
           {/* Sidebar Tab Header */}
           <div className="workspace-sidebar-header">
-            <h2 className="sources-panel-title">{contextView === 'notes' ? 'Saved notes' : contextView === 'retrieval' ? 'Retrieval' : 'Sources'}</h2>
+            <h2 className="sources-panel-title sr-only">{contextView === 'notes' ? 'Saved notes' : contextView === 'retrieval' ? 'Retrieval' : 'Sources'}</h2>
+
+            <div className="context-view-switcher sidebar-segment-switcher" role="group" aria-label="Panel view">
+              <button type="button" className={`segment-btn ${contextView === 'sources' ? 'active' : ''}`}
+                aria-pressed={contextView === 'sources'} onClick={() => setContextView('sources')}>Sources</button>
+              <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`}
+                aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
+              <button type="button" className={`segment-btn ${contextView === 'retrieval' ? 'active' : ''}`}
+                aria-pressed={contextView === 'retrieval'} onClick={() => setContextView('retrieval')}
+                data-testid="right-panel-tab-retrieval">Retrieval</button>
+            </div>
 
             <button
               type="button"
@@ -1400,16 +1391,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 <line x1="9" y1="9" x2="9" y2="15" />
               </svg>
             </button>
-          </div>
-
-          <div className="context-view-switcher sidebar-segment-switcher" role="group" aria-label="Panel view">
-            <button type="button" className={`segment-btn ${contextView === 'sources' ? 'active' : ''}`}
-              aria-pressed={contextView === 'sources'} onClick={() => setContextView('sources')}>Sources</button>
-            <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`}
-              aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
-            <button type="button" className={`segment-btn ${contextView === 'retrieval' ? 'active' : ''}`}
-              aria-pressed={contextView === 'retrieval'} onClick={() => setContextView('retrieval')}
-              data-testid="right-panel-tab-retrieval">Retrieval</button>
           </div>
 
           {/* SOURCES: add / note actions, link search, selection row, then the list (or the drop zone when empty) */}
@@ -1506,12 +1487,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 onChange={(e) => { setWebQuery(e.target.value); if (webHint) setWebHint(''); }}
               />
               <div className="sources-web-controls">
-                <label className="sources-select">
-                  <span className="sr-only">Where to search</span>
-                  <select defaultValue="web" aria-label="Where to search">
-                    <option value="web">Web</option>
-                  </select>
-                </label>
                 <button type="submit" className="sources-web-go" aria-label="Add this link as a source" title="Add this link as a source">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <line x1="5" y1="12" x2="19" y2="12" />
