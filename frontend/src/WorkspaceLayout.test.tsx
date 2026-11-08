@@ -89,7 +89,7 @@ describe('Workspace navigation and progressive disclosure', () => {
     window.innerWidth = width;
     render(workspace());
     const sourcesWasOpen = sourcesToggle().getAttribute('aria-expanded');
-    fireEvent.click(screen.getByRole('button', { name: 'Citation: lecture.pdf page 1' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Citation 1: lecture.pdf, page 1' }));
     await waitFor(() => expect(api.getPassages).toHaveBeenCalledWith('lecture.pdf', 1, subject.id, 'source'));
     const evidence = screen.getByTestId('inline-evidence');
     expect(evidence).toBeVisible();

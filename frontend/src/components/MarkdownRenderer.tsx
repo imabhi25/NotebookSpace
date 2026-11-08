@@ -9,6 +9,8 @@ interface MarkdownRendererProps {
   isThisMessageSelected?: boolean;
   selectedCitation?: { file: string; page: number; messageId?: string } | null;
   onSelectCitation?: (cit: Citation) => void;
+  /** Marks a citation whose source has been replaced or removed, so the marker can say so. */
+  citationState?: (cit: Citation) => 'replaced' | 'removed' | undefined;
 }
 
 /**
@@ -187,7 +189,8 @@ export function renderTextWithCitations(
   citations?: Citation[],
   isThisMessageSelected: boolean = false,
   selectedCitation?: { file: string; page: number; messageId?: string } | null,
-  onSelectCitation?: (cit: Citation) => void
+  onSelectCitation?: (cit: Citation) => void,
+  citationState?: (cit: Citation) => 'replaced' | 'removed' | undefined
 ): React.ReactNode {
   if (!text) return null;
 
@@ -211,12 +214,13 @@ export function renderTextWithCitations(
 
     // Match citation against available validated citations
     const availableCitations = citations || [];
-    const matchedCitation = availableCitations.find((c) => {
+    const listIndex = availableCitations.findIndex((c) => {
       const citFileNorm = normalizeFileName(c.file);
       const citTitleNorm = normalizeFileName(c.title || c.file);
       const targetNorm = normalizeFileName(file);
       return (citFileNorm === targetNorm || citTitleNorm === targetNorm) && c.page === page;
-    }) || (onSelectCitation ? { file, page } : undefined);
+    });
+    const matchedCitation = (listIndex >= 0 ? availableCitations[listIndex] : undefined) || (onSelectCitation ? { file, page } : undefined);
 
     if (matchedCitation && onSelectCitation) {
       const isActive =
@@ -224,18 +228,36 @@ export function renderTextWithCitations(
         normalizeFileName(selectedCitation?.file) === normalizeFileName(matchedCitation.file) &&
         selectedCitation?.page === matchedCitation.page;
 
-      elements.push(
-        <button
-          key={`cit-${matchStart}`}
-          type="button"
-          className={`inline-citation-btn ${isActive ? 'active' : ''}`}
-          onClick={() => onSelectCitation(matchedCitation)}
-          data-testid="inline-citation"
-          aria-label={`Citation: ${matchedCitation.file} page ${matchedCitation.page}`}
-        >
-          {rawMatchedText}
-        </button>
-      );
+      if (listIndex >= 0) {
+        // A citation the answer actually carries: a numbered marker that matches "Evidence n of N".
+        const state = citationState?.(matchedCitation);
+        elements.push(
+          <button
+            key={`cit-${matchStart}`}
+            type="button"
+            className={`citation-marker ${state ?? ''} ${isActive ? 'active' : ''}`}
+            onClick={() => onSelectCitation(matchedCitation)}
+            data-testid="inline-citation"
+            aria-pressed={isActive}
+            aria-label={`Citation ${listIndex + 1}: ${matchedCitation.file}, page ${matchedCitation.page}${state ? `, ${state} source` : ''}`}
+          >
+            {listIndex + 1}
+          </button>
+        );
+      } else {
+        elements.push(
+          <button
+            key={`cit-${matchStart}`}
+            type="button"
+            className={`inline-citation-btn ${isActive ? 'active' : ''}`}
+            onClick={() => onSelectCitation(matchedCitation)}
+            data-testid="inline-citation"
+            aria-label={`Citation: ${matchedCitation.file} page ${matchedCitation.page}`}
+          >
+            {rawMatchedText}
+          </button>
+        );
+      }
     } else {
       elements.push(...renderMath(rawMatchedText));
     }
@@ -260,6 +282,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
   isThisMessageSelected = false,
   selectedCitation,
   onSelectCitation,
+  citationState,
 }) => {
   if (!content) return null;
 
@@ -299,7 +322,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     if (line.startsWith('# ')) {
       blocks.push(
         <h2 key={`h1-${i}`} className="md-heading-1">
-          {renderTextWithCitations(line.slice(2), citations, isThisMessageSelected, selectedCitation, onSelectCitation)}
+          {renderTextWithCitations(line.slice(2), citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}
         </h2>
       );
       continue;
@@ -307,7 +330,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     if (line.startsWith('## ')) {
       blocks.push(
         <h3 key={`h2-${i}`} className="md-heading-2">
-          {renderTextWithCitations(line.slice(3), citations, isThisMessageSelected, selectedCitation, onSelectCitation)}
+          {renderTextWithCitations(line.slice(3), citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}
         </h3>
       );
       continue;
@@ -315,7 +338,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     if (line.startsWith('### ')) {
       blocks.push(
         <h4 key={`h3-${i}`} className="md-heading-3">
-          {renderTextWithCitations(line.slice(4), citations, isThisMessageSelected, selectedCitation, onSelectCitation)}
+          {renderTextWithCitations(line.slice(4), citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}
         </h4>
       );
       continue;
@@ -325,7 +348,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     if (line.startsWith('- ') || line.startsWith('* ')) {
       blocks.push(
         <li key={`li-${i}`} className="md-list-item">
-          {renderTextWithCitations(line.slice(2), citations, isThisMessageSelected, selectedCitation, onSelectCitation)}
+          {renderTextWithCitations(line.slice(2), citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}
         </li>
       );
       continue;
@@ -338,7 +361,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
         <div key={`num-${i}`} className="md-numbered-item">
           <span className="md-num-badge">{numMatch[1]}.</span>
           <span>
-            {renderTextWithCitations(numMatch[2], citations, isThisMessageSelected, selectedCitation, onSelectCitation)}
+            {renderTextWithCitations(numMatch[2], citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}
           </span>
         </div>
       );
@@ -362,7 +385,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
               <thead>
                 <tr>
                   {headerRow.map((cell, cIdx) => (
-                    <th key={cIdx}>{renderTextWithCitations(cell, citations, isThisMessageSelected, selectedCitation, onSelectCitation)}</th>
+                    <th key={cIdx}>{renderTextWithCitations(cell, citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}</th>
                   ))}
                 </tr>
               </thead>
@@ -372,7 +395,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
                   return (
                     <tr key={rIdx}>
                       {cells.map((cell, cIdx) => (
-                        <td key={cIdx}>{renderTextWithCitations(cell, citations, isThisMessageSelected, selectedCitation, onSelectCitation)}</td>
+                        <td key={cIdx}>{renderTextWithCitations(cell, citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}</td>
                       ))}
                     </tr>
                   );
@@ -394,7 +417,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     // Paragraph
     blocks.push(
       <p key={`p-${i}`} className="md-paragraph">
-        {renderTextWithCitations(line, citations, isThisMessageSelected, selectedCitation, onSelectCitation)}
+        {renderTextWithCitations(line, citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}
       </p>
     );
   }

@@ -26,7 +26,7 @@ import { EvidenceBody, InlineEvidence } from './EvidenceBody';
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
-import { Composer } from './Composer';
+import { Composer, ComposerScope } from './Composer';
 
 const NAV_PREF_KEY = 'notebookspace_nav_open';
 const CONTEXT_PREF_KEY = 'notebookspace_context_open';
@@ -36,6 +36,21 @@ function readPanelPref(key: string): boolean {
     return stored === null ? true : stored === '1';
   } catch {
     return true;
+  }
+}
+function readDraft(key: string): string {
+  try {
+    return window.sessionStorage.getItem(key) ?? '';
+  } catch {
+    return '';
+  }
+}
+function writeDraft(key: string, value: string): void {
+  try {
+    if (value) window.sessionStorage.setItem(key, value);
+    else window.sessionStorage.removeItem(key);
+  } catch {
+    /* storage unavailable: the draft lives in memory only */
   }
 }
 function writePanelPref(key: string, open: boolean): void {
@@ -348,7 +363,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [passageLoading, setPassageLoading] = useState(false);
 
   // Composer & Turn Feedback
-  const [question, setQuestion] = useState('');
+  // The draft question is kept per notebook and session, so switching, reloading or a failed send never loses it.
+  const draftKey = `notebookspace_draft_${subject.id}_${activeConversationId || 'new'}`;
+  const draftKeyRef = useRef(draftKey);
+  const [question, setQuestionState] = useState(() => readDraft(draftKey));
+  const setQuestion = (value: string) => {
+    setQuestionState(value);
+    writeDraft(draftKeyRef.current, value);
+  };
+  useEffect(() => {
+    if (draftKeyRef.current === draftKey) return;
+    draftKeyRef.current = draftKey;
+    setQuestionState(readDraft(draftKey));
+  }, [draftKey]);
   const [copiedMsgId, setCopiedMsgId] = useState<string | null>(null);
   const [savedNoteMsgId, setSavedNoteMsgId] = useState<string | null>(null);
   const [savingNoteMsgId, setSavingNoteMsgId] = useState<string | null>(null);
@@ -688,6 +715,23 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
   };
 
+  const composerScope: ComposerScope = {
+    sources,
+    selectedSourceIds,
+    onToggleSource: (id) => handleToggleSource(id),
+    onSelectAllReady: () => handleSelectAllSources(),
+    onClearSources: () => handleClearSources(),
+    onOpenMaterials: () => openContext('sources'),
+  };
+
+  // Whether a cited source has since been removed or replaced, so its marker can say so.
+  const citationStateOf = (c: Citation): 'replaced' | 'removed' | undefined => {
+    if (!c.source_id) return undefined;
+    const src = sources.find((x) => x.id === c.source_id);
+    if (!src) return 'removed';
+    return typeof c.source_version === 'number' && src.version !== c.source_version ? 'replaced' : undefined;
+  };
+
   const handleSeeRetrieval = (messageId: string) => {
     setSelectedRetrievalMessageId(messageId);
     openContext('retrieval');
@@ -832,11 +876,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             2. CENTER CHAT AREA: ChatGPT / Claude Reading Experience
             -------------------------------------------------------------------- */}
         <section className="workspace-main-area" aria-label="Chat" ref={chatAreaRef} tabIndex={-1} data-focus-fallback>
-          <div className="workspace-chat-context">
-            <span className="selected-sources-pill" data-testid="selected-sources-pill">
-              {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
-            </span>
-          </div>
           {/* Conversation Thread */}
           {historyLoading ? (
             <div className="empty-state-scroll-container" role="status" aria-live="polite" aria-label="Loading conversation history" data-testid="chat-history-loading">
@@ -952,7 +991,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   }}
                   loading={chatLoading}
                   onStop={handleSafeStopGeneration}
-                  selectedSourceCount={selectedSourceIds.length}
+                  scope={composerScope}
+                  placeholder="Ask about your selected materials"
                 />
               </div>
             </div>
@@ -1022,15 +1062,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                       type="button"
                                       className="answer-action-btn"
                                       onClick={() => handleSeeRetrieval(msg.id)}
-                                      title="See retrieval"
-                                      aria-label="See retrieval"
+                                      title="Retrieval details"
+                                      aria-label="Retrieval details"
                                       data-testid={`see-retrieval-btn-${msg.id}`}
                                     >
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                                         <circle cx="11" cy="11" r="8" />
                                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                       </svg>
-                                      <span>See retrieval</span>
+                                      <span>Retrieval details</span>
                                     </button>
                                   )}
                                 </div>
@@ -1137,60 +1177,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     isThisMessageSelected={selectedCitation?.messageId === msg.id}
                                     selectedCitation={selectedCitation}
                                     onSelectCitation={(cit) => handleSelectCitation(cit, msg.id)}
+                                    citationState={citationStateOf}
                                   />
                                 </div>
-
-                                {/* Citation Chips Row */}
-                                {msg.citations && msg.citations.length > 0 && (
-                                  <div className="citations-section">
-                                    <div className="chips-row" role="group" aria-label="Sources cited in this answer">
-                                      {msg.citations.map((cit, cIdx) => {
-                                        const isActive =
-                                          selectedCitation?.messageId === msg.id &&
-                                          normalizeFileName(selectedCitation.file) ===
-                                            normalizeFileName(cit.file) &&
-                                          selectedCitation.page === cit.page;
-
-                                        return (
-                                          <button
-                                            key={cIdx}
-                                            type="button"
-                                            className={`chip ${isActive ? 'active' : ''}`}
-                                            onClick={() => handleSelectCitation(cit, msg.id)}
-                                            aria-pressed={isActive}
-                                            aria-controls={isActive ? `evidence-${msg.id}` : undefined}
-                                            data-testid={`citation-chip-${cIdx}`}
-                                          >
-                                            <span className="chip-badge">[{cIdx + 1}]</span>
-                                            <span>
-                                              {cit.file} p.{cit.page}
-                                            </span>
-                                          </button>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-
-                                {/* Evidence for the selected citation, directly beneath the answer it supports */}
-                                {selectedCitation && selectedCitation.messageId === msg.id && (
-                                  <InlineEvidence
-                                    ref={evidenceRef}
-                                    citation={selectedCitation}
-                                    passages={passages}
-                                    loading={passageLoading}
-                                    retrievedChunks={retrievedMatchingChunks}
-                                    isHighlighted={isChunkHighlighted}
-                                    sourceRemoved={isSourceDeleted}
-                                    sourceReplaced={isSourceReplaced}
-                                    currentVersion={matchedSource?.version}
-                                    index={currentCitationIndex}
-                                    total={activeCitations.length}
-                                    onPrevious={handlePreviousCitation}
-                                    onNext={handleNextCitation}
-                                    onClose={closeEvidence}
-                                  />
-                                )}
 
                                 {/* Restrained Answer Actions (Copy, Save to Note, Retry) */}
                                 <div className="answer-action-toolbar">
@@ -1244,23 +1233,62 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     </svg>
                                     <span>Retry</span>
                                   </button>
+                                  {msg.citations && msg.citations.length > 0 && (
+                                    <button
+                                      type="button"
+                                      className="answer-action-btn"
+                                      onClick={() => {
+                                        if (selectedCitation?.messageId === msg.id) closeEvidence();
+                                        else handleSelectCitation(msg.citations[0], msg.id);
+                                      }}
+                                      aria-expanded={selectedCitation?.messageId === msg.id}
+                                      aria-controls={`evidence-${msg.id}`}
+                                      aria-label={`Evidence, ${msg.citations.length} cited ${msg.citations.length === 1 ? 'passage' : 'passages'}`}
+                                      data-testid={`evidence-btn-${msg.id}`}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                        <path d="M7 7h4v4H7zM13 7h4v4h-4zM7 11c0 3-1 4-3 5M13 11c0 3-1 4-3 5" />
+                                      </svg>
+                                      <span>Evidence · {msg.citations.length}</span>
+                                    </button>
+                                  )}
                                   {msg.retrieved && msg.retrieved.length > 0 && (
                                     <button
                                       type="button"
                                       className="answer-action-btn"
                                       onClick={() => handleSeeRetrieval(msg.id)}
-                                      title="See retrieval"
-                                      aria-label="See retrieval"
+                                      title="Retrieval details"
+                                      aria-label="Retrieval details"
                                       data-testid={`see-retrieval-btn-${msg.id}`}
                                     >
                                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
                                         <circle cx="11" cy="11" r="8" />
                                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                       </svg>
-                                      <span>See retrieval</span>
+                                      <span>Retrieval details</span>
                                     </button>
                                   )}
                                 </div>
+
+                                {/* Evidence for the selected citation, directly beneath the answer it supports */}
+                                {selectedCitation && selectedCitation.messageId === msg.id && (
+                                  <InlineEvidence
+                                    ref={evidenceRef}
+                                    citation={selectedCitation}
+                                    passages={passages}
+                                    loading={passageLoading}
+                                    retrievedChunks={retrievedMatchingChunks}
+                                    isHighlighted={isChunkHighlighted}
+                                    sourceRemoved={isSourceDeleted}
+                                    sourceReplaced={isSourceReplaced}
+                                    currentVersion={matchedSource?.version}
+                                    index={currentCitationIndex}
+                                    total={activeCitations.length}
+                                    onPrevious={handlePreviousCitation}
+                                    onNext={handleNextCitation}
+                                    onClose={closeEvidence}
+                                  />
+                                )}
                               </div>
                             )}
 
@@ -1338,7 +1366,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 }}
                 loading={chatLoading}
                 onStop={handleSafeStopGeneration}
-                selectedSourceCount={selectedSourceIds.length}
+                scope={composerScope}
+                placeholder="Ask about your selected materials"
               />
             </>
           )}
@@ -1414,13 +1443,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 <p className="selected-source-name" title={matchedSource?.title || selectedCitation.file}>
                   {matchedSource?.title || selectedCitation.file}
                 </p>
-                <dl className="selected-source-meta">
-                  <div><dt>File</dt><dd>{selectedCitation.file}</dd></div>
-                  <div><dt>Cited page</dt><dd>{selectedCitation.page}</dd></div>
-                  {matchedSource && <div><dt>Version</dt><dd>v{matchedSource.version}</dd></div>}
-                  {matchedSource && matchedSource.page_count > 0 && <div><dt>Pages</dt><dd>{matchedSource.page_count}</dd></div>}
-                  {matchedSource && <div><dt>Status</dt><dd>{matchedSource.status}</dd></div>}
-                </dl>
+                <p className="selected-source-line" data-testid="selected-source-line">
+                  <span>Page {selectedCitation.page}</span>
+                  {matchedSource && <span>v{matchedSource.version}</span>}
+                  {matchedSource && matchedSource.page_count > 0 && <span>{matchedSource.page_count} pages</span>}
+                  {matchedSource && <span>{matchedSource.status === 'ready' ? 'Ready' : matchedSource.status}</span>}
+                </p>
+                {selectedCitation.file !== (matchedSource?.title || selectedCitation.file) && (
+                  <p className="selected-source-file" title={selectedCitation.file}>{selectedCitation.file}</p>
+                )}
                 {isUnknownSource && (
                   <p className="selected-source-note">This file is not among the notebook&rsquo;s current sources.</p>
                 )}
@@ -1479,13 +1510,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <span className="sr-only">Where to search</span>
                   <select defaultValue="web" aria-label="Where to search">
                     <option value="web">Web</option>
-                  </select>
-                </label>
-                <label className="sources-select">
-                  <span className="sr-only">Research depth</span>
-                  <select defaultValue="fast" aria-label="Research depth">
-                    <option value="fast">Fast Research</option>
-                    <option value="deep" disabled>Deep Research (soon)</option>
                   </select>
                 </label>
                 <button type="submit" className="sources-web-go" aria-label="Add this link as a source" title="Add this link as a source">

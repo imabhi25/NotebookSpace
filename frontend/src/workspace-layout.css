@@ -326,3 +326,98 @@
 
 .selected-source-card:focus { outline: none; }
 .selected-source-card:focus-visible { box-shadow: var(--shadow-focus); }
+
+/* ============================================================
+   Phase 1 (direction B): citation markers, answer actions, composer scope, quieter chrome
+   ============================================================ */
+/* Evidence highlight is the approved tint on whole passages, never on a sentence. */
+.workspace-layout .passage-chunk.passage-chunk-highlighted,
+.workspace-layout .passage-chunk-highlighted {
+  background: var(--color-evidence); border-color: var(--color-border); border-left: 3px solid var(--color-accent);
+}
+
+/* Numbered citation marker. The larger hit area leaves line spacing alone; "Evidence · N" is the 44px equivalent. */
+.citation-marker {
+  position: relative; display: inline-flex; align-items: center; justify-content: center; vertical-align: 1px;
+  min-width: 20px; height: 20px; margin: 0 2px; padding: 0 5px; border: 0; border-radius: 6px; cursor: pointer;
+  background: var(--color-evidence); color: var(--color-accent);
+  font: 600 12px/1 var(--font-family-ui); font-variant-numeric: tabular-nums;
+  transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease), transform var(--motion-press) var(--motion-ease);
+}
+.citation-marker::after { content: ""; position: absolute; inset: -12px -6px; }
+.citation-marker:hover { background: var(--color-accent-soft-strong); }
+.citation-marker:active { transform: scale(0.94); }
+.citation-marker.active { background: var(--color-accent); color: var(--color-on-accent); }
+.citation-marker.replaced, .citation-marker.removed { box-shadow: inset 0 -2px 0 var(--color-warning-border); }
+
+.inline-evidence-count { font-weight: var(--weight-regular); color: var(--color-text-muted); }
+
+/* Answer actions sit directly under the answer, before any evidence. */
+.workspace-layout .answer-action-toolbar { margin-top: var(--space-1); }
+.workspace-layout .answer-action-btn[aria-expanded="true"] { color: var(--color-accent); }
+
+/* Selected-source card, compact so the materials list stays in view. */
+.selected-source-line { margin: 0; display: flex; flex-wrap: wrap; gap: 0 var(--space-3); font-size: var(--type-small); color: var(--color-text-secondary); }
+.selected-source-line span + span::before { content: "·"; margin-right: var(--space-3); color: var(--color-text-muted); }
+.selected-source-file { margin: 0; font-size: var(--type-caption); color: var(--color-text-muted); overflow-wrap: anywhere; }
+
+/* Composer: the textarea above, then the materials chip and send. */
+.workspace-layout .composer-box.composer-box-stacked { display: flex; flex-direction: column; align-items: stretch; gap: 0; padding: 0; }
+.composer-box-stacked .composer-input { width: 100%; padding: var(--space-3) var(--space-4) var(--space-1); background: transparent; border: 0; box-shadow: none; outline: none; resize: none; }
+.composer-foot { display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-2) var(--space-2); }
+.composer-foot .composer-send-btn, .composer-foot .composer-stop-btn { margin-left: auto; flex: 0 0 auto; }
+.scope-wrap { position: relative; min-width: 0; flex: 1 1 auto; }
+.scope-chip {
+  display: inline-flex; align-items: center; gap: var(--space-2); max-width: 100%; min-height: 36px; padding: 0 var(--space-3);
+  border: 0; border-radius: var(--radius-control); background: transparent; color: var(--color-text-secondary);
+  font: var(--weight-medium) var(--type-small)/1.2 var(--font-family-ui); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease), transform var(--motion-press) var(--motion-ease);
+}
+.scope-chip:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.scope-chip:active { transform: scale(0.98); }
+.scope-text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--color-success); }
+.scope-dot.processing { background: var(--color-progress); } .scope-dot.error { background: var(--color-danger-text); }
+.scope-popover {
+  position: absolute; left: 0; bottom: calc(100% + var(--space-2)); z-index: 60; width: min(360px, calc(100vw - var(--space-6)));
+  max-height: min(60dvh, 420px); overflow-y: auto; padding: var(--space-2);
+  background: var(--color-surface); border: var(--border-width) solid var(--color-border); border-radius: var(--radius-lg); box-shadow: var(--shadow-4);
+}
+.scope-popover-title { margin: var(--space-1) var(--space-3) var(--space-2); font-size: var(--type-caption); font-weight: var(--weight-semibold); color: var(--color-text-muted); letter-spacing: 0.02em; }
+.scope-list { list-style: none; margin: 0; padding: 0; }
+.scope-row-label { display: flex; align-items: center; gap: var(--space-3); min-height: 48px; padding: 0 var(--space-3); border-radius: var(--radius-control); cursor: pointer; }
+.scope-row-label:hover { background: var(--color-surface-hover); }
+.scope-check { width: 20px; height: 20px; flex: none; accent-color: var(--color-accent); }
+.scope-row-text { min-width: 0; display: flex; flex-direction: column; }
+.scope-row-name { font-weight: var(--weight-medium); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.scope-row-status { font-size: var(--type-caption); color: var(--color-text-muted); }
+.scope-row-status.processing { color: var(--color-warning-text); } .scope-row-status.failed { color: var(--color-danger-text); }
+.scope-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1) var(--space-1) 0; }
+.scope-link { min-height: 36px; padding: 0 var(--space-3); border: 0; background: transparent; color: var(--color-accent); border-radius: var(--radius-control); font: var(--weight-medium) var(--type-small) var(--font-family-ui); cursor: pointer; }
+.scope-link:hover { background: var(--color-surface-hover); } .scope-link:active { transform: scale(0.97); }
+@media (pointer: coarse), (max-width: 768px) {
+  .scope-chip, .scope-link { min-height: var(--target-mobile); }
+  .scope-row-label { min-height: var(--target-mobile); }
+}
+@media (max-width: 960px) { .scope-popover { position: fixed; left: var(--space-3); right: var(--space-3); width: auto; bottom: calc(var(--space-16) + env(safe-area-inset-bottom, 0px)); } }
+
+/* The nav already names the notebook, so the top bar keeps its heading for assistive tech only while the nav is docked. */
+@media (min-width: 961px) {
+  .workspace-layout[data-nav-open="true"] .workspace-control-bar .workspace-notebook-identity,
+  .workspace-layout[data-nav-open="true"] .workspace-notebook-heading {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; padding: 0; margin: -1px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .citation-marker, .scope-chip, .scope-link { transition: none; }
+}
+
+/* Inline markers stay line-height tall on touch screens too; their enlarged hit area (::after) is the touch target. */
+.workspace-layout .citation-marker { min-width: 20px !important; min-height: 20px !important; height: 20px; }
+@media (pointer: coarse), (max-width: 768px) {
+  .workspace-layout .citation-marker { min-width: 22px !important; }
+  .workspace-layout .citation-marker::after { inset: -12px -9px; }
+}
+
+/* The heading already says "Evidence n of N"; keep the stepper's count for assistive technology only. */
+.inline-evidence .citation-step-counter { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
