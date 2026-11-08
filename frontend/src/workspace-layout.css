@@ -673,3 +673,77 @@
   .rail-count-label { letter-spacing: 0.04em; }
   .workspace-sources-rail .sources-select-row { gap: var(--space-1); }
 }
+
+/* ============================================================
+   Reference fidelity pass (measured against the 1720x1176 reference)
+   ============================================================ */
+.workspace-layout {
+  --nav-w: clamp(268px, 21.6vw, 372px);
+  --ctx-w: clamp(300px, 19.6vw, 337px);
+  --content-max: 816px;
+  --panel-radius: 28px;
+}
+.workspace-layout .workspace-body { padding: var(--space-1) 0 28px 28px; }
+.workspace-layout .nav-slot { width: calc(var(--nav-w) + 47px); }
+.workspace-layout aside.workspace-nav.workspace-sources-rail { margin-right: 47px; padding: 28px; }
+.workspace-layout .context-slot { width: calc(var(--ctx-w) + 28px + 48px); }
+.workspace-layout .context-slot aside.workspace-context-panel {
+  top: 60px; margin: 60px 48px 0 28px; min-height: 360px; border-radius: var(--panel-radius) !important;
+}
+.workspace-layout .workspace-control-bar { padding-inline: 28px; }
+.workspace-brand-mark { width: 42px; height: 42px; border-radius: 13px; }
+.workspace-brand-name { font-size: 1.375rem; }
+.workspace-layout .workspace-toggle-btn { min-height: 44px; padding: 0 18px; font-size: 0.9375rem; }
+
+/* Sources rail density */
+.rail-title { font-size: 0.9375rem; }
+.notebook-switch { min-height: 57px; border-radius: 18px; font-size: 1.0625rem; padding: 0 20px; }
+.rail-add-btn { min-height: 52px; font-size: 1rem; }
+.rail-find { min-height: 42px; }
+.workspace-sources-rail .source-row { min-height: 78px; padding-block: 12px; border-radius: 22px; background: transparent; }
+.workspace-sources-rail .source-row.selected { background: var(--color-surface-raised); }
+.workspace-sources-rail .source-row-title { font-size: 1.0625rem; }
+.workspace-sources-rail .source-row-sub, .workspace-sources-rail .source-row-status { font-size: 0.875rem; }
+.workspace-sources-rail .source-type-badge { background: transparent; color: var(--color-text-muted); border: 0; box-shadow: none; }
+.workspace-sources-rail .source-row + .source-row { margin-top: 8px; }
+.rail-selected-count { font-size: 0.875rem; }
+
+/* Conversation */
+.session-title { font-size: 1.0625rem; }
+.workspace-layout .thread-turn.turn-user { margin-top: 24px; }
+.workspace-layout .user-turn-wrapper { padding: 22px 24px; border: 0; border-radius: 28px; background: var(--color-surface-raised); }
+:root[data-theme="light"] .workspace-layout .user-turn-wrapper { background: var(--color-surface); border: var(--border-width) solid var(--color-border); }
+.workspace-layout .question-heading { font-size: 1.0625rem; }
+.workspace-layout .composer-box { border-radius: 28px; min-height: 126px; }
+.workspace-layout .composer-foot { justify-content: space-between; }
+.workspace-layout .scope-wrap { text-align: left; }
+
+/* Empty state: starter questions and composer no longer overlap; nothing is centered inside the composer. */
+.empty-state-centered-box .composer-container { margin-top: var(--space-3); padding: 0; background: none; }
+.empty-state-centered-box .starter-chips-container { margin-bottom: var(--space-1); }
+.empty-state-centered-box .composer-foot { justify-content: space-between; text-align: left; }
+.empty-state-centered-box .scope-chip { margin-right: auto; }
+
+/* Selection mark: a quiet check on desktop pointers (touch keeps the 44px box defined in components.css). */
+@media (min-width: 769px) and (pointer: fine) {
+  .workspace-sources-rail .source-row-checkbox {
+    appearance: none; -webkit-appearance: none; position: relative; width: 24px; height: 24px; margin: 0; flex: none;
+    border: 1.5px solid var(--color-control-border); border-radius: 50%; background: transparent; cursor: pointer;
+  }
+  .workspace-sources-rail .source-row-checkbox:checked { border-color: transparent; }
+  .workspace-sources-rail .source-row-checkbox:checked::after {
+    content: ''; position: absolute; inset: 0; background: var(--color-text-secondary);
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 18px no-repeat;
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E") center / 18px no-repeat;
+  }
+  .workspace-sources-rail .source-row-checkbox:indeterminate { border-color: var(--color-text-secondary); }
+  .workspace-sources-rail .source-row-checkbox:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+}
+
+/* Narrower desktops: the rail keeps whole titles by dropping the decorative type badge (the second line still names the type). */
+.workspace-sources-rail .source-row-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 1280px) {
+  .workspace-layout { --nav-w: clamp(288px, 24vw, 320px); }
+  .workspace-sources-rail .source-type-badge { display: none; }
+  .workspace-sources-rail .source-row { min-height: 64px; padding-block: 8px; }
+}
