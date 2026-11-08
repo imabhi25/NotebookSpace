@@ -1,3 +1,5 @@
+import { useModalFocus } from '../useModalFocus';
+import { ReferenceIcon } from './ReferenceIcon';
 import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect } from 'react';
 import { SortMenu } from './SortMenu';
@@ -111,6 +113,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
   // Modals
   const [isCreateOpen, setIsCreateOpen] = useState(false);
+  const createModalRef = useModalFocus(isCreateOpen, () => setIsCreateOpen(false));
   const [editingSubject, setEditingSubject] = useState<Subject | null>(null);
   const [deletingSubject, setDeletingSubject] = useState<Subject | null>(null);
 
@@ -256,7 +259,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     for (let i = 0; i < name.length; i++) hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
     return (hash % 6) + 1;
   };
-  const initialFor = (name: string) => (name.trim().charAt(0) || 'N').toUpperCase();
+
 
   // Single "⋯" overflow menu: rename, archive or restore, delete
   const renderNotebookMenu = (s: Subject) => (
@@ -350,7 +353,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               <polyline points="3 6 5 6 21 6" />
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                             </svg>
-                            <span>Delete</span>
+                            <span>Delete… <small>Permanently remove notebook</small></span>
                           </button>
                         </div>
                       )}
@@ -659,7 +662,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <header className="home-header">
             <div className="home-brand">
               <span className="brand-mark-wrapper" aria-hidden="true">
-                <span className="brand-logo-letter">N</span>
+                <ReferenceIcon name="book" size={22} />
               </span>
               <span className="sidebar-brand-title">NotebookSpace</span>
             </div>
@@ -672,7 +675,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <input
                 type="text"
                 className="sidebar-search-input"
-                placeholder="Search notebooks…"
+                placeholder="Search your notebooks"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search notebooks"
@@ -702,7 +705,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
               </button>
-              <button
+<span className="library-account" title="Private browser workspace"><ReferenceIcon name="user" size={17} /></span>
+            </div>
+          </header>
+
+          {privacyBanner}
+
+          <div className="library-layout"><nav className="library-nav" aria-label="Library navigation">
+              <span className="library-nav-label">Workspace</span>
+              <button className={homeTab !== 'archived' ? 'library-nav-item active' : 'library-nav-item'} onClick={() => { setHomeTab('all'); setSearch(''); }}><ReferenceIcon name="book" />My notebooks</button>
+              <button className="library-nav-item" onClick={() => { setHomeTab('all'); setSortBy('updated_at'); }}><ReferenceIcon name="clock" />Recent</button>
+              <button className={homeTab === 'archived' ? 'library-nav-item active' : 'library-nav-item'} onClick={() => setHomeTab('archived')}><ReferenceIcon name="archive" />Archived</button>
+              <p className="library-privacy"><ReferenceIcon name="lock" size={15} />A private space for everything you’re learning.</p>
+              <details className="library-help"><summary>ⓘ &nbsp; Help &amp; shortcuts</summary><p>Create a notebook, add your materials, then ask a question. Click a citation to check its evidence. Press Escape to close panels and dialogs.</p></details>
+            </nav><main className="home-main">
+            <div className="home-main-inner">
+              <div className="library-introduction"><div><h1 className="home-heading">My notebooks</h1>
+              <p className="home-heading-subtitle">{subjects.length ? 'Your subjects, sources, and ideas. All in one place.' : 'A little structure for everything you want to understand.'}</p></div>              <button
                 type="button"
                 className="btn btn-primary home-new-btn"
                 onClick={openCreateModal}
@@ -714,15 +733,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
                 <span>New notebook</span>
-              </button>
-            </div>
-          </header>
-
-          {privacyBanner}
-
-          <main className="home-main">
-            <div className="home-main-inner">
-              <h1 className="home-heading">My notebooks</h1>
+              </button></div>
 
               <div className="home-toolbar">
                 <div className="sidebar-filter-pills home-filter-tabs" role="tablist">
@@ -735,7 +746,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       className={`sidebar-filter-pill ${homeTab === mode ? 'active' : ''}`}
                       onClick={() => setHomeTab(mode)}
                     >
-                      {mode === 'all' ? 'All' : mode === 'active' ? 'Active' : 'Archived'}
+                      {mode === 'all' ? 'All notebooks' : mode === 'active' ? 'Active' : 'Archived'}
                     </button>
                   ))}
                 </div>
@@ -767,19 +778,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="empty-state-brand-mark" aria-hidden="true">
                 <EmptyStateIcon />
               </div>
-              <h2 className="empty-heading">
+              {!search && homeTab !== 'archived' && <p className="library-eyebrow">A FRESH PAGE</p>}<h2 className="empty-heading">
                 {homeTab === 'archived'
                   ? 'No archived notebooks'
                   : search
                   ? 'No matching notebooks found'
-                  : 'Create your first notebook'}
+                  : 'Start with a subject. Make it yours.'}
               </h2>
               <p className="empty-subtext">
                 {homeTab === 'archived'
                   ? 'Archived notebooks will appear here.'
                   : search
                   ? `No notebooks match "${search}". Try adjusting your search query.`
-                  : 'Organize course syllabi, lecture notes, and assignments into notebooks.'}
+                  : 'Give your course, project, or curiosity a home. Bring the materials; your notebook keeps the ideas connected.'}
               </p>
               {homeTab !== 'archived' && !search && (
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
@@ -788,7 +799,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     className="btn btn-primary"
                     onClick={openCreateModal}
                   >
-                    + New notebook
+                    + Create a notebook
                   </button>
                   {onCreateSampleSubject && (!currentUser || currentUser.is_guest || currentUser.email?.startsWith('guest_') || currentUser.email === 'Guest Workspace') && (
                     <button
@@ -797,14 +808,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       onClick={onCreateSampleSubject}
                       data-testid="create-sample-notebook-btn"
                     >
-                      Explore sample notebook
+                      Try a sample ↗
                     </button>
                   )}
                 </div>
               )}
+              {!search && homeTab !== 'archived' && <div className="library-welcome-art" aria-hidden="true"><ReferenceIcon name="book" size={26} /><strong>Your next big idea<br />starts here.</strong><small>NOTEBOOK 001</small></div>}
             </div>
               ) : (
-                <div className="notebook-grid" role="list" key={`${homeTab}-${sortBy}`}>
+                <div className={`notebook-grid ${homeFiltered.length === 1 ? 'notebook-grid-first' : ''}`} role="list" key={`${homeTab}-${sortBy}`}>
                   {homeFiltered.map((s) => (
                     <div
                       key={s.id}
@@ -822,14 +834,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     >
                       <div className="notebook-card-top">
                         <span className={`notebook-card-mark tone-${toneFor(s.name)}`} aria-hidden="true">
-                          {initialFor(s.name)}
+                          <ReferenceIcon name={/music/i.test(s.name) ? 'music' : 'book'} size={24} />
                         </span>
-                        {renderNotebookMenu(s)}
+                        <span className="notebook-kind">{s.course_code ? 'COURSE NOTEBOOK' : 'PERSONAL NOTEBOOK'}</span>{renderNotebookMenu(s)}
                       </div>
                       <h2 className="notebook-card-title" title={s.name}>
                         {s.name}
                       </h2>
-                      <div className="notebook-card-tags">
+                      <p className="notebook-card-description">{s.description || `A fresh space for your ${s.name.toLowerCase()} notes and materials.`}</p><div className="notebook-card-tags">
                         {s.course_code && (
                           <span className="course-code-badge notebook-code-badge">{s.course_code}</span>
                         )}
@@ -837,19 +849,27 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
                       {(s.source_count ?? 0) === 0 ? (
                         <p className="notebook-card-meta notebook-card-meta-empty">
-                          Add your first source <span aria-hidden="true">→</span>
+                          <ReferenceIcon name="file" size={15} /> No sources yet <span className="notebook-created">{Date.now() - new Date(s.created_at).getTime() < 86400000 ? 'Just created' : formatDate(s.created_at)}</span>
                         </p>
                       ) : (
                         <p className="notebook-card-meta">
                           {formatDate(s.updated_at)} · {s.source_count} {s.source_count === 1 ? 'source' : 'sources'}
                         </p>
                       )}
+                      <span className="notebook-open-action">{(s.source_count ?? 0) === 0 ? 'Add your first source' : 'Open notebook'}<span aria-hidden="true">→</span></span>
                     </div>
                   ))}
+                  {homeTab !== 'archived' && !search && <button type="button" className="library-add-card" onClick={openCreateModal}><span aria-hidden="true">+</span><strong>Make room for something new</strong><small>Create another notebook</small></button>}
                 </div>
               )}
+              {!loading && subjects.length === 0 && !search && homeTab !== 'archived' && <div className="library-guide">{[
+                ['01', 'Make a space', 'One notebook for each subject.'],
+                ['02', 'Bring your materials', 'PDFs, links, and your own notes.'],
+                ['03', 'Follow your curiosity', 'Ask questions. Keep what clicks.'],
+              ].map(([n,title,body]) => <div key={n}><span>{n}</span><strong>{title}</strong><p>{body}</p></div>)}</div>}
+              {!loading && homeFiltered.length === 1 && homeTab !== 'archived' && !search && <div className="library-first-step"><span className="library-step-icon"><ReferenceIcon name="upload" size={20} /></span><div><strong>Make {homeFiltered[0].name} your own</strong><p>Add lecture slides, a reading, or a few notes to start your first conversation.</p></div><button type="button" className="btn btn-secondary" onClick={() => { try { sessionStorage.setItem('notebookspace_add_materials', homeFiltered[0].id); } catch {} onOpenSubject(homeFiltered[0].id); }}>+ Add materials</button></div>}
             </div>
-          </main>
+          </main></div>
         </div>
       )}
 
@@ -859,19 +879,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Create Notebook Modal */}
       {isCreateOpen && (
         <div className="modal-backdrop" onClick={() => setIsCreateOpen(false)}>
-          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+          <div ref={createModalRef} className="modal-content create-notebook-dialog" role="dialog" aria-modal="true" aria-labelledby="create-notebook-title" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>
-                Create new notebook
+              <div><h2 id="create-notebook-title">
+                Create a notebook
                 <span className="sr-only">Create New Subject Notebook</span>
-              </h2>
+              </h2><p>A new space for your notes, sources, and ideas.</p></div>
               <button
                 type="button"
                 className="modal-close-btn"
                 onClick={() => setIsCreateOpen(false)}
                 aria-label="Close"
               >
-                &times;
+                <ReferenceIcon name="close" size={16} />
               </button>
             </div>
             <form onSubmit={handleCreateSubmit} className="modal-form">
@@ -892,7 +912,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="create-subj-code">Course code (optional)</label>
+                <label htmlFor="create-subj-code">Course code <span>Optional</span></label>
                 <input
                   id="create-subj-code"
                   type="text"
@@ -902,7 +922,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 />
               </div>
               <div className="form-group">
-                <label htmlFor="create-subj-desc">Description (optional)</label>
+                <label htmlFor="create-subj-desc">Description <span>Optional</span></label>
                 <textarea
                   id="create-subj-desc"
                   rows={3}
@@ -911,7 +931,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   disabled={submitting}
                 />
               </div>
-              <div className="modal-actions">
+              <div className="modal-actions create-notebook-actions">
+                <span className="required-note">* Required</span><button type="button" className="btn btn-secondary" onClick={() => setIsCreateOpen(false)}>Cancel</button>
                 <button type="submit" className="btn btn-primary" disabled={submitting}>
                   {submitting ? 'Creating...' : 'Create Notebook'}
                 </button>

@@ -309,6 +309,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Modals
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem('notebookspace_add_materials') === subject.id) {
+        sessionStorage.removeItem('notebookspace_add_materials');
+        setIsAddSourceOpen(true);
+      }
+    } catch { /* Browser storage may be unavailable. The Add sources button remains usable. */ }
+  }, [subject.id]);
+
   const [viewingSource, setViewingSource] = useState<Source | null>(null);
 
   // The Add sources dialog mounts on first open and then stays mounted, so a pasted draft survives closing it.
@@ -825,7 +834,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
             </svg>
-            <span className="toggle-label">Study</span>
+            <span className="toggle-label">Studio</span>
           </button>
           <div className="workspace-actions-menu" ref={menuRootRef}>
             <button type="button" ref={menuButtonRef} className="btn-icon workspace-top-icon-btn"
@@ -1512,15 +1521,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               </svg>
             </button>
           </div>
+          <p className="study-panel-intro">Turn understanding into something useful.</p>
           <div className="context-view-switcher sidebar-segment-switcher" role="group" aria-label="Panel view">
             <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`}
-              aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
+              aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})<small>Keep the ideas that matter</small></button>
             <button type="button" className={`segment-btn ${contextView === 'sessions' ? 'active' : ''}`}
               aria-pressed={contextView === 'sessions'} onClick={() => setContextView('sessions')}
-              data-testid="right-panel-tab-sessions">Sessions</button>
+              data-testid="right-panel-tab-sessions">Sessions<small>Return to a conversation</small></button>
             <button type="button" className={`segment-btn ${contextView === 'retrieval' ? 'active' : ''}`}
               aria-pressed={contextView === 'retrieval'} onClick={() => setContextView('retrieval')}
-              data-testid="right-panel-tab-retrieval">Retrieval</button>
+              data-testid="right-panel-tab-retrieval">Retrieval<small>Check the supporting passages</small></button>
           </div>
 
           {selectedCitation && (

@@ -27,7 +27,7 @@ describe('Workspace settings', () => {
     render(<DashboardView {...dashboardProps} onCreateSubject={onCreateSubject} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Workspace settings' }));
-    fireEvent.change(screen.getByLabelText('Response Length'), { target: { value: 'concise' } });
+    fireEvent.change(screen.getByLabelText('Response length'), { target: { value: 'concise' } });
     expect(readDefaultResponseSettings()).toEqual({ response_length: 'concise', response_style: 'general' });
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 

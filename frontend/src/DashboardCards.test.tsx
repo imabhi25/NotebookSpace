@@ -70,6 +70,6 @@ describe('Notebook launcher grid', () => {
   it('keeps the first-notebook empty state when there are no notebooks', () => {
     render(<DashboardView {...props} subjects={[]} />);
     expect(screen.getByTestId('dashboard-empty-state')).toBeInTheDocument();
-    expect(screen.getByText('Create your first notebook')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Start with a subject. Make it yours.' })).toBeInTheDocument();
   });
 });

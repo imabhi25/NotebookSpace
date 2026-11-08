@@ -675,46 +675,46 @@
 }
 
 /* ============================================================
-   Reference fidelity pass (measured against the 1720x1176 reference)
+   Layout 2: native Framer dimensions (1440px canvas, not screenshot pixels)
    ============================================================ */
 .workspace-layout {
-  --nav-w: clamp(268px, 21.6vw, 372px);
-  --ctx-w: clamp(300px, 19.6vw, 337px);
-  --content-max: 816px;
+  --nav-w: 320px;
+  --ctx-w: 290px;
+  --content-max: 760px;
   --panel-radius: 28px;
 }
-.workspace-layout .workspace-body { padding: var(--space-1) 0 28px 28px; }
-.workspace-layout .nav-slot { width: calc(var(--nav-w) + 47px); }
-.workspace-layout aside.workspace-nav.workspace-sources-rail { margin-right: 47px; padding: 28px; }
-.workspace-layout .context-slot { width: calc(var(--ctx-w) + 28px + 48px); }
+.workspace-layout .workspace-body { padding: 12px 24px 24px; }
+.workspace-layout .nav-slot { width: calc(var(--nav-w) + 24px); }
+.workspace-layout aside.workspace-nav.workspace-sources-rail { margin-right: 24px; padding: 24px; border-color: transparent; }
+.workspace-layout .context-slot { width: calc(var(--ctx-w) + 24px); }
 .workspace-layout .context-slot aside.workspace-context-panel {
-  top: 60px; margin: 60px 48px 0 28px; min-height: 360px; border-radius: var(--panel-radius) !important;
+  top: 52px; margin: 52px 0 0 24px; min-height: 360px; border-radius: var(--panel-radius) !important;
 }
 .workspace-layout .workspace-control-bar { padding-inline: 28px; }
-.workspace-brand-mark { width: 42px; height: 42px; border-radius: 13px; }
-.workspace-brand-name { font-size: 1.375rem; }
+.workspace-brand-mark { width: 36px; height: 36px; border-radius: 12px; }
+.workspace-brand-name { font-size: 18px; }
 .workspace-layout .workspace-toggle-btn { min-height: 44px; padding: 0 18px; font-size: 0.9375rem; }
 
 /* Sources rail density */
 .rail-title { font-size: 0.9375rem; }
-.notebook-switch { min-height: 57px; border-radius: 18px; font-size: 1.0625rem; padding: 0 20px; }
-.rail-add-btn { min-height: 52px; font-size: 1rem; }
+.notebook-switch { min-height: 48px; border-radius: 18px; font-size: 14px; padding: 0 16px; }
+.rail-add-btn { min-height: 44px; font-size: 14px; }
 .rail-find { min-height: 42px; }
-.workspace-sources-rail .source-row { min-height: 78px; padding-block: 12px; border-radius: 22px; background: transparent; }
+.workspace-sources-rail .source-row { min-height: 72px; padding-block: 12px; border-radius: 18px; background: transparent; }
 .workspace-sources-rail .source-row.selected { background: var(--color-surface-raised); }
-.workspace-sources-rail .source-row-title { font-size: 1.0625rem; }
+.workspace-sources-rail .source-row-title { font-size: 14px; }
 .workspace-sources-rail .source-row-sub, .workspace-sources-rail .source-row-status { font-size: 0.875rem; }
 .workspace-sources-rail .source-type-badge { background: transparent; color: var(--color-text-muted); border: 0; box-shadow: none; }
 .workspace-sources-rail .source-row + .source-row { margin-top: 8px; }
 .rail-selected-count { font-size: 0.875rem; }
 
 /* Conversation */
-.session-title { font-size: 1.0625rem; }
+.session-title { font-size: 14px; }
 .workspace-layout .thread-turn.turn-user { margin-top: 24px; }
-.workspace-layout .user-turn-wrapper { padding: 22px 24px; border: 0; border-radius: 28px; background: var(--color-surface-raised); }
+.workspace-layout .user-turn-wrapper { padding: 16px 20px; border: 0; border-radius: 22px 22px 6px 22px; background: var(--color-surface-raised); }
 :root[data-theme="light"] .workspace-layout .user-turn-wrapper { background: var(--color-surface); border: var(--border-width) solid var(--color-border); }
-.workspace-layout .question-heading { font-size: 1.0625rem; }
-.workspace-layout .composer-box { border-radius: 28px; min-height: 126px; }
+.workspace-layout .question-heading { font-size: 14px; }
+.workspace-layout .composer-box { border-radius: 24px; min-height: 108px; }
 .workspace-layout .composer-foot { justify-content: space-between; }
 .workspace-layout .scope-wrap { text-align: left; }
 
@@ -747,3 +747,51 @@
   .workspace-sources-rail .source-type-badge { display: none; }
   .workspace-sources-rail .source-row { min-height: 64px; padding-block: 8px; }
 }
+
+.study-panel-intro { margin: 0 var(--space-5) var(--space-3); color: var(--color-text-secondary); font-size: .875rem; line-height: 1.5; }
+
+/* Native reference type and surfaces, scoped to the workspace. */
+.workspace-layout { --type-body: 14px; --type-small: 12px; --type-caption: 12px; font-size: 14px; }
+:root[data-theme="dark"] .workspace-layout {
+  --color-desk: #101113; --color-surface: #191b1e; --color-surface-raised: #23262b;
+  --color-border: #30343a; --color-control-border: #30343a; --color-border-sheet: #30343a;
+  --color-accent: #a7c9f4; --color-text-primary: #f3f4f6; --color-text-secondary: #9ca3ae; --color-text-muted: #9ca3ae;
+  background: var(--color-desk);
+}
+.workspace-layout .workspace-toggle-btn { font-size: 12px; background: var(--color-surface-raised); }
+.workspace-layout .workspace-brand-mark { color: var(--color-accent); background: var(--color-surface-raised); border: 0; }
+.workspace-layout .source-row-sub, .workspace-layout .source-row-status, .workspace-layout .rail-selected-count { font-size: 12px; }
+.workspace-layout .rail-title, .workspace-layout .study-panel-title, .workspace-layout .turn-label-assistant { font-size: 14px; }
+.workspace-layout .answer-text { font-size: 14px; line-height: 1.55; }
+.workspace-layout .composer-input { font-size: 14px; }
+.workspace-layout .panel-collapse-btn { border: 0; border-radius: 50%; box-shadow: none; background: var(--color-surface-raised); }
+.workspace-layout .empty-state-heading { font-size: 26px; line-height: 1.25; }
+.workspace-layout .empty-state-subtext { font-size: 14px; line-height: 1.55; max-width: 420px; }
+.workspace-layout .empty-state-brand-mark { transform: scale(.7); margin-bottom: 8px; }
+.workspace-layout .starter-chip { font-size: 13px; }
+.workspace-layout .workspace-context-panel .context-view-switcher { display: flex; flex-direction: column; gap: 10px; padding: 0; background: transparent; border: 0; }
+.workspace-layout .workspace-context-panel .context-view-switcher .segment-btn {
+  width: 100%; min-height: 66px; flex: none; text-align: left; padding: 12px 16px;
+  border: 1px solid var(--color-border); border-radius: 20px; background: var(--color-desk); box-shadow: none;
+  font-size: 14px; color: var(--color-text-primary); white-space: normal;
+}
+.workspace-layout .context-view-switcher .segment-btn small { display: block; margin-top: 4px; font-size: 12px; font-weight: 400; color: var(--color-text-secondary); }
+.workspace-layout .workspace-context-panel .context-view-switcher .segment-btn.active { border-color: var(--color-accent); }
+.workspace-layout .workspace-context-panel .sidebar-empty-box { padding: 16px 0; font-size: 12px; }
+.workspace-layout .workspace-context-panel .right-panel-body { border-top: 1px solid var(--color-border); }
+@media (min-width: 1181px) {
+  .workspace-layout .context-slot aside.workspace-context-panel { height: min(700px, calc(100% - 68px)); max-height: calc(100% - 68px); }
+}
+@media (max-width: 1180px) {
+  .workspace-layout .context-slot aside.workspace-context-panel { margin: 0; top: 12px; min-height: 0; max-height: calc(100% - 24px); }
+}
+@media (max-width: 960px) {
+  .workspace-layout .workspace-body { padding: 8px 12px 12px; }
+  .workspace-layout aside.workspace-nav.workspace-sources-rail { margin: 0; padding: 20px; }
+  .workspace-layout .context-slot aside.workspace-context-panel { top: auto; bottom: 8px; margin: 0; }
+  .workspace-layout .composer-input { font-size: 16px; }
+}
+
+.workspace-layout .answer-text .md-paragraph, .workspace-layout .answer-text .md-list-item { font-size: 14px; line-height: 1.55; }
+.workspace-layout .workspace-context-panel .context-view-switcher { margin-inline: 24px; }
+.workspace-layout .context-slot aside.workspace-context-panel .right-panel-body { padding: 16px 24px 24px; }

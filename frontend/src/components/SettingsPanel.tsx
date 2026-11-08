@@ -1,3 +1,4 @@
+import { ReferenceIcon } from './ReferenceIcon';
 import React, { useState } from 'react';
 import { api } from '../api';
 import { SubjectSettings, User } from '../types';
@@ -108,9 +109,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="modal-header">
-          <h2 id="settings-panel-title">Settings</h2>
+          <div><h2 id="settings-panel-title">Settings</h2><p>Make NotebookSpace feel like your space.</p></div>
           <button type="button" className="modal-close-btn" onClick={onClose} aria-label="Close">
-            &times;
+            <ReferenceIcon name="close" size={16} />
           </button>
         </div>
 
@@ -127,18 +128,18 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   className={`sidebar-filter-pill ${theme === option ? 'active' : ''}`}
                   onClick={() => chooseTheme(option)}
                 >
-                  {option === 'auto' ? 'Auto' : option === 'light' ? 'Light' : 'Dark'}
+                  <ReferenceIcon name={option === 'auto' ? 'monitor' : option === 'light' ? 'sun' : 'moon'} size={16} /> {option === 'auto' ? 'Auto' : option === 'light' ? 'Light' : 'Dark'}
                 </button>
               ))}
             </div>
-            <p className="settings-section-hint">Auto follows your device.</p>
+            <p className="settings-section-hint">Auto follows your device’s light or dark appearance.</p>
           </section>
 
           <section className="settings-section" aria-labelledby="settings-defaults-title">
             <h3 id="settings-defaults-title" className="settings-section-title">Default responses</h3>
             <p className="settings-section-hint">Used for new notebooks. Each notebook can change its own.</p>
-            <div className="form-group">
-              <label htmlFor="default-resp-length">Response Length</label>
+            <div className="settings-defaults-grid"><div className="form-group">
+              <label htmlFor="default-resp-length">Response length</label>
               <select
                 id="default-resp-length"
                 value={defaults.response_length}
@@ -147,12 +148,12 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 }
               >
                 <option value="concise">Concise (brief, direct facts)</option>
-                <option value="default">Default (balanced)</option>
+                <option value="default">Balanced (default)</option>
                 <option value="detailed">Detailed (in-depth breakdown)</option>
               </select>
             </div>
             <div className="form-group">
-              <label htmlFor="default-resp-style">Response Style</label>
+              <label htmlFor="default-resp-style">Response style</label>
               <select
                 id="default-resp-style"
                 value={defaults.response_style}
@@ -160,10 +161,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                   saveDefaults({ ...defaults, response_style: e.target.value as SubjectSettings['response_style'] })
                 }
               >
-                <option value="general">General (objective academic assistant)</option>
+                <option value="general">General</option>
                 <option value="learning-guide">Learning Guide (interactive tutor, step-by-step)</option>
               </select>
-            </div>
+            </div></div><p className="settings-section-hint">{defaults.response_style === 'general' ? 'General provides an objective, academic response.' : 'Learning guide explains ideas step by step.'}</p>
           </section>
 
           <section className="settings-section" aria-labelledby="settings-data-title">
@@ -175,7 +176,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 onClick={handleExport}
                 disabled={exportState === 'working'}
               >
-                <span className="settings-row-label">Export notes</span>
+                <span className="settings-row-label"><ReferenceIcon name="download" size={16} />Export notes</span>
                 <span className="settings-row-value" role="status">
                   {exportState === 'working'
                     ? 'Preparing...'
@@ -192,17 +193,16 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
                 onClick={onShowPrivacyNotice}
                 disabled={!isPrivacyBannerDismissed}
               >
-                <span className="settings-row-label">Show privacy notice</span>
+                <span className="settings-row-label"><ReferenceIcon name="shield" size={16} />Show privacy notice</span>
                 <span className="settings-row-value">{isPrivacyBannerDismissed ? 'Hidden' : 'Showing'}</span>
               </button>
-              <button type="button" className="settings-row settings-row-danger" onClick={onRequestReset}>
-                <span className="settings-row-label">Reset Workspace</span>
+              <button type="button" className="settings-row settings-row-danger" aria-label="Reset Workspace" onClick={onRequestReset}>
+                <span className="settings-reset-copy"><span className="settings-row-label">Reset workspace</span><small>Delete all notebooks and preferences. This cannot be undone.</small></span><span className="settings-reset-button">Reset…</span>
               </button>
             </div>
           </section>
 
-          <section className="settings-section" aria-labelledby="settings-about-title">
-            <h3 id="settings-about-title" className="settings-section-title">About</h3>
+          <details className="settings-section settings-about"><summary><ReferenceIcon name="info" size={16} />About NotebookSpace<ReferenceIcon name="chevron" size={16} /></summary>
             <div className="settings-rows">
               <div className="settings-row settings-row-static">
                 <span className="settings-row-label">Workspace</span>
@@ -213,8 +213,9 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
             </div>
             <p className="settings-section-hint">Your workspace data is private to this browser.</p>
             <p className="settings-section-hint">Independent student project, not affiliated with Google.</p>
-          </section>
+          </details>
         </div>
+        <div className="settings-saved">✓ &nbsp; Changes save automatically</div>
       </div>
     </div>
   );
