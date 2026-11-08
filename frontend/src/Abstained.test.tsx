@@ -77,7 +77,8 @@ describe('Not-found answers in the workspace (mocked)', () => {
     expect(onSend).toHaveBeenCalledWith(question.content, { is_retry: true, retry_message_id: 'nf' });
     expect(screen.getByRole('button', { name: 'Choose materials' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retrieval details' }));
-    expect(screen.getByRole('complementary', { name: 'Retrieval' })).toBeVisible();
+    expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
+    expect(screen.getByTestId('right-panel-tab-retrieval')).toHaveAttribute('aria-pressed', 'true');
   });
   it('omits Retrieval details when nothing was retrieved, and has no status strip', () => {
     render(view([question, notFound({ retrieved: [] })]));
@@ -91,8 +92,9 @@ describe('Not-found answers in the workspace (mocked)', () => {
     expect(screen.getAllByText('The AI service has reached its usage limit.')).toHaveLength(1);
     expect(screen.queryByRole('button', { name: 'Choose materials' })).toBeNull();
   });
-  it('Choose materials opens the materials panel when it is an overlay', () => {
+  it('Choose materials opens the Sources panel when it is closed', () => {
     window.innerWidth = 1024;
+    window.localStorage.setItem('notebookspace_nav_open', '0');
     render(view([question, notFound()]));
     expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(screen.getByRole('button', { name: 'Choose materials' }));

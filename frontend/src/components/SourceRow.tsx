@@ -145,6 +145,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         <span className="sr-only">
           {info.label}{isReady ? `, ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}, ready` : s.status === 'failed' ? `, failed: ${s.error_message || 'failed'}` : ''}
         </span>
+        {isReady && <span className="source-row-sub" aria-hidden="true">{info.label} · {s.page_count} {s.page_count === 1 ? 'page' : 'pages'}</span>}
         {s.status === 'processing' && <span className="source-row-status status-processing">Processing...</span>}
         {s.status === 'failed' && (
           <span className="source-row-status status-failed" title={s.error_message || 'Failed'}>
