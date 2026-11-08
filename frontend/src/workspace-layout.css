@@ -421,3 +421,103 @@
 
 /* The heading already says "Evidence n of N"; keep the stepper's count for assistive technology only. */
 .inline-evidence .citation-step-counter { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ============================================================
+   Visual polish: quieter chrome, plain-language notices, calmer panel
+   ============================================================ */
+
+/* ---- Privacy notice: one quiet line ---- */
+[data-testid="guest-workspace-banner"] {
+  padding: var(--space-2) var(--space-4); margin: 0; border: 0; border-bottom: var(--border-width) solid var(--color-border);
+  border-radius: 0; background: transparent; color: var(--color-text-secondary); font-size: var(--type-caption); line-height: 1.4;
+}
+[data-testid="guest-workspace-banner"] .guest-workspace-notice-title { font-weight: var(--weight-semibold); color: var(--color-text-primary); }
+
+/* ---- Top bar: ghost controls; the open panel is shown by tint, not by a box ---- */
+.workspace-layout .workspace-control-bar { background: transparent; border: 0; box-shadow: none; }
+.workspace-layout .workspace-toggle-btn,
+.workspace-layout .workspace-back-btn,
+.workspace-layout .workspace-top-icon-btn {
+  background: transparent; border-color: transparent; box-shadow: none; color: var(--color-text-secondary);
+}
+.workspace-layout .workspace-toggle-btn:hover:not(:disabled),
+.workspace-layout .workspace-back-btn:hover:not(:disabled),
+.workspace-layout .workspace-top-icon-btn:hover:not(:disabled) { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.workspace-layout .workspace-toggle-btn.active { background: var(--color-accent-soft); color: var(--color-accent); border-color: transparent; }
+
+/* ---- Navigation ---- */
+.workspace-layout aside.workspace-nav { gap: var(--space-2); }
+.workspace-nav-new { border-color: transparent; background: transparent; box-shadow: none; color: var(--color-accent); font-weight: var(--weight-semibold); }
+.workspace-nav-new:hover:not(:disabled) { background: var(--color-accent-soft); }
+.workspace-nav-heading { margin-top: var(--space-3); letter-spacing: 0.04em; text-transform: none; font-weight: var(--weight-semibold); }
+.workspace-nav-row { min-height: 34px; color: var(--color-text-secondary); }
+.workspace-nav-row.active { background: var(--color-accent-soft); color: var(--color-text-primary); }
+.workspace-nav-notebook-name { font-size: 0.9375rem; }
+
+/* ---- Conversation: calmer rhythm, clearer hierarchy ---- */
+.workspace-layout .thread-messages-list { gap: var(--space-2); }
+.workspace-layout .thread-turn.turn-user { margin-top: var(--space-5); padding-top: var(--space-5); border-top-color: var(--color-border); }
+.workspace-layout .question-heading { font-size: 1.25rem; line-height: 1.3; }
+.workspace-layout .answer-text .md-paragraph, .workspace-layout .answer-text .md-list-item { margin-bottom: var(--space-3); }
+.workspace-layout .answer-action-toolbar { gap: 2px; margin-left: calc(var(--space-2) * -1); }
+.workspace-layout .answer-action-btn { font-size: var(--type-small); color: var(--color-text-muted); }
+.workspace-layout .answer-action-btn:hover:not(:disabled) { color: var(--color-text-primary); }
+.workspace-layout .status-strip { margin-top: 0; font-size: var(--type-caption); color: var(--color-text-muted); }
+
+/* ---- Answers that are not answers: a plain statement, not a dashed box ---- */
+.answer-notice { display: flex; gap: var(--space-3); max-width: var(--reading-measure); padding: var(--space-1) 0; }
+.answer-notice-icon { flex: none; margin-top: 2px; color: var(--color-text-muted); }
+.answer-notice-main { min-width: 0; }
+.answer-notice-title { margin: 0 0 var(--space-1); font: var(--weight-semibold) 1.0625rem/1.35 var(--font-family-display); letter-spacing: -0.01em; color: var(--color-text-primary); }
+.answer-notice-body { margin: 0; font-size: var(--type-body); line-height: 1.55; color: var(--color-text-secondary); overflow-wrap: anywhere; }
+.answer-notice-hint { margin: var(--space-2) 0 0; font-size: var(--type-small); line-height: 1.5; color: var(--color-text-muted); }
+.answer-notice-actions { display: flex; flex-wrap: wrap; gap: var(--space-1); margin: var(--space-3) 0 0 calc(var(--space-2) * -1); }
+.answer-notice-btn {
+  display: inline-flex; align-items: center; gap: var(--space-2); min-height: 36px; padding: 0 var(--space-3); border: 0; border-radius: var(--radius-control);
+  background: transparent; color: var(--color-accent); font: var(--weight-medium) var(--type-small) var(--font-family-ui); cursor: pointer;
+  transition: background-color var(--motion-fast) var(--motion-ease), transform var(--motion-press) var(--motion-ease);
+}
+.answer-notice-btn:hover { background: var(--color-surface-hover); }
+.answer-notice-btn:active { transform: scale(0.97); }
+.answer-notice-primary { background: var(--color-accent-soft); }
+.answer-notice-primary:hover { background: var(--color-accent-soft-strong); }
+.answer-notice-error .answer-notice-icon, .answer-notice-error .answer-notice-title { color: var(--color-danger-text); }
+@media (prefers-reduced-motion: reduce) { .answer-notice-btn { transition: none; } }
+
+/* ---- Composer: one fine-print line ---- */
+.workspace-layout .composer-footer-note { margin: var(--space-2) auto 0; max-width: var(--content-max); text-align: center; font-size: var(--type-caption); line-height: 1.45; color: var(--color-text-muted); }
+.workspace-layout .composer-footer-note .composer-disclaimer-note { display: inline; }
+
+/* ---- Floating panel: tabs in the header row, flatter controls ---- */
+.workspace-layout .workspace-context-panel .workspace-sidebar-header {
+  display: flex; align-items: center; gap: var(--space-2); min-height: 0; padding: var(--space-3) var(--space-3) var(--space-2); border-bottom: 0;
+}
+.workspace-layout .workspace-context-panel .context-view-switcher { flex: 1; min-width: 0; margin: 0; }
+.workspace-layout .workspace-context-panel .panel-collapse-btn { flex: none; }
+.workspace-layout .workspace-context-panel .sources-panel-body { padding: var(--space-1) var(--space-3) var(--space-4); gap: var(--space-3); }
+.workspace-layout .workspace-context-panel .sources-action-row { gap: var(--space-2); }
+.workspace-layout .workspace-context-panel .sources-pill-btn { box-shadow: none; }
+.workspace-layout .workspace-context-panel .sources-pill-btn + .sources-pill-btn { border-color: transparent; background: transparent; color: var(--color-text-secondary); }
+.workspace-layout .workspace-context-panel .sources-pill-btn + .sources-pill-btn:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.workspace-layout .workspace-context-panel .sources-web-search {
+  display: flex; align-items: center; gap: var(--space-2); padding: 0 var(--space-1) 0 var(--space-3);
+  background: var(--color-surface-raised); border: 0; border-radius: var(--radius-control); box-shadow: none;
+}
+.workspace-layout .workspace-context-panel .sources-web-search .sources-web-input { flex: 1; min-width: 0; border: 0; background: transparent; box-shadow: none; padding-inline: 0; }
+.workspace-layout .workspace-context-panel .sources-web-controls { flex: none; }
+.workspace-layout .workspace-context-panel .sources-web-hint { flex-basis: 100%; }
+.workspace-layout .workspace-context-panel .source-type-badge { background: var(--color-surface-raised); color: var(--color-text-secondary); border-color: transparent; }
+.workspace-layout .workspace-context-panel .source-row-status { font-weight: var(--weight-medium); }
+.workspace-layout .workspace-context-panel .source-row-status.status-processing { color: var(--color-warning-text); }
+.workspace-layout .workspace-context-panel .source-row-status.status-failed { color: var(--color-danger-text); }
+.workspace-layout .workspace-context-panel .source-row-failed .source-row-title,
+.workspace-layout .workspace-context-panel .source-row-processing .source-row-title { color: var(--color-text-secondary); opacity: 1; }
+.workspace-layout .workspace-context-panel .source-row-checkbox:not(:checked) { border-color: var(--color-control-border); }
+.selected-source-card { border: 0; background: var(--color-surface-raised); }
+
+/* Link form: input and submit on one row. */
+.workspace-layout .workspace-context-panel .sources-web-search { flex-direction: row; flex-wrap: wrap; align-items: center; min-height: 44px; }
+.workspace-layout .workspace-context-panel .sources-web-search .sources-web-input { height: 40px; }
+/* Question and answer read as one unit; turns stay clearly apart. */
+.workspace-layout .thread-turn.turn-user .question-heading { margin-bottom: var(--space-1); }
+.workspace-layout .thread-messages-list { gap: var(--space-3); }

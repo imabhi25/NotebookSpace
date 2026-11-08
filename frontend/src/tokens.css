@@ -16,6 +16,8 @@
   --color-surface-active: #E4E4E8;
   --color-border: #E4E4E8;
   --color-border-strong: #C9CBD1;
+  /* Outlines that identify a form control (checkbox, input) need 3:1 against the surface. */
+  --color-control-border: #858A91;
   --color-border-sheet: #E4E4E8;
   --color-text-primary: #1D1D1F;
   --color-text-secondary: #686D73;
@@ -329,9 +331,10 @@
   --color-surface-raised: #202125;
   --color-surface-hover: #2A2B30;
   --color-surface-active: #34363B;
-  --color-border: #2E3036;
-  --color-border-strong: #484B53;
-  --color-border-sheet: #2E3036;
+  --color-border: #363940;
+  --color-border-strong: #4D515A;
+  --color-control-border: #7D828B;
+  --color-border-sheet: #363940;
   --color-text-primary: #F5F5F7;
   --color-text-secondary: #A5AAB1;
   --color-text-muted: #A5AAB1;

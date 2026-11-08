@@ -54,7 +54,7 @@ describe('Sources panel', () => {
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
     expect(within(panel()).getByRole('button', { name: 'Create note' })).toBeInTheDocument();
     expect(within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' })).toBeInTheDocument();
-    expect(within(panel()).getByRole('combobox', { name: 'Where to search' })).toHaveDisplayValue('Web');
+    expect(within(panel()).queryByRole('combobox', { name: 'Where to search' })).toBeNull(); // the single-option select was removed
     expect(within(panel()).queryByRole('combobox', { name: 'Research depth' })).toBeNull(); // the disabled depth selector was removed
   });
 
