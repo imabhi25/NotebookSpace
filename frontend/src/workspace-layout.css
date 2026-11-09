@@ -1001,3 +1001,37 @@
 }
 .workspace-layout .answer-view-container .answer-telemetry { margin: 0; background: transparent; border-style: dashed; }
 .workspace-layout .answer-view-container .answer-action-toolbar { margin-left: calc(var(--space-2) * -1); }
+
+/* ============================================================
+   Apple + Linear workbench: three full-height panes split by hairlines (desktop).
+   Below 1181px the study panel stays an overlay, as before.
+   ============================================================ */
+.workspace-layout .answer-view-container {
+  background: var(--bg-canvas, var(--color-surface)); border: 1px solid var(--border-subtle); border-radius: 12px; padding: 20px 24px;
+}
+.workspace-layout .answer-view-container .answer-action-toolbar {
+  margin: var(--space-3) 0 0 -10px; padding-top: 0; gap: 2px;
+}
+.workspace-layout .answer-action-btn {
+  border: 0; background: transparent; box-shadow: none; border-radius: 6px; color: var(--color-text-muted);
+  transition: background .15s ease, color .15s ease;
+}
+.workspace-layout .answer-action-btn:hover:not(:disabled) { background: var(--color-surface-hover); color: var(--color-text-primary); }
+
+@media (min-width: 1181px) {
+  .workspace-layout .workspace-body { padding: 0; gap: 0; align-items: stretch; }
+  .workspace-layout .nav-slot, .workspace-layout .context-slot, .workspace-layout .workspace-main-area { height: 100%; }
+  .workspace-layout .nav-slot { width: var(--nav-w); }
+  .workspace-layout .context-slot { width: var(--ctx-w); }
+  .workspace-layout .context-slot.is-collapsed { width: 0; }
+  .workspace-layout aside.workspace-nav.workspace-sources-rail {
+    height: 100%; margin: 0; border: 0; border-right: 1px solid var(--border-subtle); border-radius: 0; background: transparent;
+  }
+  .workspace-layout .context-slot aside.workspace-context-panel {
+    position: relative; top: 0; height: 100%; max-height: none; min-height: 0; margin: 0;
+    border: 0 !important; border-left: 1px solid var(--border-subtle) !important; border-radius: 0 !important;
+    box-shadow: none; background: transparent;
+  }
+  .workspace-layout .context-slot aside.workspace-context-panel .right-panel-body,
+  .workspace-layout .context-slot aside.workspace-context-panel .sidebar-tab-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+}

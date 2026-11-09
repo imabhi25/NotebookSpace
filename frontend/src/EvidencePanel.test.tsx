@@ -64,10 +64,13 @@ describe('Evidence panel', () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view());
     const chip = screen.getByRole('button', { name: /^Citation 1:/ });
-    expect(chip).toHaveAttribute('aria-pressed', 'false');
-    const evidenceBtn = screen.getByRole('button', { name: /^Evidence, 2 cited passages/ });
-    expect(evidenceBtn).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(chip);
+    // Citation 1 is selected when the notebook opens.
+    expect(chip).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /^Evidence, 2 cited passages/ })).toHaveAttribute('aria-expanded', 'true');
+    fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: /^Citation 2:/ })).toHaveAttribute('aria-pressed', 'true'));
+    expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
     await waitFor(() => expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveAttribute('aria-pressed', 'true'));
     expect(screen.getByRole('button', { name: /^Evidence, 2 cited passages/ })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', { name: /^Evidence, 2 cited passages/ })).toHaveAttribute('aria-controls', screen.getByTestId('inline-evidence').id);
@@ -166,7 +169,7 @@ describe('Evidence panel', () => {
   it('shows selected-source details in the materials panel while the passage stays under the answer', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view());
-    expect(screen.queryByTestId('selected-source-card')).toBeNull();
+    expect(screen.getByTestId('selected-source-card')).toBeInTheDocument(); // citation 1 auto-selected
     fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
     const card = await screen.findByTestId('selected-source-card');
     const panel = screen.getByRole('complementary', { name: 'Study panel' });
