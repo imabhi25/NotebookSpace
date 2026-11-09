@@ -27,7 +27,7 @@ describe('Workspace settings', () => {
     render(<DashboardView {...dashboardProps} onCreateSubject={onCreateSubject} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Workspace settings' }));
-    fireEvent.change(screen.getByLabelText('Response length'), { target: { value: 'concise' } });
+    fireEvent.change(screen.getByLabelText('Answer depth'), { target: { value: 'concise' } });
     expect(readDefaultResponseSettings()).toEqual({ response_length: 'concise', response_style: 'general' });
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
@@ -65,9 +65,9 @@ describe('Workspace settings', () => {
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     render(
-      <SettingsPanel isPrivacyBannerDismissed={false} onShowPrivacyNotice={() => {}} onRequestReset={() => {}} onClose={() => {}} />
+      <SettingsPanel onRequestReset={() => {}} onClose={() => {}} />
     );
-    fireEvent.click(screen.getByRole('button', { name: /Export notes/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Export JSON' }));
 
     await screen.findByText('Downloaded');
     expect(api.getSubjects).toHaveBeenCalledWith(true);
@@ -81,16 +81,24 @@ describe('Workspace settings', () => {
     expect(data.notebooks[0]).toMatchObject({ name: 'Algorithms', notes: [{ title: 'LCS', content: 'table' }] });
   });
 
-  it('brings the privacy notice back and opens the reset confirmation', () => {
-    window.localStorage.setItem('notebookspace_privacy_banner_dismissed', 'true');
+  it('has no privacy-notice row, states local storage, and opens the reset confirmation', () => {
     render(<DashboardView {...dashboardProps} />);
-    expect(screen.queryByTestId('guest-workspace-banner')).toBeNull();
-
     fireEvent.click(screen.getByRole('button', { name: 'Workspace settings' }));
-    fireEvent.click(screen.getByRole('button', { name: /Show privacy notice/ }));
-    expect(screen.getByTestId('guest-workspace-banner')).toBeTruthy();
+    expect(screen.queryByText(/Show privacy notice/)).toBeNull();
+    expect(screen.getByText('Stored locally in your browser. No account required.')).toBeTruthy();
+    expect(screen.getByLabelText('Reading font')).toBeTruthy();
 
     fireEvent.click(screen.getByRole('button', { name: /Reset Workspace/ }));
     expect(screen.getByText('Reset Workspace?')).toBeTruthy();
+  });
+
+  it('applies the reading font and has no guest avatar in the header', () => {
+    render(<DashboardView {...dashboardProps} />);
+    expect(document.querySelector('.library-account')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Workspace settings' }));
+    fireEvent.change(screen.getByLabelText('Reading font'), { target: { value: 'serif' } });
+    expect(document.documentElement.getAttribute('data-reading-font')).toBe('serif');
+    expect(window.localStorage.getItem('notebookspace_reading_font')).toBe('serif');
+    document.documentElement.removeAttribute('data-reading-font');
   });
 });

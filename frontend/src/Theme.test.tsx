@@ -19,7 +19,7 @@ const mockSystem = (dark: boolean) => {
 };
 
 const renderSettings = () =>
-  render(<SettingsPanel isPrivacyBannerDismissed={false} onShowPrivacyNotice={() => {}} onRequestReset={() => {}} onClose={() => {}} />);
+  render(<SettingsPanel onRequestReset={() => {}} onClose={() => {}} />);
 
 describe('Theme setting', () => {
   beforeEach(() => {
@@ -44,7 +44,7 @@ describe('Theme setting', () => {
     renderSettings();
     const group = screen.getByRole('radiogroup', { name: 'Appearance' });
     expect(group).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Auto' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true');
 
     fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
@@ -65,7 +65,7 @@ describe('Theme setting', () => {
     system.set(true);
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 
-    fireEvent.click(screen.getByRole('radio', { name: 'Auto' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'System' }));
     expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     stop();
