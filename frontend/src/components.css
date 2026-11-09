@@ -2100,3 +2100,50 @@ aside .retrieval-svg,
 @media (prefers-reduced-motion: reduce) {
   .notebooks-home .notebook-card:hover, .notebooks-home .library-add-card:hover, .notebooks-home .library-add-card:hover .add-plus, .notebooks-home .notebook-card:hover .notebook-open-action > span { transform: none; }
 }
+
+/* ============================================================
+   Precision carbon & zinc: neutral primary, architectural badge, hairline borders, single-line menu
+   ============================================================ */
+.notebooks-home {
+  --border-subtle: rgba(0, 0, 0, 0.08);
+  --bg-elevated: #FFFFFF; --bg-hover: rgba(0, 0, 0, 0.04);
+  --primary-bg: #18181B; --primary-fg: #FFFFFF; --primary-hover: #27272A;
+}
+:root[data-theme="dark"] .notebooks-home {
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --bg-elevated: #1C1C20; --bg-hover: rgba(255, 255, 255, 0.06);
+  --primary-bg: #FFFFFF; --primary-fg: #09090B; --primary-hover: #F4F4F5;
+}
+.notebooks-home .btn-primary, .notebooks-home .btn-new-workspace {
+  background: var(--primary-bg); color: var(--primary-fg); transition: background-color .15s ease, transform .15s ease;
+}
+.notebooks-home .btn-primary:hover:not(:disabled), .notebooks-home .btn-new-workspace:hover:not(:disabled) {
+  background: var(--primary-hover); filter: none;
+}
+.notebooks-home .notebook-card-tags .course-code-badge {
+  background: rgba(0, 0, 0, 0.04); color: #27272A; border: 1px solid rgba(0, 0, 0, 0.07);
+}
+.notebooks-home .notebook-card-tags .course-code-badge::before { display: none; }
+:root[data-theme="dark"] .notebooks-home .notebook-card-tags .course-code-badge {
+  background: rgba(255, 255, 255, 0.08); color: #E4E4E7; border-color: rgba(255, 255, 255, 0.1);
+}
+
+.notebooks-home .notebook-overflow-menu {
+  box-sizing: border-box; width: auto; min-width: 175px; padding: 5px; gap: 0; border-radius: 10px;
+  border: 1px solid var(--border-subtle); box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08); background: var(--bg-elevated);
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+}
+.notebooks-home .notebook-overflow-menu .notebook-menu-item {
+  display: flex; align-items: center; gap: 8px; height: 32px; min-height: 32px; padding: 0 8px; border-radius: 6px;
+  font-size: 13px; font-weight: 500; line-height: 1; white-space: nowrap; color: var(--color-text-primary);
+  border: 0; border-top: 0; background: transparent; cursor: pointer; width: 100%; text-align: left;
+  transition: background-color .12s ease;
+}
+.notebooks-home .notebook-overflow-menu .notebook-menu-item:hover { background: var(--bg-hover); }
+.notebooks-home .notebook-overflow-menu .notebook-menu-item svg { width: 14px; height: 14px; flex: none; stroke-width: 1.8; }
+.notebooks-home .notebook-overflow-menu .notebook-menu-divider { margin: 4px 0; height: 1px; background: var(--border-subtle); }
+.notebooks-home .notebook-overflow-menu .menu-item-danger { color: #DC2626; }
+.notebooks-home .notebook-overflow-menu .menu-item-danger:hover { background: rgba(220, 38, 38, 0.08); }
+:root[data-theme="dark"] .notebooks-home .notebook-overflow-menu .menu-item-danger { color: #F87171; }
+:root[data-theme="dark"] .notebooks-home .notebook-overflow-menu .menu-item-danger:hover { background: rgba(248, 113, 113, 0.12); }
+@media (pointer: coarse) { .notebooks-home .notebook-overflow-menu .notebook-menu-item { height: 44px; min-height: 44px; } }
