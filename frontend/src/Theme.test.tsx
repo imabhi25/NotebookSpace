@@ -99,6 +99,6 @@ describe('Notebook cards', () => {
     expect(empty).toHaveTextContent('Add your first source');
     expect(empty).toHaveTextContent('EECS 3101');
     expect(empty).not.toHaveTextContent('0 sources');
-    expect(screen.getByTestId('subject-card-b')).toHaveTextContent('Oct 12 · 2 sources');
+    expect(screen.getByTestId('subject-card-b')).toHaveTextContent(/Sources2.*Oct 12.*Indexed/);
   });
 });

@@ -750,12 +750,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           {privacyBanner}
 
           <div className="library-layout"><nav className="library-nav" aria-label="Library navigation">
-              <span className="library-nav-label">Workspace</span>
-              <button className={homeTab !== 'archived' ? 'library-nav-item active' : 'library-nav-item'} onClick={() => { setHomeTab('all'); setSearch(''); }}><ReferenceIcon name="book" />My notebooks</button>
-              <button className="library-nav-item" onClick={() => { setHomeTab('all'); setSortBy('updated_at'); }}><ReferenceIcon name="clock" />Recent</button>
-              <button className={homeTab === 'archived' ? 'library-nav-item active' : 'library-nav-item'} onClick={() => setHomeTab('archived')}><ReferenceIcon name="archive" />Archived</button>
+              <span className="library-nav-label">Engine &amp; index</span>
+              <dl className="engine-card" data-testid="engine-summary">
+                <div><dt>Embedding model</dt><dd>ONNX MiniLM-L6-v2 (384d)</dd></div>
+                <div><dt>Retrieval</dt><dd>pgvector cosine + lexical boost</dd></div>
+                <div><dt>Grounding</dt><dd>Page citations &amp; conflict check</dd></div>
+              </dl>
               <p className="library-privacy"><ReferenceIcon name="lock" size={15} />A private space for everything you’re learning.</p>
-              <details className="library-help"><summary>ⓘ &nbsp; Help &amp; shortcuts</summary><p>Create a notebook, add your materials, then ask a question. Click a citation to check its evidence. Press Escape to close panels and dialogs.</p></details>
+              <details className="library-help"><summary>? &nbsp; Help &amp; shortcuts</summary><p>Create a notebook, add your materials, then ask a question. Click a citation to check its evidence. Press Escape to close panels and dialogs.</p></details>
             </nav><main className="home-main">
             <div className="home-main-inner">
               <div className="library-introduction"><div><h1 className="home-heading">My notebooks</h1>
@@ -885,15 +887,24 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         )}
                         {s.is_archived && <span className="notebook-code-badge notebook-archived-tag">Archived</span>}
                       </div>
-                      {(s.source_count ?? 0) === 0 ? (
-                        <p className="notebook-card-meta notebook-card-meta-empty">
-                          <ReferenceIcon name="file" size={15} /> No sources yet <span className="notebook-created">{Date.now() - new Date(s.created_at).getTime() < 86400000 ? 'Just created' : formatDate(s.created_at)}</span>
-                        </p>
-                      ) : (
-                        <p className="notebook-card-meta">
-                          {formatDate(s.updated_at)} · {s.source_count} {s.source_count === 1 ? 'source' : 'sources'}
-                        </p>
+                      {isSampleNotebook(s) && (s.source_count ?? 0) >= 2 && (
+                        <div className="indexed-preview" data-testid="indexed-preview">
+                          <div className="indexed-files">
+                            <span className="file-pill"><ReferenceIcon name="file" size={12} />syllabus.pdf</span>
+                            <span className="file-pill"><ReferenceIcon name="file" size={12} />announcement_week4.md</span>
+                          </div>
+                          <div className="indexed-badges">
+                            <span className="cap-badge cap-warn">1 policy conflict</span>
+                            <span className="cap-badge">2D PCA map</span>
+                            <span className="cap-badge cap-ok">✓ Grounded Q&amp;A</span>
+                          </div>
+                        </div>
                       )}
+                      <dl className="notebook-card-meta notebook-meta-grid">
+                        <div><dt>Sources</dt><dd>{s.source_count ?? 0}</dd></div>
+                        <div><dt>Updated</dt><dd>{(s.source_count ?? 0) === 0 && Date.now() - new Date(s.created_at).getTime() < 86400000 ? 'Just now' : formatDate(s.updated_at)}</dd></div>
+                        <div><dt>Status</dt><dd className={(s.source_count ?? 0) === 0 ? 'status-empty' : 'status-indexed'}>{(s.source_count ?? 0) === 0 ? 'Empty' : 'Indexed'}</dd></div>
+                      </dl>
                       {isSampleNotebook(s) && s.source_count === 1 && onCreateSampleSubject && (
                         <button
                           type="button"
@@ -905,10 +916,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           {resettingSampleId === s.id ? 'Updating sample…' : 'Update sample to 2-source conflict demo'}
                         </button>
                       )}
-                      <span className="notebook-open-action">{(s.source_count ?? 0) === 0 ? 'Add your first source' : 'Open notebook'}<span aria-hidden="true">→</span></span>
+                      <span className="notebook-open-action">{(s.source_count ?? 0) === 0 ? 'Add your first source' : isSampleNotebook(s) ? 'Open workbench' : 'Open notebook'}<span aria-hidden="true">→</span></span>
                     </div>
                   ))}
-                  {homeTab !== 'archived' && !search && <button type="button" className="library-add-card" onClick={openCreateModal}><span aria-hidden="true">+</span><strong>Make room for something new</strong><small>Create another notebook</small></button>}
+                  {homeTab !== 'archived' && !search && <button type="button" className="library-add-card" onClick={openCreateModal}>
+                    <span className="add-plus" aria-hidden="true">+</span>
+                    <strong>Make room for something new</strong>
+                    <small>Create another notebook</small>
+                    <span className="add-pills" aria-hidden="true">{['PDF Syllabi', 'Lecture Slides', 'Markdown Notes', 'Announcements'].map((t) => <em key={t}>{t}</em>)}</span>
+                    <span className="add-flow">Auto-chunks pages · Computes 384d ONNX vectors · Flags cross-file contradictions</span>
+                  </button>}
                 </div>
               )}
               {!loading && subjects.length === 0 && !search && homeTab !== 'archived' && <div className="library-guide">{[
