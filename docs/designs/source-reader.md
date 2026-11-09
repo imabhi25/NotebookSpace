@@ -367,7 +367,17 @@ passage only when it can find that passage's exact text on the page.
     keep it, take `citation.excerpt` instead and label the mark "Excerpt saved
     with the answer", because the excerpt is only the first 250 characters.
 2.  Collapse whitespace to single spaces in both the page text and the passage
-    text (the chunker does the same when it builds chunks), find the passage in
+    text (the chunker does the same when it builds chunks, with Python's
+    `str.split()`). The browser's `\s` is not the same set, so the reader
+    uses its own exact class, `SERVER_WHITESPACE`. Checked across all code
+    points (Nov 9, 2026): Python treats U+001C to U+001F and U+0085 as
+    whitespace and JavaScript does not; JavaScript treats U+FEFF as whitespace
+    and Python does not. The class is therefore
+    `[\t\n\v\f\r\x1c-\x1f \x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]+`
+    (29 characters), with U+FEFF left as an ordinary character, exactly as on
+    the server. Without this a passage containing one of those characters
+    would show "could not be located" though it is on the page. Find the
+    passage in the page text, find the passage in
     the page text, and map the match back to the original text positions.
 3.  If several retrieved chunks sit on the page, mark each one found.
 4.  If nothing is found, show no mark and say "The retrieved passage could not
@@ -788,7 +798,8 @@ while writing the plan, with the reasoning given so they can be challenged.
 | Marker collision | A page containing a higher-numbered `--- Page N ---` line splits wrongly. | Increasing-number rule removes most cases; the rest is accepted and covered by a test that documents the behavior. Frequency unknown. |
 | Real `raw_content` shape | Verified by reading the server code, not against stored data: blank pages, page numbering, text type. | NOT TESTED against a real backend (see Verification Plan). |
 | Minimum reader width | 480px gives about 52 characters per line at 1,181px; 560px gives about 60 but leaves 577px of conversation. | Open; default 480px until you decide. |
-| Nav-room breakpoint (about 1,427px) | It is a number derived from CSS constants. If those constants change, the query must change. | One named constant with a comment and a browser check at 1,426px and 1,428px. |
+| Nav-room breakpoint (about 1,427px) | It is a number derived from CSS constants. If those constants change, the query must change. | One named constant with a comment, a browser check at 1,426px and 1,428px, and a unit test (`ReaderLayoutConstants.test.ts`) that reads `workspace-layout.css` as text, pulls the nav slot width, the reader width clamp, the panel slot extras and the body padding, recomputes the threshold for a 560px conversation, and fails if it differs from `READER_NAV_ROOM_MIN_WIDTH`. It also fails if any of those declarations can no longer be found, so a renamed token cannot pass silently. |
+| Layout, focus and scroll tests (M5) | Width thresholds, scroll anchoring and overlay focus cannot be observed in jsdom. The repository has no browser test runner and adding one is a separate dependency decision. | Decided (Nov 9, 2026): these are a manual gate before merge, not committed tests. The Verification Plan's browser checks are the checklist, run against the dev server with the mock API. The jsdom tests cover everything that can be (state, focus order, Escape, the pointer rule, the CSS derivation test below). Revisit by adding Playwright to the repository if the gate is skipped or regressions slip through. |
 | Reflow rule | Showing single line breaks as spaces helps narrow reading but can mangle tables and poems. | Display-only; open whether to offer "show original line breaks". |
 | Notes and Retrieval while expanded | Opening them collapses the reader, which could surprise a student mid-read. | Defined in section 4; revisit after the quick-note phase. |
 | Two viewers | The modal and the reader coexist. | Author decision; documented in Alternatives. |
@@ -805,6 +816,7 @@ Work happens on `redesign/three-area-shell`. Nothing below is written yet.
 *   **Proposed Changes**:
     *   `parseSourcePages(rawContent)` returns `{ pages: Map<number, string>, order: number[] }`. It splits on the server's marker pattern and applies the increasing-number rule. Text with no markers returns no pages (the reader then shows "No text was stored"); it never invents page 1. Empty or whitespace-only input returns no pages.
     *   `pageLabel(sourceType)` returns `{ unit: 'Page' | 'Section', hint?: string }`; PDFs get `Page`, every other type gets `Section` with "about 350 words".
+    *   `SERVER_WHITESPACE` (exported): the exact class from section 3, used by `locatePassages` and nowhere else; never the JavaScript `\s`.
     *   `locatePassages(pageText, passages)` takes the page text and a list of `{ text, kind: 'passage' | 'excerpt' }`, collapses whitespace in both, finds each exactly, and returns non-overlapping `{ start, end, kind }` ranges in the original text's coordinates (using an index map built while collapsing). Not found means no range. It never searches approximately.
     *   `toParagraphs(pageText, sourceType)` returns paragraphs split on blank lines with single newlines replaced by a space one-for-one, so offsets stay valid, for PDFs. For other source types it returns the text as one block.
     *   A small in-memory cache keyed `sourceId:version`, keeping the three most recently used, with `getCachedPages`, `setCachedPages` and `clearSourceTextCache`.
@@ -881,7 +893,7 @@ Work happens on `redesign/three-area-shell`. Nothing below is written yet.
 #### 10. `frontend/src/SourcePages.test.ts` (Create)
 
 *   **Type / Scope**: Unit test for the pure module.
-*   **Proposed Changes**: Parsing with markers, without markers (returns no pages, not page 1), empty input, a 350-word virtual page from a non-PDF source (one block, labelled Section), the label for each source type, repeated and lower-numbered marker lines kept as text, a higher-numbered marker line (documents the known limitation), CRLF line endings, and cache eviction at three sources. Passage location: exact match, whitespace differences, two chunks on one page, not found returns nothing, and the excerpt path. Offsets map back to the original text.
+*   **Proposed Changes**: Whitespace class: a fixture of the 29 code points Python's `str.split()` splits on (listed in the test, generated once with `chr(c).split() == []` over all code points) must each match `SERVER_WHITESPACE`; nothing else may match it, including U+FEFF; a passage containing U+001F, U+0085 and U+FEFF is located correctly. Parsing with markers, without markers (returns no pages, not page 1), empty input, a 350-word virtual page from a non-PDF source (one block, labelled Section), the label for each source type, repeated and lower-numbered marker lines kept as text, a higher-numbered marker line (documents the known limitation), CRLF line endings, and cache eviction at three sources. Passage location: exact match, whitespace differences, two chunks on one page, not found returns nothing, and the excerpt path. Offsets map back to the original text.
 
 #### 11. `frontend/src/SourceReader.test.tsx` (Create)
 
@@ -892,6 +904,11 @@ Work happens on `redesign/three-area-shell`. Nothing below is written yet.
 
 *   **Type / Scope**: Integration test through `SubjectWorkspaceView` with mocked API.
 *   **Proposed Changes**: Entry from the evidence block and from a note's citation chip; the pointer rule (same source, version and page shows it; different page, version or non-expanded does not); replaced source offers only "Open current version" and the historical evidence makes no `getSourceDetail` call; deleted source offers nothing; collapse by button, Escape and pointer; navigation derived-hidden without changing `localStorage`; toggling the nav while hidden collapses the reader; opening with the panel collapsed (it opens, the saved panel preference in `localStorage` is not written, and closing the reader collapses it again; with the panel open on Notes, closing returns to Notes); scroll restoration waits for the width `transitionend` (fire it by hand in the test) and falls back to the timer, runs on the next frame under reduced motion, and `userScrolled` is set by wheel and scroll keys but not by a `scroll` event; overlay behavior at 1024 (focus trap, inert conversation); Escape in overlay mode fired at `window` with the reader expanded (collapses, overlay stays open, focus on Expand), then with the compact reader (closes, focus on the opener), then with the opener removed (fallback order); the same sequence at 390 full-screen; Escape docked with an expanded reader (collapses) and with a compact reader (ignored); full-screen attributes at 390; conversation switch closes the reader; focus fallback order; scroll restore with mocked layout, including the "student scrolled meanwhile" and "anchor gone" cases; source replaced or deleted while open.
+
+#### 12b. `frontend/src/ReaderLayoutConstants.test.ts` (Create)
+
+*   **Type / Scope**: Node-side unit test (`fs` reads the CSS file; no DOM).
+*   **Proposed Changes**: Recompute the nav-room breakpoint from `workspace-layout.css` and compare it with `READER_NAV_ROOM_MIN_WIDTH` (1,427 today); fail with a message naming the constant to update. Fail if a needed declaration is missing.
 
 #### 13. `frontend/src/EvidencePanel.test.tsx`, `EvidenceStale.test.tsx`, `WorkspaceLayout.test.tsx` (Modify)
 
