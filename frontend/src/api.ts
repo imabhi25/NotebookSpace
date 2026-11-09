@@ -8,6 +8,7 @@ import {
   User,
   AskResponse,
   RetrievalMapResponse,
+  HealthDetail,
 } from './types';
 
 export const API_BASE_URL = (
@@ -241,6 +242,21 @@ export const api = {
   async checkHealth(signal?: AbortSignal): Promise<boolean> {
     const res = await fetch(`${API_BASE_URL}/health`, { signal, cache: 'no-store' });
     return res.ok;
+  },
+
+  /** Like checkHealth, but also returns the readiness fields. Null when not OK; fields are absent on an older backend. */
+  async getHealth(signal?: AbortSignal): Promise<HealthDetail | null> {
+    const res = await fetch(`${API_BASE_URL}/health`, { signal, cache: 'no-store' });
+    if (!res.ok) return null;
+    try {
+      const body = await res.json();
+      return {
+        database: typeof body?.database === 'string' ? body.database : undefined,
+        embedding: typeof body?.embedding === 'string' ? body.embedding : undefined,
+      };
+    } catch {
+      return {};
+    }
   },
 
   async createSampleSubject(): Promise<Subject> {

@@ -22,3 +22,9 @@ def isolate_test_llm_cache(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("LLM_CACHE_DIR", str(temp_cache))
     yield temp_cache
 
+
+
+@pytest.fixture(autouse=True)
+def no_health_warmup(monkeypatch):
+    """/health must not start a model download in a background thread during tests."""
+    monkeypatch.setenv("NOTEBOOKSPACE_HEALTH_WARMUP", "0")

@@ -12,6 +12,9 @@ const ICONS = {
 };
 
 const scoreDetail = (t: NonNullable<Telemetry['top']>): string => {
+  if (t.kind === 'exact') {
+    return (t.boost ?? 0) > 1e-6 ? `raw ${(t.raw as number).toFixed(3)} + ${(t.boost as number).toFixed(3)} boost` : `raw ${(t.raw as number).toFixed(3)}, no boost`;
+  }
   if (t.kind === 'vector') return `raw ${t.score.toFixed(3)}, no boost`;
   if (t.kind === 'estimated') return `raw ≈${(t.raw as number).toFixed(3)} + ${KEYWORD_BOOST.toFixed(2)} boost`;
   return 'keyword boost applied';
@@ -29,7 +32,9 @@ export const AnswerTelemetryStrip: React.FC<{ telemetry: Telemetry }> = ({ telem
       {top && (
         <span
           className="telemetry-item" data-testid="telemetry-score"
-          title={top.kind === 'estimated'
+          title={top.kind === 'exact'
+            ? 'The raw cosine similarity and the final keyword-boosted score are both recorded with the retrieved passage.'
+            : top.kind === 'estimated'
             ? 'The saved response keeps only the boosted score, so the raw cosine is estimated as the score minus the keyword boost. The Retrieval tab shows the exact value.'
             : top.kind === 'boosted'
               ? 'A keyword matched, but the score is at the boost floor or the cap, so the raw cosine cannot be recovered from the saved response.'

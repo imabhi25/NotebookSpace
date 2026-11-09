@@ -20,6 +20,15 @@ describe('topScoreOf', () => {
   it('is exact when no keyword matched: the score is the raw cosine', () => {
     expect(topScoreOf([{ score: 0.55, matched_terms: [] }])).toEqual({ score: 0.55, raw: 0.55, boost: 0, kind: 'vector' });
   });
+  it('uses the exact raw_cosine when the passage records it, even at the boost floor', () => {
+    const t = topScoreOf([{ score: 0.4, raw_cosine: 0.05, matched_terms: ['ksi'] }])!;
+    expect(t.kind).toBe('exact');
+    expect(t.raw).toBe(0.05);
+    expect(t.boost).toBeCloseTo(0.35);
+    render(<AnswerTelemetryStrip telemetry={{ model: 'm', chunks: 1, top: t, citations: 0 }} />);
+    expect(screen.getByTestId('telemetry-score').textContent).toContain('raw 0.050 + 0.350 boost');
+    expect(screen.getByTestId('telemetry-score').textContent).not.toContain('≈');
+  });
   it('estimates raw as score minus the boost when a keyword matched', () => {
     const t = topScoreOf(base.retrieved)!;
     expect(t.kind).toBe('estimated');

@@ -11,7 +11,7 @@ client = TestClient(app)
 def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    assert response.json()["status"] == "ok"
 
 
 def test_search_endpoint():
@@ -368,3 +368,24 @@ def test_old_response_shapes_validate():
     assert old_ask.model is None
     assert old_ask.answer == "Sample legacy answer"
 
+
+
+def test_health_reports_readiness_without_blocking(monkeypatch):
+    monkeypatch.setattr("api.main._embedding_model_loaded", lambda: True)
+    monkeypatch.setattr("api.main._database_readiness", lambda: "ready")
+    body = client.get("/health").json()
+    assert body == {"status": "ok", "database": "ready", "embedding": "ready", "ready": True}
+
+
+def test_health_stays_ok_when_the_database_is_down_and_model_cold(monkeypatch):
+    import api.main as m
+
+    monkeypatch.setattr(m, "_embedding_model_loaded", lambda: False)
+    monkeypatch.setattr(m, "_database_readiness", lambda: "down")
+    monkeypatch.setattr(m, "_health_embedding_state", "cold")
+    response = client.get("/health")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "ok" and body["database"] == "down" and body["ready"] is False
+    # Warm-up is disabled under test, so a cold model stays "cold" and no thread is started.
+    assert body["embedding"] == "cold"

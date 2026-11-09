@@ -878,6 +878,7 @@ def search_scoped(
                     "chunk_index": chunk_idx,
                     "score": float(score),
                     "similarity_score": float(score),
+                    "raw_cosine": float(score),
                     "source_version": s_version,
                     "upload_date": s_updated.isoformat() if hasattr(s_updated, "isoformat") else str(s_updated),
                     "matched_terms": [],
@@ -936,6 +937,7 @@ def search_scoped(
                             "chunk_index": chunk_idx,
                             "score": float(score),
                             "similarity_score": float(score),
+                            "raw_cosine": float(score),
                             "source_version": s_version,
                             "upload_date": s_updated.isoformat() if hasattr(s_updated, "isoformat") else str(s_updated),
                             "matched_terms": [],
@@ -951,6 +953,7 @@ def search_scoped(
             boosted = max(res["score"] + 0.30, 0.40)
             res["score"] = min(1.0, boosted)
             res["similarity_score"] = res["score"]
+            # res["raw_cosine"] keeps the unboosted similarity; "score" is the final boosted one.
 
     # 4. Rank by score descending and take top k
     ranked = sorted(results_by_id.values(), key=lambda x: x["score"], reverse=True)

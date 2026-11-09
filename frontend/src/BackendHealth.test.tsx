@@ -100,3 +100,27 @@ describe('BackendStatus pill', () => {
     expect(online).toHaveTextContent('ONNX + pgvector Online');
   });
 });
+
+describe('HealthMonitor readiness', () => {
+  beforeEach(() => { vi.useFakeTimers(); });
+  afterEach(() => { vi.useRealTimers(); });
+
+  it('stays online but reports a warming model, then ready once /health says so', async () => {
+    let calls = 0;
+    const m = new HealthMonitor(async () => (++calls < 3 ? { database: 'ready', embedding: 'warming' } : { database: 'ready', embedding: 'ready' }), () => Date.now());
+    m.start();
+    await vi.advanceTimersByTimeAsync(10);
+    expect(m.getState()).toMatchObject({ phase: 'online', embedding: 'warming' });
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(m.getState()).toMatchObject({ phase: 'online', embedding: 'ready' });
+    expect(calls).toBe(3);
+  });
+
+  it('treats an older backend that reports nothing as ready', async () => {
+    const m = new HealthMonitor(async () => ({}), () => Date.now());
+    m.start();
+    await vi.advanceTimersByTimeAsync(10);
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(m.getState().embedding).toBeUndefined();
+  });
+});
