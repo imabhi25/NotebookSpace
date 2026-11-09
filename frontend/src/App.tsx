@@ -16,6 +16,8 @@ import {
   normalizeFileName,
 } from './types';
 import { DashboardView } from './components/DashboardView';
+import { SampleProgress, SampleProgressState } from './components/SampleProgress';
+import { backendHealth } from './backendHealth';
 import { WorkspaceSkeleton } from './components/WorkspaceSkeleton';
 import { lazyView, preloadWhenIdle } from './lazyView';
 import { Sidebar } from './components/Sidebar';
@@ -601,18 +603,44 @@ export function App({
     navigateTo('workspace', subj.id);
   };
 
+  // The sample notebook is three real stages; each is shown as it runs so a cold start reads as progress.
+  const [sampleProgress, setSampleProgress] = useState<SampleProgressState | null>(null);
+  const sampleRunRef = useRef(0);
   const handleCreateSampleSubject = async () => {
+    const run = ++sampleRunRef.current;
+    const live = () => sampleRunRef.current === run;
+    const startedAt = Date.now();
+    const doneAt: number[] = [];
+    let step = 1;
+    const show = (error: string | null = null) => {
+      if (live()) setSampleProgress({ step, error, startedAt, doneAt: [...doneAt] });
+    };
     try {
-      setSubjectsLoading(true);
-      const subj = await api.createSampleSubject();
+      show();
+      await backendHealth.whenOnline(); // 1. the host and the ONNX runtime are up
+      doneAt.push(Date.now());
+      step = 2;
+      show();
+      const subj = await api.createSampleSubject(); // 2. ingest + embed + query pgvector
+      doneAt.push(Date.now());
+      step = 3;
+      show();
+      try {
+        await api.getRetrievalMap(subj.id, {}); // 3. fit the 2D PCA projection so the inspector opens instantly
+      } catch {
+        // The projection is recomputed when the inspector opens; do not block the notebook on it.
+      }
+      doneAt.push(Date.now());
+      if (!live()) return;
       setSubjects((prev) => [subj, ...prev]);
+      setSampleProgress(null);
       navigateTo('workspace', subj.id);
     } catch (err: any) {
       console.error('Failed to create sample notebook:', err);
-    } finally {
-      setSubjectsLoading(false);
+      show(err?.message || 'The sample notebook could not be created.');
     }
   };
+  const dismissSampleProgress = () => { sampleRunRef.current++; setSampleProgress(null); };
 
   const handleUpdateSubject = async (
     subjId: string,
@@ -1159,6 +1187,9 @@ export function App({
             <WorkspaceSkeleton />
           ) : null}
         </DashboardView>
+      )}
+      {sampleProgress && (
+        <SampleProgress state={sampleProgress} onDismiss={dismissSampleProgress} onRetry={handleCreateSampleSubject} />
       )}
     </div>
   );

@@ -1,3 +1,4 @@
+import { BackendStatus } from './BackendStatus';
 import { useModalFocus } from '../useModalFocus';
 import { ReferenceIcon } from './ReferenceIcon';
 import { EmptyStateIcon } from './EmptyStateIcon';
@@ -693,6 +694,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
 
             <div className="home-header-actions">
+              <BackendStatus />
               <button
                 type="button"
                 className="btn-icon sidebar-settings-btn"

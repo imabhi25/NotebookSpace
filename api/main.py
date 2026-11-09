@@ -915,6 +915,23 @@ def get_starter_questions_endpoint(
     return questions[:4]
 
 
+_SAMPLE_SYLLABUS_LATE_POLICY = (
+    "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day "
+    "for up to 3 days. Submissions more than 3 days late will receive zero credit."
+)
+_SAMPLE_ANNOUNCEMENT_FILE = "announcement_week4.md"
+_SAMPLE_ANNOUNCEMENT_EXCERPT = (
+    "Update to the late policy: effective this week, assignments submitted after the deadline "
+    "incur a penalty of 5 percent per day for up to 3 days, replacing the 10 percent per day in the syllabus."
+)
+_SAMPLE_ANNOUNCEMENT = (
+    "--- Page 1 ---\n"
+    "Week 4 Announcement - CS 401\n"
+    + _SAMPLE_ANNOUNCEMENT_EXCERPT
+    + " Submissions more than 3 days late still receive zero credit.\n"
+)
+
+
 @app.post("/subjects/sample")
 def create_sample_subject_endpoint(
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
@@ -937,26 +954,21 @@ def create_sample_subject_endpoint(
     )
     subject_id = subj["id"]
 
-    # 1. Ingest small source (syllabus.pdf or synthetic fallback)
-    sample_pdf = Path(__file__).resolve().parent.parent / "docs" / "sample_docs" / "syllabus.pdf"
-    if sample_pdf.is_file():
-        content = sample_pdf.read_bytes()
-        file_hash = hashlib.sha256(content).hexdigest()
-        stream = io.BytesIO(content)
-        pages = parse_pdf_source(source=stream, file_name="syllabus.pdf")
-    else:
-        synthetic_text = (
-            "--- Page 1 ---\n"
-            "CS 401: Advanced Systems Programming - Course Syllabus\n"
-            "Instructor: Dr. Alex Mercer. Office hours: Tuesdays and Thursdays 2-4 PM.\n\n"
-            "--- Page 2 ---\n"
-            "Grading Breakdown and Course Policies\n"
-            "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.\n"
-            "Midterm Examination: 25 percent of total grade.\n"
-        )
-        content = synthetic_text.encode("utf-8")
-        file_hash = hashlib.sha256(content).hexdigest()
-        pages = _pages_from_saved_content(synthetic_text, "syllabus.pdf")
+    # 1. Ingest the syllabus from the embedded text below. It is deliberately not read from
+    # docs/sample_docs/syllabus.pdf: *.pdf is gitignored (so deploys never have that file) and
+    # its wording differs from the cited excerpt, so file vs. fallback would disagree.
+    synthetic_text = (
+        "--- Page 1 ---\n"
+        "CS 401: Advanced Systems Programming - Course Syllabus\n"
+        "Instructor: Dr. Alex Mercer. Office hours: Tuesdays and Thursdays 2-4 PM.\n\n"
+        "--- Page 2 ---\n"
+        "Grading Breakdown and Course Policies\n"
+        f"{_SAMPLE_SYLLABUS_LATE_POLICY}\n"
+        "Midterm Examination: 25 percent of total grade.\n"
+    )
+    content = synthetic_text.encode("utf-8")
+    file_hash = hashlib.sha256(content).hexdigest()
+    pages = _pages_from_saved_content(synthetic_text, "syllabus.pdf")
 
     src = create_source(
         user_id=current_user["id"],
@@ -976,7 +988,28 @@ def create_sample_subject_endpoint(
         pages=pages,
     )
 
-    # 2. Suggested question & conversation with clickable citation
+    # 1b. A second, newer source that changes the late penalty, so the sample shows a real
+    # cross-document conflict (the "Cross-Source Evidence Check") instead of a single citation.
+    announcement_bytes = _SAMPLE_ANNOUNCEMENT.encode("utf-8")
+    announcement = create_source(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        title=_SAMPLE_ANNOUNCEMENT_FILE,
+        file_name=_SAMPLE_ANNOUNCEMENT_FILE,
+        source_type="markdown",
+        file_hash=hashlib.sha256(announcement_bytes).hexdigest(),
+        status="processing",
+    )
+    _process_and_store_source(
+        user_id=current_user["id"],
+        subject_id=subject_id,
+        source_id=announcement["id"],
+        version=1,
+        pages=_pages_from_saved_content(_SAMPLE_ANNOUNCEMENT, _SAMPLE_ANNOUNCEMENT_FILE),
+    )
+    sample_source_ids = [src["id"], announcement["id"]]
+
+    # 2. Suggested question & conversation with clickable citations
     conv = create_conversation(
         user_id=current_user["id"],
         subject_id=subject_id,
@@ -995,15 +1028,22 @@ def create_sample_subject_endpoint(
         question=question,
         user_id=current_user["id"],
         subject_id=subject_id,
-        selected_source_ids=[src["id"]],
+        selected_source_ids=sample_source_ids,
         k=3,
     )
 
+    syllabus_claim = "10 percent per day"
+    announcement_claim = "5 percent per day"
     save_message(
         user_id=current_user["id"],
         conversation_id=conv["id"],
         role="assistant",
-        content="**[Sample Answer]** According to the course syllabus, assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit [syllabus.pdf p.2].",
+        content=(
+            "**[Sample Answer]** The syllabus sets the late penalty at "
+            f"{syllabus_claim} for up to 3 days [syllabus.pdf p.2], but the week 4 announcement "
+            f"updates it to {announcement_claim} [{_SAMPLE_ANNOUNCEMENT_FILE} p.1]. "
+            "The two sources disagree; the announcement is the newer one."
+        ),
         model="Sample",
         citations=[
             {
@@ -1011,12 +1051,29 @@ def create_sample_subject_endpoint(
                 "page": 2,
                 "source_id": src["id"],
                 "source_version": 1,
-                "excerpt": "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.",
+                "excerpt": _SAMPLE_SYLLABUS_LATE_POLICY,
+            },
+            {
+                "file": _SAMPLE_ANNOUNCEMENT_FILE,
+                "page": 1,
+                "source_id": announcement["id"],
+                "source_version": 1,
+                "excerpt": _SAMPLE_ANNOUNCEMENT_EXCERPT,
+            },
+        ],
+        conflicts=[
+            {
+                "topic": "Late penalty",
+                "claims": [
+                    {"file": "syllabus.pdf", "page": 2, "value": syllabus_claim, "source_id": src["id"], "source_version": 1},
+                    {"file": _SAMPLE_ANNOUNCEMENT_FILE, "page": 1, "value": announcement_claim, "source_id": announcement["id"], "source_version": 1},
+                ],
             }
         ],
+        conflict_detected=True,
         retrieved=real_retrieved,
-        selected_source_ids=[src["id"]],
-        source_versions={src["id"]: 1},
+        selected_source_ids=sample_source_ids,
+        source_versions={src["id"]: 1, announcement["id"]: 1},
     )
 
     return get_subject_by_id(user_id=current_user["id"], subject_id=subject_id)

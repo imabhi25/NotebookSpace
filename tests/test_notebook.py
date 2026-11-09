@@ -587,17 +587,17 @@ def test_one_click_sample_notebook_in_guest_mode():
         assert sample_res.status_code == 200
         subj_data = sample_res.json()
         assert "Sample" in subj_data["name"]
-        assert subj_data["source_count"] == 1
+        assert subj_data["source_count"] == 2
         subj_id = subj_data["id"]
 
         # 3. Check sources
         sources_res = client.get(f"/subjects/{subj_id}/sources", headers=headers)
         assert sources_res.status_code == 200
         sources = sources_res.json()
-        assert len(sources) == 1
-        src = sources[0]
-        assert src["file_name"] == "syllabus.pdf"
-        assert src["status"] == "ready"
+        assert len(sources) == 2
+        by_name = {s["file_name"]: s for s in sources}
+        assert set(by_name) == {"syllabus.pdf", "announcement_week4.md"}
+        assert all(s["status"] == "ready" for s in sources)
 
         # 4. Check conversation and message with real scored retrieval
         convs_res = client.get(f"/subjects/{subj_id}/conversations", headers=headers)
@@ -617,10 +617,10 @@ def test_one_click_sample_notebook_in_guest_mode():
         assert asst_msg["role"] == "assistant"
         assert asst_msg["model"] == "Sample"
         assert "Sample Answer" in asst_msg["content"]
-        assert len(asst_msg["citations"]) > 0
-        citation = asst_msg["citations"][0]
-        assert citation["file"] == "syllabus.pdf"
-        assert citation["page"] == 2
+        # The sample cites both sources and records their disagreement over the late penalty.
+        assert [(c["file"], c["page"]) for c in asst_msg["citations"]] == [("syllabus.pdf", 2), ("announcement_week4.md", 1)]
+        assert asst_msg["conflict_detected"] is True
+        assert asst_msg["conflicts"][0]["topic"] == "Late penalty"
 
         # Verify real scored retrieved items are present
         assert len(asst_msg["retrieved"]) > 0
@@ -640,7 +640,7 @@ def test_one_click_sample_notebook_in_guest_mode():
 
         # 6. Check passage endpoint returns chunk for the citation
         passages_res = client.get(
-            f"/passages?file=syllabus.pdf&page=2&subject_id={subj_id}&source_id={src['id']}",
+            f"/passages?file=syllabus.pdf&page=2&subject_id={subj_id}&source_id={by_name['syllabus.pdf']['id']}",
             headers=headers,
         )
         assert passages_res.status_code == 200
