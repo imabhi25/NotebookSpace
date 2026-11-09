@@ -8,6 +8,8 @@ interface SourceRowProps {
   isSelected: boolean;
   onToggle: () => void;
   onView: () => void;
+  /** Opens the source in the study panel's reader, on its first page. */
+  onRead?: () => void;
   onRename: () => void;
   onRetry: () => void;
   onReplace: () => void;
@@ -28,6 +30,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   isSelected,
   onToggle,
   onView,
+  onRead,
   onRename,
   onRetry,
   onReplace,
@@ -201,6 +204,11 @@ export const SourceRow: React.FC<SourceRowProps> = ({
             </>
           ) : (
             <>
+              {onRead && isReady && (
+                <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onRead)} data-testid={`source-read-${s.id}`}>
+                  Read
+                </button>
+              )}
               <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onView)}>
                 View
               </button>

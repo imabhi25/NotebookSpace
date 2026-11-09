@@ -19,7 +19,10 @@ import { MarkdownRenderer } from './MarkdownRenderer';
 import { lazyView, preloadWhenIdle } from '../lazyView';
 import { SourceRow } from './SourceRow';
 import { useModalFocus } from '../useModalFocus';
-import { useMediaQuery } from '../viewport';
+import { useMediaQuery, READER_NAV_ROOM_MIN_WIDTH } from '../viewport';
+import { SourceReader, type ReaderNotice } from './SourceReader';
+import { useSourceText } from '../useSourceText';
+import type { PassageInput } from '../sourcePages';
 import { RetrievalMapView } from './RetrievalMapView';
 import { SessionsView } from './WorkspaceNav';
 import { InlineEvidence } from './EvidenceBody';
@@ -100,6 +103,25 @@ interface SubjectWorkspaceViewProps {
   historyLoading?: boolean;
   onStopGeneration?: () => void;
   onResetWorkspace?: () => Promise<void>;
+}
+
+interface ReaderState {
+  sourceId: string;
+  page: number;
+  mode: 'cited' | 'current';
+  version: number;
+  cite: { messageId: string; citation: ActiveCitation } | null;
+  /** The panel was collapsed when the reader opened; closing the reader puts it back. */
+  panelWasCollapsed: boolean;
+  /** The source was replaced while the reader was open. */
+  replaced: boolean;
+}
+interface ReturnTarget {
+  opener: HTMLElement | null;
+  anchorTurnId: string | null;
+  anchorOffset: number;
+  scrollTop: number;
+  userScrolled: boolean;
 }
 
 export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
@@ -192,7 +214,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   const contextOverlayOpen = isContextOverlay && !isContextCollapsed;
   const navDrawerOpen = isCompact && !isNavCollapsed;
-  useModalFocus<HTMLElement>(contextOverlayOpen, closeContextPanel, contextPanelRef);
+  // One Escape handler for the panel (defined with the reader below), so the overlay's focus hook
+  // and the workspace's key handler take the same steps.
+  const panelEscapeRef = useRef<() => void>(() => {});
+  useModalFocus<HTMLElement>(contextOverlayOpen, () => panelEscapeRef.current(), contextPanelRef);
+  // Source reader state lives here, with the other layout state, because layout values derive from it.
+  const [reader, setReader] = useState<ReaderState | null>(null);
+  const [readerExpanded, setReaderExpanded] = useState(false);
+  const readerEscapeRef = useRef<() => void>(() => {});
+  const roomForNav = useMediaQuery(`(min-width: ${READER_NAV_ROOM_MIN_WIDTH}px)`, typeof window !== 'undefined' && window.innerWidth >= READER_NAV_ROOM_MIN_WIDTH);
+  // Derived, never stored: the saved navigation preference is not touched.
+  const navHiddenByReader = readerExpanded && !isContextOverlay && !roomForNav;
   useModalFocus<HTMLElement>(navDrawerOpen, closeNavPanel, navPanelRef);
   const [evidenceFocusTick, setEvidenceFocusTick] = useState(0);
   const passageRequestRef = useRef(0);
@@ -290,8 +322,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (contextPanelRef.current) contextPanelRef.current.inert = isContextCollapsed;
   }, [isContextCollapsed]);
   useEffect(() => {
-    if (navPanelRef.current) navPanelRef.current.inert = isNavCollapsed;
-  }, [isNavCollapsed]);
+    if (navPanelRef.current) navPanelRef.current.inert = isNavCollapsed || navHiddenByReader;
+  }, [isNavCollapsed, navHiddenByReader]);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
 
   // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
@@ -329,6 +361,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   }, [subject.id]);
 
   const [viewingSource, setViewingSource] = useState<Source | null>(null);
+  const [viewerStatus, setViewerStatus] = useState<'loading' | 'error' | 'ready'>('ready');
 
   // The Add sources dialog mounts on first open and then stays mounted, so a pasted draft survives closing it.
   const hasOpenedAddSource = useRef(false);
@@ -430,7 +463,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         } else if (isActionsOpen) {
           closeActions();
         } else if (contextOverlayOpen) {
-          closeContextPanel();
+          panelEscapeRef.current();
+        } else if (readerExpanded) {
+          // Docked: the panel is not modal, but an expanded reader still steps back one level.
+          readerEscapeRef.current();
         } else if (navDrawerOpen) {
           closeNavPanel();
         }
@@ -438,7 +474,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, contextOverlayOpen, navDrawerOpen]);
+  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, contextOverlayOpen, navDrawerOpen, readerExpanded]);
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
@@ -506,13 +542,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // View full source content modal
   const handleOpenSourceViewer = async (s: Source) => {
     setViewingSource(s);
+    setViewerStatus('loading');
     try {
       const full = await api.getSourceDetail(subject.id, s.id);
       if (full) {
         setViewingSource(full);
       }
+      setViewerStatus('ready');
     } catch (err) {
       console.error('Failed to load source detail:', err);
+      setViewerStatus('error');
     }
   };
 
@@ -602,7 +641,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // --------------------------------------------------------------------------
   // Show a view in the materials panel, opening it (as an overlay where it is one) if it is closed.
   const openContext = (view?: 'notes' | 'evidence' | 'retrieval') => {
-    if (view) setContextView(view);
+    if (view) { setContextView(view); if (reader) { setReader(null); setReaderExpanded(false); } }
     setIsContextCollapsed(false);
   };
   // Sources live in the left panel; show it (as a drawer on narrow screens) when something points at them.
@@ -794,6 +833,253 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   );
 
   // --------------------------------------------------------------------------
+  // SOURCE READER
+  // --------------------------------------------------------------------------
+  const [readerAnnouncement, setReaderAnnouncement] = useState('');
+  const [readerFocusTick, setReaderFocusTick] = useState(0);
+  const returnTargetRef = useRef<ReturnTarget | null>(null);
+  const readerExpandRef = useRef<HTMLButtonElement>(null);
+  const readerHeadingRef = useRef<HTMLHeadingElement>(null);
+  const readerSource = reader ? sources.find((s) => s.id === reader.sourceId) : undefined;
+  const readerRemoved = Boolean(reader && !readerSource);
+  const readerText = useSourceText(subject.id, reader && readerSource ? reader.sourceId : null, readerSource?.version ?? null, Boolean(reader && readerSource));
+  const readerNotice: ReaderNotice = !reader || reader.mode === 'cited' ? 'none' : reader.replaced ? 'replaced' : 'current';
+
+  // Text to look for on the page: the full chunks saved with the answer, else the saved excerpt.
+  const readerPassages = React.useMemo<PassageInput[]>(() => {
+    if (!reader || reader.mode !== 'cited' || !reader.cite) return [];
+    const cit = reader.cite.citation;
+    const msg = messages.find((m) => m.id === reader.cite!.messageId);
+    const chunks = (msg?.retrieved ?? []).filter((r) => {
+      const file = r.file || r.file_name;
+      const pg = r.page !== undefined ? r.page : r.page_number;
+      const t = r.text || r.chunk_text;
+      return Boolean(file) && normalizeFileName(file as string) === normalizeFileName(cit.file) && pg === reader.page && typeof t === 'string' && t.trim().length > 0;
+    });
+    if (chunks.length) return chunks.map((r) => ({ text: (r.text || r.chunk_text) as string, kind: 'passage' as const }));
+    return cit.excerpt && cit.page === reader.page ? [{ text: cit.excerpt, kind: 'excerpt' as const }] : [];
+  }, [reader, messages]);
+
+  const announce = (message: string) => {
+    setReaderAnnouncement('');
+    window.setTimeout(() => setReaderAnnouncement(message), 30);
+  };
+  const readerScroller = () => chatAreaRef.current?.querySelector<HTMLElement>('.thread-scroll-container') ?? null;
+  const prefersReducedMotion = () => typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Accepts a getter so the target is looked up after React has re-rendered.
+  const focusSoon = (target: HTMLElement | null | undefined | (() => HTMLElement | null | undefined)) => window.setTimeout(() => {
+    const el = typeof target === 'function' ? target() : target;
+    if (el && el.isConnected) el.focus({ preventScroll: true });
+  }, 0);
+
+  const readerActionFor = (cit: ActiveCitation | null) => {
+    if (!cit || !cit.source_id) return null;
+    const src = sources.find((s) => s.id === cit.source_id);
+    if (!src || src.status !== 'ready') return null;
+    const replaced = typeof cit.source_version === 'number' && src.version !== cit.source_version;
+    return replaced
+      ? { label: `Open current version in reader (v${src.version})`, onOpen: () => openReader(cit, 'current') }
+      : { label: 'Open in reader', onOpen: () => openReader(cit, 'cited') };
+  };
+  const readerAction = readerActionFor(selectedCitation);
+
+  const openReader = (cit: ActiveCitation, intent: 'cited' | 'current') => {
+    const src = cit.source_id ? sources.find((s) => s.id === cit.source_id) : undefined;
+    if (!src) return;
+    startReader(src, cit.page, intent, intent === 'cited' ? (cit.source_version ?? src.version) : src.version, { messageId: cit.messageId, citation: cit });
+  };
+  // Opening a source to read it, with no citation: first page, no passage mark.
+  const openSourceInReader = (src: Source) => {
+    if (src.status !== 'ready') return;
+    startReader(src, 1, 'cited', src.version, null);
+    // The navigation drawer would cover the sheet on small screens.
+    if (isCompact) setIsNavCollapsed(true);
+  };
+  const startReader = (
+    src: Source, page: number, intent: 'cited' | 'current', version: number,
+    cite: { messageId: string; citation: ActiveCitation } | null,
+  ) => {
+    const active = document.activeElement;
+    const opener = active instanceof HTMLElement && active !== document.body ? active : null;
+    let keyboard = false;
+    try { keyboard = active instanceof HTMLElement && active.matches(':focus-visible'); } catch { /* unsupported */ }
+    returnTargetRef.current = { opener, anchorTurnId: null, anchorOffset: 0, scrollTop: 0, userScrolled: false };
+    setReader({
+      sourceId: src.id,
+      page,
+      mode: intent,
+      version,
+      cite,
+      // Remembered across a reader opened on top of a reader, so closing restores the original state.
+      panelWasCollapsed: reader ? reader.panelWasCollapsed : isContextCollapsed,
+      replaced: false,
+    });
+    setReaderExpanded(false);
+    // Opening the panel for the reader is temporary: the saved panel preference is never written.
+    if (isContextCollapsed) setContextCollapsed(false, false);
+    announce(intent === 'current' ? `Opened current version of ${src.title}` : `Opened ${src.title}`);
+    if (keyboard) setReaderFocusTick((t) => t + 1);
+  };
+  useEffect(() => {
+    if (readerFocusTick > 0) focusSoon(readerHeadingRef.current);
+  }, [readerFocusTick]);
+
+  const closeReader = () => {
+    const wasCollapsed = reader?.panelWasCollapsed ?? false;
+    const opener = returnTargetRef.current?.opener;
+    returnTargetRef.current = null;
+    setReader(null);
+    setReaderExpanded(false);
+    if (wasCollapsed) setContextCollapsed(true, false);
+    announce('Reader closed');
+    // The opener may have been replaced while the reader was open (the pointer stands in for the button
+    // while expanded), so fall back to the current "Open source" button, then the evidence block.
+    const back = () => (opener && opener.isConnected && !opener.closest('[inert]') ? opener : null)
+      ?? document.querySelector<HTMLElement>('[data-testid="open-reader-btn"]')
+      ?? evidenceRef.current ?? chatAreaRef.current;
+    if (wasCollapsed) {
+      focusSoon(() => back() ?? contextToggleRef.current);
+    } else {
+      focusSoon(() => back() ?? contextPanelRef.current);
+    }
+  };
+
+  const expandReader = () => {
+    const scroller = readerScroller();
+    const t = returnTargetRef.current ?? { opener: null, anchorTurnId: null, anchorOffset: 0, scrollTop: 0, userScrolled: false };
+    t.userScrolled = false;
+    if (scroller) {
+      const top = scroller.getBoundingClientRect().top;
+      const turn = Array.from(scroller.querySelectorAll<HTMLElement>('[data-turn-id]')).find((el) => el.getBoundingClientRect().top >= top);
+      t.scrollTop = scroller.scrollTop;
+      t.anchorTurnId = turn?.dataset.turnId ?? null;
+      t.anchorOffset = turn ? turn.getBoundingClientRect().top - top : 0;
+    }
+    returnTargetRef.current = t;
+    setReaderExpanded(true);
+    announce('Reader expanded');
+  };
+
+  const collapseReader = () => {
+    if (!readerExpanded) return;
+    const scroller = readerScroller();
+    const t = returnTargetRef.current;
+    const slot = chatAreaRef.current?.closest('.workspace-layout')?.querySelector<HTMLElement>('.context-slot') ?? null;
+    if (scroller) scroller.style.overflowAnchor = 'none'; // the browser must not move the scroll while the width animates
+    setReaderExpanded(false);
+    announce('Returned to the answer');
+
+    const finish = () => {
+      if (scroller) {
+        if (t && !t.userScrolled) {
+          const anchor = t.anchorTurnId
+            ? Array.from(scroller.querySelectorAll<HTMLElement>('[data-turn-id]')).find((el) => el.dataset.turnId === t.anchorTurnId)
+            : undefined;
+          if (anchor) {
+            scroller.scrollTop += anchor.getBoundingClientRect().top - scroller.getBoundingClientRect().top - t.anchorOffset;
+          } else if (t.scrollTop <= scroller.scrollHeight - scroller.clientHeight) {
+            scroller.scrollTop = t.scrollTop;
+          }
+        }
+        scroller.style.overflowAnchor = '';
+      }
+      // Focus moves after the scroll, so it cannot scroll the answer away from the restored place.
+      const target = [readerExpandRef.current, evidenceRef.current, chatAreaRef.current].find((el) => el && el.isConnected);
+      target?.focus({ preventScroll: true });
+    };
+
+    // Wait for the panel's width transition; an overlay or reduced motion has none to wait for.
+    if (isContextOverlay || prefersReducedMotion() || !slot) {
+      window.setTimeout(() => window.requestAnimationFrame(finish), 0);
+      return;
+    }
+    let done = false;
+    const run = () => {
+      if (done) return;
+      done = true;
+      slot.removeEventListener('transitionend', onEnd);
+      window.clearTimeout(timer);
+      finish();
+    };
+    const onEnd = (e: TransitionEvent) => { if (e.target === slot && e.propertyName === 'width') run(); };
+    slot.addEventListener('transitionend', onEnd);
+    const duration = (parseFloat(getComputedStyle(slot).transitionDuration) || 0.25) * 1000;
+    const timer = window.setTimeout(run, duration + 50);
+  };
+
+  // Escape steps back one level: expanded reader, then the reader/panel (overlay), then nothing when docked.
+  const handlePanelEscape = () => {
+    if (readerExpanded) collapseReader();
+    else if (reader) closeReader();
+    else closeContextPanel();
+  };
+  panelEscapeRef.current = handlePanelEscape;
+  readerEscapeRef.current = () => { if (readerExpanded) collapseReader(); };
+
+  const onNavToggle = () => {
+    if (navHiddenByReader) {
+      collapseReader();
+      if (isNavCollapsed) setNavCollapsed(false);
+    } else if (isNavCollapsed) {
+      setNavCollapsed(false);
+    } else {
+      closeNavPanel();
+    }
+  };
+
+  const goToReaderPage = (page: number) => {
+    if (!reader) return;
+    setReader({ ...reader, page });
+    const order = readerText.order;
+    const total = readerSource && readerSource.page_count > 0 ? readerSource.page_count : order.length;
+    const unit = readerSource && readerSource.source_type !== 'pdf' ? 'Section' : 'Page';
+    announce(`${unit} ${page}${total ? ` of ${total}` : ''}`);
+  };
+
+  // The student scrolling the conversation themselves (not the reflow) cancels the scroll restore.
+  useEffect(() => {
+    if (!readerExpanded) return;
+    const scroller = readerScroller();
+    if (!scroller) return;
+    const mark = () => { if (returnTargetRef.current) returnTargetRef.current.userScrolled = true; };
+    const onKey = (e: KeyboardEvent) => {
+      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(e.key)) mark();
+    };
+    const onPointer = (e: PointerEvent) => {
+      // Only a press on the scrollbar itself, not on content inside the scroller.
+      if (e.target === scroller) mark();
+    };
+    scroller.addEventListener('wheel', mark, { passive: true });
+    scroller.addEventListener('touchmove', mark, { passive: true });
+    scroller.addEventListener('keydown', onKey);
+    scroller.addEventListener('pointerdown', onPointer);
+    return () => {
+      scroller.removeEventListener('wheel', mark);
+      scroller.removeEventListener('touchmove', mark);
+      scroller.removeEventListener('keydown', onKey);
+      scroller.removeEventListener('pointerdown', onPointer);
+    };
+  }, [readerExpanded]);
+
+  // A source opened without a citation starts at its first stored page, whatever that number is.
+  useEffect(() => {
+    if (reader && !reader.cite && readerText.status === 'ready' && !readerText.order.includes(reader.page)) {
+      setReader({ ...reader, page: readerText.order[0] });
+    }
+  }, [reader, readerText.status, readerText.order]);
+
+  // The reader closes with its conversation; a replaced source switches to its current text.
+  useEffect(() => {
+    setReader(null);
+    setReaderExpanded(false);
+  }, [activeConversationId]);
+  useEffect(() => {
+    if (reader && reader.mode === 'cited' && readerSource && readerSource.version !== reader.version) {
+      setReader({ ...reader, mode: 'current', version: readerSource.version, replaced: true });
+    }
+  }, [reader, readerSource]);
+
+  // --------------------------------------------------------------------------
   // ANSWER ACTIONS
   // --------------------------------------------------------------------------
   const handleCopyAnswer = (text: string, msgId: string) => {
@@ -862,7 +1148,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
 
   return (
-    <div className="workspace-root workspace-layout" data-nav-open={!isNavCollapsed} data-context-open={!isContextCollapsed}>
+    <div className="workspace-root workspace-layout" data-nav-open={!isNavCollapsed && !navHiddenByReader} data-context-open={!isContextCollapsed}
+      data-reader={reader ? (readerExpanded ? 'expanded' : 'compact') : undefined}>
+      <div className="sr-only" role="status" aria-live="polite" data-testid="reader-live-region">{readerAnnouncement}</div>
       <input
         ref={replaceFileInputRef}
         type="file"
@@ -875,10 +1163,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         ref={titleMeasureRef} aria-hidden="true" data-title={`${subject.name} ${subject.course_code || ''}`} />
       <header className="workspace-top-bar workspace-control-bar" ref={headerRef}>
           <button type="button" ref={navToggleRef}
-            className={`workspace-toggle-btn workspace-nav-toggle ${!isNavCollapsed ? 'active' : ''}`}
-            onClick={() => isNavCollapsed ? setNavCollapsed(false) : closeNavPanel()}
+            className={`workspace-toggle-btn workspace-nav-toggle ${!isNavCollapsed && !navHiddenByReader ? 'active' : ''}`}
+            onClick={onNavToggle}
             title={isNavCollapsed ? 'Show sources panel' : 'Hide sources panel'}
-            aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed} aria-controls="workspace-nav-panel">
+            aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed && !navHiddenByReader} aria-controls="workspace-nav-panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
             </svg>
@@ -969,9 +1257,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             }} />
         )}
         {/* LEFT: sources (notebook, add, find, selection, list) */}
-        <div className={`nav-slot ${isNavCollapsed ? 'is-collapsed' : ''}`}>
+        <div className={`nav-slot ${isNavCollapsed || navHiddenByReader ? 'is-collapsed' : ''}`}>
           <aside className="workspace-nav workspace-sources-rail" id="workspace-nav-panel" aria-label="Sources"
-            aria-hidden={isNavCollapsed} ref={navPanelRef} tabIndex={-1}>
+            aria-hidden={isNavCollapsed || navHiddenByReader} ref={navPanelRef} tabIndex={-1}>
             <div className="rail-header">
               <h2 className="rail-title">Sources</h2>
 
@@ -1051,6 +1339,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             isSelected={selectedSourceIds.includes(s.id)}
                             onToggle={() => handleToggleSource(s.id)}
                             onView={() => handleOpenSourceViewer(s)}
+                            onRead={() => openSourceInReader(s)}
                             onRename={() => { setRenamingSource(s); setNewSourceTitle(s.title); }}
                             onRetry={() => onRetrySource(s.id)}
                             onReplace={() => handleTriggerReplace(s.id)}
@@ -1188,7 +1477,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </div>
                   <div className="thread-messages-list">
                     {messages.map((msg) => (
-                      <div key={msg.id} className={`thread-turn turn-${msg.role}`}>
+                      <div key={msg.id} className={`thread-turn turn-${msg.role}`} data-turn-id={msg.id}>
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
                             <span className="turn-label" aria-hidden="true">You</span>
@@ -1536,13 +1825,33 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <aside
           className={`workspace-sidebar workspace-context-panel ${!isContextCollapsed ? 'sidebar-open' : ''}`}
           id="workspace-sources-panel" aria-hidden={isContextCollapsed} ref={contextPanelRef} tabIndex={-1}
-          aria-label="Study panel"
+          aria-label={reader ? 'Source reader' : 'Study panel'} data-reader={reader ? (readerExpanded ? 'expanded' : 'compact') : undefined}
         >
           <div className="workspace-sidebar-header">
             <h2 className="sources-panel-title study-panel-title">Study</h2>
 
           </div>
-
+          {reader && (
+            <SourceReader
+              title={readerSource?.title ?? reader.cite?.citation.file ?? 'Source'}
+              sourceType={readerSource?.source_type ?? 'pdf'}
+              version={reader.version}
+              pageCount={readerSource?.page_count ?? 0}
+              page={reader.page}
+              expanded={readerExpanded}
+              notice={readerNotice}
+              currentVersion={readerSource?.version}
+              passages={readerPassages}
+              text={readerText}
+              removed={readerRemoved}
+              onPage={goToReaderPage}
+              onToggleExpanded={() => (readerExpanded ? collapseReader() : expandReader())}
+              onBack={closeReader}
+              onViewPlain={() => { if (readerSource) void handleOpenSourceViewer(readerSource); }}
+              expandButtonRef={readerExpandRef}
+              headingRef={readerHeadingRef}
+            />
+          )}
           <div className="context-view-switcher sidebar-segment-switcher" role="group" aria-label="Panel view">
             <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
             <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => setContextView('evidence')} data-testid="right-panel-tab-evidence">Evidence</button>
@@ -1563,6 +1872,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     sourceRemoved={isSourceDeleted}
                                     sourceReplaced={isSourceReplaced}
                                     currentVersion={matchedSource?.version}
+                                    readerAction={readerAction}
                                     index={currentCitationIndex}
                                     total={activeCitations.length}
                                     onPrevious={handlePreviousCitation}
@@ -1755,6 +2065,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {viewingSource && (
         <SourceViewerModal
           source={viewingSource}
+          status={viewerStatus}
+          onRetry={() => { void handleOpenSourceViewer(viewingSource); }}
           onClose={() => setViewingSource(null)}
         />
       )}

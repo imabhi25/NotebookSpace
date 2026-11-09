@@ -1343,14 +1343,20 @@ def url_source_endpoint(
 def get_source_detail_endpoint(
     subject_id: str,
     source_id: str,
+    include_passages: bool = Query(True),
     current_user: dict[str, Any] = Depends(get_current_user_or_404),
 ):
     src = get_source_by_id(user_id=current_user["id"], source_id=source_id, include_raw_content=True)
     if not src or src["subject_id"] != subject_id:
         raise HTTPException(status_code=404, detail="Source not found.")
 
-    passages = get_source_passages(user_id=current_user["id"], source_id=source_id)
-    src["passages"] = passages
+    # The source reader only needs raw_content. Chunks are sent twice (text and
+    # chunk_text) and overlap, so leaving them out cuts the response about 3.4x.
+    src["passages"] = (
+        get_source_passages(user_id=current_user["id"], source_id=source_id)
+        if include_passages
+        else []
+    )
     return src
 
 
