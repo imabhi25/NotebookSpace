@@ -387,8 +387,8 @@ describe('SubjectWorkspaceView component', () => {
       />
     );
 
-    expect(screen.getByText('Syllabus.pdf')).toBeInTheDocument();
-    expect(screen.getByText('Lecture 1.pdf')).toBeInTheDocument();
+    expect(screen.getAllByText('Syllabus.pdf').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Lecture 1.pdf').length).toBeGreaterThan(0);
     expect(screen.getByText(/1 of 2 selected/i)).toBeInTheDocument();
 
     const selectAllBtn = screen.getByRole('checkbox', { name: /Select all/i });

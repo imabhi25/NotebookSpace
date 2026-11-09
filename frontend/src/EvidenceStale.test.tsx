@@ -64,7 +64,7 @@ describe('Evidence after sources change (mocked API)', () => {
     const evidence = await screen.findByTestId('inline-evidence');
     expect(within(evidence).getByTestId('historical-citation-alert')).toHaveTextContent(/Original Source Removed/);
     expect(within(evidence).getByText('Quizzes are 10%.')).toBeInTheDocument();
-    expect(spy).not.toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalledWith('b.pdf', expect.anything(), expect.anything(), expect.anything());
     const card = screen.getByTestId('selected-source-card');
     expect(within(card).getByText(/Original Source Removed/)).toBeInTheDocument();
     expect(within(card).queryByRole('button', { name: 'Open source ↗' })).toBeNull();
@@ -94,7 +94,7 @@ describe('Evidence after sources change (mocked API)', () => {
     expect(within(card).getByText(/not among the notebook.s current sources/)).toBeInTheDocument();
     expect(within(card).getByText('No text chunks found for this page.')).toBeInTheDocument();
     expect(screen.queryByText(/ghost text/)).toBeNull();
-    expect(spy).not.toHaveBeenCalled();
+    expect(spy).not.toHaveBeenCalledWith('ghost.pdf', expect.anything(), expect.anything(), expect.anything());
   });
 
   it('scopes every passage lookup to this notebook and source', async () => {

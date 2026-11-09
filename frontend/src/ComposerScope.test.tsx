@@ -191,7 +191,7 @@ describe('Answer actions and citation access without the chip row (mocked)', () 
   });
   it('reaches a citation that has no marker in the text through Evidence and Next', async () => {
     render(<Harness />);
-    fireEvent.click(screen.getByRole('button', { name: 'Evidence, 3 cited passages' }));
+    // The first citation is selected on load, so the evidence is already open.
     const ev = await screen.findByTestId('inline-evidence');
     expect(within(ev).getByRole('heading', { level: 3 })).toHaveTextContent('Evidence 1 of 3');
     fireEvent.click(within(ev).getByRole('button', { name: 'Next citation' }));

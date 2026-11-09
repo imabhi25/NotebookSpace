@@ -442,12 +442,36 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   const threadBottomRef = useRef<HTMLDivElement>(null);
 
-  // Scroll to bottom when messages update
+  // Opening a notebook keeps the thread at the top, so the question and the start of the answer are visible.
+  // Only a message the user just sent (or the answer arriving for it) scrolls to the bottom.
+  const prevMessageCountRef = useRef(0);
   useEffect(() => {
-    if (threadBottomRef.current && typeof threadBottomRef.current.scrollIntoView === 'function') {
-      threadBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    const prev = prevMessageCountRef.current;
+    prevMessageCountRef.current = messages.length;
+    const bottom = threadBottomRef.current;
+    const scroller = bottom?.closest('.thread-scroll-container') as HTMLElement | null;
+    const appended = prev > 0 && messages.length > prev && messages.length - prev <= 2;
+    if (chatLoading || appended) {
+      if (bottom && typeof bottom.scrollIntoView === 'function') bottom.scrollIntoView({ behavior: 'smooth' });
+    } else if (scroller) {
+      scroller.scrollTop = 0;
     }
   }, [messages, chatLoading]);
+
+  // Auto-select the first citation of the latest cited answer, so the Evidence panel is never empty on load.
+  const autoSelectedForRef = useRef<string | null>(null);
+  const suppressEvidenceScrollRef = useRef(false);
+  useEffect(() => {
+    if (selectedCitation || autoSelectedForRef.current === subject.id) return;
+    const answered = [...messages].reverse().find((m) => m.role === 'assistant' && m.citations && m.citations.length > 0);
+    if (!answered) return;
+    autoSelectedForRef.current = subject.id;
+    suppressEvidenceScrollRef.current = true;
+    const first = answered.citations[0];
+    setSelectedCitation({ ...first, messageId: answered.id });
+    loadPassages(first);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages, subject.id]);
 
   // Escape key handler to close all workspace modals
   useEffect(() => {
@@ -677,6 +701,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Keep newly opened evidence in view; smooth scrolling only when motion is welcome.
   useEffect(() => {
+    if (suppressEvidenceScrollRef.current) { suppressEvidenceScrollRef.current = false; return; }
     const el = evidenceRef.current;
     if (!el || typeof el.scrollIntoView !== 'function') return;
     const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -1590,17 +1615,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   return null;
                                 })()}
 
-                                {/* Cross-Source Evidence Check: several sources, or a flagged contradiction */}
-                                {(() => {
-                                  const check = crossSourceCheck(msg);
-                                  return check ? (
-                                    <CrossSourceCheck
-                                      check={check}
-                                      onOpen={(o) => handleSelectCitation({ ...o, source_id: o.source_id ?? undefined }, msg.id)}
-                                    />
-                                  ) : null;
-                                })()}
-
                                 {/* Grounded Answer Body */}
                                 <div className="answer-text">
                                   <MarkdownRenderer
@@ -1612,6 +1626,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     citationState={citationStateOf}
                                   />
                                 </div>
+
+                                {/* Cross-Source Evidence Check: several sources, or a flagged contradiction */}
+                                {(() => {
+                                  const check = crossSourceCheck(msg);
+                                  return check ? (
+                                    <CrossSourceCheck
+                                      check={check}
+                                      onOpen={(o) => handleSelectCitation({ ...o, source_id: o.source_id ?? undefined }, msg.id)}
+                                    />
+                                  ) : null;
+                                })()}
 
                                 {/* Restrained Answer Actions (Copy, Save to Note, Retry) */}
                                 <div className="answer-action-toolbar">

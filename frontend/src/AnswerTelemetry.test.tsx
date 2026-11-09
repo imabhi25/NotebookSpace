@@ -128,8 +128,7 @@ describe('CrossSourceCheck', () => {
     render(<CrossSourceCheck check={check} onOpen={vi.fn()} />);
     const region = screen.getByRole('region', { name: 'Cross-Source Evidence Check' });
     expect(region).toHaveAttribute('data-status', 'conflict');
-    expect(within(region).getByText('These documents disagree')).toBeInTheDocument();
-    expect(within(region).getByText('Conflict Topic: Late penalty')).toBeInTheDocument();
+    expect(within(region).getByRole('heading', { name: 'Policy update detected: Late penalty' })).toBeInTheDocument();
     const cards = within(region).getAllByTestId('cross-source-card');
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveTextContent('syllabus.pdf');
@@ -143,7 +142,7 @@ describe('CrossSourceCheck', () => {
     render(<CrossSourceCheck check={check} onOpen={onOpen} />);
     fireEvent.click(screen.getByRole('button', { name: /Claim: 5% per day in announcement_week4\.md page 1/ }));
     expect(onOpen).toHaveBeenLastCalledWith(expect.objectContaining({ file: 'announcement_week4.md', page: 1 }));
-    fireEvent.click(screen.getAllByRole('button', { name: /View evidence/ })[0]);
+    fireEvent.click(screen.getByRole('button', { name: /Claim: 10% per day in syllabus\.pdf page 2/ }));
     expect(onOpen).toHaveBeenLastCalledWith(expect.objectContaining({ file: 'syllabus.pdf' }));
   });
 
@@ -151,7 +150,7 @@ describe('CrossSourceCheck', () => {
     const multi = crossSourceCheck({ ...base, citations: [...base.citations, { file: 'notes.md', page: 1, source_id: 'c' }] })!;
     render(<CrossSourceCheck check={multi} onOpen={vi.fn()} />);
     expect(screen.getByTestId('cross-source-check')).toHaveAttribute('data-status', 'multi');
-    expect(screen.getByText(/No contradiction was flagged/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Draws on more than one source' })).toBeInTheDocument();
   });
 });
 
