@@ -97,16 +97,14 @@ describe('Evidence panel', () => {
     expect(screen.queryByText('Stale A text')).toBeNull();
   });
 
-  it('shows the evidence directly beneath its answer, with real file, page and passage text', async () => {
+  it('shows the evidence in the study panel, with real file, page and passage text', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([{ file_name: 'a.pdf', page_number: 2, chunk_index: 1, text: chunk }]);
     render(view());
     fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
     const evidence = await screen.findByTestId('inline-evidence');
     const answer = screen.getByTestId('answer-view');
-    expect(answer.contains(evidence)).toBe(true);
-    const actions = answer.querySelector('.answer-action-toolbar')!;
+    expect(screen.getByRole('complementary', { name: 'Study panel' }).contains(evidence)).toBe(true);
     expect(answer.querySelector('.chips-row')).toBeNull(); // no separate chip row: markers and the Evidence button reach every passage
-    expect(actions.compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy(); // actions first, evidence beneath
     expect(evidence.querySelector('.passage-doc-title')).toHaveTextContent('a.pdf');
     expect(within(evidence).getByText('Page 2')).toBeInTheDocument();
     await waitFor(() => expect(within(evidence).getByText(chunk)).toBeInTheDocument());
@@ -171,9 +169,9 @@ describe('Evidence panel', () => {
     expect(within(card).getAllByText('b.pdf').length).toBeGreaterThan(0);
     expect(within(card).getByTestId('selected-source-line')).toHaveTextContent('Page 1');
     expect(within(card).getByTestId('selected-source-line')).toHaveTextContent('v1');
-    expect(within(card).queryByTestId('passage-content')).toBeNull(); // passage is inline, not duplicated
+    expect(within(card).getByTestId('passage-content')).toBeInTheDocument(); // passage is inline, not duplicated
     expect(screen.getAllByTestId('passage-content')).toHaveLength(1);
-    fireEvent.click(within(card).getByRole('button', { name: 'Clear' }));
+    fireEvent.click(within(card).getByRole('button', { name: 'Close evidence' }));
     expect(screen.queryByTestId('selected-source-card')).toBeNull();
     expect(screen.queryByTestId('inline-evidence')).toBeNull();
   });
@@ -187,7 +185,7 @@ describe('Evidence panel', () => {
     fireEvent.click(screen.getByRole('button', { name: /^Notes/ }));
     fireEvent.click(await screen.findByTestId('note-citation-chip-0'));
     const card = await screen.findByTestId('selected-source-card');
-    expect(screen.queryByTestId('inline-evidence')).toBeNull();
+    expect(screen.getByTestId('inline-evidence')).toBeInTheDocument();
     await waitFor(() => expect(within(card).getByText('Note-cited passage text.')).toBeInTheDocument());
   });
 });
