@@ -122,6 +122,8 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
 };
 
 interface InlineEvidenceProps extends EvidenceBodyProps {
+  /** Opens the source reader: "Open in reader", or "Open current version in reader (vN)". Absent for a removed source. */
+  readerAction?: { label: string; onOpen: () => void } | null;
   /** Position of this citation among the answer's citations, when it is one of them. */
   index: number;
   total: number;
@@ -132,7 +134,7 @@ interface InlineEvidenceProps extends EvidenceBodyProps {
 
 /** Evidence shown directly beneath the answer it supports. Escape or Close collapses it. */
 export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(function InlineEvidence(
-  { index, total, onPrevious, onNext, onClose, ...body },
+  { index, total, onPrevious, onNext, onClose, readerAction, ...body },
   ref
 ) {
   return (
@@ -172,6 +174,13 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
         </div>
       </div>
       <EvidenceBody {...body} />
+      {readerAction && (
+        <div className="evidence-footer">
+          <button type="button" className="evidence-reader-btn" onClick={readerAction.onOpen} data-testid="open-reader-btn">
+            {readerAction.label}
+          </button>
+        </div>
+      )}
     </section>
   );
 });

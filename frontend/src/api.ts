@@ -309,8 +309,14 @@ export const api = {
     });
   },
 
-  async getSourceDetail(subjectId: string, sourceId: string): Promise<Source> {
-    return apiFetch<Source>(`/subjects/${subjectId}/sources/${sourceId}`);
+  async getSourceDetail(
+    subjectId: string,
+    sourceId: string,
+    options?: { includePassages?: boolean },
+  ): Promise<Source> {
+    // Only add the query when opting out, so the default request is unchanged.
+    const query = options?.includePassages === false ? '?include_passages=false' : '';
+    return apiFetch<Source>(`/subjects/${subjectId}/sources/${sourceId}${query}`);
   },
 
   async renameSource(subjectId: string, sourceId: string, title: string): Promise<Source> {

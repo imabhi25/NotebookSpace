@@ -149,7 +149,7 @@ describe('Sources panel', () => {
 
     fireEvent.click(within(row).getByRole('button', { name: 'Options for Syllabus.pdf' }));
     const menu = screen.getByRole('menu', { name: 'Options for Syllabus.pdf' });
-    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['View', 'Rename', 'Replace', 'Remove']);
+    expect(within(menu).getAllByRole('menuitem').map((i) => i.textContent)).toEqual(['Read', 'View', 'Rename', 'Replace', 'Remove']);
     fireEvent.click(within(menu).getByRole('menuitem', { name: 'Remove' }));
     expect(onDeleteSource).toHaveBeenCalledWith('a');
     expect(screen.queryByRole('menu')).toBeNull();
