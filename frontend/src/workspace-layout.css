@@ -795,3 +795,66 @@
 .workspace-layout .answer-text .md-paragraph, .workspace-layout .answer-text .md-list-item { font-size: 14px; line-height: 1.55; }
 .workspace-layout .workspace-context-panel .context-view-switcher { margin-inline: 24px; }
 .workspace-layout .context-slot aside.workspace-context-panel .right-panel-body { padding: 16px 24px 24px; }
+
+/* ============================================================
+   Source reader: the study panel in its reading state
+   ============================================================ */
+.workspace-layout { --reader-w: clamp(480px, 40vw, 600px); }
+
+/* While the reader is shown, the panel keeps its header and shows only the reader (other views stay mounted). */
+.workspace-layout .workspace-context-panel[data-reader] > :not(.workspace-sidebar-header):not(.source-reader) { display: none !important; }
+.workspace-layout .workspace-context-panel[data-reader] .study-panel-title { font-size: 14px; }
+
+/* Docked and expanded: the panel slot widens; the navigation yields room in the markup when the conversation would fall below 560px. */
+@media (min-width: 1181px) {
+  .workspace-layout[data-reader="expanded"] { --ctx-w: var(--reader-w); }
+}
+/* Overlay: the reader is taller than a content-height card, and wider when expanded. */
+@media (max-width: 1180px) {
+  .workspace-layout .context-slot aside.workspace-context-panel[data-reader] { height: calc(100% - 24px); }
+  .workspace-layout .context-slot aside.workspace-context-panel[data-reader="expanded"] { width: min(var(--reader-w), calc(100% - 24px)) !important; }
+}
+/* Phone: a bottom sheet while compact, the whole screen when expanded. */
+@media (max-width: 960px) {
+  .workspace-layout .context-slot aside.workspace-context-panel[data-reader="compact"] { height: min(78dvh, calc(100% - var(--space-4))); }
+  .workspace-layout .context-slot aside.workspace-context-panel[data-reader="expanded"] {
+    position: fixed; inset: 0; z-index: 60; width: auto !important; height: 100dvh; max-height: none; margin: 0;
+    border-radius: 0 !important; padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+.source-reader { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.source-reader-header { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: 0 24px var(--space-2); }
+.source-reader-identity { padding: 0 24px var(--space-3); min-width: 0; }
+.source-reader-title { margin: 0; font-size: 15px; line-height: 1.35; font-weight: 600; overflow-wrap: anywhere; outline: none; }
+.source-reader-meta { margin: 4px 0 0; display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--color-text-secondary); }
+.reader-banner { margin: 0 24px var(--space-3); padding: 8px 12px; border-radius: 12px; font-size: 12px; background: var(--color-surface-raised); border: 1px solid var(--color-border); }
+.source-reader-body {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: var(--space-4) 24px;
+  border-top: 1px solid var(--color-border); outline: none;
+}
+.reader-paragraph { margin: 0 0 1em; font-size: 15px; line-height: 1.65; max-width: 64ch; overflow-wrap: anywhere; }
+.source-reader[data-expanded="true"] .reader-paragraph, .workspace-layout[data-reader="expanded"] .reader-paragraph { font-size: 16.5px; }
+.reader-note { margin: 0 0 var(--space-3); font-size: 12px; color: var(--color-text-secondary); max-width: 64ch; }
+.reader-state { margin: 0; font-size: 13px; color: var(--color-text-secondary); }
+.reader-state-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-3); }
+.reader-mark {
+  color: inherit; background: color-mix(in srgb, var(--color-accent) 22%, transparent);
+  box-shadow: inset 3px 0 0 var(--color-accent); padding: 1px 3px 1px 6px; border-radius: 4px;
+  -webkit-box-decoration-break: clone; box-decoration-break: clone;
+}
+.source-reader-pager { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); padding: var(--space-3) 24px; border-top: 1px solid var(--color-border); }
+.reader-page-indicator { font-size: 12px; color: var(--color-text-secondary); white-space: nowrap; }
+.reader-btn, .evidence-reader-btn {
+  min-height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--color-border); cursor: pointer;
+  background: var(--color-surface-raised); color: var(--color-text-primary); font: inherit; font-size: 12px;
+}
+.reader-btn:hover:not(:disabled), .evidence-reader-btn:hover { border-color: var(--color-accent); }
+.reader-btn:disabled { opacity: .45; cursor: default; }
+.reader-btn:focus-visible, .evidence-reader-btn:focus-visible, .source-reader-body:focus-visible, .source-reader-title:focus-visible {
+  outline: 2px solid var(--color-accent); outline-offset: 2px;
+}
+@media (pointer: coarse), (max-width: 768px) { .reader-btn, .evidence-reader-btn { min-height: 44px; } }
+.evidence-footer { display: flex; justify-content: flex-start; padding-top: var(--space-3); }
+.evidence-reader-pointer { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-3) 0; font-size: 13px; color: var(--color-text-secondary); }
+.evidence-reader-pointer p { margin: 0; overflow-wrap: anywhere; }
