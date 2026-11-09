@@ -117,6 +117,7 @@ describe('Sources panel', () => {
     expect(within(panel()).queryByText('Syllabus.pdf')).toBeNull();
     expect(within(panel()).getByText('Lecture 7.pdf')).toBeInTheDocument();
 
+    fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
     fireEvent.click(within(study()).getByTestId('new-note-btn'));
     expect(screen.getByRole('heading', { name: 'Create Note' })).toBeInTheDocument();
   });
