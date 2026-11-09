@@ -73,13 +73,18 @@ describe('Evidence panel', () => {
     expect(screen.getByRole('button', { name: /^Evidence, 2 cited passages/ })).toHaveAttribute('aria-controls', screen.getByTestId('inline-evidence').id);
   });
 
-  it('lets keyboard users open a conflict claim with Enter and Space', async () => {
+  it('lets keyboard users open a conflict claim: each claim is a native button, so Enter and Space activate it', async () => {
     const spy = vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view());
     const claim = screen.getByRole('button', { name: /Claim: 50% in b\.pdf page 1/ });
-    fireEvent.keyDown(claim, { key: 'Enter' });
+    // A real <button> is operated by Enter and Space in every browser; no key handler to get wrong.
+    expect(claim.tagName).toBe('BUTTON');
+    expect(claim).toHaveAttribute('type', 'button');
+    fireEvent.click(claim);
     await waitFor(() => expect(spy).toHaveBeenCalledWith('b.pdf', 1, 'ev', 'b'));
-    fireEvent.keyDown(screen.getByRole('button', { name: /Claim: 40% in a\.pdf page 2/ }), { key: ' ' });
+    const other = screen.getByRole('button', { name: /Claim: 40% in a\.pdf page 2/ });
+    expect(other.tagName).toBe('BUTTON');
+    fireEvent.click(other);
     await waitFor(() => expect(spy).toHaveBeenCalledWith('a.pdf', 2, 'ev', 'a'));
   });
 
@@ -187,5 +192,20 @@ describe('Evidence panel', () => {
     const card = await screen.findByTestId('selected-source-card');
     expect(screen.getByTestId('inline-evidence')).toBeInTheDocument();
     await waitFor(() => expect(within(card).getByText('Note-cited passage text.')).toBeInTheDocument());
+  });
+});
+
+describe('Workspace answer: telemetry and cross-source check', () => {
+  it('shows the telemetry strip and the Cross-Source Evidence Check on a grounded two-source answer', async () => {
+    vi.spyOn(api, 'getPassages').mockResolvedValue([]);
+    render(view());
+    const strip = screen.getByTestId('answer-telemetry');
+    expect(strip).toHaveTextContent('ONNX MiniLM-L6-v2');
+    expect(strip).toHaveTextContent('1 chunk retrieved');
+    expect(strip).toHaveTextContent('Top Score: 0.800');
+    expect(strip).toHaveTextContent('2 Verified Citations');
+    const check = screen.getByRole('region', { name: 'Cross-Source Evidence Check' });
+    expect(check).toHaveAttribute('data-status', 'conflict');
+    expect(within(check).getAllByTestId('cross-source-card')).toHaveLength(2);
   });
 });
