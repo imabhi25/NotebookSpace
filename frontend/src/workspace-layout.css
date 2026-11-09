@@ -864,6 +864,33 @@
  .source-onboarding-alternatives { grid-template-columns:1fr; }
 }
 
+/* Command palette (Cmd/Ctrl+K) */
+.command-palette-backdrop { position: fixed; inset: 0; z-index: 80; display: flex; align-items: flex-start; justify-content: center; padding: 14dvh 12px 12px; }
+.command-palette {
+  width: min(600px, 100%); max-height: min(70dvh, 560px); display: flex; flex-direction: column; overflow: hidden; outline: none;
+  background: var(--color-surface); border: 1px solid var(--color-border-sheet, var(--color-border)); border-radius: 18px; box-shadow: var(--shadow-4);
+}
+.command-palette-search { display: flex; align-items: center; gap: 12px; padding: 0 16px; min-height: 56px; border-bottom: 1px solid var(--color-border); color: var(--color-text-secondary); }
+.command-palette-search input {
+  flex: 1; min-width: 0; height: 56px; border: 0; background: transparent; outline: none; color: var(--color-text-primary);
+  font: inherit; font-size: 16px; /* 16px stops iOS from zooming in on focus */
+}
+.command-palette-list { list-style: none; margin: 0; padding: 6px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; }
+.command-palette-group { padding: 10px 12px 4px; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--color-text-secondary); }
+.command-palette-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 44px; padding: 6px 12px; border-radius: 12px; cursor: pointer; }
+.command-palette-item.is-active { background: var(--color-surface-raised, var(--color-surface-hover)); box-shadow: inset 2px 0 0 var(--color-accent); }
+.command-palette-text { display: flex; flex-direction: column; min-width: 0; }
+.command-palette-label { font-size: 14px; color: var(--color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.command-palette-hint { font-size: 12px; color: var(--color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.command-palette-kbd { flex: none; font: 500 11px/1 var(--font-family-mono, ui-monospace, monospace); padding: 4px 6px; border-radius: 6px; color: var(--color-text-secondary); border: 1px solid var(--color-border); background: transparent; }
+.command-palette-empty { margin: 0; padding: 20px 16px 24px; font-size: 13px; color: var(--color-text-secondary); }
+@media (max-width: 640px) { .command-palette-backdrop { padding-top: 8dvh; } .command-palette-search .command-palette-kbd { display: none; } }
+/* The search box shows focus on its row, not as a box inside the row. */
+.command-palette-search input:focus-visible { outline: none !important; }
+.command-palette-search:focus-within { box-shadow: inset 0 -2px 0 var(--color-accent); }
+/* Shortcut hints mean nothing without a keyboard. */
+@media (pointer: coarse) { .command-palette-item .command-palette-kbd { display: none; } }
+
 /* ============================================================
    Source reader: the study panel in its reading state
    ============================================================ */
