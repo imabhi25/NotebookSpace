@@ -27,6 +27,9 @@ import { RetrievalMapView } from './RetrievalMapView';
 import { SessionsView } from './WorkspaceNav';
 import { InlineEvidence } from './EvidenceBody';
 import { abstainCopy } from '../abstain';
+import { CommandPalette } from './CommandPalette';
+import { CommandItem, matchShortcut, shortcutLabel } from '../commandPalette';
+import { getThemeSetting, setThemeSetting, ThemeSetting } from '../theme';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
@@ -550,6 +553,87 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       console.error('Failed to load source detail:', err);
       setViewerStatus('error');
     }
+  };
+
+
+  // --------------------------------------------------------------------------
+  // COMMAND PALETTE AND SHORTCUTS (Cmd/Ctrl+K, B and \)
+  // --------------------------------------------------------------------------
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const toggleSourcesPanel = () => (isNavCollapsed ? setNavCollapsed(false) : closeNavPanel());
+  const toggleStudyPanel = () => (isContextCollapsed ? setContextCollapsed(false) : closeContextPanel());
+  const openNoteEditor = (note: Note | null) => {
+    setEditingNote(note);
+    setNoteFormTitle(note?.title ?? '');
+    setNoteFormContent(note?.content ?? '');
+    setIsCreateNoteOpen(true);
+  };
+  // A shortcut never opens on top of another dialog; the dialog owns the keyboard until it closes.
+  const dialogOpen = isAddSourceOpen || isCreateNoteOpen || isSettingsOpen || historyOpen || Boolean(viewingSource) || Boolean(renamingSource);
+  const shortcutRef = useRef({ dialogOpen, paletteOpen, toggleSourcesPanel, toggleStudyPanel });
+  shortcutRef.current = { dialogOpen, paletteOpen, toggleSourcesPanel, toggleStudyPanel };
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      const shortcut = matchShortcut(e);
+      if (!shortcut) return;
+      const state = shortcutRef.current;
+      if (shortcut === 'palette') {
+        // Closing is also handled here, so the same keys that opened the palette close it.
+        if (state.dialogOpen && !state.paletteOpen) return;
+        e.preventDefault();
+        setPaletteOpen((open) => !open);
+        return;
+      }
+      if (state.dialogOpen || state.paletteOpen) return;
+      e.preventDefault();
+      if (shortcut === 'sources') state.toggleSourcesPanel();
+      else state.toggleStudyPanel();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
+
+  const buildPaletteItems = (): CommandItem[] => {
+    const theme = getThemeSetting();
+    const chooseTheme = (next: ThemeSetting) => () => setThemeSetting(next);
+    const typeLabel = (t: string) => ({ pdf: 'PDF', url: 'Web page', pasted: 'Pasted text', markdown: 'Markdown', txt: 'Text' }[t] ?? 'Document');
+    const items: CommandItem[] = [];
+    if (onCreateConversation) {
+      items.push({ id: 'a-new-session', group: 'Actions', label: 'New session', keywords: 'conversation chat start', run: () => { void onCreateConversation(); } });
+    }
+    items.push(
+      { id: 'a-add-sources', group: 'Actions', label: 'Add sources', keywords: 'upload paste link pdf file', run: () => setIsAddSourceOpen(true) },
+      { id: 'a-new-note', group: 'Actions', label: 'New note', keywords: 'write save', run: () => openNoteEditor(null) },
+      { id: 'a-history', group: 'Actions', label: 'Conversation history', keywords: 'sessions past chats', run: () => setHistoryOpen(true) },
+      { id: 'a-sources-panel', group: 'Actions', label: isNavCollapsed ? 'Show sources panel' : 'Hide sources panel', keywords: 'sidebar rail', shortcut: 'B', run: toggleSourcesPanel },
+      { id: 'a-study-panel', group: 'Actions', label: isContextCollapsed ? 'Show study panel' : 'Hide study panel', keywords: 'notes evidence', shortcut: '\\', run: toggleStudyPanel },
+      { id: 'a-theme-light', group: 'Actions', label: 'Switch to light theme', hint: theme === 'light' ? 'Current' : undefined, keywords: 'appearance mode', run: chooseTheme('light') },
+      { id: 'a-theme-dark', group: 'Actions', label: 'Switch to dark theme', hint: theme === 'dark' ? 'Current' : undefined, keywords: 'appearance mode', run: chooseTheme('dark') },
+      { id: 'a-theme-auto', group: 'Actions', label: 'Match system theme', hint: theme === 'auto' ? 'Current' : undefined, keywords: 'appearance mode automatic', run: chooseTheme('auto') },
+      { id: 'a-notebooks', group: 'Actions', label: 'Back to notebooks', keywords: 'library home dashboard', run: onBackToDashboard },
+    );
+    for (const c of conversations ?? []) {
+      items.push({
+        id: `c-${c.id}`, group: 'Sessions', label: c.title || 'New session',
+        hint: c.id === activeConversationId ? 'Current session' : undefined,
+        run: () => onSelectConversation?.(c.id),
+      });
+    }
+    for (const src of readySources) {
+      items.push({
+        id: `s-${src.id}`, group: 'Sources', label: src.title,
+        hint: `${typeLabel(src.source_type)} · ${src.page_count} ${src.page_count === 1 ? 'page' : 'pages'} · open full text`,
+        keywords: `${src.file_name} read view`, run: () => { void handleOpenSourceViewer(src); },
+      });
+    }
+    for (const n of notes) {
+      items.push({
+        id: `n-${n.id}`, group: 'Notes', label: n.title || 'Untitled note',
+        hint: n.content.replace(/\s+/g, ' ').trim().slice(0, 80) || undefined,
+        keywords: n.content.slice(0, 400), run: () => openNoteEditor(n),
+      });
+    }
+    return items;
   };
 
   // --------------------------------------------------------------------------
@@ -1112,6 +1196,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           )}
         </nav>
         <div className="workspace-top-right workspace-essential-actions" ref={actionsRef}>
+          <button type="button" className="workspace-history-btn" onClick={() => setPaletteOpen(true)} aria-label="Search and commands"
+            title={`Search and commands (${shortcutLabel('K')})`} aria-haspopup="dialog" data-testid="open-command-palette">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><span>Search</span>
+          </button>
           <button type="button" className="workspace-history-btn" onClick={() => setHistoryOpen(true)} aria-label="Conversation history" title="Conversation history">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 119 10M3 4v7h7M12 7v5l3 2"/></svg><span>History</span>
           </button>
@@ -1947,6 +2035,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         </div>
 
       </div>
+
+      {paletteOpen && <CommandPalette items={buildPaletteItems()} onClose={() => setPaletteOpen(false)} />}
 
       {historyOpen && <div className="modal-backdrop" onClick={() => setHistoryOpen(false)}>
         <div className="modal-content workspace-history-dialog" ref={historyRef} role="dialog" aria-modal="true" aria-labelledby="history-title" onClick={e => e.stopPropagation()}>
