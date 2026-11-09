@@ -196,14 +196,10 @@ describe('Evidence panel', () => {
 });
 
 describe('Workspace answer: telemetry and cross-source check', () => {
-  it('shows the telemetry strip and the Cross-Source Evidence Check on a grounded two-source answer', async () => {
+  it('hides the telemetry strip and shows the Cross-Source Evidence Check on a grounded two-source answer', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view());
-    const strip = screen.getByTestId('answer-telemetry');
-    expect(strip).toHaveTextContent('ONNX MiniLM-L6-v2');
-    expect(strip).toHaveTextContent('1 chunk retrieved');
-    expect(strip).toHaveTextContent('Top Score: 0.800');
-    expect(strip).toHaveTextContent('2 Verified Citations');
+    expect(screen.queryByTestId('answer-telemetry')).toBeNull();
     const check = screen.getByRole('region', { name: 'Cross-Source Evidence Check' });
     expect(check).toHaveAttribute('data-status', 'conflict');
     expect(within(check).getAllByTestId('cross-source-card')).toHaveLength(2);

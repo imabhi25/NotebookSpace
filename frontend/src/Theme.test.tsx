@@ -96,9 +96,9 @@ describe('Notebook cards', () => {
       />
     );
     const empty = screen.getByTestId('subject-card-a');
-    expect(empty).toHaveTextContent('Add your first source');
+    expect(empty).toHaveTextContent('No sources yet');
     expect(empty).toHaveTextContent('EECS 3101');
     expect(empty).not.toHaveTextContent('0 sources');
-    expect(screen.getByTestId('subject-card-b')).toHaveTextContent(/Sources2.*Oct 12.*Indexed/);
+    expect(screen.getByTestId('subject-card-b')).toHaveTextContent(/2 sources · Updated Oct 12/);
   });
 });

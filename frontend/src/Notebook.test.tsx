@@ -141,7 +141,7 @@ describe('DashboardView component', () => {
 
     expect(screen.getByText('EECS 3101 — Algorithms')).toBeInTheDocument();
     expect(screen.getByText('EECS 2031 — Software Tools')).toBeInTheDocument();
-    expect(screen.getAllByText('Indexed').length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/sources? · Updated/).length).toBeGreaterThan(0);
 
     const searchInput = screen.getByLabelText('Search notebooks');
     fireEvent.change(searchInput, { target: { value: 'Software' } });

@@ -2,9 +2,7 @@ import React, { useEffect } from 'react';
 import { backendHealth, isFullyReady, SLOW_AFTER_MS, useBackendHealth } from '../backendHealth';
 
 /**
- * A small engineering status pill. Nothing shows for the first moment (a fast backend needs no
- * explaining); a slow one gets an amber, pulsing "waking up" message with a live second counter; a
- * healthy one gets a quiet green dot.
+ * A small status pill, shown only while the server is cold-starting. A healthy backend shows nothing.
  */
 export const BackendStatus: React.FC<{ className?: string }> = ({ className = '' }) => {
   const health = useBackendHealth();
@@ -25,11 +23,11 @@ export const BackendStatus: React.FC<{ className?: string }> = ({ className = ''
         title="The free-tier host sleeps when idle. FastAPI and the ONNX runtime take about 30 to 50 seconds to start.">
         <span className="backend-status-dot" aria-hidden="true" />
         {/* Announced once; the counter below changes every second and is hidden from screen readers. */}
-        <span className="sr-only" role="status">Waking up the backend. This can take about 30 seconds.</span>
+        <span className="sr-only" role="status">Connecting to the server. This can take about 30 seconds.</span>
         <span className="backend-status-text" aria-hidden="true">
-          <span className="backend-status-long">Waking up ONNX + pgvector node (~30s cold start)&hellip; </span>
-          <span className="backend-status-short">Waking up&hellip; </span>
-          <span className="backend-status-count">[{seconds}s]</span>
+          <span className="backend-status-long">Connecting to server&hellip; </span>
+          <span className="backend-status-short">Connecting&hellip; </span>
+          <span className="backend-status-count">{seconds}s</span>
         </span>
       </div>
     );
@@ -51,14 +49,6 @@ export const BackendStatus: React.FC<{ className?: string }> = ({ className = ''
     );
   }
 
-  return (
-    <div className={`backend-status backend-status-online ${className}`} data-testid="backend-status" data-phase="online"
-      title={`FastAPI answered /health${health.latencyMs !== null ? ` in ${health.latencyMs} ms` : ''}${health.embedding === 'ready' ? '; the embedding model and database are ready.' : '.'}`}>
-      <span className="backend-status-dot" aria-hidden="true" />
-      <span className="backend-status-text">
-        <span className="backend-status-long">ONNX + pgvector Online</span>
-        <span className="backend-status-short sr-only">Backend online</span>
-      </span>
-    </div>
-  );
+  // Healthy: nothing to say.
+  return null;
 };
