@@ -54,7 +54,7 @@ describe('Evidence after sources change (mocked API)', () => {
     expect(within(evidence).getByText(chunk)).toBeInTheDocument();
     expect(screen.queryByText('NEW VERSION TEXT')).toBeNull();
     expect(spy).not.toHaveBeenCalledWith('a.pdf', 2, expect.anything(), expect.anything());
-    expect(within(screen.getByTestId('selected-source-card')).getByText(/Replaced since this answer \(cited v1\)/)).toBeInTheDocument();
+    expect(within(screen.getByTestId('selected-source-card')).getByText(/Source Replaced/)).toBeInTheDocument();
   });
 
   it('a deleted source shows a removed notice and its captured excerpt, not another source', async () => {
@@ -66,8 +66,8 @@ describe('Evidence after sources change (mocked API)', () => {
     expect(within(evidence).getByText('Quizzes are 10%.')).toBeInTheDocument();
     expect(spy).not.toHaveBeenCalled();
     const card = screen.getByTestId('selected-source-card');
-    expect(within(card).getByText(/removed from the notebook/)).toBeInTheDocument();
-    expect(within(card).queryByRole('button', { name: 'View full source' })).toBeNull();
+    expect(within(card).getByText(/Original Source Removed/)).toBeInTheDocument();
+    expect(within(card).queryByRole('button', { name: 'Open source ↗' })).toBeNull();
   });
 
   it('steps between a live source and a removed one without mixing their text', async () => {
@@ -134,11 +134,11 @@ describe('Retrieval map inside the materials panel (mocked API)', () => {
     expect(card).toHaveTextContent(LONG);
     expect(within(card).getByTestId('selected-source-line')).toHaveTextContent('Page 3');
     await waitFor(() => expect(within(card).getByText('Week 12 review.')).toBeInTheDocument());
-    expect(screen.queryByTestId('inline-evidence')).toBeNull();
-    expect(card).toHaveFocus();
-    expect(screen.getByRole('button', { name: /^Notes/, pressed: true })).toBeInTheDocument();
+    expect(screen.getByTestId('inline-evidence')).toBeInTheDocument();
+    expect(screen.getByTestId('inline-evidence')).toHaveFocus();
+    expect(screen.getByRole('button', { name: /^Evidence$/, pressed: true })).toBeInTheDocument();
 
-    fireEvent.click(screen.getByTestId('right-panel-tab-retrieval'));
+    fireEvent.click(screen.getByRole('button', { name: 'Show retrieval diagnostics' }));
     await screen.findByTestId('retrieval-map-view');
     expect(screen.getAllByTestId(/retrieved-passage-row-/)).toHaveLength(2);
   });

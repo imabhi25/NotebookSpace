@@ -1,3 +1,4 @@
+import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SubjectWorkspaceView } from './components/SubjectWorkspaceView';
@@ -46,6 +47,16 @@ beforeEach(() => {
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 
 describe('Workspace navigation and progressive disclosure', () => {
+  it.each(['empty', 'ready', 'conversation'])('keeps one bottom composer in the %s state', state => {
+    const { container } = render(React.cloneElement(workspace(), {
+      sources: state === 'empty' ? [] : [source],
+      messages: state === 'conversation' ? [message] : [],
+    }));
+    const main = container.querySelector('.workspace-main-area')!;
+    expect(main.querySelectorAll('.composer-container')).toHaveLength(1);
+    expect(main.lastElementChild).toHaveClass('composer-container');
+  });
+
   it('does not carry the notebook list into a workspace, but keeps dashboard navigation', () => {
     const back = vi.fn();
     render(<DashboardView workspaceMode subjects={[subject]} loading={false} activeSubjectId={subject.id}
@@ -85,17 +96,16 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
   });
 
-  it.each([1440, 768, 390])('opens cited evidence under the answer at %ipx without opening a panel', async width => {
+  it.each([1440, 768, 390])('opens cited evidence in the study panel at %ipx', async width => {
     window.innerWidth = width;
     render(workspace());
-    const sourcesWasOpen = studyToggle().getAttribute('aria-expanded');
     fireEvent.click(screen.getByRole('button', { name: 'Citation 1: lecture.pdf, page 1' }));
     await waitFor(() => expect(api.getPassages).toHaveBeenCalledWith('lecture.pdf', 1, subject.id, 'source'));
     const evidence = screen.getByTestId('inline-evidence');
     expect(evidence).toBeVisible();
     expect(evidence).toHaveAccessibleName('Evidence from lecture.pdf, page 1');
-    expect(evidence.closest('.assistant-message')).not.toBeNull();
-    expect(studyToggle().getAttribute('aria-expanded')).toBe(sourcesWasOpen);
+    expect(evidence.closest('.workspace-context-panel')).not.toBeNull();
+    expect(studyToggle()).toHaveAttribute('aria-expanded', 'true');
   });
 
   it('starts compact screens closed, supports both panels, and restores focus on Escape', () => {
@@ -143,29 +153,16 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(screen.getByLabelText('Response Length')).toBeVisible();
   });
 
-  it('keeps Sources on the left and switches the study panel between Notes, Sessions and Retrieval', () => {
+  it('keeps Notes and Evidence in Study and opens history separately', () => {
     render(workspace());
     expect(within(screen.getByRole('complementary', { name: 'Sources' })).getByTestId('add-source-btn')).toBeVisible();
-    const notesTab = screen.getByRole('button', { name: /^Notes/i, pressed: true });
-    const sessionsTab = screen.getByTestId('right-panel-tab-sessions');
-    const retrievalTab = screen.getByTestId('right-panel-tab-retrieval');
-    expect(sessionsTab).toHaveAttribute('aria-pressed', 'false');
-    expect(retrievalTab).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByTestId('right-panel-tab-evidence'));
+    expect(screen.getByText('Select a citation in an answer to inspect its source.')).toBeVisible();
+    fireEvent.click(screen.getByRole('button', { name: /^Notes/ }));
     expect(screen.getByTestId('new-note-btn')).toBeVisible();
-
-    fireEvent.click(sessionsTab);
-    expect(sessionsTab).toHaveAttribute('aria-pressed', 'true');
-    expect(notesTab).toHaveAttribute('aria-pressed', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Conversation history' }));
+    expect(screen.getByRole('dialog', { name: 'Conversation history' })).toBeVisible();
     expect(screen.getByTestId('nav-new-session')).toBeVisible();
-    expect(screen.getByText('No sessions yet. Ask a question to start one.')).toBeVisible();
-
-    fireEvent.click(retrievalTab);
-    expect(retrievalTab).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
-
-    fireEvent.click(notesTab);
-    expect(notesTab).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('new-note-btn')).toBeVisible();
   });
 
   it('opens the study panel on demand at 1024px while Sources stays docked on the left', () => {

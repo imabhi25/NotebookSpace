@@ -78,7 +78,7 @@ describe('Not-found answers in the workspace (mocked)', () => {
     expect(screen.getByRole('button', { name: 'Choose materials' })).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retrieval details' }));
     expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
-    expect(screen.getByTestId('right-panel-tab-retrieval')).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByTestId('right-panel-tab-evidence')).toHaveAttribute('aria-pressed', 'true');
   });
   it('omits Retrieval details when nothing was retrieved, and has no status strip', () => {
     render(view([question, notFound({ retrieved: [] })]));

@@ -122,11 +122,8 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
 };
 
 interface InlineEvidenceProps extends EvidenceBodyProps {
-  /** Opens the source reader: "Open source", or "Open current version (vN)". Absent for a removed source. */
+  /** Opens the source reader: "Open in reader", or "Open current version in reader (vN)". Absent for a removed source. */
   readerAction?: { label: string; onOpen: () => void } | null;
-  /** True while the expanded reader is showing this same source, version and page. */
-  readerShowsThis?: boolean;
-  onReturnToReader?: () => void;
   /** Position of this citation among the answer's citations, when it is one of them. */
   index: number;
   total: number;
@@ -137,7 +134,7 @@ interface InlineEvidenceProps extends EvidenceBodyProps {
 
 /** Evidence shown directly beneath the answer it supports. Escape or Close collapses it. */
 export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(function InlineEvidence(
-  { index, total, onPrevious, onNext, onClose, readerAction, readerShowsThis, onReturnToReader, ...body },
+  { index, total, onPrevious, onNext, onClose, readerAction, ...body },
   ref
 ) {
   return (
@@ -176,17 +173,8 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
           </button>
         </div>
       </div>
-      {readerShowsThis ? (
-        <div className="evidence-reader-pointer" data-testid="evidence-reader-pointer">
-          <p>Shown in the reader: {body.citation.file}, page {body.citation.page}.</p>
-          {onReturnToReader && (
-            <button type="button" className="evidence-reader-btn" onClick={onReturnToReader}>Return to answer</button>
-          )}
-        </div>
-      ) : (
-        <EvidenceBody {...body} />
-      )}
-      {readerAction && !readerShowsThis && (
+      <EvidenceBody {...body} />
+      {readerAction && (
         <div className="evidence-footer">
           <button type="button" className="evidence-reader-btn" onClick={readerAction.onOpen} data-testid="open-reader-btn">
             {readerAction.label}
