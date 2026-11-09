@@ -2,7 +2,8 @@ import { BackendStatus } from './BackendStatus';
 import { useModalFocus } from '../useModalFocus';
 import { ReferenceIcon } from './ReferenceIcon';
 import { EmptyStateIcon } from './EmptyStateIcon';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useSlidingIndicator } from '../useSlidingIndicator';
 import { SortMenu } from './SortMenu';
 import { SettingsPanel, readDefaultResponseSettings } from './SettingsPanel';
 import { Subject, User } from '../types';
@@ -48,6 +49,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [sortBy, setSortBy] = useState<'updated_at' | 'name' | 'created_at'>('updated_at');
   const [tab, setTab] = useState<'active' | 'archived'>('active');
   const [homeTab, setHomeTab] = useState<'all' | 'active' | 'archived'>('all');
+  const homeTabsRef = useRef<HTMLDivElement>(null);
+  const sideTabsRef = useRef<HTMLDivElement>(null);
+  useSlidingIndicator(homeTabsRef, homeTab);
+  useSlidingIndicator(sideTabsRef, tab);
 
   // Sidebar collapse & drawer states
   const [localMobileOpen, setLocalMobileOpen] = useState(false);
@@ -556,7 +561,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="sidebar-filter-row">
-            <div className="sidebar-filter-pills" role="tablist">
+            <div className="sidebar-filter-pills sliding-tabs" role="tablist" ref={sideTabsRef}>
               <button
                 type="button"
                 role="tab"
@@ -772,7 +777,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button></div>
 
               <div className="home-toolbar">
-                <div className="sidebar-filter-pills home-filter-tabs" role="tablist">
+                <div className="sidebar-filter-pills home-filter-tabs sliding-tabs" role="tablist" ref={homeTabsRef}>
                   {(['all', 'active', 'archived'] as const).map((mode) => (
                     <button
                       key={mode}
@@ -852,7 +857,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {!search && homeTab !== 'archived' && <div className="library-welcome-art" aria-hidden="true"><ReferenceIcon name="book" size={26} /><strong>Your next big idea<br />starts here.</strong><small>NOTEBOOK 001</small></div>}
             </div>
               ) : (
-                <div className="notebook-grid" role="list" key={`${homeTab}-${sortBy}`}>
+                <div className="notebook-grid tab-panel-fade" role="list" key={`${homeTab}-${sortBy}`}>
                   {homeFiltered.map((s) => (
                     <div
                       key={s.id}

@@ -1,6 +1,7 @@
 import { ReferenceIcon } from './ReferenceIcon';
 import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useSlidingIndicator } from '../useSlidingIndicator';
 import { api } from '../api';
 import {
   Subject,
@@ -331,6 +332,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
   const [contextView, setContextView] = useState<'notes' | 'evidence' | 'retrieval'>('evidence');
+  const contextTabsRef = useRef<HTMLDivElement>(null);
+  useSlidingIndicator(contextTabsRef, contextView === 'notes' ? 'notes' : 'evidence');
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyRef = useModalFocus(historyOpen, () => setHistoryOpen(false));
   const [selectedRetrievalMessageId, setSelectedRetrievalMessageId] = useState<string | null>(null);
@@ -1831,13 +1834,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               headingRef={readerHeadingRef}
             />
           )}
-          <div className="context-view-switcher sidebar-segment-switcher" role="group" aria-label="Panel view">
+          <div className="context-view-switcher sidebar-segment-switcher sliding-tabs" ref={contextTabsRef} role="group" aria-label="Panel view">
             <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
             <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => setContextView('evidence')} data-testid="right-panel-tab-evidence">Evidence</button>
           </div>
 
           {contextView === 'evidence' && (
-            <div className="right-panel-body study-evidence-body">
+            <div className="right-panel-body study-evidence-body tab-panel-fade" key="panel-evidence">
               {selectedCitation ? <section data-testid="selected-source-card" className="evidence-source-summary" tabIndex={-1}>
                 {!matchedSource && !selectedCitation.source_id && <p className="evidence-note">This file is not among the notebook’s current sources.</p>}
                 <p data-testid="selected-source-line">Page {selectedCitation.page}{matchedSource ? ` · v${matchedSource.version}` : ''}</p>
@@ -1873,7 +1876,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
           {/* RIGHT PANEL CONTENT: SAVED NOTES VIEW */}
           {contextView === 'notes' && (
-            <div className="right-panel-body">
+            <div className="right-panel-body tab-panel-fade" key="panel-notes">
               <button
                 type="button"
                 className="btn btn-secondary btn-full btn-new-conv"
