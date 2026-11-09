@@ -80,3 +80,15 @@ def test_every_citation_claims_a_source_that_was_created(monkeypatch):
     created = {f"src-{i + 1}" for i in range(len(calls["sources"]))}
     assert {c["source_id"] for c in answer["citations"]} <= created
     assert {c["source_id"] for conf in answer["conflicts"] for c in conf["claims"]} <= created
+
+
+def test_sample_syllabus_page_2_contains_the_cited_excerpt(monkeypatch):
+    client, calls = _client(monkeypatch)
+    client.post("/subjects/sample")
+    pages = calls["processed"][0]["pages"]
+    page2 = next(text for _file, page, text in pages if page == 2)
+    answer = next(m for m in calls["messages"] if m["role"] == "assistant")
+    syllabus_cite = next(c for c in answer["citations"] if c["file"] == "syllabus.pdf")
+    assert syllabus_cite["page"] == 2
+    assert syllabus_cite["excerpt"] in page2
+    assert "10 percent per day" in page2

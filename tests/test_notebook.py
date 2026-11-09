@@ -640,7 +640,7 @@ def test_one_click_sample_notebook_in_guest_mode():
 
         # 6. Check passage endpoint returns chunk for the citation
         passages_res = client.get(
-            f"/passages?file=syllabus.pdf&page=2&subject_id={subj_id}&source_id={src['id']}",
+            f"/passages?file=syllabus.pdf&page=2&subject_id={subj_id}&source_id={by_name['syllabus.pdf']['id']}",
             headers=headers,
         )
         assert passages_res.status_code == 200

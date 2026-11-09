@@ -915,6 +915,10 @@ def get_starter_questions_endpoint(
     return questions[:4]
 
 
+_SAMPLE_SYLLABUS_LATE_POLICY = (
+    "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day "
+    "for up to 3 days. Submissions more than 3 days late will receive zero credit."
+)
 _SAMPLE_ANNOUNCEMENT_FILE = "announcement_week4.md"
 _SAMPLE_ANNOUNCEMENT_EXCERPT = (
     "Update to the late policy: effective this week, assignments submitted after the deadline "
@@ -950,26 +954,21 @@ def create_sample_subject_endpoint(
     )
     subject_id = subj["id"]
 
-    # 1. Ingest small source (syllabus.pdf or synthetic fallback)
-    sample_pdf = Path(__file__).resolve().parent.parent / "docs" / "sample_docs" / "syllabus.pdf"
-    if sample_pdf.is_file():
-        content = sample_pdf.read_bytes()
-        file_hash = hashlib.sha256(content).hexdigest()
-        stream = io.BytesIO(content)
-        pages = parse_pdf_source(source=stream, file_name="syllabus.pdf")
-    else:
-        synthetic_text = (
-            "--- Page 1 ---\n"
-            "CS 401: Advanced Systems Programming - Course Syllabus\n"
-            "Instructor: Dr. Alex Mercer. Office hours: Tuesdays and Thursdays 2-4 PM.\n\n"
-            "--- Page 2 ---\n"
-            "Grading Breakdown and Course Policies\n"
-            "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.\n"
-            "Midterm Examination: 25 percent of total grade.\n"
-        )
-        content = synthetic_text.encode("utf-8")
-        file_hash = hashlib.sha256(content).hexdigest()
-        pages = _pages_from_saved_content(synthetic_text, "syllabus.pdf")
+    # 1. Ingest the syllabus from the embedded text below. It is deliberately not read from
+    # docs/sample_docs/syllabus.pdf: *.pdf is gitignored (so deploys never have that file) and
+    # its wording differs from the cited excerpt, so file vs. fallback would disagree.
+    synthetic_text = (
+        "--- Page 1 ---\n"
+        "CS 401: Advanced Systems Programming - Course Syllabus\n"
+        "Instructor: Dr. Alex Mercer. Office hours: Tuesdays and Thursdays 2-4 PM.\n\n"
+        "--- Page 2 ---\n"
+        "Grading Breakdown and Course Policies\n"
+        f"{_SAMPLE_SYLLABUS_LATE_POLICY}\n"
+        "Midterm Examination: 25 percent of total grade.\n"
+    )
+    content = synthetic_text.encode("utf-8")
+    file_hash = hashlib.sha256(content).hexdigest()
+    pages = _pages_from_saved_content(synthetic_text, "syllabus.pdf")
 
     src = create_source(
         user_id=current_user["id"],
@@ -1052,7 +1051,7 @@ def create_sample_subject_endpoint(
                 "page": 2,
                 "source_id": src["id"],
                 "source_version": 1,
-                "excerpt": "Late Policy: Assignments submitted after the deadline will incur a penalty of 10 percent per day for up to 3 days. Submissions more than 3 days late will receive zero credit.",
+                "excerpt": _SAMPLE_SYLLABUS_LATE_POLICY,
             },
             {
                 "file": _SAMPLE_ANNOUNCEMENT_FILE,
