@@ -237,6 +237,12 @@ export const api = {
     });
   },
 
+  /** Backend liveness probe: no session, no body. True only for an OK response. */
+  async checkHealth(signal?: AbortSignal): Promise<boolean> {
+    const res = await fetch(`${API_BASE_URL}/health`, { signal, cache: 'no-store' });
+    return res.ok;
+  },
+
   async createSampleSubject(): Promise<Subject> {
     await getOrInitToken();
     return apiFetch<Subject>('/subjects/sample', {
