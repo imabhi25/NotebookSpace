@@ -126,11 +126,11 @@ describe('Sources panel', () => {
     render(React.cloneElement(workspace([src('a', 'Syllabus.pdf')], ['a']), { onSelectConversation: onSelect }));
     expect(within(panel()).queryByText('Exam prep')).toBeNull();
     expect(within(panel()).queryByRole('button', { name: /New session/i })).toBeNull();
-    fireEvent.click(within(study()).getByTestId('right-panel-tab-sessions'));
-    expect(within(study()).getByRole('button', { name: 'Exam prep' })).toHaveAttribute('aria-current', 'true');
-    expect(within(study()).getByRole('button', { name: 'Older chat' })).not.toHaveAttribute('aria-current');
-    expect(within(study()).getByTestId('nav-new-session')).toBeInTheDocument();
-    fireEvent.click(within(study()).getByRole('button', { name: 'Older chat' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Conversation history' }));
+    expect(within(screen.getByRole('dialog', { name: 'Conversation history' })).getByRole('button', { name: 'Exam prep' })).toHaveAttribute('aria-current', 'true');
+    expect(within(screen.getByRole('dialog', { name: 'Conversation history' })).getByRole('button', { name: 'Older chat' })).not.toHaveAttribute('aria-current');
+    expect(within(screen.getByRole('dialog', { name: 'Conversation history' })).getByTestId('nav-new-session')).toBeInTheDocument();
+    fireEvent.click(within(screen.getByRole('dialog', { name: 'Conversation history' })).getByRole('button', { name: 'Older chat' }));
     expect(onSelect).toHaveBeenCalledWith('c2');
   });
 
@@ -172,7 +172,7 @@ describe('Sources panel', () => {
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
     const toggle = screen.getByRole('button', { name: 'Toggle sources panel' });
     expect(toggle).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'Hide sources panel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
     expect(screen.queryByRole('complementary', { name: 'Sources' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: 'Select Syllabus.pdf' })).toBeNull();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
@@ -184,7 +184,7 @@ describe('Sources panel', () => {
   it('collapses the study panel from its own button and returns focus to its toggle', () => {
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
     const toggle = screen.getByRole('button', { name: 'Toggle study panel' });
-    fireEvent.click(screen.getByRole('button', { name: 'Collapse study panel' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Toggle study panel' }));
     expect(screen.queryByRole('complementary', { name: 'Study panel' })).toBeNull();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(toggle).toHaveFocus();

@@ -60,7 +60,7 @@ const openEvidence = async () => {
 };
 const openReader = async () => {
   const pane = await openEvidence();
-  const button = within(pane).getByRole('button', { name: 'Open source' });
+  const button = within(pane).getByRole('button', { name: 'Open in reader' });
   button.focus();
   fireEvent.click(button);
   return button;
@@ -126,19 +126,14 @@ describe('Source reader: opening and reading', () => {
 });
 
 describe('Source reader: expand, pointer and Escape (docked)', () => {
-  it('shows a pointer instead of the same passage while expanded, and returns focus to Expand', async () => {
+  it('expands and collapses, announces it, and returns focus to the Expand button', async () => {
     render(view());
     await openReader();
     await waitFor(() => expect(reader().querySelector('mark.reader-mark')).not.toBeNull());
     fireEvent.click(within(reader()).getByRole('button', { name: 'Expand reader' }));
-    expect(await screen.findByTestId('evidence-reader-pointer')).toHaveTextContent(/Shown in the reader/);
-    expect(screen.getByTestId('inline-evidence').querySelector('.passage-chunk')).toBeNull();
-    expect(screen.getByTestId('reader-live-region')).toBeInTheDocument();
-    expect(document.querySelector('.workspace-layout')).toHaveAttribute('data-reader', 'expanded');
-
-    // Another page is not "the same passage": the evidence block shows its passage again.
-    fireEvent.click(within(reader()).getByRole('button', { name: 'Next page' }));
-    await waitFor(() => expect(screen.queryByTestId('evidence-reader-pointer')).toBeNull());
+    await waitFor(() => expect(document.querySelector('.workspace-layout')).toHaveAttribute('data-reader', 'expanded'));
+    expect(within(reader()).getByRole('button', { name: 'Collapse' })).toHaveAttribute('aria-expanded', 'true');
+    await waitFor(() => expect(screen.getByTestId('reader-live-region')).toHaveTextContent('Reader expanded'));
 
     fireEvent.click(within(reader()).getByRole('button', { name: 'Collapse' }));
     await waitFor(() => expect(document.querySelector('.workspace-layout')).toHaveAttribute('data-reader', 'compact'));
@@ -169,19 +164,15 @@ describe('Source reader: expand, pointer and Escape (docked)', () => {
   });
 });
 
-describe('Source reader: opening with the panel collapsed', () => {
-  it('opens the panel for the reader without saving that choice, and closing puts it back', async () => {
-    window.localStorage.setItem('notebookspace_context_open', '0');
+describe('Source reader: closing', () => {
+  it('Back returns to the evidence view and focuses the Open in reader button', async () => {
     render(view());
-    const panel = document.querySelector('.context-slot') as HTMLElement;
-    expect(panel).toHaveClass('is-collapsed');
     await openReader();
-    await waitFor(() => expect(panel).not.toHaveClass('is-collapsed'));
-    expect(window.localStorage.getItem('notebookspace_context_open')).toBe('0');
+    await waitFor(() => expect(reader().querySelector('mark.reader-mark')).not.toBeNull());
     fireEvent.click(within(reader()).getByRole('button', { name: 'Back to answer' }));
-    await waitFor(() => expect(panel).toHaveClass('is-collapsed'));
-    expect(window.localStorage.getItem('notebookspace_context_open')).toBe('0');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Open source' })).toHaveFocus());
+    await waitFor(() => expect(document.querySelector('.workspace-layout')).not.toHaveAttribute('data-reader'));
+    expect(document.querySelector('.context-slot')).not.toHaveClass('is-collapsed');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Open in reader' })).toHaveFocus());
   });
 });
 
@@ -200,10 +191,12 @@ describe('Source reader: overlay (1024px)', () => {
     expect(document.querySelector('.context-slot')).not.toHaveClass('is-collapsed');
     await waitFor(() => expect(within(reader()).getByRole('button', { name: 'Expand reader' })).toHaveFocus(), { timeout: 2000 });
 
-    escape(); // compact -> closed; focus returns to the Open source button, not the toolbar
+    escape(); // compact -> reader closed; the panel stays open on the evidence, focus returns to the opener
+    await waitFor(() => expect(document.querySelector('.workspace-layout')).not.toHaveAttribute('data-reader'));
+    expect(document.querySelector('.context-slot')).not.toHaveClass('is-collapsed');
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Open in reader' })).toHaveFocus());
+    escape(); // evidence view in the overlay -> panel closed
     await waitFor(() => expect(document.querySelector('.context-slot')).toHaveClass('is-collapsed'));
-    expect(document.querySelector('.workspace-layout')).not.toHaveAttribute('data-reader');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Open source' })).toHaveFocus());
     expect(opener).toBeDefined();
   });
 });
@@ -213,8 +206,8 @@ describe('Source reader: replaced and removed sources', () => {
     detail.mockImplementation(async (_s, id) => ({ ...mkSource({ id, version: 2 }), raw_content: raw }));
     render(view([mkSource({ version: 2 })]));
     const pane = await openEvidence();
-    expect(within(pane).queryByRole('button', { name: 'Open source' })).toBeNull();
-    fireEvent.click(within(pane).getByRole('button', { name: 'Open current version (v2)' }));
+    expect(within(pane).queryByRole('button', { name: 'Open in reader' })).toBeNull();
+    fireEvent.click(within(pane).getByRole('button', { name: 'Open current version in reader (v2)' }));
     await waitFor(() => expect(reader()).toHaveTextContent('Second line of intro.'));
     expect(reader()).toHaveTextContent(/Current version \(v2\), not what the answer used/);
     expect(reader().querySelector('mark.reader-mark')).toBeNull();
