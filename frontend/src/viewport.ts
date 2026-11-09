@@ -54,3 +54,11 @@ export function useKeyboardInset(): void {
     };
   }, [update]);
 }
+
+/**
+ * Viewport width at and above which the navigation stays open beside an expanded reader and the
+ * conversation still keeps 560px. Derived from workspace-layout.css:
+ * 560 conversation + 48 body padding + navigation slot (320 + 24) + reader slot (600 + 24).
+ * ReaderLayoutConstants.test.ts recomputes it from the CSS and fails if this drifts.
+ */
+export const READER_NAV_ROOM_MIN_WIDTH = 1576;
