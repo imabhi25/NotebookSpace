@@ -307,3 +307,26 @@ def test_failed_answer_retry_removes_old_row_on_reload(nb, monkeypatch):
     assert [message['role'] for message in messages] == ['user', 'assistant']
     assert failed['id'] not in [message['id'] for message in messages]
     assert messages[-1]['id'] == retried.json()['id']
+
+
+# --- Retrieval keeps the exact cosine beside the boosted score --------------------------------
+
+def test_search_scoped_returns_exact_raw_cosine_and_final_score(nb):
+    from db.notebook_store import search_scoped
+
+    me = client.get("/auth/me", headers=nb["h"]).json()
+    results = search_scoped(
+        question="binary heaps",
+        user_id=me["id"],
+        subject_id=nb["sid"],
+        selected_source_ids=[nb["src"]],
+        k=5,
+    )
+    assert results
+    for r in results:
+        assert -1.0 <= r["raw_cosine"] <= 1.0
+        if r["matched_terms"]:
+            assert r["score"] == min(1.0, max(r["raw_cosine"] + 0.30, 0.40))
+        else:
+            assert r["score"] == r["raw_cosine"]
+        assert r["similarity_score"] == r["score"]

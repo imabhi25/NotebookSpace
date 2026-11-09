@@ -566,9 +566,82 @@ class PassageItem(BaseModel):
 # BASE HEALTH & LEGACY ENDPOINTS
 # ============================================================================
 
+# Readiness probes behind /health. Liveness ("status") never depends on them, so a slow database or a
+# cold embedding model cannot make the host's health check fail; they only report what is ready.
+_HEALTH_DB_TTL_SECONDS = 10.0
+_HEALTH_DB_TIMEOUT_SECONDS = 2
+_health_lock = threading.Lock()
+_health_db: dict[str, Any] = {"checked_at": 0.0, "state": "unknown"}
+_health_embedding_state = "cold"  # cold -> warming -> ready | error
+
+
+def _embedding_model_loaded() -> bool:
+    from ingestion.embedder import get_embedding_model
+
+    return get_embedding_model.cache_info().currsize > 0
+
+
+def _warm_embedding_model() -> None:
+    global _health_embedding_state
+    try:
+        from ingestion.embedder import embed_text
+
+        embed_text("warm up")
+        state = "ready"
+    except Exception:
+        logging.getLogger(__name__).exception("Embedding warm-up failed")
+        state = "error"
+    with _health_lock:
+        _health_embedding_state = state
+
+
+def _embedding_readiness() -> str:
+    """Report the embedding model state, starting a one-time background warm-up if it is cold."""
+    global _health_embedding_state
+    if _embedding_model_loaded():
+        with _health_lock:
+            _health_embedding_state = "ready"
+        return "ready"
+    with _health_lock:
+        state = _health_embedding_state
+        if state == "cold" and os.getenv("NOTEBOOKSPACE_HEALTH_WARMUP", "1") != "0":
+            _health_embedding_state = state = "warming"
+            threading.Thread(target=_warm_embedding_model, name="embedding-warmup", daemon=True).start()
+        return state
+
+
+def _database_readiness() -> str:
+    """A cached `SELECT 1` with a short connect timeout: 'ready' or 'down'."""
+    now = time.monotonic()
+    with _health_lock:
+        if now - _health_db["checked_at"] < _HEALTH_DB_TTL_SECONDS and _health_db["state"] != "unknown":
+            return _health_db["state"]
+    try:
+        from db.connection import get_database_url
+
+        with psycopg.connect(get_database_url(), connect_timeout=_HEALTH_DB_TIMEOUT_SECONDS) as conn:
+            conn.execute("SELECT 1")
+        state = "ready"
+    except Exception:
+        state = "down"
+    with _health_lock:
+        _health_db.update(checked_at=now, state=state)
+    return state
+
+
 @app.get("/health")
-async def health_check():
-    return {"status": "ok"}
+def health_check():
+    """Liveness plus honest readiness. `status` is "ok" whenever the process answers; `database` and
+    `embedding` say whether queries would work now ("ready"), are still starting ("warming"/"cold"),
+    or failed ("down"/"error"). Cheap: the database probe is cached and the model loads in a thread."""
+    database = _database_readiness()
+    embedding = _embedding_readiness()
+    return {
+        "status": "ok",
+        "database": database,
+        "embedding": embedding,
+        "ready": database == "ready" and embedding == "ready",
+    }
 
 
 @app.get("/documents", response_model=List[DocumentItem])

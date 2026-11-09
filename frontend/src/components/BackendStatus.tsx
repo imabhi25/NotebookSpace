@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { backendHealth, SLOW_AFTER_MS, useBackendHealth } from '../backendHealth';
+import { backendHealth, isFullyReady, SLOW_AFTER_MS, useBackendHealth } from '../backendHealth';
 
 /**
  * A small engineering status pill. Nothing shows for the first moment (a fast backend needs no
@@ -35,9 +35,25 @@ export const BackendStatus: React.FC<{ className?: string }> = ({ className = ''
     );
   }
 
+  if (!isFullyReady(health)) {
+    const dbDown = health.database !== undefined && health.database !== 'ready';
+    const label = dbDown ? 'Database unreachable' : health.embedding === 'error' ? 'Embedding model failed to load' : 'Loading embedding model';
+    return (
+      <div className={`backend-status backend-status-waking ${className}`} data-testid="backend-status" data-phase="partial"
+        title={dbDown ? 'FastAPI is up, but it cannot reach the database right now.' : 'FastAPI is up. The embedding model is loading, so the first question may be slow.'}>
+        <span className="backend-status-dot" aria-hidden="true" />
+        <span className="sr-only" role="status">{label}.</span>
+        <span className="backend-status-text" aria-hidden="true">
+          <span className="backend-status-long">API online · {label.toLowerCase()}&hellip;</span>
+          <span className="backend-status-short">{dbDown ? 'DB down' : 'Warming'}&hellip;</span>
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div className={`backend-status backend-status-online ${className}`} data-testid="backend-status" data-phase="online"
-      title={`FastAPI answered /health${health.latencyMs !== null ? ` in ${health.latencyMs} ms` : ''}. The embedding model loads on the first query.`}>
+      title={`FastAPI answered /health${health.latencyMs !== null ? ` in ${health.latencyMs} ms` : ''}${health.embedding === 'ready' ? '; the embedding model and database are ready.' : '.'}`}>
       <span className="backend-status-dot" aria-hidden="true" />
       <span className="backend-status-text">
         <span className="backend-status-long">ONNX + pgvector Online</span>

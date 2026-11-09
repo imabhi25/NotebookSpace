@@ -88,6 +88,8 @@ export interface RetrievedPassage {
   chunk_index?: number;
   score?: number;
   similarity_score?: number;
+  /** Exact unboosted cosine similarity. Absent on responses saved before the backend recorded it. */
+  raw_cosine?: number;
   /** Key terms from the question found in this chunk; each match adds the keyword boost. */
   matched_terms?: string[];
   source_version?: number;
@@ -205,4 +207,12 @@ export interface RetrievalMapResponse {
   support_min_score: number;
   chunks: RetrievalMapChunk[];
   retrieved_chunk_ids: number[];
+}
+
+/** Readiness fields from GET /health. Absent when the backend predates them. */
+export interface HealthDetail {
+  /** "ready" or "down". */
+  database?: string;
+  /** "ready", "warming", "cold" or "error". */
+  embedding?: string;
 }

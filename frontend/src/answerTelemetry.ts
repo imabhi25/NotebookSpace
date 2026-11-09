@@ -19,6 +19,8 @@ const scoreOf = (r: { score?: number; similarity_score?: number }): number | nul
   isNum(r.score) ? r.score : isNum(r.similarity_score) ? r.similarity_score : null;
 
 export type TopScoreKind =
+  /** The saved passage carries the exact unboosted cosine (`raw_cosine`) beside the final score. */
+  | 'exact'
   /** No keyword matched: the score is the raw cosine similarity. */
   | 'vector'
   /** A keyword matched and the score is clear of the floor and cap: raw is the score minus the boost. */
@@ -43,17 +45,23 @@ export interface AnswerTelemetry {
 }
 
 /**
- * The saved passage keeps only the boosted score (the raw cosine is overwritten), so the split into
- * raw + boost is exact for a chunk with no keyword match and an estimate for one with a match.
+ * Passages saved with `raw_cosine` give the exact raw/boost split. Older saved responses only kept
+ * the boosted score, so for those the split is exact for a chunk with no keyword match and an
+ * estimate for one with a match.
  */
 export function topScoreOf(retrieved: MessageItem['retrieved'] | undefined): TopScore | null {
-  let best: { score: number; matched: boolean } | null = null;
+  let best: { score: number; raw: number | null; matched: boolean } | null = null;
   for (const r of retrieved ?? []) {
     const score = scoreOf(r);
     if (score === null) continue;
-    if (!best || score > best.score) best = { score, matched: Array.isArray(r.matched_terms) && r.matched_terms.length > 0 };
+    if (!best || score > best.score) {
+      best = { score, raw: isNum(r.raw_cosine) ? r.raw_cosine : null, matched: Array.isArray(r.matched_terms) && r.matched_terms.length > 0 };
+    }
   }
   if (!best) return null;
+  if (best.raw !== null) {
+    return { score: best.score, raw: best.raw, boost: Math.max(0, best.score - best.raw), kind: 'exact' };
+  }
   if (!best.matched) return { score: best.score, raw: best.score, boost: 0, kind: 'vector' };
   // At the floor or the cap the boost was clipped, so the raw value cannot be recovered.
   if (best.score >= SCORE_CAP - 1e-6 || best.score <= BOOST_FLOOR + 1e-6) {
