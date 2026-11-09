@@ -46,6 +46,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   workspaceMode = false,
 }) => {
   const [search, setSearch] = useState('');
+  const homeSearchRef = useRef<HTMLInputElement>(null);
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || '');
+  // ⌘K / Ctrl+K jumps to the notebook search.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k' && homeSearchRef.current) {
+        e.preventDefault();
+        homeSearchRef.current.focus();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
   const [sortBy, setSortBy] = useState<'updated_at' | 'name' | 'created_at'>('updated_at');
   const [tab, setTab] = useState<'active' | 'archived'>('active');
   const [homeTab, setHomeTab] = useState<'all' | 'active' | 'archived'>('all');
@@ -88,17 +101,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       // ignore
     }
     setIsPrivacyBannerDismissed(true);
-  };
-
-  const handleShowPrivacyNotice = () => {
-    try {
-      if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.removeItem('notebookspace_privacy_banner_dismissed');
-      }
-    } catch {
-      // ignore
-    }
-    setIsPrivacyBannerDismissed(false);
   };
 
   // Direction of the last desktop sidebar toggle, so the main area can glide instead of jumping.
@@ -705,7 +707,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <header className="home-header">
             <div className="home-brand">
               <span className="brand-mark-wrapper" aria-hidden="true">
-                <ReferenceIcon name="book" size={22} />
+                <svg className="brand-mark-svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path d="M12 6.2C10.3 4.9 7.9 4.4 4.5 4.6v12.9c3.4-.2 5.8.3 7.5 1.6V6.2Z" fill="currentColor" fillOpacity=".32" />
+                  <path d="M12 6.2c1.7-1.3 4.1-1.8 7.5-1.6v12.9c-3.4-.2-5.8.3-7.5 1.6V6.2Z" fill="currentColor" />
+                  <path d="M12 6.2v12.9" stroke="var(--brand-mark-seam, #fff)" strokeWidth="1.2" strokeLinecap="round" />
+                </svg>
               </span>
               <span className="sidebar-brand-title">NotebookSpace</span>
             </div>
@@ -722,8 +728,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search notebooks"
+                ref={homeSearchRef}
               />
-              {search && (
+              {search ? (
                 <button
                   type="button"
                   className="sidebar-search-clear-btn"
@@ -732,6 +739,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 >
                   &times;
                 </button>
+              ) : (
+                <kbd className="search-kbd" aria-hidden="true">{isMac ? '⌘K' : 'Ctrl+K'}</kbd>
               )}
             </div>
 
@@ -753,7 +762,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
               </svg>
               </button>
-<span className="library-account" title="Private browser workspace"><ReferenceIcon name="user" size={17} /></span>
             </div>
           </header>
 
@@ -1095,8 +1103,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {isSettingsOpen && (
         <SettingsPanel
           currentUser={currentUser}
-          isPrivacyBannerDismissed={isPrivacyBannerDismissed}
-          onShowPrivacyNotice={handleShowPrivacyNotice}
           onRequestReset={() => {
             setIsSettingsOpen(false);
             setIsResetConfirmOpen(true);
