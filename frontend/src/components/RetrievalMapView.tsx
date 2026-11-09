@@ -1,6 +1,9 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { api } from '../api';
 import { RetrievalMapResponse, RetrievalMapChunk, Source } from '../types';
+import {
+  ALPHA_DEFAULT, ALPHA_MAX, ALPHA_MIN, ALPHA_STEP, adjustScore, barPercent, formatAlpha, rankByAlpha, ranksAt, scoreParts, ScoreParts,
+} from '../retrievalScores';
 
 interface RetrievalMapViewProps {
   subjectId: string;
@@ -24,6 +27,73 @@ const PALETTE = [
   '#818cf8', // indigo
 ];
 
+/** The part of a score that comes from vector similarity, stacked with the part that comes from keywords. */
+const ScoreBar: React.FC<{ parts: ScoreParts; threshold?: number | null }> = ({ parts, threshold }) => {
+  const rawPct = barPercent(parts.raw);
+  const totalPct = barPercent(parts.total);
+  return (
+    <div className="score-bar" data-testid="score-bar">
+      <div
+        className="score-bar-track" role="img"
+        aria-label={`Raw cosine ${parts.raw.toFixed(3)} plus keyword boost ${parts.boost.toFixed(3)} equals ${parts.total.toFixed(3)}`}
+      >
+        <span className="score-bar-raw" style={{ width: `${rawPct}%` }} />
+        <span className="score-bar-boost" style={{ left: `${rawPct}%`, width: `${Math.max(0, totalPct - rawPct)}%` }} />
+        {typeof threshold === 'number' && (
+          <span className="score-bar-threshold" style={{ left: `${barPercent(threshold)}%` }} title={`Support threshold ${threshold.toFixed(2)}`} />
+        )}
+      </div>
+      <div className="score-bar-legend" aria-hidden="true">
+        <span className="score-bar-key score-bar-key-raw">cosine {parts.raw.toFixed(3)}</span>
+        <span className="score-bar-key score-bar-key-boost">+ boost {parts.boost.toFixed(3)}</span>
+      </div>
+    </div>
+  );
+};
+
+/** Scales the keyword boost: 0 is pure vector similarity, 1 the backend's ranking, 2 heavily lexical. */
+const HybridWeightControl: React.FC<{ alpha: number; onChange: (alpha: number) => void; disabled: boolean }> = ({ alpha, onChange, disabled }) => (
+  <div className="hybrid-weight" data-testid="hybrid-weight">
+    <div className="hybrid-weight-head">
+      <label htmlFor="hybrid-weight-slider" className="hybrid-weight-label">
+        Hybrid Boost Weight: <span className="hybrid-weight-value" data-testid="hybrid-weight-value">{formatAlpha(alpha)}</span>
+      </label>
+      <button type="button" className="hybrid-weight-reset" onClick={() => onChange(ALPHA_DEFAULT)} disabled={disabled || alpha === ALPHA_DEFAULT}>
+        Reset
+      </button>
+    </div>
+    <input
+      id="hybrid-weight-slider" type="range" min={ALPHA_MIN} max={ALPHA_MAX} step={ALPHA_STEP} value={alpha} disabled={disabled}
+      onChange={(e) => onChange(Number(e.target.value))}
+      aria-valuetext={`${formatAlpha(alpha)}${alpha === 0 ? ', pure vector' : alpha === ALPHA_DEFAULT ? ', default' : alpha === ALPHA_MAX ? ', heavy lexical' : ''}`}
+    />
+    <div className="hybrid-weight-scale" aria-hidden="true">
+      <span>0.0x <small>Pure Vector</small></span>
+      <span>1.0x <small>Default</small></span>
+      <span>2.0x <small>Heavy Lexical</small></span>
+    </div>
+    <p className="hybrid-weight-formula">
+      {disabled ? 'Ask a question to score chunks against it.' : <>final = cosine + <b>{formatAlpha(alpha)}</b> &middot; keyword boost</>}
+    </p>
+  </div>
+);
+
+/** Scrolls the nearest scrolling ancestor, never a clipped one, so a hover cannot shove the panel out of place. */
+function scrollIntoNearestScroller(el: HTMLElement) {
+  let parent = el.parentElement;
+  while (parent) {
+    const overflowY = getComputedStyle(parent).overflowY;
+    if ((overflowY === 'auto' || overflowY === 'scroll') && parent.scrollHeight > parent.clientHeight) {
+      const box = parent.getBoundingClientRect();
+      const rect = el.getBoundingClientRect();
+      if (rect.top < box.top) parent.scrollTop -= box.top - rect.top + 8;
+      else if (rect.bottom > box.bottom) parent.scrollTop += rect.bottom - box.bottom + 8;
+      return;
+    }
+    parent = parent.parentElement;
+  }
+}
+
 export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
   subjectId,
   conversationId,
@@ -38,6 +108,10 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
   const [data, setData] = useState<RetrievalMapResponse | null>(null);
   const [selectedChunkId, setSelectedChunkId] = useState<number | null>(null);
   const [hoveredChunkId, setHoveredChunkId] = useState<number | null>(null);
+  const [alpha, setAlpha] = useState(ALPHA_DEFAULT);
+  // Which side started the highlight: only a dot should scroll a card into view, never the reverse.
+  const highlightOrigin = useRef<'dot' | 'card' | null>(null);
+  const cardRefs = useRef(new Map<number, HTMLElement>());
 
   useEffect(() => {
     let cancelled = false;
@@ -158,21 +232,22 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
     return data.chunks.find((c) => c.id === targetId) || null;
   }, [data, hoveredChunkId, selectedChunkId]);
 
-  const rankedRetrievedChunks = useMemo(() => {
+  const retrievedChunks = useMemo(() => {
     if (!data) return [];
-    const retrievedIds = data.retrieved_chunk_ids || [];
-    if (retrievedIds.length === 0) return [];
-    const retrievedSet = new Set(retrievedIds);
-    const retrieved = data.chunks.filter((c) => retrievedSet.has(c.id));
-    return [...retrieved].sort((a, b) => {
-      const scoreA = typeof a.score === 'number' ? a.score : -Infinity;
-      const scoreB = typeof b.score === 'number' ? b.score : -Infinity;
-      if (scoreB !== scoreA) return scoreB - scoreA;
-      const rawA = typeof a.raw_cosine === 'number' ? a.raw_cosine : -Infinity;
-      const rawB = typeof b.raw_cosine === 'number' ? b.raw_cosine : -Infinity;
-      return rawB - rawA;
-    });
+    const retrievedSet = new Set(data.retrieved_chunk_ids || []);
+    return data.chunks.filter((c) => retrievedSet.has(c.id));
   }, [data]);
+  const rankedRetrievedChunks = useMemo(() => rankByAlpha(retrievedChunks, alpha), [retrievedChunks, alpha]);
+  const baselineRanks = useMemo(() => ranksAt(retrievedChunks, ALPHA_DEFAULT), [retrievedChunks]);
+  const canWeight = retrievedChunks.some((c) => typeof c.raw_cosine === 'number' && typeof c.score === 'number');
+
+  // A hover or click on a dot brings its passage card into view.
+  useEffect(() => {
+    if (highlightOrigin.current !== 'dot') return;
+    const id = hoveredChunkId ?? selectedChunkId;
+    const el = id === null ? null : cardRefs.current.get(id);
+    if (el) scrollIntoNearestScroller(el);
+  }, [hoveredChunkId, selectedChunkId]);
 
   if (loading) {
     return (
@@ -209,6 +284,8 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
 
   return (
     <div className="retrieval-map-root" data-testid="retrieval-map-view">
+      <HybridWeightControl alpha={alpha} onChange={setAlpha} disabled={!canWeight} />
+
       {/* Header Info */}
       <div className="retrieval-map-header">
         <div className="retrieval-map-meta">
@@ -252,25 +329,36 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
           {/* Chunks */}
           {points.map((pt) => {
             const isSelected = selectedChunkId === pt.id;
+            const isHovered = hoveredChunkId === pt.id;
             const isRetrieved = pt.is_retrieved;
             const color = sourceColorMap.get(pt.source_id) || 'var(--color-accent)';
-            const radius = isSelected ? 8 : isRetrieved ? 6.5 : 5;
+            const radius = isSelected || isHovered ? 9 : isRetrieved ? 6.5 : 5;
 
             return (
               <g
                 key={pt.id}
-                className={`retrieval-chunk-node ${isRetrieved ? 'retrieved' : ''} ${isSelected ? 'selected' : ''}`}
-                onClick={() => setSelectedChunkId(pt.id)}
-                onMouseEnter={() => setHoveredChunkId(pt.id)}
+                className={`retrieval-chunk-node ${isRetrieved ? 'retrieved' : ''} ${isSelected ? 'selected' : ''} ${isHovered ? 'hovered' : ''}`}
+                data-testid={`chunk-dot-${pt.id}`}
+                onClick={() => { highlightOrigin.current = 'dot'; setSelectedChunkId(pt.id); }}
+                onMouseEnter={() => { highlightOrigin.current = 'dot'; setHoveredChunkId(pt.id); }}
                 onMouseLeave={() => setHoveredChunkId(null)}
+                onFocus={() => { highlightOrigin.current = 'dot'; setHoveredChunkId(pt.id); }}
+                onBlur={() => setHoveredChunkId(null)}
                 style={{ cursor: 'pointer' }}
                 tabIndex={0}
                 role="button"
                 aria-label={`${pt.file_name} p.${pt.page_number} chunk ${pt.chunk_index}`}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter') setSelectedChunkId(pt.id);
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    highlightOrigin.current = 'dot';
+                    setSelectedChunkId(pt.id);
+                  }
                 }}
               >
+                {isHovered && !isSelected && (
+                  <circle cx={pt.svgX} cy={pt.svgY} r={radius + 5} fill="none" stroke="var(--color-accent)" strokeWidth="2" strokeOpacity="0.9" />
+                )}
                 {/* Outer halo for retrieved or selected */}
                 {isRetrieved && (
                   <circle
@@ -364,16 +452,25 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
           <div className="retrieved-passages-list" role="list">
             {rankedRetrievedChunks.map((chunk, idx) => {
               const isSelected = selectedChunkId === chunk.id;
+              const isLinked = hoveredChunkId === chunk.id;
               const rank = idx + 1;
+              const moved = (baselineRanks.get(chunk.id) ?? rank) - rank;
               const docTitle = chunk.title || chunk.file_name;
+              const parts = scoreParts(chunk.raw_cosine, chunk.score, alpha);
+              const adjusted = adjustScore(chunk.raw_cosine, chunk.score, alpha);
               const rawCosStr = typeof chunk.raw_cosine === 'number' ? chunk.raw_cosine.toFixed(3) : 'N/A';
-              const scoreStr = typeof chunk.score === 'number' ? chunk.score.toFixed(3) : 'N/A';
+              const scoreStr = typeof adjusted === 'number' ? adjusted.toFixed(3) : 'N/A';
 
               return (
                 <div
                   key={chunk.id}
-                  className={`retrieved-passage-row ${isSelected ? 'selected' : ''}`}
-                  onClick={() => setSelectedChunkId(chunk.id)}
+                  ref={(el) => { if (el) cardRefs.current.set(chunk.id, el); else cardRefs.current.delete(chunk.id); }}
+                  className={`retrieved-passage-row ${isSelected ? 'selected' : ''} ${isLinked ? 'linked' : ''}`}
+                  onClick={() => { highlightOrigin.current = 'card'; setSelectedChunkId(chunk.id); }}
+                  onMouseEnter={() => { highlightOrigin.current = 'card'; setHoveredChunkId(chunk.id); }}
+                  onMouseLeave={() => setHoveredChunkId(null)}
+                  onFocus={() => { highlightOrigin.current = 'card'; setHoveredChunkId(chunk.id); }}
+                  onBlur={() => setHoveredChunkId(null)}
                   data-testid={`retrieved-passage-row-${chunk.id}`}
                   tabIndex={0}
                   role="button"
@@ -381,6 +478,7 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
+                      highlightOrigin.current = 'card';
                       setSelectedChunkId(chunk.id);
                     }
                   }}
@@ -394,6 +492,15 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
                     >
                       {docTitle}
                     </span>
+                    {alpha !== ALPHA_DEFAULT && moved !== 0 && (
+                      <span
+                        className={`rank-move ${moved > 0 ? 'rank-up' : 'rank-down'}`}
+                        data-testid={`rank-move-${chunk.id}`}
+                        aria-label={`${moved > 0 ? 'Moved up' : 'Moved down'} ${Math.abs(moved)} compared to the default weight`}
+                      >
+                        {moved > 0 ? '\u25B2' : '\u25BC'} {Math.abs(moved)}
+                      </span>
+                    )}
                   </div>
                   <div className="passage-row-meta">
                     <span className="passage-page-cell">p. {chunk.page_number}</span>
@@ -406,6 +513,14 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
                       </span>
                     </div>
                   </div>
+                  {parts && <ScoreBar parts={parts} threshold={data.support_min_score} />}
+                  {chunk.matched_terms && chunk.matched_terms.length > 0 && (
+                    <div className="passage-row-terms" aria-label="Matched keywords">
+                      {chunk.matched_terms.map((t) => (
+                        <span key={t} className="term-chip">{t}</span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -446,15 +561,19 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
               <span className="score-label">Final score (with boost)</span>
               <div className="score-with-tag">
                 <span className="score-value" data-testid="final-score-val">
-                  {typeof activeChunk.score === 'number' ? activeChunk.score.toFixed(3) : 'N/A'}
+                  {(() => {
+                    const v = adjustScore(activeChunk.raw_cosine, activeChunk.score, alpha);
+                    return typeof v === 'number' ? v.toFixed(3) : 'N/A';
+                  })()}
                 </span>
-                {typeof activeChunk.score === 'number' &&
-                  typeof activeChunk.raw_cosine === 'number' &&
-                  activeChunk.score > activeChunk.raw_cosine && (
+                {(() => {
+                  const parts = scoreParts(activeChunk.raw_cosine, activeChunk.score, alpha);
+                  return parts && parts.boost > 0.0005 ? (
                     <span className="boost-badge" title="Keyword match boost applied">
-                      +0.30 boost
+                      +{parts.boost.toFixed(2)} boost
                     </span>
-                  )}
+                  ) : null;
+                })()}
               </div>
             </div>
 
