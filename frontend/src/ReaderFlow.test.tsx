@@ -236,3 +236,77 @@ describe('Source reader: replaced and removed sources', () => {
     await waitFor(() => expect(reader()).toHaveTextContent('This source was removed from the notebook.'));
   });
 });
+
+describe('Source reader: opening from the source list', () => {
+  const readFromList = async (title = 'Article') => {
+    const more = screen.getByRole('button', { name: `Options for ${title}` });
+    more.focus();
+    fireEvent.click(more);
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'Read' }));
+    return more;
+  };
+
+  it('opens a source on its first page with no passage mark', async () => {
+    render(view());
+    await readFromList();
+    await waitFor(() => expect(reader()).toHaveTextContent('First page text.'));
+    expect(reader()).toHaveTextContent('Page 1 of 3');
+    expect(reader().querySelector('mark.reader-mark')).toBeNull();
+    expect(reader()).not.toHaveTextContent(/could not be located/);
+    expect(detail).toHaveBeenCalledWith('rd', 'a', { includePassages: false });
+  });
+
+  it('starts at the first stored page when page 1 has no text entry', async () => {
+    detail.mockImplementation(async (_s, id) => ({ ...mkSource({ id }), raw_content: '--- Page 4 ---\nFourth.\n\n--- Page 5 ---\nFifth.' }));
+    render(view());
+    await readFromList();
+    await waitFor(() => expect(reader()).toHaveTextContent('Fourth.'));
+  });
+
+  it('opens a collapsed panel without saving that choice, and Back collapses it and refocuses the row', async () => {
+    window.localStorage.setItem('notebookspace_context_open', '0');
+    render(view());
+    const panel = document.querySelector('.context-slot') as HTMLElement;
+    expect(panel).toHaveClass('is-collapsed');
+    const more = await readFromList();
+    await waitFor(() => expect(panel).not.toHaveClass('is-collapsed'));
+    expect(window.localStorage.getItem('notebookspace_context_open')).toBe('0');
+    fireEvent.click(within(reader()).getByRole('button', { name: 'Back to answer' }));
+    await waitFor(() => expect(panel).toHaveClass('is-collapsed'));
+    expect(window.localStorage.getItem('notebookspace_context_open')).toBe('0');
+    await waitFor(() => expect(more).toHaveFocus());
+  });
+
+  it('does not offer Read for a source that is still processing', async () => {
+    render(view([mkSource({ status: 'processing' })]));
+    expect(screen.queryByRole('button', { name: 'Options for Article' })).not.toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Options for Article' }));
+    expect(screen.queryByRole('menuitem', { name: 'Read' })).toBeNull();
+  });
+});
+
+describe('Full-text viewer (modal): load states', () => {
+  const openViewer = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Options for Article' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: 'View' }));
+  };
+
+  it('shows an error with Retry instead of spinning forever, and recovers on retry', async () => {
+    detail.mockRejectedValueOnce(new Error('boom'));
+    render(view());
+    await openViewer();
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText('The source text could not be loaded.');
+    expect(within(dialog).queryByText('Loading source content...')).toBeNull();
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Retry' }));
+    await waitFor(() => expect(within(dialog).getByText(/Second line of intro\./)).toBeInTheDocument());
+  });
+
+  it('says so when a source has no stored text instead of loading forever', async () => {
+    detail.mockResolvedValue({ ...mkSource(), raw_content: '', passages: [] });
+    render(view());
+    await openViewer();
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByText('No text was stored for this source.');
+  });
+});

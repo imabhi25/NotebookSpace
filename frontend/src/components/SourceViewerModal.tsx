@@ -5,9 +5,12 @@ import { useModalFocus } from '../useModalFocus';
 interface SourceViewerModalProps {
   source: Source | null;
   onClose: () => void;
+  /** Whether the full text is still being fetched, failed, or arrived. Defaults to arrived. */
+  status?: 'loading' | 'error' | 'ready';
+  onRetry?: () => void;
 }
 
-export const SourceViewerModal: React.FC<SourceViewerModalProps> = ({ source, onClose }) => {
+export const SourceViewerModal: React.FC<SourceViewerModalProps> = ({ source, onClose, status = 'ready', onRetry }) => {
   const modalRef = useModalFocus<HTMLDivElement>(Boolean(source), onClose);
 
   if (!source) return null;
@@ -47,6 +50,13 @@ export const SourceViewerModal: React.FC<SourceViewerModalProps> = ({ source, on
                 </div>
               ))}
             </div>
+          ) : status === 'error' ? (
+            <div className="source-loading-state" role="alert">
+              <p>The source text could not be loaded.</p>
+              {onRetry && <button type="button" className="btn btn-secondary" onClick={onRetry}>Retry</button>}
+            </div>
+          ) : status === 'ready' ? (
+            <p className="source-loading-state" role="status">No text was stored for this source.</p>
           ) : (
             <div className="dashboard-loading-state source-loading-state">
               <div className="step-spinner" />

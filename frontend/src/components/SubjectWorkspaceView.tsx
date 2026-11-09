@@ -358,6 +358,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   }, [subject.id]);
 
   const [viewingSource, setViewingSource] = useState<Source | null>(null);
+  const [viewerStatus, setViewerStatus] = useState<'loading' | 'error' | 'ready'>('ready');
 
   // The Add sources dialog mounts on first open and then stays mounted, so a pasted draft survives closing it.
   const hasOpenedAddSource = useRef(false);
@@ -538,13 +539,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // View full source content modal
   const handleOpenSourceViewer = async (s: Source) => {
     setViewingSource(s);
+    setViewerStatus('loading');
     try {
       const full = await api.getSourceDetail(subject.id, s.id);
       if (full) {
         setViewingSource(full);
       }
+      setViewerStatus('ready');
     } catch (err) {
       console.error('Failed to load source detail:', err);
+      setViewerStatus('error');
     }
   };
 
@@ -798,6 +802,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const openReader = (cit: ActiveCitation, intent: 'cited' | 'current') => {
     const src = cit.source_id ? sources.find((s) => s.id === cit.source_id) : undefined;
     if (!src) return;
+    startReader(src, cit.page, intent, intent === 'cited' ? (cit.source_version ?? src.version) : src.version, { messageId: cit.messageId, citation: cit });
+  };
+  // Opening a source to read it, with no citation: first page, no passage mark.
+  const openSourceInReader = (src: Source) => {
+    if (src.status !== 'ready') return;
+    startReader(src, 1, 'cited', src.version, null);
+    // The navigation drawer would cover the sheet on small screens.
+    if (isCompact) setIsNavCollapsed(true);
+  };
+  const startReader = (
+    src: Source, page: number, intent: 'cited' | 'current', version: number,
+    cite: { messageId: string; citation: ActiveCitation } | null,
+  ) => {
     const active = document.activeElement;
     const opener = active instanceof HTMLElement && active !== document.body ? active : null;
     let keyboard = false;
@@ -805,10 +822,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     returnTargetRef.current = { opener, anchorTurnId: null, anchorOffset: 0, scrollTop: 0, userScrolled: false };
     setReader({
       sourceId: src.id,
-      page: cit.page,
+      page,
       mode: intent,
-      version: intent === 'cited' ? (cit.source_version ?? src.version) : src.version,
-      cite: { messageId: cit.messageId, citation: cit },
+      version,
+      cite,
       // Remembered across a reader opened on top of a reader, so closing restores the original state.
       panelWasCollapsed: reader ? reader.panelWasCollapsed : isContextCollapsed,
       replaced: false,
@@ -833,7 +850,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     announce('Reader closed');
     // The opener may have been replaced while the reader was open (the pointer stands in for the button
     // while expanded), so fall back to the current "Open source" button, then the evidence block.
-    const back = () => (opener && opener.isConnected ? opener : null)
+    const back = () => (opener && opener.isConnected && !opener.closest('[inert]') ? opener : null)
       ?? document.querySelector<HTMLElement>('[data-testid="open-reader-btn"]')
       ?? evidenceRef.current ?? chatAreaRef.current;
     if (wasCollapsed) {
@@ -959,6 +976,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       scroller.removeEventListener('pointerdown', onPointer);
     };
   }, [readerExpanded]);
+
+  // A source opened without a citation starts at its first stored page, whatever that number is.
+  useEffect(() => {
+    if (reader && !reader.cite && readerText.status === 'ready' && !readerText.order.includes(reader.page)) {
+      setReader({ ...reader, page: readerText.order[0] });
+    }
+  }, [reader, readerText.status, readerText.order]);
 
   // The reader closes with its conversation; a replaced source switches to its current text.
   useEffect(() => {
@@ -1227,6 +1251,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             isSelected={selectedSourceIds.includes(s.id)}
                             onToggle={() => handleToggleSource(s.id)}
                             onView={() => handleOpenSourceViewer(s)}
+                            onRead={() => openSourceInReader(s)}
                             onRename={() => { setRenamingSource(s); setNewSourceTitle(s.title); }}
                             onRetry={() => onRetrySource(s.id)}
                             onReplace={() => handleTriggerReplace(s.id)}
@@ -1950,6 +1975,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {viewingSource && (
         <SourceViewerModal
           source={viewingSource}
+          status={viewerStatus}
+          onRetry={() => { void handleOpenSourceViewer(viewingSource); }}
           onClose={() => setViewingSource(null)}
         />
       )}
