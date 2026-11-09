@@ -1,5 +1,7 @@
 import React from 'react';
 const paths: Record<string, React.ReactNode> = {
+ globe: <><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4" ry="9"/><path d="M3 12h18"/></>,
+ text: <path d="M4 5h16M4 10h12M4 15h16M4 20h10"/>,
  close: <path d="m6 6 12 12M18 6 6 18"/>,
  monitor: <><rect x="3" y="3" width="18" height="13" rx="2"/><path d="M8 21h8M12 16v5"/></>,
  sun: <><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1 1M18 18l1 1M5 19l1-1M18 6l1-1"/></>,
