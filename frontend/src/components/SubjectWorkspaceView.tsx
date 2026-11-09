@@ -29,9 +29,8 @@ import { InlineEvidence } from './EvidenceBody';
 import { abstainCopy } from '../abstain';
 import { CommandPalette } from './CommandPalette';
 import { BackendStatus } from './BackendStatus';
-import { AnswerTelemetryStrip } from './AnswerTelemetry';
 import { CrossSourceCheck } from './CrossSourceCheck';
-import { buildTelemetry, crossSourceCheck, isGrounded } from '../answerTelemetry';
+import { crossSourceCheck } from '../answerTelemetry';
 import { CommandItem, matchShortcut, shortcutLabel } from '../commandPalette';
 import { getThemeSetting, setThemeSetting, ThemeSetting } from '../theme';
 
@@ -1614,13 +1613,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   />
                                 </div>
 
-                                {isGrounded(msg) && (
-                                  <AnswerTelemetryStrip
-                                    telemetry={buildTelemetry(msg)}
-                                    generation={{ latency: typeof msg.latency === 'number' ? msg.latency : null, model: msg.model || null }}
-                                  />
-                                )}
-
                                 {/* Restrained Answer Actions (Copy, Save to Note, Retry) */}
                                 <div className="answer-action-toolbar">
                                   <button
@@ -1714,26 +1706,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               </div>
                             )}
 
-                            {/* Status Strip (answers only) */}
-                            {!(msg.abstained || msg.abstain_reason === 'generation_failed') && !isGrounded(msg) && (
-                            <div className="status-strip" data-testid="status-strip">
-                              {typeof msg.latency === 'number' && (
-                                <div className="status-strip-item">
-                                  <span>{msg.latency.toFixed(2)}s</span>
-                                </div>
-                              )}
-                              {msg.model && (
-                                <div className="status-strip-item">
-                                  <span>Model: {msg.model}</span>
-                                </div>
-                              )}
-                              {msg.retrieved && (
-                                <div className="status-strip-item">
-                                  <span>{msg.retrieved.length} passages checked</span>
-                                </div>
-                              )}
-                            </div>
-                            )}
                           </div>
                         )}
                       </div>

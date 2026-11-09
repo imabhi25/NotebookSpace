@@ -26,10 +26,12 @@ describe('Notebook launcher grid', () => {
     expect(screen.getByRole('heading', { name: 'My notebooks' })).toBeInTheDocument();
     const card = screen.getByTestId('subject-card-a');
     expect(within(card).getByText('EECS 3101')).toBeInTheDocument();
-    expect(within(card).getByText('Oct 12')).toBeInTheDocument();
-    expect(within(card).getByText('3')).toBeInTheDocument();
-    expect(within(card).getByText('Indexed')).toBeInTheDocument();
-    expect(within(screen.getByTestId('subject-card-b')).getByText('1')).toBeInTheDocument();
+    expect(within(card).getByText('3 sources · Updated Oct 12')).toBeInTheDocument();
+    expect(within(card).getByText(/^Open/)).toBeInTheDocument();
+    expect(within(screen.getByTestId('subject-card-b')).getByText('1 source · Updated Oct 12')).toBeInTheDocument();
+    expect(screen.queryByText(/Engine/i)).toBeNull();
+    expect(document.querySelector('.library-nav')).toBeNull();
+    expect(screen.getByText('Upload PDFs, slides, or notes')).toBeInTheDocument();
     expect(screen.queryByText(/Select a notebook/)).toBeNull();
 
     fireEvent.click(card);

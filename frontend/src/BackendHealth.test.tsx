@@ -77,7 +77,7 @@ describe('BackendStatus pill', () => {
   beforeEach(() => { vi.useFakeTimers(); });
   afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); backendHealth.stop(); });
 
-  it('shows nothing at first, an amber counter when slow, then a green "Online"', async () => {
+  it('shows nothing at first, an amber counter when slow, then nothing once online', async () => {
     let release: (ok: boolean) => void = () => {};
     vi.spyOn(globalThis, 'fetch').mockImplementation(() => new Promise<Response>((resolve) => {
       release = (ok) => resolve(new Response('{}', { status: ok ? 200 : 503 }));
@@ -90,14 +90,12 @@ describe('BackendStatus pill', () => {
     await act(async () => { await vi.advanceTimersByTimeAsync(3200); });
     const waking = screen.getByTestId('backend-status');
     expect(waking).toHaveAttribute('data-phase', 'waking');
-    expect(waking).toHaveTextContent('Waking up ONNX + pgvector node (~30s cold start)');
-    expect(waking).toHaveTextContent(/\[3s\]/);
-    expect(screen.getByRole('status')).toHaveTextContent(/Waking up the backend/);
+    expect(waking).toHaveTextContent('Connecting to server');
+    expect(waking).toHaveTextContent(/3s/);
+    expect(screen.getByRole('status')).toHaveTextContent(/Connecting to the server/);
 
     await act(async () => { release(true); await vi.advanceTimersByTimeAsync(20); });
-    const online = screen.getByTestId('backend-status');
-    expect(online).toHaveAttribute('data-phase', 'online');
-    expect(online).toHaveTextContent('ONNX + pgvector Online');
+    expect(screen.queryByTestId('backend-status')).toBeNull();
   });
 });
 

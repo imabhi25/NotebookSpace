@@ -101,10 +101,11 @@ describe('Not-found answers in the workspace (mocked)', () => {
     expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('complementary', { name: 'Sources' })).toBeVisible();
   });
-  it('keeps the normal answer status strip', () => {
+  it('keeps model and latency metadata out of the chat feed', () => {
     const answer: MessageItem = { ...question, id: 'ok', role: 'assistant', content: 'Fine.', latency: 1.2, model: 'm', retrieved: [] };
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view([question, answer]));
-    expect(screen.getByTestId('status-strip')).toHaveTextContent('1.20s');
+    expect(screen.queryByTestId('status-strip')).toBeNull();
+    expect(screen.queryByText(/Model:/)).toBeNull();
   });
 });
