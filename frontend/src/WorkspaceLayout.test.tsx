@@ -47,6 +47,17 @@ beforeEach(() => {
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 
 describe('Workspace navigation and progressive disclosure', () => {
+  it('opens the link and text source entry points without enabling empty chat', async () => {
+    render(React.cloneElement(workspace(), { sources: [], messages: [], starterQuestions: ['A suggested question'] }));
+    expect(screen.getByRole('button', { name: 'Ask Question' })).toBeDisabled();
+    expect(screen.queryByText('A suggested question')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Paste a link/ }));
+    expect(await screen.findByLabelText(/Public Webpage URL/)).toBeVisible();
+    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: /Add text/ }));
+    expect(await screen.findByLabelText(/Text Content/)).toBeVisible();
+  });
+
   it.each(['empty', 'ready', 'conversation'])('keeps one bottom composer in the %s state', state => {
     const { container } = render(React.cloneElement(workspace(), {
       sources: state === 'empty' ? [] : [source],

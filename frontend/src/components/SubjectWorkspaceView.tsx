@@ -1,3 +1,4 @@
+import { ReferenceIcon } from './ReferenceIcon';
 import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { api } from '../api';
@@ -342,6 +343,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Modals
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
+  const [sourceEntryTab, setSourceEntryTab] = useState<'upload' | 'paste' | 'url' | undefined>();
+  const openSourceEntry = (tab: 'upload' | 'paste' | 'url') => {
+    setSourceEntryTab(tab);
+    setIsAddSourceOpen(true);
+  };
   useEffect(() => {
     try {
       if (sessionStorage.getItem('notebookspace_add_materials') === subject.id) {
@@ -1280,41 +1286,24 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </div>
           ) : sources.length === 0 ? (
             <div className="empty-state-scroll-container">
-              <div className="empty-state-centered-box workspace-zero-sources-box">
-                <div className="empty-state-brand-mark" aria-hidden="true">
-                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                    <polyline points="14 2 14 8 20 8" />
-                    <line x1="12" y1="18" x2="12" y2="12" />
-                    <line x1="9" y1="15" x2="15" y2="15" />
-                  </svg>
+              <div className="empty-state-centered-box workspace-zero-sources-box source-onboarding">
+                <div className="source-onboarding-mark"><ReferenceIcon name="file" size={24} /></div>
+                <div className="source-onboarding-intro">
+                  <p className="source-onboarding-eyebrow">YOUR {subject.name} NOTEBOOK</p>
+                  <h1 className="empty-state-heading" data-testid="empty-state-heading">Make room for understanding.</h1>
+                  <p className="empty-state-subtext">Bring your materials. Connect the ideas. Find answers you can trace back to the source.</p>
                 </div>
-                <h1 className="empty-state-heading" data-testid="empty-state-heading">
-                  Add your first source
-                </h1>
-                <p className="empty-state-subtext">
-                  Upload course syllabi, lecture slides, assignments, or web articles to get started. Answers cite exact pages and quotes from your sources.
-                </p>
-                <div className="zero-sources-cta-group">
-                  <button
-                    type="button"
-                    className="btn btn-primary btn-add-first-source"
-                    onClick={() => setIsAddSourceOpen(true)}
-                    data-testid="add-first-source-btn"
-                  >
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                      <line x1="12" y1="5" x2="12" y2="19" />
-                      <line x1="5" y1="12" x2="19" y2="12" />
-                    </svg>
-                    <span>Add course materials</span>
-                  </button>
+                <div className="source-onboarding-upload">
+                  <div className="source-onboarding-upload-row">
+                    <span className="source-onboarding-upload-icon"><ReferenceIcon name="upload" size={22} /></span>
+                    <div><h2>Start with a source</h2><p>PDFs, lecture slides, readings, and more</p></div>
+                    <button type="button" className="btn btn-primary" onClick={() => openSourceEntry('upload')} data-testid="add-first-source-btn">+ Add source</button>
+                  </div>
+                  <p className="source-onboarding-hint">Add your first source to start a conversation grounded in your materials.</p>
                 </div>
-                <div className="zero-sources-hints">
-                  <span>PDF documents</span>
-                  <span>&bull;</span>
-                  <span>Web links</span>
-                  <span>&bull;</span>
-                  <span>Pasted text</span>
+                <div className="source-onboarding-alternatives">
+                  <button type="button" onClick={() => openSourceEntry('url')}><ReferenceIcon name="globe" /><span><strong>Paste a link</strong><small>Articles &amp; web pages</small></span><span aria-hidden="true">↗</span></button>
+                  <button type="button" onClick={() => openSourceEntry('paste')}><ReferenceIcon name="text" /><span><strong>Add text</strong><small>Notes &amp; copied content</small></span><span aria-hidden="true">↗</span></button>
                 </div>
               </div>
             </div>
@@ -1332,7 +1321,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 </p>
 
                 {/* Starter questions */}
-                {starterQuestions.length > 0 && (
+                {readySources.length > 0 && starterQuestions.length > 0 && (
                   <div className="starter-chips-container" role="group" aria-label="Starter questions">
                     {starterQuestions.map((sq, idx) => (
                       <button
@@ -1709,6 +1698,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 loading={chatLoading}
                 onStop={handleSafeStopGeneration}
                 scope={composerScope}
+                blockedReason={sources.length === 0 ? 'Add a source to start chatting' : readySources.length === 0 ? 'Waiting for a ready source' : undefined}
                 placeholder="Ask about your selected materials"
               />
         </section>
@@ -1947,9 +1937,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {(isAddSourceOpen || hasOpenedAddSource.current) && (
         <SourceModal
           isOpen={isAddSourceOpen}
+          initialTab={sourceEntryTab}
           initialFiles={droppedFiles}
           initialUrl={initialUrl}
-          onClose={() => { setIsAddSourceOpen(false); setDroppedFiles([]); setInitialUrl(''); }}
+          onClose={() => { setIsAddSourceOpen(false); setSourceEntryTab(undefined); setDroppedFiles([]); setInitialUrl(''); }}
           onUploadFiles={onUploadFiles}
           onPasteText={onPasteText}
           onAddUrl={onAddUrl}
