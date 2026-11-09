@@ -29,6 +29,9 @@ import { InlineEvidence } from './EvidenceBody';
 import { abstainCopy } from '../abstain';
 import { CommandPalette } from './CommandPalette';
 import { BackendStatus } from './BackendStatus';
+import { AnswerTelemetryStrip } from './AnswerTelemetry';
+import { CrossSourceCheck } from './CrossSourceCheck';
+import { buildTelemetry, crossSourceCheck, isGrounded } from '../answerTelemetry';
 import { CommandItem, matchShortcut, shortcutLabel } from '../commandPalette';
 import { getThemeSetting, setThemeSetting, ThemeSetting } from '../theme';
 
@@ -1166,7 +1169,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <button type="button" ref={navToggleRef}
             className={`workspace-toggle-btn workspace-nav-toggle ${!isNavCollapsed && !navHiddenByReader ? 'active' : ''}`}
             onClick={onNavToggle}
-            title={isNavCollapsed ? 'Show sources panel' : 'Hide sources panel'}
+            title={`${isNavCollapsed ? 'Show sources panel' : 'Hide sources panel'} (${shortcutLabel('B')})`}
             aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed && !navHiddenByReader} aria-controls="workspace-nav-panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
@@ -1208,7 +1211,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <button type="button" ref={contextToggleRef}
             className={`workspace-toggle-btn ${!isContextCollapsed ? 'active' : ''}`}
             onClick={() => isContextCollapsed ? setContextCollapsed(false) : closeContextPanel()}
-            title={isContextCollapsed ? 'Show study panel' : 'Hide study panel'}
+            title={`${isContextCollapsed ? 'Show study panel' : 'Hide study panel'} (${shortcutLabel('\\')})`}
             aria-label="Toggle study panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
@@ -1585,49 +1588,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   return null;
                                 })()}
 
-                                {/* Conflicts Disagreement View */}
-                                {msg.conflict_detected && msg.conflicts && msg.conflicts.length > 0 && (
-                                  <div className="conflict-container" data-testid="conflict-view">
-                                    <div className="conflict-header">
-                                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                                        <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z" />
-                                        <line x1="12" y1="9" x2="12" y2="13" />
-                                        <line x1="12" y1="17" x2="12.01" y2="17" />
-                                      </svg>
-                                      <h3 className="conflict-heading">These documents disagree</h3>
-                                    </div>
-                                    {msg.conflicts.map((conf, cIdx) => (
-                                      <div key={cIdx} className="conflict-topic-group">
-                                        <div className="conflict-topic">Topic: {conf.topic}</div>
-                                        <div className="conflict-cards-row">
-                                          {conf.claims.map((claim, clIdx) => (
-                                            <div
-                                              key={clIdx}
-                                              className="conflict-source-card"
-                                              role="button"
-                                              tabIndex={0}
-                                              aria-label={`Claim: ${claim.value} in ${claim.file} page ${claim.page}`}
-                                              onClick={() =>
-                                                handleSelectCitation({ file: claim.file, page: claim.page }, msg.id)
-                                              }
-                                              onKeyDown={(e) => {
-                                                if (e.key === 'Enter' || e.key === ' ') {
-                                                  e.preventDefault();
-                                                  handleSelectCitation({ file: claim.file, page: claim.page }, msg.id);
-                                                }
-                                              }}
-                                            >
-                                              <div className="source-value">&ldquo;{claim.value}&rdquo;</div>
-                                              <div className="source-meta">
-                                                {claim.file} (Page {claim.page})
-                                              </div>
-                                            </div>
-                                          ))}
-                                        </div>
-                                      </div>
-                                    ))}
-                                  </div>
-                                )}
+                                {/* Cross-Source Evidence Check: several sources, or a flagged contradiction */}
+                                {(() => {
+                                  const check = crossSourceCheck(msg);
+                                  return check ? (
+                                    <CrossSourceCheck
+                                      check={check}
+                                      onOpen={(o) => handleSelectCitation({ ...o, source_id: o.source_id ?? undefined }, msg.id)}
+                                    />
+                                  ) : null;
+                                })()}
 
                                 {/* Grounded Answer Body */}
                                 <div className="answer-text">
@@ -1640,6 +1610,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     citationState={citationStateOf}
                                   />
                                 </div>
+
+                                {isGrounded(msg) && <AnswerTelemetryStrip telemetry={buildTelemetry(msg)} />}
 
                                 {/* Restrained Answer Actions (Copy, Save to Note, Retry) */}
                                 <div className="answer-action-toolbar">

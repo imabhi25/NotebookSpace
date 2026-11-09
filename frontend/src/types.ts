@@ -88,6 +88,8 @@ export interface RetrievedPassage {
   chunk_index?: number;
   score?: number;
   similarity_score?: number;
+  /** Key terms from the question found in this chunk; each match adds the keyword boost. */
+  matched_terms?: string[];
   source_version?: number;
   upload_date?: string | null;
 }
