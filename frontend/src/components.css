@@ -2033,3 +2033,13 @@ aside .retrieval-svg,
   .cross-source-grid > .cross-source-card:not(:first-child)::before { left: 50%; top: -12px; }
 }
 @media (pointer: coarse) { .cross-source-open { min-height: 44px; } .cross-source-claim { min-height: 44px; } }
+
+/* Dashboard: sample upgrade banner and balanced grid */
+.sample-upgrade-banner {
+  align-self: flex-start; margin: var(--space-2) 0 0; padding: 4px 10px; border-radius: 999px; cursor: pointer;
+  border: 1px solid var(--color-accent-border, var(--color-accent)); background: var(--color-accent-soft, transparent);
+  color: var(--color-accent); font: 500 12px var(--font-family-ui);
+}
+.sample-upgrade-banner:disabled { opacity: .6; cursor: default; }
+.notebook-grid { align-items: stretch; }
+.notebook-grid > .library-add-card { align-self: stretch; min-height: 100%; }

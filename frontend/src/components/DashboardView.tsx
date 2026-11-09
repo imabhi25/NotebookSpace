@@ -226,6 +226,22 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
+  // The sample notebook is recreated from scratch (stale 1-source copies become the 2-source conflict demo).
+  const isSampleNotebook = (s: Subject) => /\(Sample\)\s*$/.test(s.name);
+  const [resettingSampleId, setResettingSampleId] = useState<string | null>(null);
+  const handleResetSample = async (s: Subject) => {
+    if (!onCreateSampleSubject || resettingSampleId) return;
+    setResettingSampleId(s.id);
+    try {
+      await onDeleteSubject(s.id);
+      await onCreateSampleSubject();
+    } catch (err: any) {
+      alert(err?.message || 'Failed to reset the sample notebook.');
+    } finally {
+      setResettingSampleId(null);
+    }
+  };
+
   const handleResetConfirm = async () => {
     setIsResetConfirmOpen(false);
     if (onResetWorkspace) {
@@ -337,6 +353,26 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                                 <line x1="10" y1="12" x2="14" y2="12" />
                               </svg>
                               <span>Archive</span>
+                            </button>
+                          )}
+
+                          {isSampleNotebook(s) && onCreateSampleSubject && (
+                            <button
+                              type="button"
+                              className="notebook-menu-item"
+                              role="menuitem"
+                              data-testid={`reset-sample-${s.id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setMenuOpenSubjectId(null);
+                                if (window.confirm('Reset the sample notebook? Its sources, chats and notes are replaced with a fresh copy.')) void handleResetSample(s);
+                              }}
+                            >
+                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                <polyline points="1 4 1 10 7 10" />
+                                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                              </svg>
+                              <span>Reset sample notebook</span>
                             </button>
                           )}
 
@@ -858,6 +894,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                           {formatDate(s.updated_at)} · {s.source_count} {s.source_count === 1 ? 'source' : 'sources'}
                         </p>
                       )}
+                      {isSampleNotebook(s) && s.source_count === 1 && onCreateSampleSubject && (
+                        <button
+                          type="button"
+                          className="sample-upgrade-banner"
+                          data-testid={`update-sample-${s.id}`}
+                          disabled={resettingSampleId === s.id}
+                          onClick={(e) => { e.stopPropagation(); void handleResetSample(s); }}
+                        >
+                          {resettingSampleId === s.id ? 'Updating sample…' : 'Update sample to 2-source conflict demo'}
+                        </button>
+                      )}
                       <span className="notebook-open-action">{(s.source_count ?? 0) === 0 ? 'Add your first source' : 'Open notebook'}<span aria-hidden="true">→</span></span>
                     </div>
                   ))}
@@ -869,7 +916,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 ['02', 'Bring your materials', 'PDFs, links, and your own notes.'],
                 ['03', 'Follow your curiosity', 'Ask questions. Keep what clicks.'],
               ].map(([n,title,body]) => <div key={n}><span>{n}</span><strong>{title}</strong><p>{body}</p></div>)}</div>}
-              {!loading && homeFiltered.length === 1 && homeTab !== 'archived' && !search && <div className="library-first-step"><span className="library-step-icon"><ReferenceIcon name="upload" size={20} /></span><div><strong>Make {homeFiltered[0].name} your own</strong><p>Add lecture slides, a reading, or a few notes to start your first conversation.</p></div><button type="button" className="btn btn-secondary" onClick={() => { try { sessionStorage.setItem('notebookspace_add_materials', homeFiltered[0].id); } catch {} onOpenSubject(homeFiltered[0].id); }}>+ Add materials</button></div>}
+              {!loading && homeFiltered.length === 1 && !isSampleNotebook(homeFiltered[0]) && homeTab !== 'archived' && !search && <div className="library-first-step"><span className="library-step-icon"><ReferenceIcon name="upload" size={20} /></span><div><strong>Make {homeFiltered[0].name} your own</strong><p>Add lecture slides, a reading, or a few notes to start your first conversation.</p></div><button type="button" className="btn btn-secondary" onClick={() => { try { sessionStorage.setItem('notebookspace_add_materials', homeFiltered[0].id); } catch {} onOpenSubject(homeFiltered[0].id); }}>+ Add materials</button></div>}
             </div>
           </main></div>
         </div>

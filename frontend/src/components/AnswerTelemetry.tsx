@@ -8,6 +8,8 @@ const ICONS = {
   model: <Icon d={<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />} />,
   chunks: <Icon d={<><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></>} />,
   score: <Icon d={<><line x1="6" y1="20" x2="6" y2="12" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="18" y1="20" x2="18" y2="9" /></>} />,
+  llm: <Icon d={<><rect x="4" y="4" width="16" height="16" rx="3" /><path d="M9 9h6v6H9z" /></>} />,
+  latency: <Icon d={<><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></>} />,
   citations: <Icon d={<path d="m21.44 11.05-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />} />,
 };
 
@@ -21,10 +23,12 @@ const scoreDetail = (t: NonNullable<Telemetry['top']>): string => {
 };
 
 /** A compact technical line under a grounded answer: how it was retrieved, scored and cited. */
-export const AnswerTelemetryStrip: React.FC<{ telemetry: Telemetry }> = ({ telemetry }) => {
+export const AnswerTelemetryStrip: React.FC<{ telemetry: Telemetry; generation?: { latency: number | null; model: string | null } }> = ({ telemetry, generation }) => {
   const { chunks, top, citations } = telemetry;
   return (
     <div className="answer-telemetry" role="group" aria-label="Answer telemetry" data-testid="answer-telemetry">
+      {generation?.model && <span className="telemetry-item" data-testid="telemetry-llm">{ICONS.llm}{generation.model}</span>}
+      {generation && generation.latency !== null && <span className="telemetry-item" data-testid="telemetry-latency">{ICONS.latency}{generation.latency.toFixed(2)}s</span>}
       <span className="telemetry-item" data-testid="telemetry-model">{ICONS.model}{telemetry.model}</span>
       {chunks !== null && (
         <span className="telemetry-item" data-testid="telemetry-chunks">{ICONS.chunks}{chunks} {chunks === 1 ? 'chunk' : 'chunks'} retrieved</span>

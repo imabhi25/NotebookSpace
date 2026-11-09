@@ -331,7 +331,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
 
   // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
-  const [contextView, setContextView] = useState<'notes' | 'evidence' | 'retrieval'>('notes');
+  const [contextView, setContextView] = useState<'notes' | 'evidence' | 'retrieval'>('evidence');
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyRef = useModalFocus(historyOpen, () => setHistoryOpen(false));
   const [selectedRetrievalMessageId, setSelectedRetrievalMessageId] = useState<string | null>(null);
@@ -1485,7 +1485,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       <div key={msg.id} className={`thread-turn turn-${msg.role}`} data-turn-id={msg.id}>
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
-                            <span className="turn-label" aria-hidden="true">You</span>
+                            <span className="turn-label turn-label-user" aria-hidden="true">
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
+                              <span>Question</span>
+                            </span>
                             <h2 className="question-heading" data-testid="question-heading">{msg.content}</h2>
                           </div>
                         ) : (
@@ -1611,7 +1614,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   />
                                 </div>
 
-                                {isGrounded(msg) && <AnswerTelemetryStrip telemetry={buildTelemetry(msg)} />}
+                                {isGrounded(msg) && (
+                                  <AnswerTelemetryStrip
+                                    telemetry={buildTelemetry(msg)}
+                                    generation={{ latency: typeof msg.latency === 'number' ? msg.latency : null, model: msg.model || null }}
+                                  />
+                                )}
 
                                 {/* Restrained Answer Actions (Copy, Save to Note, Retry) */}
                                 <div className="answer-action-toolbar">
@@ -1707,7 +1715,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             )}
 
                             {/* Status Strip (answers only) */}
-                            {!(msg.abstained || msg.abstain_reason === 'generation_failed') && (
+                            {!(msg.abstained || msg.abstain_reason === 'generation_failed') && !isGrounded(msg) && (
                             <div className="status-strip" data-testid="status-strip">
                               {typeof msg.latency === 'number' && (
                                 <div className="status-strip-item">
