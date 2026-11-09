@@ -446,7 +446,7 @@ describe('SubjectWorkspaceView component', () => {
     });
 
     // Test Save as Note
-    const saveNoteBtn = screen.getByRole('button', { name: /save to note/i });
+    const saveNoteBtn = screen.getByRole('button', { name: /^save to note$/i });
     await act(async () => { fireEvent.click(saveNoteBtn); });
     expect(handleSaveNote).toHaveBeenCalledWith(mockMessages[1]);
   });
@@ -640,7 +640,7 @@ describe('SubjectWorkspaceView component', () => {
     });
 
     // Right panel inspector should now be visible and on Retrieval tab
-    const retrievalTab = screen.getByTestId('right-panel-tab-retrieval');
+    const retrievalTab = screen.getByTestId('right-panel-tab-evidence');
     expect(retrievalTab).toHaveClass('active');
 
     // api.getRetrievalMap should have been called with messageId: 'msg-2'

@@ -21,7 +21,7 @@ import { useModalFocus } from '../useModalFocus';
 import { useMediaQuery } from '../viewport';
 import { RetrievalMapView } from './RetrievalMapView';
 import { SessionsView } from './WorkspaceNav';
-import { EvidenceBody, InlineEvidence } from './EvidenceBody';
+import { InlineEvidence } from './EvidenceBody';
 import { abstainCopy } from '../abstain';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
@@ -157,7 +157,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const chatAreaRef = useRef<HTMLElement>(null);
   const contextPanelRef = useRef<HTMLElement>(null);
   const evidenceRef = useRef<HTMLElement>(null);
-  const selectedCardRef = useRef<HTMLElement>(null);
   const [cardFocusTick, setCardFocusTick] = useState(0);
   const evidenceOpenerRef = useRef<HTMLElement | null>(null);
   const lastSendTimeRef = useRef<number>(0);
@@ -292,7 +291,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
 
   // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
-  const [contextView, setContextView] = useState<'notes' | 'sessions' | 'retrieval'>('notes');
+  const [contextView, setContextView] = useState<'notes' | 'evidence' | 'retrieval'>('notes');
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyRef = useModalFocus(historyOpen, () => setHistoryOpen(false));
   const [selectedRetrievalMessageId, setSelectedRetrievalMessageId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -510,7 +511,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // CITATION INSPECTION HANDLERS
   // --------------------------------------------------------------------------
   // Show a view in the materials panel, opening it (as an overlay where it is one) if it is closed.
-  const openContext = (view?: 'notes' | 'sessions' | 'retrieval') => {
+  const openContext = (view?: 'notes' | 'evidence' | 'retrieval') => {
     if (view) setContextView(view);
     setIsContextCollapsed(false);
   };
@@ -537,12 +538,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       /* selector unsupported: skip */
     }
     setSelectedCitation({ ...cit, messageId });
-    // Evidence appears under its answer; a citation with no answer on screen (a note's, or one picked
-    // from the retrieval map) is shown with its source in the materials panel instead.
-    if (!messages.some((m) => m.id === messageId)) {
-      openContext('notes');
-      setCardFocusTick((t) => t + 1); // the control that was clicked is about to unmount
-    }
+    openContext('evidence');
+    if (!messages.some((m) => m.id === messageId)) setCardFocusTick((t) => t + 1);
     loadPassages(cit);
   };
 
@@ -559,7 +556,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // A citation chosen from a note or the retrieval map has no answer to anchor to: focus its card in the panel.
   useEffect(() => {
-    if (cardFocusTick > 0) selectedCardRef.current?.focus();
+    if (cardFocusTick > 0) evidenceRef.current?.focus();
   }, [cardFocusTick]);
 
   // Collapse the evidence and hand focus back to the control that opened it.
@@ -705,11 +702,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     typeof selectedCitation.source_version === 'number' &&
     matchedSource.version !== selectedCitation.source_version
   );
-  const isHistoricalOnly = isSourceDeleted || isSourceReplaced;
-  const isUnknownSource = Boolean(
-    selectedCitation && !selectedCitation.source_id &&
-    !sources.some((src) => normalizeFileName(src.file_name) === normalizeFileName(selectedCitation.file))
-  );
 
   // --------------------------------------------------------------------------
   // ANSWER ACTIONS
@@ -755,7 +747,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     openContext('retrieval');
     setTimeout(() => {
       const retrievalTabBtn = document.querySelector<HTMLButtonElement>(
-        '[data-testid="right-panel-tab-retrieval"]'
+        '[data-testid="right-panel-tab-evidence"]'
       );
       if (retrievalTabBtn) {
         retrievalTabBtn.focus();
@@ -792,6 +784,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       <div className="workspace-subject-pill workspace-subject-pill-name workspace-title-measure"
         ref={titleMeasureRef} aria-hidden="true" data-title={`${subject.name} ${subject.course_code || ''}`} />
       <header className="workspace-top-bar workspace-control-bar" ref={headerRef}>
+          <button type="button" ref={navToggleRef}
+            className={`workspace-toggle-btn workspace-nav-toggle ${!isNavCollapsed ? 'active' : ''}`}
+            onClick={() => isNavCollapsed ? setNavCollapsed(false) : closeNavPanel()}
+            title={isNavCollapsed ? 'Show sources panel' : 'Hide sources panel'}
+            aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed} aria-controls="workspace-nav-panel">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
+            </svg>
+
+          </button>
         <div className="workspace-brand" ref={brandRef}>
           <span className="workspace-brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
@@ -816,25 +818,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           )}
         </nav>
         <div className="workspace-top-right workspace-essential-actions" ref={actionsRef}>
-          <button type="button" ref={navToggleRef}
-            className={`workspace-toggle-btn workspace-nav-toggle ${!isNavCollapsed ? 'active' : ''}`}
-            onClick={() => setNavCollapsed(!isNavCollapsed)}
-            title={isNavCollapsed ? 'Show sources panel' : 'Hide sources panel'}
-            aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed} aria-controls="workspace-nav-panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
-            </svg>
-            <span className="toggle-label">Sources</span>
+          <button type="button" className="workspace-history-btn" onClick={() => setHistoryOpen(true)} aria-label="Conversation history" title="Conversation history">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 119 10M3 4v7h7M12 7v5l3 2"/></svg><span>History</span>
           </button>
           <button type="button" ref={contextToggleRef}
             className={`workspace-toggle-btn ${!isContextCollapsed ? 'active' : ''}`}
-            onClick={() => setContextCollapsed(!isContextCollapsed)}
+            onClick={() => isContextCollapsed ? setContextCollapsed(false) : closeContextPanel()}
             title={isContextCollapsed ? 'Show study panel' : 'Hide study panel'}
             aria-label="Toggle study panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
             </svg>
-            <span className="toggle-label">Studio</span>
+
           </button>
           <div className="workspace-actions-menu" ref={menuRootRef}>
             <button type="button" ref={menuButtonRef} className="btn-icon workspace-top-icon-btn"
@@ -885,13 +880,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             aria-hidden={isNavCollapsed} ref={navPanelRef} tabIndex={-1}>
             <div className="rail-header">
               <h2 className="rail-title">Sources</h2>
-              <button type="button" className="panel-toggle-btn workspace-nav-collapse" onClick={closeNavPanel}
-                title="Hide sources panel" aria-label="Hide sources panel">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                  <rect x="3" y="4" width="18" height="16" rx="3.5" />
-                  <line x1="9" y1="9" x2="9" y2="15" />
-                </svg>
-              </button>
+
             </div>
             <div
               className={`sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
@@ -1107,28 +1096,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </div>
                 )}
 
-                {/* Centered Composer in Empty State */}
-                <Composer
-                  question={question}
-                  setQuestion={setQuestion}
-                  onSubmit={async (e) => {
-                    e.preventDefault();
-                    if (question.trim() && !chatLoading) {
-                      lastSendTimeRef.current = Date.now();
-                      const q = question.trim();
-                      try {
-                        setQuestion('');
-                        await onSendMessage(q);
-                      } catch {
-                        setQuestion(q);
-                      }
-                    }
-                  }}
-                  loading={chatLoading}
-                  onStop={handleSafeStopGeneration}
-                  scope={composerScope}
-                  placeholder="Ask about your selected materials"
-                />
               </div>
             </div>
           ) : (
@@ -1395,25 +1362,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   )}
                                 </div>
 
-                                {/* Evidence for the selected citation, directly beneath the answer it supports */}
-                                {selectedCitation && selectedCitation.messageId === msg.id && (
-                                  <InlineEvidence
-                                    ref={evidenceRef}
-                                    citation={selectedCitation}
-                                    passages={passages}
-                                    loading={passageLoading}
-                                    retrievedChunks={retrievedMatchingChunks}
-                                    isHighlighted={isChunkHighlighted}
-                                    sourceRemoved={isSourceDeleted}
-                                    sourceReplaced={isSourceReplaced}
-                                    currentVersion={matchedSource?.version}
-                                    index={currentCitationIndex}
-                                    total={activeCitations.length}
-                                    onPrevious={handlePreviousCitation}
-                                    onNext={handleNextCitation}
-                                    onClose={closeEvidence}
-                                  />
-                                )}
+
                               </div>
                             )}
 
@@ -1474,6 +1423,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 </div>
               </div>
 
+            </>
+          )}
               {/* Pinned Bottom Composer */}
               <Composer
                 question={question}
@@ -1496,8 +1447,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 scope={composerScope}
                 placeholder="Ask about your selected materials"
               />
-            </>
-          )}
         </section>
 
         <div
@@ -1512,80 +1461,47 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           aria-label="Study panel"
         >
           <div className="workspace-sidebar-header">
-            <h2 className="sources-panel-title study-panel-title">Your study space</h2>
-            <button type="button" className="panel-collapse-btn panel-toggle-btn" onClick={closeContextPanel}
-              title="Collapse study panel" aria-label="Collapse study panel">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                <rect x="3" y="4" width="18" height="16" rx="3.5" />
-                <line x1="15" y1="9" x2="15" y2="15" />
-              </svg>
-            </button>
+            <h2 className="sources-panel-title study-panel-title">Study</h2>
+
           </div>
-          <p className="study-panel-intro">Turn understanding into something useful.</p>
+
           <div className="context-view-switcher sidebar-segment-switcher" role="group" aria-label="Panel view">
-            <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`}
-              aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})<small>Keep the ideas that matter</small></button>
-            <button type="button" className={`segment-btn ${contextView === 'sessions' ? 'active' : ''}`}
-              aria-pressed={contextView === 'sessions'} onClick={() => setContextView('sessions')}
-              data-testid="right-panel-tab-sessions">Sessions<small>Return to a conversation</small></button>
-            <button type="button" className={`segment-btn ${contextView === 'retrieval' ? 'active' : ''}`}
-              aria-pressed={contextView === 'retrieval'} onClick={() => setContextView('retrieval')}
-              data-testid="right-panel-tab-retrieval">Retrieval<small>Check the supporting passages</small></button>
+            <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
+            <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => setContextView('evidence')} data-testid="right-panel-tab-evidence">Evidence</button>
           </div>
 
-          {selectedCitation && (
-            <section className="selected-source-card" aria-label="Selected source" data-testid="selected-source-card" ref={selectedCardRef} tabIndex={-1}>
-              <div className="selected-source-head">
-                <h3 className="selected-source-title">Selected source</h3>
-                <button type="button" className="selected-source-clear" onClick={closeEvidence}>Clear</button>
-              </div>
-              <p className="selected-source-name" title={matchedSource?.title || selectedCitation.file}>
-                {matchedSource?.title || selectedCitation.file}
-              </p>
-              <p className="selected-source-line" data-testid="selected-source-line">
-                <span>Page {selectedCitation.page}</span>
-                {matchedSource && <span>v{matchedSource.version}</span>}
-                {matchedSource && matchedSource.page_count > 0 && <span>{matchedSource.page_count} pages</span>}
-                {matchedSource && <span>{matchedSource.status === 'ready' ? 'Ready' : matchedSource.status}</span>}
-              </p>
-              {selectedCitation.file !== (matchedSource?.title || selectedCitation.file) && (
-                <p className="selected-source-file" title={selectedCitation.file}>{selectedCitation.file}</p>
-              )}
-              {isUnknownSource && (
-                <p className="selected-source-note">This file is not among the notebook&rsquo;s current sources.</p>
-              )}
-              {isHistoricalOnly && (
-                <p className="selected-source-note">
-                  {isSourceDeleted ? 'This source was removed from the notebook.' : `Replaced since this answer (cited v${selectedCitation.source_version ?? 1}).`}
-                </p>
-              )}
-              {matchedSource && (
-                <button type="button" className="selected-source-view" onClick={() => handleOpenSourceViewer(matchedSource)}>
-                  View full source
-                </button>
-              )}
-              {!messages.some((m) => m.id === selectedCitation.messageId) && (
-                <EvidenceBody
-                  citation={selectedCitation}
-                  passages={passages}
-                  loading={passageLoading}
-                  retrievedChunks={retrievedMatchingChunks}
-                  isHighlighted={isChunkHighlighted}
-                  sourceRemoved={isSourceDeleted}
-                  sourceReplaced={isSourceReplaced}
-                  currentVersion={matchedSource?.version}
-                />
-              )}
-            </section>
-          )}
-
-          {contextView === 'sessions' && (
-            <SessionsView
-              conversations={conversations ?? []}
-              activeConversationId={activeConversationId}
-              onNewSession={onCreateConversation ? () => { void onCreateConversation(); if (isContextOverlay) closeContextPanel(); } : undefined}
-              onSelectSession={onSelectConversation ? (id) => { onSelectConversation(id); if (isContextOverlay) closeContextPanel(); } : undefined}
-            />
+          {contextView === 'evidence' && (
+            <div className="right-panel-body study-evidence-body">
+              {selectedCitation ? <section data-testid="selected-source-card" className="evidence-source-summary" tabIndex={-1}>
+                {!matchedSource && !selectedCitation.source_id && <p className="evidence-note">This file is not among the notebook’s current sources.</p>}
+                <p data-testid="selected-source-line">Page {selectedCitation.page}{matchedSource ? ` · v${matchedSource.version}` : ''}</p>
+                                  <InlineEvidence
+                                    ref={evidenceRef}
+                                    citation={selectedCitation}
+                                    passages={passages}
+                                    loading={passageLoading}
+                                    retrievedChunks={retrievedMatchingChunks}
+                                    isHighlighted={isChunkHighlighted}
+                                    sourceRemoved={isSourceDeleted}
+                                    sourceReplaced={isSourceReplaced}
+                                    currentVersion={matchedSource?.version}
+                                    index={currentCitationIndex}
+                                    total={activeCitations.length}
+                                    onPrevious={handlePreviousCitation}
+                                    onNext={handleNextCitation}
+                                    onClose={closeEvidence}
+                                  />
+                {matchedSource && <button type="button" className="selected-source-view" onClick={() => handleOpenSourceViewer(matchedSource)}>Open source ↗</button>}
+                <button type="button" className="btn btn-secondary" onClick={() => {
+                  setEditingNote(null);
+                  setNoteFormTitle(matchedSource?.title || selectedCitation.file);
+                  const passage = retrievedMatchingChunks.map(c => c.text).join('\n\n') || selectedCitation.excerpt || '';
+                  setNoteFormContent(`${passage}\n\nSource: ${selectedCitation.file}, page ${selectedCitation.page}`);
+                  setIsCreateNoteOpen(true);
+                }} aria-label="Save passage to notes">Save to notes</button>
+              </section> : <p className="study-empty">Select a citation in an answer to inspect its source.</p>}
+              {selectedRetrievalMessageId && <button type="button" className="selected-source-view" onClick={() => setContextView('retrieval')}>Show retrieval diagnostics</button>}
+            </div>
           )}
 
           {/* RIGHT PANEL CONTENT: SAVED NOTES VIEW */}
@@ -1606,10 +1522,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
-                <span>Create note</span>
+                <span>+ New note</span>
               </button>
 
-              {notes.length > 1 && (
+              {notes.length > 5 && (
                 <div className="source-search-container">
                   <input
                     type="text"
@@ -1623,12 +1539,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
               <div className="notes-list-scroll">
                 {notes.length === 0 ? (
-                  <div className="sidebar-empty-box"><EmptyStateIcon />
-                    <p>No saved notes yet.</p>
-                    <p className="subtext">
-                      Create personal notes or click &quot;Save to note&quot; on answers.
-                    </p>
-                  </div>
+                  <p className="study-empty">Save an answer or write your own note.</p>
                 ) : filteredNotes.length === 0 ? (
                   <p className="sidebar-empty-box"><EmptyStateIcon />No notes matching search.</p>
                 ) : (
@@ -1720,6 +1631,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           {/* RIGHT PANEL CONTENT: RETRIEVAL MAP VIEW */}
           {contextView === 'retrieval' && (
             <div className="right-panel-body retrieval-panel-body">
+              <button type="button" className="selected-source-view" onClick={() => setContextView('evidence')}>Back to evidence</button>
               <RetrievalMapView
                 subjectId={subject.id}
                 conversationId={activeConversationId || (messages.length > 0 ? messages[0].conversation_id : undefined)}
@@ -1736,6 +1648,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
       </div>
 
+      {historyOpen && <div className="modal-backdrop" onClick={() => setHistoryOpen(false)}>
+        <div className="modal-content workspace-history-dialog" ref={historyRef} role="dialog" aria-modal="true" aria-labelledby="history-title" onClick={e => e.stopPropagation()}>
+          <div className="modal-header"><h2 id="history-title">Conversation history</h2><button type="button" className="modal-close-btn" aria-label="Close history" onClick={() => setHistoryOpen(false)}>×</button></div>
+          <SessionsView conversations={conversations ?? []} activeConversationId={activeConversationId}
+            onNewSession={onCreateConversation ? () => { void onCreateConversation(); setHistoryOpen(false); } : undefined}
+            onSelectSession={onSelectConversation ? id => { onSelectConversation(id); setHistoryOpen(false); } : undefined} />
+        </div>
+      </div>}
       {/* ======================================================================
           MODALS: Add Source, View Source, Rename Source, Note, Settings
           ====================================================================== */}

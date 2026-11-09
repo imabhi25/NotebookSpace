@@ -795,3 +795,40 @@
 .workspace-layout .answer-text .md-paragraph, .workspace-layout .answer-text .md-list-item { font-size: 14px; line-height: 1.55; }
 .workspace-layout .workspace-context-panel .context-view-switcher { margin-inline: 24px; }
 .workspace-layout .context-slot aside.workspace-context-panel .right-panel-body { padding: 16px 24px 24px; }
+
+/* Notes + Evidence workspace: persistent icon controls and a shared bottom composer. */
+.workspace-layout { --nav-w:280px; --ctx-w:320px; }
+.workspace-layout .workspace-control-bar { padding:12px 24px; gap:12px; }
+.workspace-layout .workspace-control-bar .workspace-toggle-btn { width:44px; height:44px; padding:0; min-width:44px; display:grid; place-items:center; border:0; border-radius:12px; background:transparent; color:var(--color-text-secondary); box-shadow:none; }
+.workspace-layout .workspace-control-bar .workspace-toggle-btn svg { width:21px; height:21px; stroke-linecap:round; stroke-linejoin:round; }
+.workspace-layout .workspace-control-bar .workspace-toggle-btn.active { background:var(--color-surface-raised); color:var(--color-text-primary); }
+.workspace-layout .workspace-control-bar .workspace-toggle-btn:hover { background:var(--color-surface-hover); }
+.workspace-layout .workspace-brand-name { font-size:17px; }
+.workspace-history-btn { display:flex; align-items:center; gap:8px; min-height:44px; padding:0 12px; border:0; border-radius:12px; background:transparent; color:var(--color-text-secondary); font:500 13px var(--font-family-ui); cursor:pointer; }
+.workspace-history-btn:hover { background:var(--color-surface-hover); }
+.workspace-layout .empty-state-scroll-container { flex:1 1 auto; min-height:0; overflow:auto; }
+.workspace-layout .empty-state-centered-box { padding:24px 20px; }
+.workspace-layout .workspace-main-area > .composer-container { flex:0 0 auto; width:100%; padding:12px 20px 16px; margin-top:auto; }
+.workspace-layout .composer-box { min-height:96px; }
+.workspace-layout .context-slot aside.workspace-context-panel { height:auto; min-height:0; max-height:calc(100% - 68px); }
+.workspace-layout .workspace-context-panel .workspace-sidebar-header { padding:20px 20px 12px; }
+.workspace-layout .workspace-context-panel .context-view-switcher { flex-direction:row; margin:0 20px 12px; gap:0; border-bottom:1px solid var(--color-border); border-radius:0; }
+.workspace-layout .workspace-context-panel .context-view-switcher .segment-btn { flex:1; min-height:44px; padding:8px 12px; text-align:center; border:0; border-bottom:2px solid transparent; border-radius:0; background:transparent; color:var(--color-text-secondary); }
+.workspace-layout .workspace-context-panel .context-view-switcher .segment-btn.active { border-color:var(--color-accent); color:var(--color-text-primary); }
+.workspace-layout .context-slot aside.workspace-context-panel .right-panel-body { flex:0 1 auto; padding:12px 20px 20px; border:0; }
+.workspace-layout .right-panel-body .btn-new-conv { width:auto; align-self:flex-end; padding:0 8px; min-height:36px; border:0; background:transparent; color:var(--color-accent); box-shadow:none; font-size:13px; }
+.workspace-layout .right-panel-body .btn-new-conv svg { display:none; }
+.workspace-layout .notes-list-scroll { flex:0 1 auto; }
+.workspace-layout .study-empty { font-size:13px; line-height:1.6; padding:8px 0; }
+.workspace-layout .study-evidence-body .inline-evidence { margin:0; padding:0; border:0; background:transparent; box-shadow:none; }
+.workspace-layout .study-evidence-body .passage-card { max-height:none; }
+.workspace-layout .workspace-sources-rail .sources-web-search { display:none; }
+.workspace-history-dialog { max-width:480px; width:calc(100% - 32px); max-height:calc(100dvh - 32px); overflow:auto; }
+.workspace-history-dialog .sessions-view { padding:0 24px 24px; }
+@media(max-width:960px) {
+ .workspace-layout .workspace-control-bar { padding:8px 12px; gap:4px; }
+ .workspace-history-btn { width:44px; padding:0; justify-content:center; }
+ .workspace-history-btn span { display:none; }
+ .workspace-layout .context-slot aside.workspace-context-panel { max-height:calc(100% - 24px); }
+ .workspace-layout .workspace-main-area > .composer-container { padding-bottom:calc(12px + env(safe-area-inset-bottom,0px) + var(--kb-inset,0px)); }
+}
