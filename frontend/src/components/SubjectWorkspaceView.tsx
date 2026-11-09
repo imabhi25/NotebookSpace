@@ -28,6 +28,7 @@ import { SessionsView } from './WorkspaceNav';
 import { InlineEvidence } from './EvidenceBody';
 import { abstainCopy } from '../abstain';
 import { CommandPalette } from './CommandPalette';
+import { BackendStatus } from './BackendStatus';
 import { CommandItem, matchShortcut, shortcutLabel } from '../commandPalette';
 import { getThemeSetting, setThemeSetting, ThemeSetting } from '../theme';
 
@@ -1196,6 +1197,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           )}
         </nav>
         <div className="workspace-top-right workspace-essential-actions" ref={actionsRef}>
+          <BackendStatus className="backend-status-bar" />
           <button type="button" className="workspace-history-btn" onClick={() => setPaletteOpen(true)} aria-label="Search and commands"
             title={`Search and commands (${shortcutLabel('K')})`} aria-haspopup="dialog" data-testid="open-command-palette">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><span>Search</span>
