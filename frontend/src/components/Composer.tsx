@@ -18,6 +18,7 @@ interface ComposerProps {
   onStop?: () => void;
   selectedSourceCount?: number;
   placeholder?: string;
+  blockedReason?: string;
   /** When given, the composer shows which materials the next question will use, and lets you change them. */
   scope?: ComposerScope;
 }
@@ -145,6 +146,7 @@ export const Composer: React.FC<ComposerProps> = ({
   selectedSourceCount,
   placeholder = "",
   scope,
+  blockedReason,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastSendTimeRef = useRef<number>(0);
@@ -168,7 +170,7 @@ export const Composer: React.FC<ComposerProps> = ({
   }, [question]);
 
   const submit = (e: React.FormEvent) => {
-    if (submittingRef.current) return;
+    if (submittingRef.current || blockedReason) return;
     lastSendTimeRef.current = Date.now();
     submittingRef.current = true;
     const release = () => {
@@ -206,7 +208,7 @@ export const Composer: React.FC<ComposerProps> = ({
         <span className="send-btn-text">Stop generation</span>
       </button>
     ) : (
-      <button type="submit" className="composer-send-btn" disabled={loading || !question.trim()} aria-label="Ask Question">
+      <button type="submit" className="composer-send-btn" disabled={loading || Boolean(blockedReason) || !question.trim()} aria-label="Ask Question">
         <span className="send-btn-icon" aria-hidden="true">
           {loading ? (
             <span className="composer-spinner" />
@@ -227,13 +229,13 @@ export const Composer: React.FC<ComposerProps> = ({
       id="question-input"
       className="composer-input"
       rows={1}
-      placeholder={placeholder}
+      placeholder={blockedReason || placeholder}
       value={question}
       onChange={(e) => setQuestion(e.target.value)}
       onKeyDown={handleKeyDown}
       onCompositionStart={() => { composingRef.current = true; }}
       onCompositionEnd={() => { composingRef.current = false; compositionEndedAt.current = Date.now(); }}
-      disabled={loading}
+      disabled={loading || Boolean(blockedReason)}
       aria-label="Ask a question about your course materials"
     />
   );

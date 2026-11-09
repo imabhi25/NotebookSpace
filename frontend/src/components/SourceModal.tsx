@@ -29,6 +29,7 @@ interface SourceModalProps {
   initialFiles?: File[];
   /** A link typed into the sources panel; opens the dialog on the link tab with it filled in. */
   initialUrl?: string;
+  initialTab?: 'upload' | 'paste' | 'url';
 }
 
 export const SourceModal: React.FC<SourceModalProps> = ({
@@ -39,6 +40,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   onAddUrl,
   initialFiles,
   initialUrl,
+  initialTab,
 }) => {
   const [tab, setTab] = useState<'upload' | 'paste' | 'url'>('upload');
 
@@ -76,6 +78,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
       return;
     }
 
+    if (initialTab) setTab(initialTab);
     if (initialFiles && initialFiles.length > 0) {
       setTab('upload');
       setSelectedFiles(initialFiles);
