@@ -141,7 +141,9 @@ describe('Sources panel', () => {
     fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
     fireEvent.click(within(study()).getByTestId('new-note-btn'));
     fireEvent.change(within(study()).getByPlaceholderText('New Note'), { target: { value: 'Heaps' } });
-    fireEvent.change(within(study()).getByPlaceholderText(/Write your study notes/), { target: { value: 'Min-heap basics' } });
+    const body = within(study()).getByRole('textbox', { name: 'Note body' });
+    body.innerHTML = 'Min-heap basics';
+    fireEvent.input(body);
     fireEvent.keyDown(within(study()).getByTestId('inline-note-editor'), { key: 'Enter', ctrlKey: true });
     await waitFor(() => expect(onCreateNote).toHaveBeenCalledWith('Heaps', 'Min-heap basics'));
     await waitFor(() => expect(within(study()).queryByTestId('inline-note-editor')).toBeNull());
@@ -154,9 +156,12 @@ describe('Sources panel', () => {
     fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
     fireEvent.click(within(study()).getByText('Heaps'));
     expect(within(study()).queryByRole('button', { name: 'Save' })).toBeNull();
-    fireEvent.change(within(study()).getByLabelText('Note content'), { target: { value: 'Min-heap basics' } });
+    const body = within(study()).getByRole('textbox', { name: 'Note body' });
+    body.innerHTML = 'Min-heap basics';
+    fireEvent.input(body);
     await waitFor(() => expect(onUpdateNote).toHaveBeenCalledWith('n1', 'Heaps', 'Min-heap basics'), { timeout: 3000 });
-    fireEvent.change(within(study()).getByLabelText('Note content'), { target: { value: 'Min-heap basics, more' } });
+    body.innerHTML = 'Min-heap basics, more';
+    fireEvent.input(body);
     fireEvent.click(within(study()).getByRole('button', { name: 'Notes' }));
     await waitFor(() => expect(onUpdateNote).toHaveBeenLastCalledWith('n1', 'Heaps', 'Min-heap basics, more'));
     await waitFor(() => expect(within(study()).queryByTestId('inline-note-editor')).toBeNull());
@@ -201,9 +206,17 @@ describe('Sources panel', () => {
     expect(screen.queryByRole('menu')).toBeNull();
   });
 
-  it('is a fixed-width floating study panel with no resize handle', () => {
-    render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    expect(screen.queryByRole('separator', { name: 'Resize sources panel' })).toBeNull();
+  it('has draggable resize handles that reset on double-click, and starts at the default widths', () => {
+    const { container } = render(workspace([src('a', 'Syllabus.pdf')], ['a']));
+    const root = container.querySelector<HTMLElement>('.workspace-layout')!;
+    expect(root.style.getPropertyValue('--nav-w')).toBe('260px');
+    expect(root.style.getPropertyValue('--ctx-w')).toBe('350px');
+    const left = screen.getByRole('separator', { name: 'Resize sources panel' });
+    fireEvent.keyDown(left, { key: 'ArrowRight' });
+    expect(root.style.getPropertyValue('--nav-w')).toBe('276px');
+    fireEvent.doubleClick(left);
+    expect(root.style.getPropertyValue('--nav-w')).toBe('260px');
+    expect(screen.getByRole('separator', { name: 'Resize study panel' })).toBeInTheDocument();
     expect(study()).toHaveClass('workspace-context-panel');
     expect(study().closest('.context-slot')).not.toHaveClass('is-collapsed');
     expect(panel().closest('.nav-slot')).not.toHaveClass('is-collapsed');
