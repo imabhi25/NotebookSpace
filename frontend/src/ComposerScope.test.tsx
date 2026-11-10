@@ -193,7 +193,7 @@ describe('Answer actions and citation access without the chip row (mocked)', () 
     render(<Harness />);
     // The first citation is selected on load, so the evidence is already open.
     const ev = await screen.findByTestId('inline-evidence');
-    expect(within(ev).getByRole('heading', { level: 3 })).toHaveTextContent(/p\./);
+    expect(within(ev).getByText(/^Page \d+$/)).toBeInTheDocument();
     expect(within(ev).getByText('1/3')).toBeInTheDocument();
     fireEvent.click(within(ev).getByRole('button', { name: 'Next citation' }));
     fireEvent.click(within(screen.getByTestId('inline-evidence')).getByRole('button', { name: 'Next citation' }));

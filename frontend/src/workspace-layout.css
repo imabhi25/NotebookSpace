@@ -1617,3 +1617,42 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .inline-evidence .evidence-footer .evidence-reader-btn {
   height: 32px; min-height: 32px; padding: 0 12px; border-radius: 7px; font-size: 12.5px; font-weight: 500;
 }
+
+/* ---- Citations panel fixes ---- */
+/* Collapsed slot must not clip the re-open button. */
+.workspace-layout .context-slot.is-collapsed { overflow: visible; }
+.workspace-layout .context-expand-btn { right: 12px; top: 10px; }
+
+/* Passage card fills the panel down to the action bar; no fade, no artificial cap. */
+@media (min-width: 1181px) {
+  .workspace-layout .context-slot aside.workspace-context-panel:not([data-reader]) { height: calc(100% - 2 * var(--ctx-inset)); max-height: calc(100% - 2 * var(--ctx-inset)); }
+}
+.workspace-layout .context-slot aside.workspace-context-panel .study-evidence-body { flex: 1 1 auto; min-height: 0; }
+.workspace-layout .study-evidence-body .inline-evidence .evidence-body { display: flex; flex-direction: column; flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.workspace-layout .inline-evidence .passage-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px 16px; }
+.workspace-layout .inline-evidence .passage-chunks-list {
+  max-height: none; overflow: visible; padding: 0; scroll-padding-bottom: 0;
+  -webkit-mask-image: none; mask-image: none;
+}
+.workspace-layout .inline-evidence .evidence-footer {
+  position: static; flex: 0 0 auto; background: transparent; border-top: 1px solid var(--border-subtle);
+  padding: 12px 14px; margin-top: 12px;
+}
+
+/* Header: source title left, page pill + stepper right */
+.workspace-layout .inline-evidence-header { flex-wrap: nowrap; }
+.workspace-layout .inline-evidence-title { font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+.workspace-layout .inline-evidence-file { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-layout .inline-evidence .evidence-page-pill {
+  font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 5px; white-space: nowrap;
+  background: rgba(0, 0, 0, 0.05); color: var(--color-text-secondary);
+}
+:root[data-theme="dark"] .workspace-layout .inline-evidence .evidence-page-pill { background: rgba(255, 255, 255, 0.08); }
+
+/* Typeset passage */
+.workspace-layout .inline-evidence .passage-chunk-text { white-space: normal; }
+.workspace-layout .inline-evidence .passage-line { margin: 0 0 8px; line-height: 1.65; overflow-wrap: anywhere; }
+.workspace-layout .inline-evidence .passage-heading { font-weight: 600; color: var(--color-text-primary); margin-bottom: 12px; }
+.workspace-layout .inline-evidence .passage-bullet { position: relative; padding-left: 16px; }
+.workspace-layout .inline-evidence .passage-bullet::before { content: "•"; position: absolute; left: 3px; color: var(--color-text-muted); }
+.workspace-layout .inline-evidence .passage-numbered { padding-left: 4px; }

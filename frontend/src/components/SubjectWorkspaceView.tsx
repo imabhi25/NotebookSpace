@@ -1895,7 +1895,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         >
         {isContextCollapsed && (
           <button type="button" ref={contextToggleRef} className="rail-icon-btn context-expand-btn" onClick={() => setContextCollapsed(false)}
-            title={`Show study panel (${shortcutLabel('\\')})`} aria-label="Toggle study panel" aria-expanded={false} aria-controls="workspace-sources-panel">
+            title={`Open citations panel (${shortcutLabel('\\')})`} aria-label="Open citations panel" aria-expanded={false} aria-controls="workspace-sources-panel">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
             </svg>
@@ -1933,7 +1933,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <div className="context-tabs-row">
           <div className="context-view-switcher sidebar-segment-switcher sliding-tabs" ref={contextTabsRef} role="group" aria-label="Panel view" data-active={contextView === 'notes' ? 'notes' : 'evidence'}>
             <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>{notes.length > 0 ? `Notes · ${notes.length}` : 'Notes'}</button>
-            <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => setContextView('evidence')} data-testid="right-panel-tab-evidence">Evidence</button>
+            <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => setContextView('evidence')} data-testid="right-panel-tab-evidence">Citations</button>
           </div>
           <button type="button" ref={contextToggleRef} className="rail-icon-btn context-collapse-btn" onClick={closeContextPanel}
             title={`Hide study panel (${shortcutLabel('\\')})`} aria-label="Toggle study panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
