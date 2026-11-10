@@ -5,6 +5,7 @@
  */
 :root {
   color-scheme: light;
+  interpolate-size: allow-keywords;
 
   /* 1. Palette, light theme: crisp white surfaces on a faint cool-grey ground, soft ink, one accent (blue, hue 262).
      Every colour token here has a dark counterpart in the [data-theme="dark"] block at the end of this file. */

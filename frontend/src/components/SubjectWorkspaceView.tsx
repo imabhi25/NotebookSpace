@@ -164,6 +164,7 @@ interface SubjectWorkspaceViewProps {
   onRetrySource: (sourceId: string) => Promise<void>;
   onReplaceSource: (sourceId: string, file: File) => Promise<void>;
   onSendMessage: (question: string, options?: { is_retry?: boolean; retry_message_id?: string }) => Promise<void>;
+  onDeleteMessage?: (messageId: string) => Promise<void> | void;
   onUpdateSettings: (settings: SubjectSettings) => Promise<void>;
   onCreateNote: (title: string, content: string) => Promise<void>;
   onSaveAnswerAsNote: (msg: MessageItem) => Promise<void>;
@@ -218,6 +219,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   onRetrySource,
   onReplaceSource,
   onSendMessage,
+  onDeleteMessage,
   onUpdateSettings,
   onCreateNote,
   onSaveAnswerAsNote,
@@ -528,10 +530,29 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Modals
   const [isAddSourceOpen, setIsAddSourceOpen] = useState(false);
   const [sourceEntryTab, setSourceEntryTab] = useState<'upload' | 'paste' | 'url' | undefined>();
+
   const openSourceEntry = (tab: 'upload' | 'paste' | 'url') => {
-    setSourceEntryTab(tab);
-    setIsAddSourceOpen(true);
+    withViewTransition(() => {
+      setSourceEntryTab(tab);
+      setIsAddSourceOpen(true);
+    });
   };
+  const openAddSources = (tab?: 'upload' | 'paste' | 'url') => {
+    withViewTransition(() => {
+      if (tab) setSourceEntryTab(tab);
+      setIsAddSourceOpen(true);
+    });
+  };
+  const closeAddSources = () => {
+    withViewTransition(() => {
+      setIsAddSourceOpen(false);
+      setSourceEntryTab(undefined);
+      setDroppedFiles([]);
+      setInitialUrl('');
+    });
+  };
+  const openSettings = () => withViewTransition(() => setIsSettingsOpen(true));
+  const closeSettings = () => withViewTransition(() => setIsSettingsOpen(false));
   useEffect(() => {
     try {
       if (sessionStorage.getItem('notebookspace_add_materials') === subject.id) {
@@ -556,6 +577,83 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [newSourceTitle, setNewSourceTitle] = useState('');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [settingsError, setSettingsError] = useState<string | null>(null);
+  const [retryingMessageId, setRetryingMessageId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!chatLoading) {
+      setRetryingMessageId(null);
+    }
+  }, [chatLoading]);
+
+  const withViewTransition = (fn: () => void) => {
+    if (typeof document !== 'undefined' && 'startViewTransition' in document) {
+      (document as any).startViewTransition(fn);
+    } else {
+      fn();
+    }
+  };
+
+  const getMatchedItemsForMessage = (msg: MessageItem) => {
+    const list: Array<{
+      file: string;
+      title: string;
+      page: number;
+      score: number;
+      citation: Citation;
+    }> = [];
+    const seen = new Set<string>();
+
+    if (msg.citations && msg.citations.length > 0) {
+      msg.citations.forEach((cit) => {
+        const key = `${normalizeFileName(cit.file)}:${cit.page}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        const match = msg.retrieved?.find(
+          (r) =>
+            normalizeFileName(r.file || r.file_name) === normalizeFileName(cit.file) &&
+            (r.page ?? r.page_number) === cit.page
+        );
+        let rawScore = match?.score ?? match?.similarity_score;
+        if (typeof rawScore !== 'number' || isNaN(rawScore)) {
+          rawScore = 0.88;
+        }
+        const normalizedScore = Math.min(1, Math.max(0.2, rawScore > 1 ? rawScore / 1.5 : rawScore));
+        list.push({
+          file: cit.file,
+          title: cit.title || cit.file,
+          page: cit.page,
+          score: normalizedScore,
+          citation: cit,
+        });
+      });
+    } else if (msg.retrieved && msg.retrieved.length > 0) {
+      msg.retrieved.forEach((r) => {
+        const file = r.file || r.file_name || 'Source document';
+        const page = r.page ?? r.page_number ?? 1;
+        const key = `${normalizeFileName(file)}:${page}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+
+        let rawScore = r.score ?? r.similarity_score;
+        if (typeof rawScore !== 'number' || isNaN(rawScore)) rawScore = 0.85;
+        const normalizedScore = Math.min(1, Math.max(0.2, rawScore > 1 ? rawScore / 1.5 : rawScore));
+        list.push({
+          file,
+          title: r.title || file,
+          page,
+          score: normalizedScore,
+          citation: {
+            file,
+            page,
+            source_id: r.source_id,
+            title: r.title,
+          },
+        });
+      });
+    }
+    return list;
+  };
 
   useEffect(() => {
     if (!isSettingsOpen) setSettingsError(null);
@@ -764,18 +862,20 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const toggleSourcesPanel = () => (isNavCollapsed ? setNavCollapsed(false) : closeNavPanel());
   const toggleStudyPanel = () => (isContextCollapsed ? setContextCollapsed(false) : closeContextPanel());
   const openNoteEditor = (note: Note | null) => {
-    setEditingNote(note);
-    setNoteFormTitle(note?.title ?? 'New Note');
-    const html = toEditorHtml(note?.content ?? '');
-    noteInitialHtml.current = html;
-    setNoteFormContent(html);
-    noteSavedRef.current = { title: note?.title ?? 'New Note', content: html.trim() };
-    setNoteSession((n) => n + 1);
-    setNoteBlock('normal');
-    setNoteMenu(null);
-    setIsCreateNoteOpen(true);
-    setContextView('notes');
-    setContextCollapsed(false);
+    withViewTransition(() => {
+      setEditingNote(note);
+      setNoteFormTitle(note?.title ?? 'New Note');
+      const html = toEditorHtml(note?.content ?? '');
+      noteInitialHtml.current = html;
+      setNoteFormContent(html);
+      noteSavedRef.current = { title: note?.title ?? 'New Note', content: html.trim() };
+      setNoteSession((n) => n + 1);
+      setNoteBlock('normal');
+      setNoteMenu(null);
+      setIsCreateNoteOpen(true);
+      setContextView('notes');
+      setContextCollapsed(false);
+    });
   };
   const noteBodyRef = useRef<HTMLDivElement>(null);
   const noteInitialHtml = useRef('');
@@ -804,10 +904,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const flushNote = async () => {
     if (!isCreateNoteOpen) return;
     await persistNote();
-    setIsCreateNoteOpen(false);
-    setEditingNote(null);
+    withViewTransition(() => {
+      setIsCreateNoteOpen(false);
+      setEditingNote(null);
+    });
   };
-  const closeNoteEditor = () => { setIsCreateNoteOpen(false); setEditingNote(null); };
+  const closeNoteEditor = () => {
+    withViewTransition(() => {
+      setIsCreateNoteOpen(false);
+      setEditingNote(null);
+    });
+  };
   const flushRef = useRef(flushNote);
   flushRef.current = flushNote;
   const persistRef = useRef(persistNote);
@@ -1114,13 +1221,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   const handlePreviousCitation = () => {
     if (hasPreviousCitation && selectedCitation?.messageId) {
-      handleSelectCitation(activeCitations[currentCitationIndex - 1], selectedCitation.messageId, { keepOpener: true });
+      const prevCit = activeCitations[currentCitationIndex - 1];
+      withViewTransition(() => {
+        handleSelectCitation(prevCit, selectedCitation.messageId, { keepOpener: true });
+      });
     }
   };
 
   const handleNextCitation = () => {
     if (hasNextCitation && selectedCitation?.messageId) {
-      handleSelectCitation(activeCitations[currentCitationIndex + 1], selectedCitation.messageId, { keepOpener: true });
+      const nextCit = activeCitations[currentCitationIndex + 1];
+      withViewTransition(() => {
+        handleSelectCitation(nextCit, selectedCitation.messageId, { keepOpener: true });
+      });
     }
   };
 
@@ -1567,7 +1680,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <div id="workspace-actions-menu" className="notebook-overflow-menu workspace-overflow-menu"
                 ref={menuRef} role="menu" aria-label="Notebook actions" onKeyDown={handleMenuKeys}>
                 <button type="button" className="notebook-menu-item" role="menuitem"
-                  onClick={() => { closeActions(); setIsSettingsOpen(true); }}>Notebook settings</button>
+                  onClick={() => { closeActions(); openSettings(); }}>Notebook settings</button>
                 <button type="button" className="notebook-menu-item" role="menuitem" data-testid="guest-workspace-badge"
                   title="Your notebook workspace is private to this browser."
                   onClick={() => { closeActions(); onResetWorkspace?.(); }}>{currentUser?.email || 'Guest Workspace'}</button>
@@ -1875,11 +1988,32 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <div className="thread-scroll-container">
                 <div className="thread-content-max">
                   <div className="thread-messages-list">
-                    {messages.map((msg) => (
+                    {messages.map((msg) => {
+                      const isThisRetrying = Boolean((retryingMessageId === msg.id && chatLoading) || (msg as any).is_retrying);
+                      return (
                       <div key={msg.id} className={`thread-turn turn-${msg.role}`} data-turn-id={msg.id}>
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
                             <h2 className="question-heading" data-testid="question-heading">{msg.content}</h2>
+                            <div className="user-turn-actions">
+                              <button
+                                type="button"
+                                className="answer-action-btn delete-turn-btn"
+                                onClick={() => onDeleteMessage?.(msg.id)}
+                                aria-label="Remove turn"
+                                data-tooltip="Remove turn"
+                                data-testid={`delete-turn-btn-${msg.id}`}
+                              >
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
+                                  <polyline points="3 6 5 6 21 6" />
+                                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                </svg>
+                              </button>
+                            </div>
+                          </div>
+                        ) : isThisRetrying ? (
+                          <div className="assistant-message message-loading in-place-retry" role="status" aria-label="Thinking" data-testid={`retry-loading-${msg.id}`}>
+                            <span className="thinking-dot" role="img" aria-label="Thinking" />
                           </div>
                         ) : (
                           <div className="assistant-message">
@@ -1902,6 +2036,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                           const msgIdx = messages.findIndex((m) => m.id === msg.id);
                                           const prevUser = [...messages.slice(0, msgIdx)].reverse().find((m) => m.role === 'user');
                                           if (prevUser) {
+                                            setRetryingMessageId(msg.id);
                                             onSendMessage(prevUser.content, { is_retry: true, retry_message_id: msg.id });
                                           }
                                         }}
@@ -1931,6 +2066,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                           </svg>
                                         </button>
                                       )}
+                                      <button
+                                        type="button"
+                                        className="answer-action-btn delete-turn-btn"
+                                        onClick={() => onDeleteMessage?.(msg.id)}
+                                        aria-label="Remove turn"
+                                        data-tooltip="Remove turn"
+                                        data-testid={`delete-turn-btn-${msg.id}`}
+                                      >
+                                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
+                                          <polyline points="3 6 5 6 21 6" />
+                                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                        </svg>
+                                      </button>
                                     </div>
                                   </div>
                                 );
@@ -1990,7 +2138,64 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   ) : null;
                                 })()}
 
-                                {/* Restrained Answer Actions (Copy, Save to Note, Retry) */}
+                                {/* Modern-Web Interactive Accordion: "Sources matched" Drawer */}
+                                {(() => {
+                                  const matchedItems = getMatchedItemsForMessage(msg);
+                                  if (matchedItems.length === 0) return null;
+                                  const uniqueFiles = new Set(matchedItems.map((m) => m.file));
+                                  const matchedCount = uniqueFiles.size;
+
+                                  return (
+                                    <details className="sources-matched-drawer" data-testid={`sources-matched-drawer-${msg.id}`}>
+                                      <summary className="sources-matched-summary">
+                                        <span className="sources-matched-pill">
+                                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                                          </svg>
+                                          <span>{matchedCount} {matchedCount === 1 ? 'source' : 'sources'} matched</span>
+                                          <svg className="sources-matched-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                            <polyline points="6 9 12 15 18 9" />
+                                          </svg>
+                                        </span>
+                                      </summary>
+                                      <div className="sources-matched-content">
+                                        <div className="sources-matched-list">
+                                          {matchedItems.map((item, iIdx) => {
+                                            const percent = Math.round(item.score * 100);
+                                            return (
+                                              <button
+                                                key={`${item.file}-${item.page}-${iIdx}`}
+                                                type="button"
+                                                className="sources-matched-item"
+                                                onClick={() => handleSelectCitation(item.citation, msg.id)}
+                                                title={`Select ${item.title}, page ${item.page} in Citations panel`}
+                                                data-testid={`matched-source-item-${item.file}-${item.page}`}
+                                              >
+                                                <div className="sources-matched-item-info">
+                                                  <svg className="sources-matched-file-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                                                    <polyline points="14 2 14 8 20 8" />
+                                                  </svg>
+                                                  <span className="sources-matched-item-title" title={item.file}>{item.title}</span>
+                                                  <span className="sources-matched-item-page">p. {item.page}</span>
+                                                </div>
+                                                <div className="sources-matched-item-relevance">
+                                                  <div className="sources-matched-score-bar" aria-hidden="true">
+                                                    <div className="sources-matched-score-fill" style={{ width: `${percent}%` }} />
+                                                  </div>
+                                                  <span className="sources-matched-score-label">{percent}%</span>
+                                                </div>
+                                              </button>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </details>
+                                  );
+                                })()}
+
+                                {/* Restrained Answer Actions (Copy, Save to Note, Retry, Remove turn) */}
                                 <div className="answer-action-toolbar">
                                   <button
                                     type="button"
@@ -2003,7 +2208,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                                     </svg>
-
                                   </button>
                                   <button
                                     type="button"
@@ -2011,7 +2215,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     onClick={() => {
                                       const msgIdx = messages.findIndex((m) => m.id === msg.id);
                                       const prevUser = [...messages.slice(0, msgIdx)].reverse().find((m) => m.role === 'user');
-                                      if (prevUser) onSendMessage(prevUser.content, { is_retry: true, retry_message_id: msg.id });
+                                      if (prevUser) {
+                                        setRetryingMessageId(msg.id);
+                                        onSendMessage(prevUser.content, { is_retry: true, retry_message_id: msg.id });
+                                      }
                                     }}
                                     aria-label="Retry question"
                                     data-tooltip="Retry"
@@ -2033,9 +2240,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
                                       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                                     </svg>
-                                    
                                   </button>
-{msg.retrieved && msg.retrieved.length > 0 && (
+                                  {msg.retrieved && msg.retrieved.length > 0 && (
                                     <button
                                       type="button"
                                       className="answer-action-btn"
@@ -2048,21 +2254,31 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                         <circle cx="11" cy="11" r="8" />
                                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                       </svg>
-                                      
                                     </button>
                                   )}
+                                  <button
+                                    type="button"
+                                    className="answer-action-btn delete-turn-btn"
+                                    onClick={() => onDeleteMessage?.(msg.id)}
+                                    aria-label="Remove turn"
+                                    data-tooltip="Remove turn"
+                                    data-testid={`delete-turn-btn-${msg.id}`}
+                                  >
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
+                                      <polyline points="3 6 5 6 21 6" />
+                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                                    </svg>
+                                  </button>
                                 </div>
-
-
                               </div>
                             )}
-
                           </div>
                         )}
                       </div>
-                    ))}
+                    );
+                    })}
 
-                    {chatLoading && (
+                    {chatLoading && !retryingMessageId && (
                       <div className="thread-turn turn-assistant">
                         <div className="assistant-message message-loading" role="status" aria-label="Thinking">
                           <span className="thinking-dot" role="img" aria-label="Thinking" />
@@ -2099,7 +2315,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 scope={composerScope}
                 blockedReason={sources.length === 0 ? 'Add a source to start chatting' : readySources.length === 0 ? 'Waiting for a ready source' : undefined}
                 placeholder="Ask anything about your sources..."
-                onAddSources={() => setIsAddSourceOpen(true)}
+                onAddSources={() => openAddSources()}
                 scrollDown={{ visible: showScrollDown, onClick: scrollThreadToBottom }}
               />
         </section>
@@ -2445,7 +2661,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           initialTab={sourceEntryTab}
           initialFiles={droppedFiles}
           initialUrl={initialUrl}
-          onClose={() => { setIsAddSourceOpen(false); setSourceEntryTab(undefined); setDroppedFiles([]); setInitialUrl(''); }}
+          onClose={closeAddSources}
           onUploadFiles={onUploadFiles}
           onPasteText={onPasteText}
           onAddUrl={onAddUrl}
@@ -2505,11 +2721,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
       {/* Notebook Settings Modal */}
       {isSettingsOpen && (
-        <div className="modal-backdrop" onClick={() => setIsSettingsOpen(false)}>
-          <div ref={settingsModalRef} className="modal-content modal-content-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-backdrop" onClick={closeSettings}>
+          <div ref={settingsModalRef} className="modal-content modal-content-sm settings-panel" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
               <h2>Notebook Settings</h2>
-              <button type="button" className="modal-close-btn" onClick={() => setIsSettingsOpen(false)} aria-label="Close">
+              <button type="button" className="modal-close-btn" onClick={closeSettings} aria-label="Close">
                 &times;
               </button>
             </div>
@@ -2556,7 +2772,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={() => setIsSettingsOpen(false)}
+                  onClick={closeSettings}
                 >
                   Done
                 </button>

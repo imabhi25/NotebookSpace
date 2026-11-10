@@ -416,6 +416,12 @@ export const api = {
     });
   },
 
+  async deleteMessage(subjectId: string, conversationId: string, messageId: string): Promise<void> {
+    await apiFetch(`/subjects/${subjectId}/conversations/${conversationId}/messages/${messageId}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Notes
   async getNotes(subjectId: string, search?: string): Promise<Note[]> {
     const params = search ? `?search=${encodeURIComponent(search)}` : '';

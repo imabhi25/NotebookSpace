@@ -431,7 +431,11 @@ export function App({
     }
 
     if (options?.is_retry && options?.retry_message_id) {
-      setMessages((prev) => prev.filter((m) => m.id !== options.retry_message_id));
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === options.retry_message_id ? { ...m, is_retrying: true } : m
+        )
+      );
     } else if (!options?.is_retry) {
       // Optimistic user turn only if not retrying
       const tempUserMsg: MessageItem = {
@@ -472,7 +476,10 @@ export function App({
         api.getMessages(activeSubject.id, activeConversationId),
         api.getConversations(activeSubject.id),
       ]);
-      setMessages(applyStoppedFilter(activeConversationId, msgs));
+      const filteredMsgs = options?.is_retry && options?.retry_message_id
+        ? msgs.filter((m) => m.id !== options.retry_message_id)
+        : msgs;
+      setMessages(applyStoppedFilter(activeConversationId, filteredMsgs));
       setConversations(convs);
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted')) {
@@ -546,6 +553,16 @@ export function App({
         }
         return [...prev, stoppedMsg];
       });
+    }
+  };
+
+  const handleDeleteMessage = async (msgId: string) => {
+    if (!activeSubject || !activeConversationId) return;
+    setMessages((prev) => prev.filter((m) => m.id !== msgId));
+    try {
+      await api.deleteMessage(activeSubject.id, activeConversationId, msgId);
+    } catch (err) {
+      console.error('Failed to delete message:', err);
     }
   };
 
@@ -1182,6 +1199,7 @@ export function App({
               onSaveAnswerAsNote={handleSaveAnswerAsNote}
               onUpdateNote={handleUpdateNote}
               onDeleteNote={handleDeleteNote}
+              onDeleteMessage={handleDeleteMessage}
               messages={messages}
               chatLoading={chatLoading}
               historyLoading={historyLoading}

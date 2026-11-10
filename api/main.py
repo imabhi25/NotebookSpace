@@ -40,6 +40,7 @@ from db.notebook_store import (
     create_subject,
     create_user,
     delete_conversation,
+    delete_message,
     delete_note,
     delete_session,
     delete_source,
@@ -1818,6 +1819,27 @@ def send_message_endpoint(
         retry_message_id=payload.retry_message_id,
     )
     return asst_msg
+
+
+@app.delete("/subjects/{subject_id}/conversations/{conversation_id}/messages/{message_id}")
+def delete_message_endpoint(
+    subject_id: str,
+    conversation_id: str,
+    message_id: str,
+    current_user: dict[str, Any] = Depends(get_current_user_or_404),
+):
+    check_user_ask_rate_limit(current_user["id"])
+    conv = get_conversation_by_id(user_id=current_user["id"], conversation_id=conversation_id)
+    if not conv or str(conv.get("subject_id")) != str(subject_id):
+        raise HTTPException(status_code=404, detail="Conversation not found.")
+    ok = delete_message(
+        user_id=current_user["id"],
+        message_id=message_id,
+        conversation_id=conversation_id,
+    )
+    if not ok:
+        raise HTTPException(status_code=404, detail="Message not found.")
+    return {"status": "success", "deleted": True}
 
 
 @app.get("/subjects/{subject_id}/retrieval-map")

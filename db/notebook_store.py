@@ -1112,6 +1112,10 @@ def delete_message(
     role: str | None = None,
     db_url: str | None = None,
 ) -> bool:
+    try:
+        UUID(str(message_id))
+    except (ValueError, TypeError):
+        return False
     query = "DELETE FROM messages WHERE id = %s AND user_id = %s"
     params: list[Any] = [str(message_id), str(user_id)]
     if conversation_id is not None:
