@@ -1837,3 +1837,102 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-context-panel, .workspace-context-panel:focus, .workspace-context-panel:focus-visible,
 .study-panel, .study-panel:focus, .study-panel:focus-visible { outline: none !important; box-shadow: none !important; }
 .workspace-layout .sources-toolbar, .workspace-layout .workspace-sources-rail .source-row { padding-right: 12px; }
+
+/* ============================================================
+   Note toolbar: one row, always; tooltips anchored away from panel edges
+   ============================================================ */
+.studio-note .note-toolbar { flex-wrap: nowrap !important; gap: 1px; padding: 6px 8px; justify-content: flex-start; min-height: 40px; }
+.studio-note .note-toolbar > *, .studio-note .note-menu-anchor { flex-shrink: 0; }
+.studio-note .note-tool { width: 28px; min-width: 28px; height: 28px; padding: 0; flex-shrink: 0; }
+.studio-note .note-tool-sep { margin: 0 2px; flex-shrink: 0; }
+.studio-note .note-block-btn { padding: 0 6px; height: 28px; flex-shrink: 0; }
+.studio-note .tip-start[data-tooltip]::after { left: 0; right: auto; transform: none; }
+.studio-note .tip-end[data-tooltip]::after { left: auto; right: 0; transform: none; }
+.studio-note .note-more-pill .note-tool { width: 28px; padding: 0; }
+
+/* ============================================================
+   Center chat: open canvas (ChatGPT / Claude / Gemini)
+   ============================================================ */
+.workspace-layout { --center-canvas: #FFFFFF; --sidebar-surface: #F9F9F8; --user-pill: #F4F4F5; --composer-border: rgba(0, 0, 0, 0.1); --composer-bg: var(--bg-elevated, #FFFFFF); }
+:root[data-theme="dark"] .workspace-layout { --center-canvas: #131417; --sidebar-surface: #0F1012; --user-pill: rgba(255, 255, 255, 0.1); --composer-border: rgba(255, 255, 255, 0.1); --composer-bg: #1C1D22; }
+
+@media (min-width: 769px) {
+  .workspace-layout .workspace-main-area { background: var(--center-canvas); border: 0; border-radius: 0; box-shadow: none; }
+  .workspace-layout .context-slot, .workspace-layout .context-slot aside.workspace-context-panel { background: var(--sidebar-surface); }
+}
+@media (min-width: 961px) {
+  .workspace-layout .nav-slot, .workspace-layout aside.workspace-nav.workspace-sources-rail { background: var(--sidebar-surface); }
+}
+
+.workspace-layout .thread-content-max { max-width: 720px; }
+.workspace-layout .workspace-main-area .composer-container { max-width: 720px; position: relative; padding: 0 24px 18px; background: transparent; }
+.workspace-layout .thread-messages-list { gap: 0; }
+
+/* User message: right-aligned pill */
+.workspace-layout .thread-turn.turn-user { align-self: stretch; align-items: stretch; }
+.workspace-layout .user-turn-wrapper { display: flex; justify-content: flex-end; width: 100%; }
+.workspace-layout .question-heading {
+  margin: 20px 0 16px auto; max-width: 72%; width: fit-content; padding: 10px 18px; border-radius: 20px;
+  background: var(--user-pill); color: var(--color-text-primary); border: none; box-shadow: none;
+  font-family: var(--font-family-ui, inherit); font-size: 14.5px; font-weight: 450; line-height: 1.5; letter-spacing: 0;
+  text-align: left; text-wrap: pretty; align-self: flex-end;
+}
+
+/* Assistant: no card, text flows on the canvas */
+.workspace-layout .assistant-message, .workspace-layout .answer-view-container {
+  background: transparent !important; border: none !important; box-shadow: none !important; border-radius: 0 !important;
+  padding: 4px 0 8px; max-width: 720px; width: 100%; margin: 0 auto;
+}
+.workspace-layout .assistant-message .answer-text, .workspace-layout .assistant-message .answer-text .md-paragraph,
+.workspace-layout .assistant-message .answer-text .md-list-item, .workspace-layout .assistant-message .markdown-content { font-size: 15px; line-height: 1.72; max-width: none; }
+
+/* Quiet icon action row under answers */
+.workspace-layout .answer-action-toolbar { display: flex; align-items: center; gap: 4px; margin-top: 6px; padding-top: 0; border-top: 0; flex-wrap: nowrap; }
+.workspace-layout .answer-action-toolbar .answer-action-btn {
+  width: 28px; height: 28px; min-height: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; box-shadow: none;
+  color: var(--color-text-muted); display: inline-flex; align-items: center; justify-content: center; position: relative;
+}
+.workspace-layout .answer-action-toolbar .answer-action-btn:hover { background: rgba(0, 0, 0, 0.06); color: var(--color-text-primary); }
+:root[data-theme="dark"] .workspace-layout .answer-action-toolbar .answer-action-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+/* Dark pill tooltips (shared) */
+.answer-action-btn[data-tooltip]::after, .composer-add-btn[data-tooltip]::after {
+  content: attr(data-tooltip); position: absolute; left: 50%; transform: translateX(-50%); top: calc(100% + 8px);
+  background: #111111; color: #ffffff; font-size: 12px; font-weight: 500; line-height: 1.2; padding: 5px 12px; border-radius: 999px;
+  white-space: nowrap; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18); pointer-events: none; z-index: 60; opacity: 0; transition: opacity 0.14s ease;
+}
+.composer-add-btn[data-tooltip]::after { top: auto; bottom: calc(100% + 8px); left: 0; transform: none; }
+.answer-action-btn[data-tooltip]:hover::after, .composer-add-btn[data-tooltip]:hover::after { opacity: 1; transition-delay: 0.25s; }
+
+/* Composer: two-row rounded card */
+.workspace-layout .composer-form { max-width: 720px; }
+.workspace-layout .composer-box.composer-box-stacked {
+  border-radius: 22px; background: var(--composer-bg); border: 1px solid var(--composer-border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  padding: 12px 14px 10px 16px; display: flex; flex-direction: column; gap: 8px;
+}
+.workspace-layout .composer-box.composer-box-stacked:focus-within { border-color: var(--composer-border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }
+.workspace-layout .composer-box-stacked .composer-input,
+.workspace-layout .composer-box-stacked .composer-input:focus, .workspace-layout .composer-box-stacked .composer-input:focus-visible {
+  padding: 0; font-size: 14.5px; outline: none !important; border: none !important; box-shadow: none !important; background: transparent;
+}
+.workspace-layout .composer-box-stacked .composer-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0; }
+.composer-add-btn {
+  width: 28px; height: 28px; border-radius: 50%; border: 0; background: transparent; color: var(--color-text-secondary); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; position: relative; flex: 0 0 auto;
+}
+.composer-add-btn:hover { background: rgba(0, 0, 0, 0.06); color: var(--color-text-primary); }
+:root[data-theme="dark"] .composer-add-btn:hover { background: rgba(255, 255, 255, 0.1); }
+.workspace-layout .composer-foot .scope-wrap { margin-right: auto; }
+.workspace-layout .composer-foot .composer-send-btn, .workspace-layout .composer-foot .composer-stop-btn {
+  width: 32px; height: 32px; min-width: 32px; padding: 0; border-radius: 50%; margin-left: auto;
+  background: var(--color-text-primary); color: var(--bg-canvas, var(--color-surface)); border-color: transparent;
+}
+.workspace-layout .composer-foot .composer-send-btn:disabled { background: var(--color-surface-hover); color: var(--color-text-muted); }
+
+/* Floating jump-to-latest */
+.scroll-bottom-btn {
+  position: absolute; top: -44px; left: 50%; transform: translateX(-50%); width: 32px; height: 32px; border-radius: 50%; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center; cursor: pointer; z-index: 30;
+  background: var(--bg-canvas, var(--color-surface)); color: var(--color-text-primary); border: 1px solid var(--border-subtle); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+}
+.scroll-bottom-btn:hover { background: var(--color-surface-hover); }

@@ -21,6 +21,10 @@ interface ComposerProps {
   blockedReason?: string;
   /** When given, the composer shows which materials the next question will use, and lets you change them. */
   scope?: ComposerScope;
+  /** Opens the add-sources dialog from a `+` button in the composer. */
+  onAddSources?: () => void;
+  /** Floating jump-to-latest button above the composer. */
+  scrollDown?: { visible: boolean; onClick: () => void };
 }
 
 const isPending = (s: Source) => s.status === 'processing' || s.status === 'uploading';
@@ -151,6 +155,8 @@ export const Composer: React.FC<ComposerProps> = ({
   placeholder = "",
   scope,
   blockedReason,
+  onAddSources,
+  scrollDown,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastSendTimeRef = useRef<number>(0);
@@ -246,6 +252,11 @@ export const Composer: React.FC<ComposerProps> = ({
 
   return (
     <div className="composer-container">
+      {scrollDown?.visible && (
+        <button type="button" className="scroll-bottom-btn" onClick={scrollDown.onClick} aria-label="Scroll to latest message" data-tooltip="Scroll to latest">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><polyline points="19 12 12 19 5 12" /></svg>
+        </button>
+      )}
       <form onSubmit={handleFormSubmit} className="composer-form">
         <label htmlFor="question-input" className="sr-only">
           Ask a question about your course materials:
@@ -254,6 +265,11 @@ export const Composer: React.FC<ComposerProps> = ({
           <div className="composer-box composer-box-stacked">
             {textarea}
             <div className="composer-foot">
+              {onAddSources && (
+                <button type="button" className="composer-add-btn" onClick={onAddSources} aria-label="Add sources" data-tooltip="Add sources">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                </button>
+              )}
               <ScopeChip scope={scope} />
               {sendButton}
             </div>
