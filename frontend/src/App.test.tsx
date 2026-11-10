@@ -573,12 +573,7 @@ describe('NotebookSpace UI', () => {
     expect(screen.getByRole('button', { name: 'Lecture room' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Do the syllabi disagree?' })).toBeInTheDocument();
     expect(screen.getAllByText('NotebookSpace').length).toBeGreaterThanOrEqual(1);
-    expect(
-      screen.getByText('Answers cite pages from your materials. Check the passage before relying on it.')
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('Independent student project, not affiliated with Google.')
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Independent student project/)).toBeNull();
   });
 
   it('renders NotebookSpace branding, round logo mark N, and independent project disclaimer', () => {
@@ -587,12 +582,7 @@ describe('NotebookSpace UI', () => {
     expect(screen.getByText('NotebookSpace', { selector: '.chat-header-title' })).toBeInTheDocument();
     expect(screen.getByText('NotebookSpace', { selector: '.brand-title' })).toBeInTheDocument();
     expect(screen.getAllByText('N').length).toBeGreaterThanOrEqual(1);
-    expect(
-      screen.getByText('Answers cite pages from your materials. Check the passage before relying on it.')
-    ).toBeInTheDocument();
-    expect(
-      screen.getByText('Independent student project, not affiliated with Google.')
-    ).toBeInTheDocument();
+    expect(screen.queryByText(/Independent student project/)).toBeNull();
   });
 
   it('submits that question and hides the empty state when a starter chip is clicked', async () => {

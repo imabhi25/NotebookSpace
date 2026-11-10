@@ -267,10 +267,6 @@ export const Composer: React.FC<ComposerProps> = ({
           </div>
         )}
       </form>
-      <div className="composer-footer-note">
-        Answers cite pages from your materials. Check the passage before relying on it.{' '}
-        <span className="composer-disclaimer-note">Independent student project, not affiliated with Google.</span>
-      </div>
     </div>
   );
 };

@@ -350,7 +350,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [webQuery, setWebQuery] = useState('');
   const [webHint, setWebHint] = useState('');
   const [initialUrl, setInitialUrl] = useState('');
-  const selectAllRef = useRef<HTMLInputElement>(null);
   const [noteSearch, setNoteSearch] = useState('');
 
   // Modals
@@ -511,11 +510,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
-  const readySelectedCount = readySources.filter((s) => selectedSourceIds.includes(s.id)).length;
-  const allReadySelected = readySources.length > 0 && readySelectedCount === readySources.length;
-  useEffect(() => {
-    if (selectAllRef.current) selectAllRef.current.indeterminate = readySelectedCount > 0 && !allReadySelected;
-  }, [readySelectedCount, allReadySelected, sources.length]);
 
   // Source selection handlers
   const handleToggleSource = (sourceId: string) => {
@@ -1342,15 +1336,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 </button>
               ) : (
                 <>
-                  <div className="sources-select-row">
-                    <label className="sources-select-all">
-                      <span>Select all</span>
-                      <input type="checkbox" ref={selectAllRef} className="source-row-checkbox" checked={allReadySelected}
-                        disabled={readySources.length === 0}
-                        onChange={() => (allReadySelected ? handleClearSources() : handleSelectAllSources())}
-                        aria-label="Select all sources" />
-                    </label>
-                  </div>
                   <p className="sr-only" aria-live="polite">{selectedSourceIds.length} of {readySources.length} selected</p>
                   <div className="sources-list-scroll">
                     {filteredSources.length === 0 ? (
@@ -1386,11 +1371,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </svg>
                   <span>Add materials</span>
                 </button>
-                {sources.length > 0 && (
-                  <p className="rail-selected-count" data-testid="rail-selected-count">
-                    {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
-                  </p>
-                )}
                 <form className="sources-web-search" role="search" aria-label="Add a web page as a source" onSubmit={handleWebSearch}>
                   <input type="search" className="sources-web-input" placeholder="Paste a link to add it"
                     aria-label="Search the web for new sources" value={webQuery}
@@ -1508,10 +1488,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                           </div>
                         ) : (
                           <div className="assistant-message">
-                            <div className="turn-label turn-label-assistant" aria-hidden="true">
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><path d="M12 6.5C10.4 5.3 8 4.8 4 5v13c4-.2 6.4.3 8 1.5 1.6-1.2 4-1.7 8-1.5V5c-4-.2-6.4.3-8 1.5Z" /><path d="M12 6.5v13" /></svg>
-                              <span>NotebookSpace</span>
-                            </div>
                             {/* 1. Abstention / Not Found view */}
                             {msg.abstained || msg.abstain_reason === 'generation_failed' ? (
                               (() => {
@@ -1607,7 +1583,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 })()}
 
                                 {/* Grounded Answer Body */}
-                                {SAMPLE_TAG.test(msg.content) && <span className="sample-answer-badge" data-testid="sample-answer-badge">Sample</span>}
                                 <div className="answer-text">
                                   <MarkdownRenderer
                                     content={msg.content.replace(SAMPLE_TAG, '')}
@@ -1657,51 +1632,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     </svg>
                                     <span>{savedNoteMsgId === msg.id ? 'Saved to notes!' : 'Save to note'}</span>
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="answer-action-btn"
-                                    onClick={() => {
-                                      const msgIdx = messages.findIndex((m) => m.id === msg.id);
-                                      const prevUser = [...messages.slice(0, msgIdx)]
-                                        .reverse()
-                                        .find((m) => m.role === 'user');
-                                      if (prevUser) {
-                                        onSendMessage(prevUser.content, {
-                                          is_retry: true,
-                                          retry_message_id: msg.id,
-                                        });
-                                      }
-                                    }}
-                                    title="Retry question with current sources"
-                                    aria-label="Retry question"
-                                    data-testid={`retry-btn-${msg.id}`}
-                                  >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                      <polyline points="1 4 1 10 7 10" />
-                                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                                    </svg>
-                                    <span>Retry</span>
-                                  </button>
-                                  {msg.citations && msg.citations.length > 0 && (
-                                    <button
-                                      type="button"
-                                      className="answer-action-btn"
-                                      onClick={() => {
-                                        if (selectedCitation?.messageId === msg.id) closeEvidence();
-                                        else handleSelectCitation(msg.citations[0], msg.id);
-                                      }}
-                                      aria-expanded={selectedCitation?.messageId === msg.id}
-                                      aria-controls={`evidence-${msg.id}`}
-                                      aria-label={`Evidence, ${msg.citations.length} cited ${msg.citations.length === 1 ? 'passage' : 'passages'}`}
-                                      data-testid={`evidence-btn-${msg.id}`}
-                                    >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
-                                        <path d="M7 7h4v4H7zM13 7h4v4h-4zM7 11c0 3-1 4-3 5M13 11c0 3-1 4-3 5" />
-                                      </svg>
-                                      <span>Evidence · {msg.citations.length}</span>
-                                    </button>
-                                  )}
-                                  {msg.retrieved && msg.retrieved.length > 0 && (
+{msg.retrieved && msg.retrieved.length > 0 && (
                                     <button
                                       type="button"
                                       className="answer-action-btn"
@@ -1832,7 +1763,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <div className="right-panel-body study-evidence-body tab-panel-fade" key="panel-evidence">
               {selectedCitation ? <section data-testid="selected-source-card" className="evidence-source-summary" tabIndex={-1}>
                 {!matchedSource && !selectedCitation.source_id && <p className="evidence-note">This file is not among the notebook’s current sources.</p>}
-                <p data-testid="selected-source-line">Page {selectedCitation.page}{matchedSource ? ` · v${matchedSource.version}` : ''}</p>
                                   <InlineEvidence
                                     ref={evidenceRef}
                                     citation={selectedCitation}

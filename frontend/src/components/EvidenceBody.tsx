@@ -1,12 +1,6 @@
 import React, { forwardRef } from 'react';
 import { ActiveCitation, PassageItem, RetrievedPassage } from '../types';
 
-const STAR = (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true">
-    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-  </svg>
-);
-
 export interface EvidenceBodyProps {
   citation: ActiveCitation;
   /** Passages stored for the cited page, as returned by the passages endpoint. */
@@ -39,11 +33,6 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
   const historical = sourceRemoved || sourceReplaced;
   return (
     <div className="evidence-body">
-      <div className="passage-info-bar">
-        <span className="passage-doc-title" title={citation.file}>{citation.file}</span>
-        <span className="passage-page-badge">Page {citation.page}</span>
-      </div>
-
       {historical && (
         <div className="historical-citation-alert" role="alert" data-testid="historical-citation-alert">
           <div className="alert-badge">
@@ -73,10 +62,6 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
         </div>
       ) : (
         <div className="passage-content" data-testid="passage-content" key={`${citation.file}:${citation.page}`}>
-          <div className="passage-content-banner">
-            Showing content from <strong>{citation.file}</strong> (Page {citation.page}):
-          </div>
-
           {passages.length > 0 ? (
             <div className="passage-chunks-list">
               {passages.map((p, idx) => {
@@ -84,9 +69,6 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
                 const highlighted = hasRetrievedText && isHighlighted(text, p.chunk_index);
                 return (
                   <div key={idx} className={`passage-chunk ${highlighted ? 'passage-chunk-highlighted' : ''}`}>
-                    {highlighted && (
-                      <div className="chunk-highlight-badge">{STAR}<span>Retrieved for this answer</span></div>
-                    )}
                     <p className="passage-chunk-text">{text}</p>
                   </div>
                 );
@@ -96,7 +78,6 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
             <div className="passage-chunks-list">
               {retrievedChunks.map((r, idx) => (
                 <div key={idx} className="passage-chunk passage-chunk-highlighted">
-                  <div className="chunk-highlight-badge">{STAR}<span>Retrieved for this answer</span></div>
                   <p className="passage-chunk-text">{r.text || r.chunk_text}</p>
                 </div>
               ))}
@@ -104,17 +85,12 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
           ) : citation.excerpt ? (
             <div className="passage-chunks-list">
               <div className="passage-chunk passage-chunk-highlighted">
-                <div className="chunk-highlight-badge">{STAR}<span>Historical Verified Excerpt</span></div>
                 <p className="passage-chunk-text">{citation.excerpt}</p>
               </div>
             </div>
           ) : (
             <p className="empty-state">No text chunks found for this page.</p>
           )}
-          <p className="evidence-note">
-            Citations point to a page, not a sentence, so no single sentence is marked.
-            {hasRetrievedText ? ' Highlighted passages are the ones retrieved for this answer.' : ''}
-          </p>
         </div>
       )}
     </div>
@@ -155,13 +131,13 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
       }}
     >
       <div className="inline-evidence-header">
-        <h3 className="inline-evidence-title">{index >= 0 && total > 0 ? `Source ${index + 1} of ${total}` : 'Source'}<span className="inline-evidence-count"> · {body.citation.file}</span></h3>
+        <h3 className="inline-evidence-title"><span className="inline-evidence-file" title={body.citation.file}>{body.citation.file}</span><span className="inline-evidence-count"> · Page {body.citation.page}</span></h3>
         <div className="inline-evidence-actions">
           {total > 1 && index >= 0 && (
             <div className="citation-step-controls">
               <button type="button" className="btn-step" onClick={onPrevious} disabled={index <= 0}
                 aria-label="Previous citation" title="Previous citation"><span aria-hidden="true">‹</span></button>
-              <span className="citation-step-counter" aria-label={`Citation ${index + 1} of ${total}`}>{index + 1}/{total}</span>
+              <span className="citation-step-counter" aria-label={`Citation ${index + 1} of ${total}`}>{index + 1} of {total}</span>
               <button type="button" className="btn-step" onClick={onNext} disabled={index >= total - 1}
                 aria-label="Next citation" title="Next citation"><span aria-hidden="true">›</span></button>
             </div>

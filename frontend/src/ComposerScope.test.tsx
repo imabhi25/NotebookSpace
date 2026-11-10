@@ -185,7 +185,7 @@ describe('Answer actions and citation access without the chip row (mocked)', () 
     const markers = screen.getAllByTestId('inline-citation');
     expect(markers.map((m) => m.textContent)).toEqual(['1', '2']);
     expect(markers[1]).toHaveAccessibleName('Citation 2: b.pdf, page 2');
-    for (const name of ['Copy', 'Save to note', 'Retry question', 'Evidence, 3 cited passages', 'Retrieval details']) {
+    for (const name of ['Copy', 'Save to note', 'Retrieval details']) {
       expect(screen.getByRole('button', { name: new RegExp(name.replace('Copy', '^Copy')) })).toBeInTheDocument();
     }
   });
@@ -193,7 +193,8 @@ describe('Answer actions and citation access without the chip row (mocked)', () 
     render(<Harness />);
     // The first citation is selected on load, so the evidence is already open.
     const ev = await screen.findByTestId('inline-evidence');
-    expect(within(ev).getByRole('heading', { level: 3 })).toHaveTextContent(/Source 1 of 3/);
+    expect(within(ev).getByRole('heading', { level: 3 })).toHaveTextContent(/Page/);
+    expect(within(ev).getByText('1 of 3')).toBeInTheDocument();
     fireEvent.click(within(ev).getByRole('button', { name: 'Next citation' }));
     fireEvent.click(within(screen.getByTestId('inline-evidence')).getByRole('button', { name: 'Next citation' }));
     await waitFor(() => expect(screen.getByTestId('inline-evidence')).toHaveTextContent('Third passage, never cited inline.'));
