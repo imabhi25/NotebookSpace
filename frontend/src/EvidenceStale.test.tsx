@@ -132,11 +132,11 @@ describe('Retrieval map inside the materials panel (mocked API)', () => {
     const panel = await screen.findByRole('complementary', { name: 'Study panel' });
     const card = within(panel).getByTestId('selected-source-card');
     expect(card).toHaveTextContent(LONG);
-    expect(within(card).getByRole('heading', { level: 3 })).toHaveTextContent('p. 3');
+    expect(within(card).getByText('Page 3')).toBeInTheDocument();
     await waitFor(() => expect(within(card).getByText('Week 12 review.')).toBeInTheDocument());
     expect(screen.getByTestId('inline-evidence')).toBeInTheDocument();
     expect(screen.getByTestId('inline-evidence')).toHaveFocus();
-    expect(screen.getByRole('button', { name: /^Evidence$/, pressed: true })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Citations$/, pressed: true })).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Show retrieval diagnostics' }));
     await screen.findByTestId('retrieval-map-view');

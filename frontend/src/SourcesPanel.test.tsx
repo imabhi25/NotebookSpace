@@ -210,9 +210,9 @@ describe('Sources panel', () => {
 
   it('collapses the study panel from its own button and returns focus to its toggle', () => {
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle study panel' }));
+    fireEvent.click(screen.getByRole('button', { name: /Toggle study panel|Open citations panel/ }));
     expect(screen.queryByRole('complementary', { name: 'Study panel' })).toBeNull();
-    const toggle = screen.getByRole('button', { name: 'Toggle study panel' });
+    const toggle = screen.getByRole('button', { name: /Toggle study panel|Open citations panel/ });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(toggle).toHaveFocus();
     fireEvent.click(toggle);
@@ -221,12 +221,12 @@ describe('Sources panel', () => {
 
   it('remembers each panel preference independently while docked', () => {
     const { unmount } = render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle study panel' }));
+    fireEvent.click(screen.getByRole('button', { name: /Toggle study panel|Open citations panel/ }));
     expect(window.localStorage.getItem('notebookspace_context_open')).toBe('0');
     expect(window.localStorage.getItem('notebookspace_nav_open')).toBeNull();
     unmount();
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    expect(screen.getByRole('button', { name: 'Toggle study panel' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: /Toggle study panel|Open citations panel/ })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
     expect(window.localStorage.getItem('notebookspace_nav_open')).toBe('0');
@@ -236,9 +236,9 @@ describe('Sources panel', () => {
   it('starts the study panel as an overlay at tablet width and does not store its open state', () => {
     window.innerWidth = 1024;
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    expect(screen.getByRole('button', { name: 'Toggle study panel' })).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getByRole('button', { name: /Toggle study panel|Open citations panel/ })).toHaveAttribute('aria-expanded', 'false');
     expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'Toggle study panel' }));
+    fireEvent.click(screen.getByRole('button', { name: /Toggle study panel|Open citations panel/ }));
     expect(study()).toBeVisible();
     expect(window.localStorage.getItem('notebookspace_context_open')).toBeNull();
   });

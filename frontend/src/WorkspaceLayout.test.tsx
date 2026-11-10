@@ -36,7 +36,7 @@ function workspace(onBackToDashboard = vi.fn()) {
     onUpdateSettings={done} onCreateNote={done} onSaveAnswerAsNote={done}
     onUpdateNote={done} onDeleteNote={done} messages={[message]} chatLoading={false} />;
 }
-const studyToggle = () => screen.getByRole('button', { name: 'Toggle study panel' });
+const studyToggle = () => screen.getByRole('button', { name: /Toggle study panel|Open citations panel/ });
 const sourcesToggle = () => screen.getByRole('button', { name: 'Toggle sources panel' });
 const originalWidth = window.innerWidth;
 beforeEach(() => {

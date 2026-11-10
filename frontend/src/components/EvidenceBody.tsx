@@ -6,12 +6,37 @@ import { ActiveCitation, PassageItem, RetrievedPassage } from '../types';
  * Break them back onto their own lines for reading; the stored text is untouched.
  */
 export function formatPassageText(text: string): string {
-  let out = text;
+  let out = text.replace(/\r\n?/g, '\n');
+  // Stray page numbers: a lone number on the first or last line of the page.
+  out = out.replace(/^\s*\d{1,3}\s*\n+/, '').replace(/\n+\s*\d{1,3}\s*$/, '');
+  // A leading page number glued to the title ("1 Practice Problems").
+  out = out.replace(/^\s*\d{1,3}\s+(?=[A-Z][a-z])/, '');
+  // Inline bullets each start a new line.
+  out = out.replace(/\s*[•●▪◦]\s*/g, '\n• ');
   if (/(?:^|\s)1\.\s/.test(out) && /\s2\.\s/.test(out)) {
     out = out.replace(/\s+(?=\d{1,2}\.\s+\S)/g, '\n');
   }
   out = out.replace(/\s+(?=(?:Question|Section|Part|Problem|Exercise|Task)\s+\d+\s*[:.)])/g, '\n\n');
-  return out.trim();
+  return out.replace(/\n{3,}/g, '\n\n').trim();
+}
+
+/** Renders formatted passage text as a heading, paragraphs and list items. */
+function PassageText({ text }: { text: string }) {
+  const lines = formatPassageText(text).split('\n');
+  const blocks: React.ReactNode[] = [];
+  let first = true;
+  lines.forEach((raw, i) => {
+    const line = raw.trim();
+    if (!line) return;
+    const bullet = /^•\s*/.test(line);
+    const numbered = /^\d{1,2}\.\s+/.test(line);
+    const heading = first && !bullet && !numbered && line.length <= 80 && !/[.!?]$/.test(line);
+    blocks.push(
+      <p key={i} className={`passage-line${bullet ? ' passage-bullet' : ''}${numbered ? ' passage-numbered' : ''}${heading ? ' passage-heading' : ''}`}>{bullet ? line.replace(/^•\s*/, '') : line}</p>
+    );
+    first = false;
+  });
+  return <div className="passage-chunk-text">{blocks}</div>;
 }
 
 export interface EvidenceBodyProps {
@@ -82,7 +107,7 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
                 const highlighted = hasRetrievedText && isHighlighted(text, p.chunk_index);
                 return (
                   <div key={idx} className={`passage-chunk ${highlighted ? 'passage-chunk-highlighted' : ''}`}>
-                    <p className="passage-chunk-text">{formatPassageText(text)}</p>
+                    <PassageText text={text} />
                   </div>
                 );
               })}
@@ -91,14 +116,14 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
             <div className="passage-chunks-list">
               {retrievedChunks.map((r, idx) => (
                 <div key={idx} className="passage-chunk passage-chunk-highlighted">
-                  <p className="passage-chunk-text">{formatPassageText(r.text || r.chunk_text || '')}</p>
+                  <PassageText text={r.text || r.chunk_text || ''} />
                 </div>
               ))}
             </div>
           ) : citation.excerpt ? (
             <div className="passage-chunks-list">
               <div className="passage-chunk passage-chunk-highlighted">
-                <p className="passage-chunk-text">{formatPassageText(citation.excerpt)}</p>
+                <PassageText text={citation.excerpt} />
               </div>
             </div>
           ) : (
@@ -148,8 +173,9 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
       }}
     >
       <div className="inline-evidence-header">
-        <h3 className="inline-evidence-title"><span className="inline-evidence-file" title={body.citation.file}>{displayTitle || body.citation.file}</span><span className="inline-evidence-count"> · p. {body.citation.page}</span></h3>
+        <h3 className="inline-evidence-title"><span className="inline-evidence-file" title={body.citation.file}>{displayTitle || body.citation.file}</span></h3>
         <div className="inline-evidence-actions">
+          <span className="inline-evidence-count evidence-page-pill">Page {body.citation.page}</span>
           {total > 1 && index >= 0 && (
             <div className="citation-step-controls">
               <button type="button" className="btn-step" onClick={onPrevious} disabled={index <= 0}

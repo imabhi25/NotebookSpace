@@ -110,7 +110,7 @@ describe('Evidence panel', () => {
     const answer = screen.getByTestId('answer-view');
     expect(screen.getByRole('complementary', { name: 'Study panel' }).contains(evidence)).toBe(true);
     expect(answer.querySelector('.chips-row')).toBeNull(); // no separate chip row: markers and the Evidence button reach every passage
-    expect(within(evidence).getByRole('heading', { level: 3 })).toHaveTextContent('a.pdf · p. 2');
+    expect(within(evidence).getByRole('heading', { level: 3 })).toHaveTextContent('a.pdf'); expect(within(evidence).getByText('Page 2')).toBeInTheDocument();
     await waitFor(() => expect(within(evidence).getByText(chunk)).toBeInTheDocument());
     expect(evidence.querySelector('mark')).toBeNull();
   });
@@ -171,7 +171,7 @@ describe('Evidence panel', () => {
     const panel = screen.getByRole('complementary', { name: 'Study panel' });
     expect(panel.contains(card)).toBe(true);
     expect(within(card).getAllByText('b.pdf').length).toBeGreaterThan(0);
-    expect(within(card).getByRole('heading', { level: 3 })).toHaveTextContent('b.pdf · p. 1');
+    expect(within(card).getByRole('heading', { level: 3 })).toHaveTextContent('b.pdf'); expect(within(card).getByText('Page 1')).toBeInTheDocument();
     expect(within(card).getByTestId('passage-content')).toBeInTheDocument(); // passage is inline, not duplicated
     expect(screen.getAllByTestId('passage-content')).toHaveLength(1);
     fireEvent.keyDown(within(card).getByTestId('inline-evidence'), { key: 'Escape' });
