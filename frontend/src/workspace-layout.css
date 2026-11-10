@@ -1141,3 +1141,15 @@
   .workspace-layout .workspace-body { height: 100%; gap: 0; padding: 0; }
   .workspace-layout .nav-slot, .workspace-layout .workspace-main-area, .workspace-layout .context-slot { height: 100%; }
 }
+
+/* ---- Decluttering pass ---- */
+.workspace-layout .inline-evidence .citation-step-counter {
+  position: static; width: auto; height: auto; overflow: visible; clip: auto; font-size: 12px; padding: 0 4px; color: var(--color-text-muted);
+}
+.workspace-layout .inline-evidence-title { display: flex; min-width: 0; align-items: baseline; gap: 0; font-size: 13px; }
+.workspace-layout .inline-evidence-file { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-layout .inline-evidence-count { flex: none; white-space: nowrap; }
+.workspace-layout .inline-evidence .citation-step-controls { background: transparent; box-shadow: none; padding: 0; }
+.workspace-layout .answer-text + .cross-source { margin-top: 12px; }
+.workspace-layout .cross-source-pill { font-size: 12px; }
+.workspace-layout .cross-source-file::after { content: ' —'; font-weight: 400; color: var(--color-text-muted); }

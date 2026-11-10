@@ -9,7 +9,7 @@ interface CrossSourceCheckProps {
 
 const heading = (check: Check): string => {
   const topics = check.topics.join(', ');
-  if (check.status === 'conflict') return topics ? `Policy Update Detected: ${topics}` : 'These documents disagree';
+  if (check.status === 'conflict') return topics ? `Policy update: ${topics}` : 'These documents disagree';
   if (check.status === 'update') return 'Possible update across sources';
   return 'Draws on more than one source';
 };
@@ -40,9 +40,7 @@ export const CrossSourceCheck: React.FC<CrossSourceCheckProps> = ({ check, onOpe
           <li key={`${src.key}-${i}`} className="cross-source-row" data-testid="cross-source-card">
             <span className="cross-source-line">
               <span className="cross-source-file" title={src.file}>{src.title}</span>
-              {typeof src.version === 'number' && <span className="cross-source-ver">v{src.version}</span>}
-              <span className="cross-source-page"> (p.{row.page}):</span>{' '}
-              <span className="cross-source-value">{row.text}</span>
+              {' '}<span className="cross-source-value">{row.text}</span>
             </span>
             <button
               type="button"
@@ -50,7 +48,7 @@ export const CrossSourceCheck: React.FC<CrossSourceCheckProps> = ({ check, onOpe
               aria-label={row.claim ? `Claim: ${row.text} in ${src.file} page ${row.page}` : `View page ${row.page} of ${src.file}`}
               onClick={() => onOpen({ ...src.open, page: row.page })}
             >
-              View p.{row.page} <span aria-hidden="true">&rarr;</span>
+              View p.{row.page}
             </button>
           </li>
         ));

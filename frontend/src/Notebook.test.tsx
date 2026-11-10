@@ -391,8 +391,7 @@ describe('SubjectWorkspaceView component', () => {
     expect(screen.getAllByText('Lecture 1.pdf').length).toBeGreaterThan(0);
     expect(screen.getByText(/1 of 2 selected/i)).toBeInTheDocument();
 
-    const selectAllBtn = screen.getByRole('checkbox', { name: /Select all/i });
-    fireEvent.click(selectAllBtn);
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Select Lecture 1.pdf' }));
     expect(handleSelectSources).toHaveBeenCalledWith(['src-1', 'src-2']);
   });
 

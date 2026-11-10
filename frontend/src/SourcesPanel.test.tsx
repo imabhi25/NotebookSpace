@@ -72,27 +72,16 @@ describe('Sources panel', () => {
     expect(await screen.findByText('handout.pdf')).toBeInTheDocument();
   });
 
-  it('with sources drops the drop zone, shows a select-all row, and has no number beside the title', () => {
+  it('with sources drops the drop zone, has no select-all row, and shows the count in the title', () => {
     const onSelectSources = vi.fn();
-    const { rerender } = render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a'], onSelectSources));
+    render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a'], onSelectSources));
     expect(within(panel()).queryByRole('button', { name: /Drop PDFs here/ })).toBeNull();
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
     expect(within(panel()).getByRole('heading', { name: /^Sources \(\d+\)$/ })).toHaveTextContent(/^Sources \(\d+\)$/);
-    const selectAll = within(panel()).getByRole('checkbox', { name: 'Select all sources' }) as HTMLInputElement;
-    expect(within(panel()).getByText('Select all')).toBeInTheDocument();
-    expect(selectAll.checked).toBe(false);
-    expect(selectAll.indeterminate).toBe(true);
+    expect(within(panel()).queryByText('Select all')).toBeNull();
 
     fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Select Lecture 7.pdf' }));
     expect(onSelectSources).toHaveBeenCalledWith(['a', 'b']);
-    fireEvent.click(selectAll);
-    expect(onSelectSources).toHaveBeenLastCalledWith(['a', 'b']);
-
-    rerender(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a', 'b'], onSelectSources));
-    const all = within(panel()).getByRole('checkbox', { name: 'Select all sources' }) as HTMLInputElement;
-    expect(all.checked).toBe(true);
-    fireEvent.click(all);
-    expect(onSelectSources).toHaveBeenLastCalledWith([]);
   });
 
   it('the link bar opens the add dialog on the link tab with the link filled in, and explains anything else', async () => {
@@ -113,7 +102,7 @@ describe('Sources panel', () => {
   it('Find in sources filters the list by name; Create note lives in the study panel', () => {
     render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a']));
     expect(within(panel()).getByRole('heading', { name: /^Sources \(2\)$/ })).toBeInTheDocument();
-    expect(within(panel()).getByTestId('rail-selected-count')).toHaveTextContent('1 source selected');
+    expect(within(panel()).queryByTestId('rail-selected-count')).toBeNull();
     fireEvent.change(within(panel()).getByRole('searchbox', { name: 'Find in sources' }), { target: { value: 'lect' } });
     expect(within(panel()).queryByText('Syllabus.pdf')).toBeNull();
     expect(within(panel()).getByText('Lecture 7.pdf')).toBeInTheDocument();
