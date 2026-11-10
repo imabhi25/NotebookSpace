@@ -71,9 +71,13 @@ describe('Notebook launcher grid', () => {
     expect(onOpenSubject).not.toHaveBeenCalled();
   });
 
-  it('keeps the first-notebook empty state when there are no notebooks', () => {
-    render(<DashboardView {...props} subjects={[]} />);
-    expect(screen.getByTestId('dashboard-empty-state')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Start with a subject. Make it yours.' })).toBeInTheDocument();
+  it('shows the sample card and a new-notebook card in the normal grid when there are no notebooks', () => {
+    const onCreateSampleSubject = vi.fn(async () => {});
+    render(<DashboardView {...props} subjects={[]} onCreateSampleSubject={onCreateSampleSubject} />);
+    expect(screen.queryByTestId('dashboard-empty-state')).not.toBeInTheDocument();
+    expect(screen.getByText('CS 401: Systems Programming (Sample)')).toBeInTheDocument();
+    expect(screen.getByText('Create another notebook')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('create-sample-notebook-btn'));
+    expect(onCreateSampleSubject).toHaveBeenCalled();
   });
 });

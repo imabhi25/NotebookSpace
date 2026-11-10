@@ -820,53 +820,50 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                   ))}
                 </div>
-              ) : homeFiltered.length === 0 ? (
+              ) : homeFiltered.length === 0 && (search || homeTab === 'archived') ? (
             <div className="dashboard-empty-state" data-testid="dashboard-empty-state">
-              <div className="empty-state-brand-mark" aria-hidden="true">
-                <EmptyStateIcon />
-              </div>
-              {!search && homeTab !== 'archived' && <p className="library-eyebrow">A FRESH PAGE</p>}<h2 className="empty-heading">
-                {homeTab === 'archived'
-                  ? 'No archived notebooks'
-                  : search
-                  ? 'No matching notebooks found'
-                  : 'Start with a subject. Make it yours.'}
-              </h2>
+              <h2 className="empty-heading">{homeTab === 'archived' ? 'No archived notebooks' : 'No matching notebooks found'}</h2>
               <p className="empty-subtext">
                 {homeTab === 'archived'
                   ? 'Archived notebooks will appear here.'
-                  : search
-                  ? `No notebooks match "${search}". Try adjusting your search query.`
-                  : 'Give your course, project, or curiosity a home. Bring the materials; your notebook keeps the ideas connected.'}
+                  : `No notebooks match "${search}". Try adjusting your search query.`}
               </p>
-              {homeTab !== 'archived' && !search && onCreateSampleSubject && subjects.length === 0 && (
-                <button
-                  type="button"
-                  className="featured-sample-card"
-                  onClick={onCreateSampleSubject}
-                  data-testid="create-sample-notebook-btn"
-                >
-                  <span className="featured-sample-badge">⚡ Instant Sample Course (Pre-loaded) · 2 Sources &amp; Conflicts</span>
-                  <strong className="featured-sample-title">Featured Sample: CS 401 Systems Programming</strong>
-                  <span className="featured-sample-desc">Ask questions and see cited answers, with a syllabus and lecture notes that disagree. Opens in seconds.</span>
-                  <span className="featured-sample-cta">Open the sample →</span>
-                </button>
-              )}
-              {homeTab !== 'archived' && !search && (
-                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    onClick={openCreateModal}
-                  >
-                    + Create a notebook
-                  </button>
-                </div>
-              )}
-              {!search && homeTab !== 'archived' && <div className="library-welcome-art" aria-hidden="true"><ReferenceIcon name="book" size={26} /><strong>Your next big idea<br />starts here.</strong><small>NOTEBOOK 001</small></div>}
             </div>
               ) : (
                 <div className="notebook-grid tab-panel-fade" role="list" key={`${homeTab}-${sortBy}`}>
+                  {subjects.length === 0 && !search && homeTab !== 'archived' && onCreateSampleSubject && (
+                    <div
+                      role="listitem"
+                      className="notebook-card sample-notebook-card"
+                      onClick={() => { void onCreateSampleSubject(); }}
+                      data-testid="create-sample-notebook-btn"
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault();
+                          void onCreateSampleSubject();
+                        }
+                      }}
+                    >
+                      <div className="notebook-card-top">
+                        <span className="notebook-card-mark tone-1" aria-hidden="true">
+                          <ReferenceIcon name="book" size={18} />
+                        </span>
+                        <div className="notebook-card-tags">
+                          <span className="course-code-badge notebook-code-badge">CS 401</span>
+                          <span className="badge-demo">⚡ Sample Demo</span>
+                        </div>
+                      </div>
+                      <div className="notebook-card-body">
+                        <h2 className="notebook-card-title">CS 401: Systems Programming (Sample)</h2>
+                        <p className="notebook-card-description">Pre-loaded course materials with verified citations, policy conflict detection, and 2D retrieval.</p>
+                      </div>
+                      <div className="notebook-card-footer">
+                        <span className="notebook-card-meta">2 sources · Instant access</span>
+                        <span className="notebook-open-action">Open sample <span aria-hidden="true">→</span></span>
+                      </div>
+                    </div>
+                  )}
                   {homeFiltered.map((s) => (
                     <div
                       key={s.id}
@@ -920,15 +917,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   {homeTab !== 'archived' && !search && <button type="button" className="library-add-card" onClick={openCreateModal}>
                     <span className="add-plus" aria-hidden="true">+</span>
                     <strong>New notebook</strong>
-                    <small>Upload PDFs, slides, or notes</small>
+                    <small>{subjects.length === 0 ? 'Create another notebook' : 'Upload PDFs, slides, or notes'}</small>
                   </button>}
                 </div>
               )}
-              {!loading && subjects.length === 0 && !search && homeTab !== 'archived' && <div className="library-guide">{[
-                ['01', 'Make a space', 'One notebook for each subject.'],
-                ['02', 'Bring your materials', 'PDFs, links, and your own notes.'],
-                ['03', 'Follow your curiosity', 'Ask questions. Keep what clicks.'],
-              ].map(([n,title,body]) => <div key={n}><span>{n}</span><strong>{title}</strong><p>{body}</p></div>)}</div>}
               {!loading && homeFiltered.length === 1 && !isSampleNotebook(homeFiltered[0]) && homeTab !== 'archived' && !search && <div className="library-first-step"><span className="library-step-icon"><ReferenceIcon name="upload" size={20} /></span><div><strong>Make {homeFiltered[0].name} your own</strong><p>Add lecture slides, a reading, or a few notes to start your first conversation.</p></div><button type="button" className="btn btn-secondary" onClick={() => { try { sessionStorage.setItem('notebookspace_add_materials', homeFiltered[0].id); } catch {} onOpenSubject(homeFiltered[0].id); }}>+ Add materials</button></div>}
             </div>
           </main></div>
