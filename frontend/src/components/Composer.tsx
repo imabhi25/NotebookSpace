@@ -213,9 +213,11 @@ export const Composer: React.FC<ComposerProps> = ({
 
   const sendButton =
     loading && onStop ? (
-      <button type="button" className="composer-stop-btn" onClick={handleStopClick} aria-label="Stop generation">
-        <span className="stop-btn-icon" aria-hidden="true">■</span>
-        <span className="send-btn-text">Stop generation</span>
+      <button type="button" className="composer-stop-btn" onClick={handleStopClick} aria-label="Stop generation" data-tooltip="Pause generation">
+        <svg className="stop-btn-icon" width="12" height="12" viewBox="0 0 12 12" fill="currentColor" aria-hidden="true">
+          <rect x="2" y="1" width="3" height="10" rx="1" />
+          <rect x="7" y="1" width="3" height="10" rx="1" />
+        </svg>
       </button>
     ) : (
       <button type="submit" className="composer-send-btn" disabled={loading || Boolean(blockedReason) || !question.trim()} aria-label="Ask Question">

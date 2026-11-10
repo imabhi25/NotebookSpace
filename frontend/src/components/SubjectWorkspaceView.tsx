@@ -1884,59 +1884,45 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               (() => {
                                 const copy = abstainCopy(msg, selectedSourceIds.length);
                                 return (
-                                  <div
-                                    className={`answer-notice ${copy.tone === 'error' ? 'answer-notice-error' : ''}`}
-                                    data-testid="abstained-view"
-                                    role={copy.tone === 'error' ? 'alert' : 'status'}
-                                  >
-                                    <svg className="answer-notice-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                      <circle cx="12" cy="12" r="9" />
-                                      <line x1="12" y1="8" x2="12" y2="12.5" />
-                                      <line x1="12" y1="16" x2="12.01" y2="16" />
-                                    </svg>
-                                    <div className="answer-notice-main">
-                                      <h3 className="answer-notice-title">{copy.title}</h3>
-                                      <p className="answer-notice-body">{copy.body}</p>
-                                      {copy.hint && <p className="answer-notice-hint">{copy.hint}</p>}
-                                      <div className="answer-notice-actions">
+                                  <div className="abstain-prose" data-testid="abstained-view" role={copy.tone === 'error' ? 'alert' : 'status'}>
+                                    <p className="answer-text"><span>{copy.title}</span> <span>{copy.body}</span>{copy.hint ? <> <span>{copy.hint}</span></> : null}</p>
+                                    <div className="answer-action-toolbar">
+                                      <button
+                                        type="button"
+                                        className="answer-action-btn"
+                                        onClick={() => {
+                                          const msgIdx = messages.findIndex((m) => m.id === msg.id);
+                                          const prevUser = [...messages.slice(0, msgIdx)].reverse().find((m) => m.role === 'user');
+                                          if (prevUser) {
+                                            onSendMessage(prevUser.content, { is_retry: true, retry_message_id: msg.id });
+                                          }
+                                        }}
+                                        title="Retry question with current sources"
+                                        aria-label="Retry question"
+                                        data-tooltip="Retry"
+                                        data-testid={`retry-btn-${msg.id}`}
+                                      >
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
+                                          <polyline points="1 4 1 10 7 10" />
+                                          <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                        </svg>
+                                      </button>
+                                      {msg.retrieved && msg.retrieved.length > 0 && (
                                         <button
                                           type="button"
-                                          className="answer-notice-btn answer-notice-primary"
-                                          onClick={() => {
-                                            const msgIdx = messages.findIndex((m) => m.id === msg.id);
-                                            const prevUser = [...messages.slice(0, msgIdx)].reverse().find((m) => m.role === 'user');
-                                            if (prevUser) {
-                                              onSendMessage(prevUser.content, { is_retry: true, retry_message_id: msg.id });
-                                            }
-                                          }}
-                                          title="Retry question with current sources"
-                                          aria-label="Retry question"
-                                          data-testid={`retry-btn-${msg.id}`}
+                                          className="answer-action-btn"
+                                          onClick={() => handleSeeRetrieval(msg.id)}
+                                          title="Retrieval details"
+                                          aria-label="Retrieval details"
+                                          data-tooltip="Retrieval details"
+                                          data-testid={`see-retrieval-btn-${msg.id}`}
                                         >
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
-                                            <polyline points="1 4 1 10 7 10" />
-                                            <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+                                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
+                                            <circle cx="11" cy="11" r="7" />
+                                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                           </svg>
-                                          <span>Retry</span>
                                         </button>
-                                        {copy.tone !== 'error' && msg.abstain_reason !== 'stopped' && (
-                                          <button type="button" className="answer-notice-btn" onClick={() => openSources()} data-testid={`choose-materials-btn-${msg.id}`}>
-                                            Choose materials
-                                          </button>
-                                        )}
-                                        {msg.retrieved && msg.retrieved.length > 0 && (
-                                          <button
-                                            type="button"
-                                            className="answer-notice-btn"
-                                            onClick={() => handleSeeRetrieval(msg.id)}
-                                            title="Retrieval details"
-                                            aria-label="Retrieval details"
-                                            data-testid={`see-retrieval-btn-${msg.id}`}
-                                          >
-                                            Retrieval details
-                                          </button>
-                                        )}
-                                      </div>
+                                      )}
                                     </div>
                                   </div>
                                 );
@@ -2053,27 +2039,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
                     {chatLoading && (
                       <div className="thread-turn turn-assistant">
-                        <div className="assistant-message message-loading" role="status">
-                          <div className="loading-steps-container">
-                            <div className="loading-step active">
-                              <span className="step-spinner" />
-                              <span className="step-label">Retrieving evidence from selected sources...</span>
-                            </div>
-                          </div>
-                          <div className="skeleton-loader" aria-hidden="true">
-                            <span className="skeleton-line line-long" />
-                            <span className="skeleton-line line-long" />
-                            <span className="skeleton-line line-med" />
-                          </div>
-                          {onStopGeneration && (
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm stop-gen-btn"
-                              onClick={handleSafeStopGeneration}
-                            >
-                              Stop generation
-                            </button>
-                          )}
+                        <div className="assistant-message message-loading" role="status" aria-live="polite">
+                          <span className="thinking-indicator">Thinking...</span>
                         </div>
                       </div>
                     )}

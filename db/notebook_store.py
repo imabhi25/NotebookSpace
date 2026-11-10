@@ -1,6 +1,7 @@
 import json
 import logging
 import re
+from difflib import SequenceMatcher
 from typing import Any, Sequence
 from uuid import UUID
 from db.connection import get_connection
@@ -803,6 +804,28 @@ def extract_key_terms(query: str) -> list[str]:
     return list(terms)
 
 
+_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{3,}")
+FUZZY_MATCH_RATIO = 0.72
+
+
+def fuzzy_term_in_text(term: str, text: str, ratio: float = FUZZY_MATCH_RATIO) -> bool:
+    """True when `term` is a slight misspelling of an identifier in `text` (e.g. 'stglen' ~ 'strgLen').
+
+    Only single-word identifier-like terms of 4+ characters are compared, against tokens of similar length,
+    so short words and numbers never match by accident.
+    """
+    t = term.lower()
+    if len(t) < 4 or not _IDENT_RE.fullmatch(t):
+        return False
+    for tok in set(_IDENT_RE.findall(text)):
+        w = tok.lower()
+        if abs(len(w) - len(t)) > 3:
+            continue
+        if SequenceMatcher(None, t, w).ratio() >= ratio:
+            return True
+    return False
+
+
 def search_scoped(
     question: str,
     user_id: str | UUID,
@@ -947,6 +970,8 @@ def search_scoped(
     for res in results_by_id.values():
         chunk_text_lower = res["text"].lower()
         matched = [t for t in key_terms if t.lower() in chunk_text_lower]
+        # Typo tolerance: a near-miss identifier ("stglen") still counts as a keyword hit on "strgLen".
+        matched += [t for t in key_terms if t not in matched and fuzzy_term_in_text(t, res["text"])]
         res["matched_terms"] = matched
         if matched:
             # Boost score so short terms and equations pass minimum score threshold
