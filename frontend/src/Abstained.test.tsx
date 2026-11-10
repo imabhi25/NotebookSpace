@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { SubjectWorkspaceView } from './components/SubjectWorkspaceView';
-import { abstainCopy } from './abstain';
+import { abstainCopy, abstainText } from './abstain';
 import { api } from './api';
 import { MessageItem, Source, Subject } from './types';
 
@@ -54,9 +54,15 @@ describe('abstainCopy (pure)', () => {
     expect(abstainCopy({ ...notFound(), abstain_reason: 'generation_failed', content: 'Usage limit reached.' }).body).toBe('Usage limit reached.');
     expect(abstainCopy({ ...notFound(), content: 'Usage limit reached.' }).body).not.toContain('Usage limit');
   });
-  it('counts passages and materials in plain words, and has no scores', () => {
+  it('has no passage-count boilerplate and no scores', () => {
     const c = abstainCopy(notFound(), 2);
-    expect(c.body).toBe('I checked 2 passages from your 2 selected materials, and none of them answer this.');
+    expect(c.body).toBe('');
+    expect(abstainText(notFound(), 2)).toBe("I couldn't find this in your materials.");
+  });
+  it('strips the legacy "I checked N passages" text from saved messages and keeps punctuation', () => {
+    const legacy = notFound({ content: "I couldn't find this in your materials I checked 3 passages from your 2 selected materials, and none of them answer this. Try rephrasing with terms your materials use, or select more materials." });
+    expect(abstainText(legacy)).toBe("I couldn't find this in your materials.");
+    expect(abstainText(notFound({ content: 'That is not covered' }))).toBe('That is not covered.');
   });
 });
 

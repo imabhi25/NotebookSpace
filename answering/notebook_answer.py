@@ -74,7 +74,11 @@ def build_system_prompt(settings: dict[str, Any]) -> str:
     return (
         "You are a course-document assistant. Answer the user's question using ONLY the provided course document passages.\n"
         "Cite each claim in your answer as [file p.N] (for example: [syllabus.pdf p.1] or [lecture.txt p.2]).\n"
-        "If the passages do not contain the answer, reply exactly with supported: false and answer: 'NOT_FOUND'.\n\n"
+        "If the passages do not contain the answer, reply exactly with supported: false and answer: 'NOT_FOUND'.\n"
+        "Short, partial, or slightly misspelled follow-up questions (for example 'Why strleng' or 'Why str') are NOT grounds "
+        "to answer NOT_FOUND: use the recent conversation and the passages to infer the closest matching function, term, or "
+        "concept (for example strgLen and the other strg* string functions) and explain it directly, with citations. "
+        "Answer NOT_FOUND only when no passage relates to the question even after this inference.\n\n"
         f"{style_guidance}"
         f"{length_guidance}\n"
         "Security and Untrusted Input Rules:\n"
