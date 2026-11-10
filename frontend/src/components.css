@@ -2291,3 +2291,96 @@ aside .retrieval-svg,
 /* Workspace header uses the same duo-tone open-notebook mark as the dashboard. */
 .workspace-layout .workspace-brand-mark { width: 26px; height: 26px; background: transparent; border-radius: 0; color: var(--color-text-primary); display: grid; place-items: center; }
 .workspace-layout .workspace-brand-mark .brand-logo-icon { display: block; width: 22px; height: 22px; flex: none; }
+
+/* ==========================================================================
+   Add-sources dialog: frosted scrim, rounded sheet, segmented tabs, dropzone.
+   Tints are mixed from the text colour, so one rule reads right in light and dark.
+   ========================================================================== */
+.modal-backdrop {
+  background: rgba(0, 0, 0, 0.45);
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+  display: flex; align-items: center; justify-content: center; z-index: 100;
+}
+.modal-content {
+  background: var(--color-surface-raised); border: 1px solid var(--border-subtle);
+  border-radius: 18px; box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
+  width: 100%; max-width: 520px; overflow: hidden auto;
+  animation: modalPopIn 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.modal-content.modal-content-md { max-width: 520px; }
+@keyframes modalPopIn {
+  from { opacity: 0; transform: scale(0.96) translateY(4px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+@media (prefers-reduced-motion: reduce) { .modal-content { animation: none; } }
+
+.modal-tab-bar {
+  padding: 3px; border-radius: 10px; gap: 0; box-shadow: none;
+  background: color-mix(in oklab, var(--color-text-primary) 6%, transparent);
+}
+.modal-tab-btn {
+  height: 34px; min-height: 34px; padding: 0 var(--space-2); border-radius: 8px;
+  font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  transition: all 0.18s ease;
+}
+.modal-tab-icon { flex-shrink: 0; opacity: 0.85; }
+@supports selector(:has(*)) {
+  .modal-tab-bar::before {
+    top: 3px; bottom: 3px; left: 3px; width: calc((100% - 6px) / 3); border-radius: 8px;
+    background: var(--color-surface); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  }
+}
+
+.drop-zone {
+  border: 1.5px dashed var(--border-subtle); border-radius: 14px; box-shadow: none;
+  background: color-mix(in oklab, var(--color-text-primary) 2.5%, transparent);
+  padding: 36px 20px; text-align: center; cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.drop-zone:hover, .drop-zone-active {
+  border-color: var(--color-accent); transform: scale(1.005);
+  background: color-mix(in oklab, var(--color-accent) 8%, transparent);
+}
+.drop-zone-icon {
+  width: 44px; height: 44px; border-radius: 50%; margin: 0 auto 12px;
+  background: var(--color-surface-hover); color: var(--color-text-secondary);
+  display: flex; align-items: center; justify-content: center;
+}
+.drop-zone-hint { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px; margin-top: 10px; }
+.format-chip {
+  font-size: 11px; font-weight: 500; padding: 2px 7px; border-radius: 4px;
+  background: color-mix(in oklab, var(--color-text-primary) 7%, transparent); color: var(--color-text-secondary);
+}
+
+.form-group label {
+  font-size: 12.5px; font-weight: 550; color: var(--color-text-secondary); margin-bottom: 0; display: block;
+}
+.form-group input, .form-group textarea {
+  width: 100%; border-radius: 10px; border: 1px solid var(--border-subtle);
+  background: color-mix(in oklab, var(--color-text-primary) 3%, transparent);
+  padding: 10px 14px; font-size: 13.5px; color: var(--color-text-primary);
+  transition: all 0.18s ease;
+}
+.form-group input { height: auto; }
+.form-group input:focus, .form-group textarea:focus {
+  outline: none; border-color: color-mix(in oklab, var(--color-text-primary) 30%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--color-text-primary) 6%, transparent);
+}
+:root:not([data-theme="dark"]) .form-group input:focus,
+:root:not([data-theme="dark"]) .form-group textarea:focus {
+  border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-accent-ring);
+}
+
+.modal-form .modal-actions {
+  padding-top: 16px; margin-top: 4px; border-top: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: flex-end; gap: 10px;
+}
+.modal-form .modal-actions .btn { border-radius: 8px; font-size: 13px; height: auto; min-height: 0; }
+.modal-cancel-btn {
+  padding: 8px 16px; background: transparent; border: none; color: var(--color-text-secondary);
+}
+.modal-cancel-btn:hover:not(:disabled) { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.modal-form .modal-actions .btn-primary { padding: 8px 18px; font-weight: 600; transition: transform 0.12s ease, opacity 0.18s ease; }
+:root[data-theme="dark"] .modal-form .modal-actions .btn-primary { background: #FFFFFF; color: #09090B; border-color: #FFFFFF; }
+.modal-form .modal-actions .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+.modal-form .modal-actions .btn-primary:active:not(:disabled) { transform: scale(0.97); }
