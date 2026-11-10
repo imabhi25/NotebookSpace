@@ -140,10 +140,25 @@ describe('Sources panel', () => {
     render(React.cloneElement(workspace([src('a', 'Syllabus.pdf')], ['a']), { onCreateNote }));
     fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
     fireEvent.click(within(study()).getByTestId('new-note-btn'));
-    fireEvent.change(within(study()).getByPlaceholderText('Note title...'), { target: { value: 'Heaps' } });
+    fireEvent.change(within(study()).getByPlaceholderText('New Note'), { target: { value: 'Heaps' } });
     fireEvent.change(within(study()).getByPlaceholderText(/Write your study notes/), { target: { value: 'Min-heap basics' } });
     fireEvent.keyDown(within(study()).getByTestId('inline-note-editor'), { key: 'Enter', ctrlKey: true });
     await waitFor(() => expect(onCreateNote).toHaveBeenCalledWith('Heaps', 'Min-heap basics'));
+    await waitFor(() => expect(within(study()).queryByTestId('inline-note-editor')).toBeNull());
+  });
+
+  it('autosaves an existing note on a pause and on returning to Notes, with no Save button', async () => {
+    const onUpdateNote = vi.fn(async () => {});
+    const note = { id: 'n1', title: 'Heaps', content: 'Min-heap', citations: [], created_at: '', updated_at: '' } as any;
+    render(React.cloneElement(workspace([src('a', 'Syllabus.pdf')], ['a']), { onUpdateNote, notes: [note] }));
+    fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
+    fireEvent.click(within(study()).getByText('Heaps'));
+    expect(within(study()).queryByRole('button', { name: 'Save' })).toBeNull();
+    fireEvent.change(within(study()).getByLabelText('Note content'), { target: { value: 'Min-heap basics' } });
+    await waitFor(() => expect(onUpdateNote).toHaveBeenCalledWith('n1', 'Heaps', 'Min-heap basics'), { timeout: 3000 });
+    fireEvent.change(within(study()).getByLabelText('Note content'), { target: { value: 'Min-heap basics, more' } });
+    fireEvent.click(within(study()).getByRole('button', { name: 'Notes' }));
+    await waitFor(() => expect(onUpdateNote).toHaveBeenLastCalledWith('n1', 'Heaps', 'Min-heap basics, more'));
     await waitFor(() => expect(within(study()).queryByTestId('inline-note-editor')).toBeNull());
   });
 
