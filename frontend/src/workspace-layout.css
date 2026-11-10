@@ -1703,3 +1703,12 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 @media (prefers-reduced-motion: reduce) {
   .workspace-layout .context-slot, .workspace-layout .context-slot aside.workspace-context-panel { transition: none; }
 }
+
+/* Note studio: no focus box on the title or writing canvas (caret is the focus cue) */
+.studio-note .note-editor-title:focus, .studio-note .note-editor-title:focus-visible,
+.studio-note .note-editor-body:focus, .studio-note .note-editor-body:focus-visible,
+.studio-note input:focus, .studio-note input:focus-visible,
+.studio-note textarea:focus, .studio-note textarea:focus-visible,
+.studio-note [contenteditable]:focus, .studio-note [contenteditable]:focus-visible {
+  outline: none !important; box-shadow: none !important; border-color: transparent !important;
+}
