@@ -558,11 +558,30 @@ export function App({
 
   const handleDeleteMessage = async (msgId: string) => {
     if (!activeSubject || !activeConversationId) return;
-    setMessages((prev) => prev.filter((m) => m.id !== msgId));
-    try {
-      await api.deleteMessage(activeSubject.id, activeConversationId, msgId);
-    } catch (err) {
-      console.error('Failed to delete message:', err);
+    const subjectId = activeSubject.id;
+    const conversationId = activeConversationId;
+    // A turn is a question plus the answer that follows it; remove both together.
+    const idx = messages.findIndex((m) => m.id === msgId);
+    if (idx < 0) return;
+    const userIdx = messages[idx].role === 'user' ? idx : (idx > 0 && messages[idx - 1].role === 'user' ? idx - 1 : -1);
+    const ids = new Set<string>([msgId]);
+    if (userIdx >= 0) {
+      ids.add(messages[userIdx].id);
+      const answer = messages[userIdx + 1];
+      if (answer && answer.role === 'assistant') ids.add(answer.id);
+    }
+    setMessages((prev) => prev.filter((m) => !ids.has(m.id)));
+    const results = await Promise.allSettled(
+      [...ids].map((id) => api.deleteMessage(subjectId, conversationId, id)),
+    );
+    if (results.some((r) => r.status === 'rejected')) {
+      console.error('Failed to delete turn:', results);
+      // Re-sync with the server so the thread never shows a deletion that did not persist.
+      try {
+        setMessages(await api.getMessages(subjectId, conversationId));
+      } catch (err) {
+        console.error('Failed to reload messages:', err);
+      }
     }
   };
 
