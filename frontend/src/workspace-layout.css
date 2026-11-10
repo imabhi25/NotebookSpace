@@ -1950,3 +1950,24 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .composer-box-stacked .composer-foot .scope-wrap { order: 1; flex: 0 1 auto; margin: 0 8px 0 0; }
 .workspace-layout .composer-box-stacked .composer-foot .composer-send-btn,
 .workspace-layout .composer-box-stacked .composer-foot .composer-stop-btn { order: 2; margin-left: 0; }
+
+/* Center column: the thread text and the composer share one 720px column with the same 32px gutters,
+   so answer text, action icons and the composer box share left and right edges. */
+.workspace-layout .thread-scroll-container { padding-inline: 32px; box-sizing: border-box; }
+.workspace-layout .thread-content-max { width: 100%; max-width: 720px; margin: 0 auto; box-sizing: content-box; }
+.workspace-layout .workspace-main-area > .composer-container {
+  width: 100%; max-width: calc(720px + 64px); margin: 0 auto; padding-left: 32px; padding-right: 32px; box-sizing: border-box;
+}
+.workspace-layout .composer-form { width: 100%; max-width: 100%; }
+.workspace-layout .thread-turn, .workspace-layout .assistant-message, .workspace-layout .answer-view-container,
+.workspace-layout .answer-action-toolbar { width: 100%; max-width: 100%; margin-left: 0; margin-right: 0; box-sizing: border-box; }
+@media (max-width: 640px) {
+  .workspace-layout .thread-scroll-container { padding-inline: 16px; }
+  .workspace-layout .workspace-main-area > .composer-container { padding-left: 16px; padding-right: 16px; max-width: calc(720px + 32px); }
+}
+
+/* Composer footer: Add sources far left, Send far right, never adjacent. */
+.workspace-layout .composer-box-stacked .composer-foot { display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box; }
+.workspace-layout .composer-box-stacked .composer-foot .composer-add-btn { margin-left: 0 !important; margin-right: auto; }
+.workspace-layout .composer-box-stacked .composer-foot .composer-send-btn,
+.workspace-layout .composer-box-stacked .composer-foot .composer-stop-btn { margin-left: auto; margin-right: 0; }
