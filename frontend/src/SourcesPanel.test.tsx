@@ -131,7 +131,20 @@ describe('Sources panel', () => {
 
     fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
     fireEvent.click(within(study()).getByTestId('new-note-btn'));
-    expect(screen.getByRole('heading', { name: 'Create Note' })).toBeInTheDocument();
+    expect(within(study()).getByTestId('inline-note-editor')).toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /note/i })).toBeNull();
+  });
+
+  it('writes and saves a note inline in the study panel, with Ctrl+Enter', async () => {
+    const onCreateNote = vi.fn(async () => {});
+    render(React.cloneElement(workspace([src('a', 'Syllabus.pdf')], ['a']), { onCreateNote }));
+    fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
+    fireEvent.click(within(study()).getByTestId('new-note-btn'));
+    fireEvent.change(within(study()).getByPlaceholderText('Note title...'), { target: { value: 'Heaps' } });
+    fireEvent.change(within(study()).getByPlaceholderText(/Write your study notes/), { target: { value: 'Min-heap basics' } });
+    fireEvent.keyDown(within(study()).getByTestId('inline-note-editor'), { key: 'Enter', ctrlKey: true });
+    await waitFor(() => expect(onCreateNote).toHaveBeenCalledWith('Heaps', 'Min-heap basics'));
+    await waitFor(() => expect(within(study()).queryByTestId('inline-note-editor')).toBeNull());
   });
 
   it('keeps chat switching in the study panel and out of the sources rail', () => {

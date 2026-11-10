@@ -487,7 +487,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [noteFormContent, setNoteFormContent] = useState('');
 
   // Focus trap refs
-  const createNoteModalRef = useModalFocus(isCreateNoteOpen, () => setIsCreateNoteOpen(false));
   const settingsModalRef = useModalFocus(isSettingsOpen, () => setIsSettingsOpen(false));
   const renameModalRef = useModalFocus(Boolean(renamingSource), () => setRenamingSource(null));
 
@@ -669,7 +668,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     setNoteFormTitle(note?.title ?? '');
     setNoteFormContent(note?.content ?? '');
     setIsCreateNoteOpen(true);
+    setContextView('notes');
+    setContextCollapsed(false);
   };
+  const saveNoteInline = async () => {
+    const title = noteFormTitle.trim();
+    const content = noteFormContent.trim();
+    if (!title || !content) return;
+    if (editingNote) await onUpdateNote(editingNote.id, title, content);
+    else await onCreateNote(title, content);
+    setIsCreateNoteOpen(false);
+    setEditingNote(null);
+  };
+  const closeNoteEditor = () => { setIsCreateNoteOpen(false); setEditingNote(null); };
   // A shortcut never opens on top of another dialog; the dialog owns the keyboard until it closes.
   const dialogOpen = isAddSourceOpen || isCreateNoteOpen || isSettingsOpen || historyOpen || Boolean(viewingSource) || Boolean(renamingSource);
   const shortcutRef = useRef({ dialogOpen, paletteOpen, toggleSourcesPanel, toggleStudyPanel });
@@ -1920,8 +1931,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             />
           )}
           <div className="context-tabs-row">
-          <div className="context-view-switcher sidebar-segment-switcher sliding-tabs" ref={contextTabsRef} role="group" aria-label="Panel view">
-            <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
+          <div className="context-view-switcher sidebar-segment-switcher sliding-tabs" ref={contextTabsRef} role="group" aria-label="Panel view" data-active={contextView === 'notes' ? 'notes' : 'evidence'}>
+            <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>{notes.length > 0 ? `Notes · ${notes.length}` : 'Notes'}</button>
             <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => setContextView('evidence')} data-testid="right-panel-tab-evidence">Evidence</button>
           </div>
           <button type="button" ref={contextToggleRef} className="rail-icon-btn context-collapse-btn" onClick={closeContextPanel}
@@ -1960,6 +1971,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                         const passage = retrievedMatchingChunks.map(c => c.text).join('\n\n') || selectedCitation.excerpt || '';
                                         setNoteFormContent(`${passage}\n\nSource: ${selectedCitation.file}, page ${selectedCitation.page}`);
                                         setIsCreateNoteOpen(true);
+                                        setContextView('notes');
                                       }} aria-label="Save passage to notes">Save to notes</button>
                                     }
                                   />
@@ -1971,23 +1983,59 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           {/* RIGHT PANEL CONTENT: SAVED NOTES VIEW */}
           {contextView === 'notes' && (
             <div className="right-panel-body tab-panel-fade" key="panel-notes">
-              <button
-                type="button"
-                className="btn btn-secondary btn-full btn-new-conv"
-                onClick={() => {
-                  setNoteFormTitle('');
-                  setNoteFormContent('');
-                  setEditingNote(null);
-                  setIsCreateNoteOpen(true);
-                }}
-                data-testid="new-note-btn"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>+ New note</span>
-              </button>
+              {isCreateNoteOpen ? (
+                <form className="note-editor" data-testid="inline-note-editor" aria-label={editingNote ? 'Edit note' : 'New note'}
+                  onSubmit={(e) => { e.preventDefault(); void saveNoteInline(); }}
+                  onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void saveNoteInline(); } }}>
+                  <div className="note-editor-bar">
+                    <button type="button" className="note-editor-back" onClick={closeNoteEditor}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
+                      <span>All notes</span>
+                    </button>
+                    <div className="note-editor-actions">
+                      {editingNote && (
+                        <button type="button" className="rail-icon-btn note-editor-delete" aria-label="Delete note" title="Delete note"
+                          onClick={() => {
+                            if (window.confirm(`Delete note "${editingNote.title}"?`)) { onDeleteNote(editingNote.id); closeNoteEditor(); }
+                          }}>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" aria-hidden="true">
+                            <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                          </svg>
+                        </button>
+                      )}
+                      <button type="submit" className="note-editor-save" disabled={!noteFormTitle.trim() || !noteFormContent.trim()}>Save</button>
+                    </div>
+                  </div>
+                  <div className="note-editor-sheet">
+                    <input id="note-title-input" className="note-editor-title" type="text" placeholder="Note title..." aria-label="Note title"
+                      value={noteFormTitle} onChange={(e) => setNoteFormTitle(e.target.value)} autoFocus />
+                    {editingNote?.citations && editingNote.citations.length > 0 && (
+                      <div className="note-citations-chips">
+                        {editingNote.citations.map((c, cIdx) => (
+                          <button key={cIdx} type="button" className="citation-chip note-citation-chip"
+                            onClick={() => { closeNoteEditor(); handleSelectCitation(c, editingNote.id); }}
+                            title={`${c.file} (Page ${c.page})`}>
+                            <span className="citation-chip-num">{cIdx + 1}</span>
+                            <span className="citation-chip-name">{c.file}</span>
+                            <span className="citation-chip-page">p.{c.page}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                    <textarea id="note-content-input" className="note-editor-body" placeholder="Write your study notes, formulas, or key takeaways..."
+                      aria-label="Note content" value={noteFormContent} onChange={(e) => setNoteFormContent(e.target.value)} />
+                  </div>
+                </form>
+              ) : (
+              <>
+              <div className="notes-top-bar">
+                <button type="button" className="notes-new-pill" data-testid="new-note-btn" onClick={() => openNoteEditor(null)}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.25" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>New note</span>
+                </button>
+              </div>
 
               {notes.length > 5 && (
                 <div className="source-search-container">
@@ -2003,7 +2051,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
               <div className="notes-list-scroll">
                 {notes.length === 0 ? (
-                  <p className="study-empty">Save an answer or write your own note.</p>
+                  <button type="button" className="notes-empty-card" onClick={() => openNoteEditor(null)}>
+                    <span className="notes-empty-title">No notes yet</span>
+                    <span className="notes-empty-sub">Save an answer or write your own note.</span>
+                  </button>
                 ) : filteredNotes.length === 0 ? (
                   <p className="sidebar-empty-box"><EmptyStateIcon />No notes matching search.</p>
                 ) : (
@@ -2017,17 +2068,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                         onKeyDown={(e) => {
                           if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
                             e.preventDefault();
-                            setEditingNote(n);
-                            setNoteFormTitle(n.title);
-                            setNoteFormContent(n.content);
-                            setIsCreateNoteOpen(true);
+                            openNoteEditor(n);
                           }
                         }}
                         onClick={() => {
-                          setEditingNote(n);
-                          setNoteFormTitle(n.title);
-                          setNoteFormContent(n.content);
-                          setIsCreateNoteOpen(true);
+                          openNoteEditor(n);
                         }}
                       >
                         <div className="note-card-top">
@@ -2088,6 +2133,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </ul>
                 )}
               </div>
+              </>
+              )}
             </div>
           )}
 
@@ -2182,83 +2229,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <div className="modal-actions">
                 <button type="submit" className="btn btn-primary">
                   Save
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Create / Edit Note Modal */}
-      {isCreateNoteOpen && (
-        <div className="modal-backdrop" onClick={() => setIsCreateNoteOpen(false)}>
-          <div ref={createNoteModalRef} className="modal-content modal-content-md" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>{editingNote ? 'Edit Note' : 'Create Note'}</h2>
-              <button type="button" className="modal-close-btn" onClick={() => setIsCreateNoteOpen(false)} aria-label="Close">
-                &times;
-              </button>
-            </div>
-            <form
-              onSubmit={async (e) => {
-                e.preventDefault();
-                if (!noteFormTitle.trim() || !noteFormContent.trim()) return;
-                if (editingNote) {
-                  await onUpdateNote(editingNote.id, noteFormTitle.trim(), noteFormContent.trim());
-                } else {
-                  await onCreateNote(noteFormTitle.trim(), noteFormContent.trim());
-                }
-                setIsCreateNoteOpen(false);
-              }}
-              className="modal-form"
-            >
-              <div className="form-group">
-                <label htmlFor="note-title-input">Note Title *</label>
-                <input
-                  id="note-title-input"
-                  type="text"
-                  required
-                  value={noteFormTitle}
-                  onChange={(e) => setNoteFormTitle(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              {editingNote?.citations && editingNote.citations.length > 0 && (
-                <div className="form-group">
-                  <label>Referenced Sources</label>
-                  <div className="note-citations-chips">
-                    {editingNote.citations.map((c, cIdx) => (
-                      <button
-                        key={cIdx}
-                        type="button"
-                        className="citation-chip note-citation-chip"
-                        onClick={() => {
-                          setIsCreateNoteOpen(false);
-                          handleSelectCitation(c, editingNote.id);
-                        }}
-                        title={`${c.file} (Page ${c.page})`}
-                      >
-                        <span className="citation-chip-num">{cIdx + 1}</span>
-                        <span className="citation-chip-name">{c.file}</span>
-                        <span className="citation-chip-page">p.{c.page}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-              <div className="form-group">
-                <label htmlFor="note-content-input">Content *</label>
-                <textarea
-                  id="note-content-input"
-                  rows={8}
-                  required
-                  value={noteFormContent}
-                  onChange={(e) => setNoteFormContent(e.target.value)}
-                />
-              </div>
-              <div className="modal-actions">
-                <button type="submit" className="btn btn-primary">
-                  {editingNote ? 'Save Changes' : 'Create Note'}
                 </button>
               </div>
             </form>
