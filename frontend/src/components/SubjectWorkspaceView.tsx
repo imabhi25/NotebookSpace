@@ -70,11 +70,10 @@ function writeDraft(key: string, value: string): void {
   }
 }
 const AUTO_RENAME_KEY = 'notebookspace_auto_rename';
-type SourceSortKey = 'title' | 'date' | 'pages';
+type SourceSortKey = 'title' | 'date';
 const SORT_OPTIONS: { value: SourceSortKey; label: string }[] = [
   { value: 'title', label: 'Title (A–Z)' },
   { value: 'date', label: 'Date added' },
-  { value: 'pages', label: 'Page count' },
 ];
 function readAutoRename(): boolean {
   try { return window.localStorage.getItem(AUTO_RENAME_KEY) === '1'; } catch { return false; }
@@ -86,6 +85,40 @@ function writePanelPref(key: string, open: boolean): void {
     /* storage unavailable: the choice still applies for this visit */
   }
 }
+
+/** Notebook title that reads as plain text until clicked, then edits in place. Enter/blur saves, Escape cancels. */
+const NotebookTitle: React.FC<{ name: string; onRename?: (name: string) => Promise<void> }> = ({ name, onRename }) => {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(name);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const doneRef = useRef(false);
+  useEffect(() => { if (editing) { inputRef.current?.focus(); inputRef.current?.select(); } }, [editing]);
+  if (!onRename) return <h1 className="workspace-subject-pill-name">{name}</h1>;
+  const finish = (save: boolean) => {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    const next = draft.trim();
+    setEditing(false);
+    if (save && next && next !== name) void onRename(next).catch(() => undefined);
+  };
+  return (
+    <h1 className="workspace-subject-pill-name notebook-title">
+      {editing ? (
+        <input ref={inputRef} className="notebook-title-input" value={draft} aria-label="Notebook name" maxLength={120}
+          size={Math.max(draft.length, 3)}
+          onChange={(e) => setDraft(e.target.value)} onBlur={() => finish(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+            else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); setDraft(name); finish(false); }
+          }} />
+      ) : (
+        <span className="notebook-title-text" role="button" tabIndex={0} title="Click to rename"
+          onClick={() => { doneRef.current = false; setDraft(name); setEditing(true); }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'F2') { e.preventDefault(); doneRef.current = false; setDraft(name); setEditing(true); } }}>{name}</span>
+      )}
+    </h1>
+  );
+};
 
 interface SubjectWorkspaceViewProps {
   subject: Subject;
@@ -107,6 +140,8 @@ interface SubjectWorkspaceViewProps {
   onPasteText: (title: string, text: string) => Promise<void>;
   onAddUrl: (url: string, title?: string) => Promise<void>;
   onRenameSource: (sourceId: string, title: string) => Promise<void>;
+  /** Renames the open notebook (click-to-edit title in the header). */
+  onRenameSubject?: (name: string) => Promise<void>;
   onDeleteSource: (sourceId: string) => Promise<void>;
   onRetrySource: (sourceId: string) => Promise<void>;
   onReplaceSource: (sourceId: string, file: File) => Promise<void>;
@@ -160,6 +195,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   onPasteText,
   onAddUrl,
   onRenameSource,
+  onRenameSubject,
   onDeleteSource,
   onRetrySource,
   onReplaceSource,
@@ -1211,7 +1247,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   if (sourceSort) {
     filteredSources.sort((a, b) => {
       if (sourceSort === 'title') return displayTitleFor(a).localeCompare(displayTitleFor(b), undefined, { sensitivity: 'base', numeric: true });
-      if (sourceSort === 'pages') return (b.page_count || 0) - (a.page_count || 0);
       return (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0);
     });
   }
@@ -1264,7 +1299,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <>
               <svg className="workspace-crumb-sep" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
               <div className="workspace-subject-pill workspace-notebook-identity">
-                <h1 className="workspace-subject-pill-name">{subject.name}</h1>
+                <NotebookTitle name={subject.name} onRename={onRenameSubject} />
                 {subject.course_code && <span className="workspace-subject-pill-code">{subject.course_code}</span>}
               </div>
             </>
@@ -1284,7 +1319,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             onClick={() => isContextCollapsed ? setContextCollapsed(false) : closeContextPanel()}
             title={`${isContextCollapsed ? 'Show study panel' : 'Hide study panel'} (${shortcutLabel('\\')})`}
             aria-label="Toggle study panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
             </svg>
 
@@ -1294,7 +1329,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               aria-label="Notebook actions" title="Notebook actions" aria-haspopup="menu" aria-expanded={isActionsOpen}
               aria-controls="workspace-actions-menu" onClick={() => setIsActionsOpen(!isActionsOpen)}
               onKeyDown={(event) => { if (event.key === 'ArrowDown') { event.preventDefault(); setIsActionsOpen(true); } }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
                 <circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" />
               </svg>
             </button>
@@ -1315,7 +1350,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       {titleBelowBar && (
         <div className="workspace-notebook-heading">
           <div className="workspace-subject-pill workspace-notebook-identity">
-            <h1 className="workspace-subject-pill-name">{subject.name}</h1>
+            <NotebookTitle name={subject.name} onRename={onRenameSubject} />
             {subject.course_code && <span className="workspace-subject-pill-code">{subject.course_code}</span>}
           </div>
         </div>
@@ -1339,7 +1374,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <button type="button" ref={navToggleRef} className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
                 title={`Show sources panel (${shortcutLabel('B')})`}
                 aria-label="Toggle sources panel" aria-expanded={false} aria-controls="workspace-nav-panel">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
                   <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
                 </svg>
               </button>
@@ -1376,7 +1411,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <button type="button" className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
                 title={`Hide sources panel (${shortcutLabel('B')})`}
                 aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed && !navHiddenByReader} aria-controls="workspace-nav-panel">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
                   <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
                 </svg>
               </button>
@@ -1441,7 +1476,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                               onClick={() => { setSourceSort(o.value); setIsSortOpen(false); }}>
                               <span>{o.label}</span>
                               {sourceSort === o.value && (
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
                               )}
                             </button>
                           ))}
@@ -1459,7 +1494,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
               {sources.length === 0 ? (
                 <button type="button" className="sources-drop-zone" onClick={() => setIsAddSourceOpen(true)} data-testid="sources-drop-zone">
-                  <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                  <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                     <polyline points="17 8 12 3 7 8" />
                     <line x1="12" y1="3" x2="12" y2="15" />
@@ -1650,7 +1685,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                           aria-label="Retry question"
                                           data-testid={`retry-btn-${msg.id}`}
                                         >
-                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
                                             <polyline points="1 4 1 10 7 10" />
                                             <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
                                           </svg>
@@ -1692,7 +1727,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                         className="outdated-version-badge"
                                         data-testid="outdated-source-warning"
                                       >
-                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
                                           <circle cx="12" cy="12" r="10" />
                                           <line x1="12" y1="8" x2="12" y2="12" />
                                           <line x1="12" y1="16" x2="12.01" y2="16" />
@@ -1741,7 +1776,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     onClick={() => handleCopyAnswer(msg.content, msg.id)}
                                     title="Copy response"
                                   >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
                                       <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
                                       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
                                     </svg>
@@ -1755,7 +1790,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     aria-label="Save to note"
                                     data-testid={`save-note-btn-${msg.id}`}
                                   >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
                                       <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
                                     </svg>
                                     <span>{savedNoteMsgId === msg.id ? 'Saved to notes!' : 'Save to note'}</span>
@@ -1769,7 +1804,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                       aria-label="Retrieval details"
                                       data-testid={`see-retrieval-btn-${msg.id}`}
                                     >
-                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+                                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
                                         <circle cx="11" cy="11" r="8" />
                                         <line x1="21" y1="21" x2="16.65" y2="16.65" />
                                       </svg>
@@ -1885,7 +1920,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           </div>
           <button type="button" className="rail-icon-btn context-collapse-btn" onClick={closeContextPanel}
             title={`Hide study panel (${shortcutLabel('\\')})`} aria-label="Hide study panel">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
             </svg>
           </button>
@@ -1948,7 +1983,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 }}
                 data-testid="new-note-btn"
               >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5">
                   <line x1="12" y1="5" x2="12" y2="19" />
                   <line x1="5" y1="12" x2="19" y2="12" />
                 </svg>
@@ -2043,7 +2078,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             }}
                             aria-label="Delete note"
                           >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
                               <polyline points="3 6 5 6 21 6" />
                               <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
                             </svg>
