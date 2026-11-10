@@ -50,7 +50,7 @@ const CONTEXT_PREF_KEY = 'notebookspace_context_open';
 const NAV_W_KEY = 'notebookspace_nav_w';
 const CTX_W_KEY = 'notebookspace_ctx_w';
 const NAV_W = { def: 260, min: 210, max: 400, snap: 130 };
-const CTX_W = { def: 350, min: 300, max: 560, snap: 180, note: 420 };
+const CTX_W = { def: 360, min: 300, max: 560, snap: 180, note: 420 };
 const clampW = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(v)));
 function readWidth(key: string, def: number, min: number, max: number): number {
   try {
@@ -272,11 +272,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   };
   // Below 1180px the materials panel is an on-demand overlay; below 961px navigation is a drawer.
   const isContextOverlay = useMediaQuery('(max-width: 1180px)', overlayViewport()) || isCompact;
+  const resizingRef = useRef(false);
+  // Reopening a closed panel always starts from its default width, not the squeezed one it was closed at.
+  const resetNavWidth = () => { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); rootRef.current?.style.setProperty('--nav-w', `${NAV_W.def}px`); };
+  const resetCtxWidth = () => { noteWidthRestore.current = null; setCtxW(CTX_W.def); writeWidth(CTX_W_KEY, CTX_W.def); rootRef.current?.style.setProperty('--ctx-w', `${CTX_W.def}px`); };
   const setNavCollapsed = (collapsed: boolean, remember = true) => {
+    if (!collapsed && isNavCollapsed && !resizingRef.current) resetNavWidth();
     setIsNavCollapsed(collapsed);
     if (remember && !isCompact) writePanelPref(NAV_PREF_KEY, !collapsed);
   };
   const setContextCollapsed = (collapsed: boolean, remember = true) => {
+    if (!collapsed && isContextCollapsed && !resizingRef.current) resetCtxWidth();
     setIsContextCollapsed(collapsed);
     if (remember && !isContextOverlay) writePanelPref(CONTEXT_PREF_KEY, !collapsed);
   };
@@ -294,8 +300,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const startResize = (side: 'left' | 'right') => (e: React.PointerEvent<HTMLElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
-    const handle = e.currentTarget;
-    try { handle.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
     const cfg = side === 'left' ? NAV_W : CTX_W;
     const collapsed0 = side === 'left' ? isNavCollapsed : isContextCollapsed;
     const startW = collapsed0 ? (side === 'left' ? 52 : 0) : (side === 'left' ? navW : ctxW);
@@ -304,6 +308,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     let width = side === 'left' ? navW : ctxW;
     let collapsed = collapsed0;
     setResizing(side);
+    resizingRef.current = true;
     const move = (ev: PointerEvent) => {
       const raw = startW + (side === 'left' ? ev.clientX - startX : startX - ev.clientX);
       const shouldCollapse = raw < cfg.snap;
@@ -315,16 +320,25 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       rootRef.current?.style.setProperty(varName, `${width}px`);
     };
     const done = () => {
-      handle.removeEventListener('pointermove', move);
-      handle.removeEventListener('pointerup', done);
-      handle.removeEventListener('pointercancel', done);
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', done);
+      window.removeEventListener('pointercancel', done);
       setResizing(null);
+      resizingRef.current = false;
       if (side === 'left') { setNavW(width); writeWidth(NAV_W_KEY, width); } else { setCtxW(width); writeWidth(CTX_W_KEY, width); }
     };
-    handle.addEventListener('pointermove', move);
-    handle.addEventListener('pointerup', done);
-    handle.addEventListener('pointercancel', done);
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', done);
+    window.addEventListener('pointercancel', done);
   };
+  const resizeHandle = (side: 'left' | 'right', inPanel: boolean) => (
+    <div className={`panel-resize-handle panel-resize-${side} ${inPanel ? 'in-panel' : 'in-slot'}`} role="separator" aria-orientation="vertical"
+      aria-label={side === 'left' ? 'Resize sources panel' : 'Resize study panel'} tabIndex={0}
+      aria-valuemin={side === 'left' ? NAV_W.min : CTX_W.min} aria-valuemax={side === 'left' ? NAV_W.max : CTX_W.max}
+      aria-valuenow={side === 'left' ? (isNavCollapsed ? 0 : navW) : (isContextCollapsed ? 0 : ctxW)}
+      data-resizing={resizing === side ? 'true' : undefined}
+      onPointerDown={startResize(side)} onDoubleClick={() => resetWidth(side)} onKeyDown={nudgeWidth(side)} />
+  );
   const resetWidth = (side: 'left' | 'right') => {
     if (side === 'left') { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); setNavCollapsed(false); }
     else { setCtxW(CTX_W.def); writeWidth(CTX_W_KEY, CTX_W.def); setContextCollapsed(false); }
@@ -1554,10 +1568,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         )}
         {/* LEFT: sources (notebook, add, find, selection, list) */}
         <div className={`nav-slot ${isNavCollapsed || navHiddenByReader ? 'is-collapsed' : ''}`}>
-          <div className="panel-resize-handle panel-resize-left" role="separator" aria-orientation="vertical" aria-label="Resize sources panel" tabIndex={0}
-            aria-valuemin={NAV_W.min} aria-valuemax={NAV_W.max} aria-valuenow={isNavCollapsed ? 0 : navW} title="Drag to resize · double-click to reset"
-            data-resizing={resizing === 'left' ? 'true' : undefined}
-            onPointerDown={startResize('left')} onDoubleClick={() => resetWidth('left')} onKeyDown={nudgeWidth('left')} />
+          {isNavCollapsed && resizeHandle('left', false)}
           {(isNavCollapsed || navHiddenByReader) && (
             <div className="nav-expand-rail" role="toolbar" aria-label="Sources rail" aria-orientation="vertical">
               <button type="button" ref={navToggleRef} className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
@@ -1592,6 +1603,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           )}
           <aside className="workspace-nav workspace-sources-rail" id="workspace-nav-panel" aria-label="Sources"
             aria-hidden={isNavCollapsed || navHiddenByReader} ref={navPanelRef} tabIndex={-1}>
+            {!isNavCollapsed && resizeHandle('left', true)}
             <div className="rail-header">
               <div className="rail-title-group">
                 <h2 className="rail-title">Sources<span className="sr-only"> ({sources.length})</span></h2>
@@ -2073,10 +2085,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <div
           className={`context-slot ${isContextCollapsed ? 'is-collapsed' : ''}`}
         >
-          <div className="panel-resize-handle panel-resize-right" role="separator" aria-orientation="vertical" aria-label="Resize study panel" tabIndex={0}
-            aria-valuemin={CTX_W.min} aria-valuemax={CTX_W.max} aria-valuenow={isContextCollapsed ? 0 : ctxW} title="Drag to resize · double-click to reset"
-            data-resizing={resizing === 'right' ? 'true' : undefined}
-            onPointerDown={startResize('right')} onDoubleClick={() => resetWidth('right')} onKeyDown={nudgeWidth('right')} />
+          {isContextCollapsed && resizeHandle('right', false)}
         {isContextCollapsed && (
           <button type="button" ref={contextToggleRef} className="rail-icon-btn context-expand-btn" onClick={() => setContextCollapsed(false)}
             title={`Open citations panel (${shortcutLabel('\\')})`} aria-label="Open citations panel" aria-expanded={false} aria-controls="workspace-sources-panel">
@@ -2093,6 +2102,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           id="workspace-sources-panel" aria-hidden={isContextCollapsed} ref={contextPanelRef} tabIndex={-1}
           aria-label={reader ? 'Source reader' : 'Study panel'} data-reader={reader ? (readerExpanded ? 'expanded' : 'compact') : undefined}
         >
+          {!isContextCollapsed && resizeHandle('right', true)}
           {reader && (
             <SourceReader
               title={readerSource?.title ?? reader.cite?.citation.file ?? 'Source'}
@@ -2201,8 +2211,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     </button>
                   </div>
                   <div className="note-toolbar" role="toolbar" aria-label="Formatting">
-                    <button type="button" className="note-tool" aria-label="Undo" title="Undo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('undo')}>↶</button>
-                    <button type="button" className="note-tool" aria-label="Redo" title="Redo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('redo')}>↷</button>
+                    <button type="button" className="note-tool" aria-label="Undo" title="Undo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('undo')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H6" /></svg></button>
+                    <button type="button" className="note-tool" aria-label="Redo" title="Redo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('redo')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5" /><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H18" /></svg></button>
                     <span className="note-tool-sep" aria-hidden="true" />
                     <div className="note-menu-anchor" data-note-menu>
                       <button type="button" className={`note-block-btn ${noteMenu === 'block' ? 'is-open' : ''}`} aria-label="Text style" aria-haspopup="menu" aria-expanded={noteMenu === 'block'}
@@ -2220,13 +2230,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     </div>
                     <span className="note-tool-sep" aria-hidden="true" />
                     <button type="button" className={`note-tool note-tool-bold ${noteFormats.bold ? 'is-active' : ''}`} aria-label="Bold" aria-pressed={noteFormats.bold} title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => noteExec('bold')}>B</button>
-                    <button type="button" className={`note-tool note-tool-italic ${noteFormats.italic ? 'is-active' : ''}`} aria-label="Italic" aria-pressed={noteFormats.italic} title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => noteExec('italic')}>I</button>
+                    <button type="button" className={`note-tool note-tool-italic ${noteFormats.italic ? 'is-active' : ''}`} aria-label="Italic" aria-pressed={noteFormats.italic} title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => noteExec('italic')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="19" y1="4" x2="10" y2="4" /><line x1="14" y1="20" x2="5" y2="20" /><line x1="15" y1="4" x2="9" y2="20" /></svg></button>
                     <span className="note-tool-sep" aria-hidden="true" />
                     <button type="button" className="note-tool" aria-label="Insert link" title="Insert link" onMouseDown={(e) => e.preventDefault()} onClick={noteLink}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" /></svg>
                     </button>
                     <button type="button" className="note-tool" aria-label="Inline code" title="Inline code" onMouseDown={(e) => e.preventDefault()} onClick={noteInlineCode}>{'<>'}</button>
-                    <button type="button" className="note-tool" aria-label="Code block" title="Code block" onMouseDown={(e) => e.preventDefault()} onClick={noteCodeBlock}>{'[<>]'}</button>
+                    <button type="button" className="note-tool" aria-label="Code block" title="Code block" onMouseDown={(e) => e.preventDefault()} onClick={noteCodeBlock}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="8 8 4 12 8 16" /><polyline points="16 8 20 12 16 16" /><line x1="13.5" y1="6" x2="10.5" y2="18" /></svg></button>
                     <span className="note-tool-sep" aria-hidden="true" />
                     <div className="note-menu-anchor note-more-anchor" data-note-menu>
                       <button type="button" className={`note-tool ${noteMenu === 'more' ? 'is-active' : ''}`} aria-label="More formatting" title="More formatting" aria-haspopup="menu" aria-expanded={noteMenu === 'more'}
