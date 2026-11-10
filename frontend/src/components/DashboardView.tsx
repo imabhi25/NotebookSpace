@@ -1,3 +1,4 @@
+import { cancelPrefetch, schedulePrefetch } from '../prefetch';
 import { BackendStatus } from './BackendStatus';
 import { useModalFocus } from '../useModalFocus';
 import { ReferenceIcon } from './ReferenceIcon';
@@ -870,6 +871,9 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       role="listitem"
                       className={`notebook-card ${menuOpenSubjectId === s.id ? 'menu-open' : ''}`}
                       onClick={() => onOpenSubject(s.id)}
+                      onPointerEnter={() => schedulePrefetch(s.id)}
+                      onPointerLeave={() => cancelPrefetch(s.id)}
+                      onFocus={(e) => { if (e.target === e.currentTarget) schedulePrefetch(s.id); }}
                       data-testid={`subject-card-${s.id}`}
                       tabIndex={0}
                       onKeyDown={(e) => {

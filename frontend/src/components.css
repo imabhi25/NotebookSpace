@@ -2406,3 +2406,61 @@ aside .retrieval-svg,
 @media (max-width: 960px) {
   .workspace-right-panel:not(.right-open), .workspace-sidebar:not(.sidebar-open) { pointer-events: none; box-shadow: none; }
 }
+
+/* ==========================================================================
+   Modern web upgrades (progressive; every block degrades to the rules above)
+   ========================================================================== */
+
+/* Intrinsic-size animation: height/width can transition to and from `auto`, so <details>, accordions and
+   expandable stat panels need only a transition on height. */
+:root { interpolate-size: allow-keywords; }
+
+/* Smooth open/close for the dashboard help <details> (content-visibility is what the UA animates). */
+.home-help::details-content {
+  block-size: 0; overflow: clip;
+  transition: block-size var(--motion-fast, .15s) ease, content-visibility var(--motion-fast, .15s) allow-discrete;
+}
+.home-help[open]::details-content { block-size: auto; }
+
+/* Entry transitions for floating popovers/menus. @starting-style gives them a "from" state on insertion;
+   allow-discrete lets display/overlay changes ride the same transition where the element is toggled. */
+.note-popover, .scope-popover, .workspace-overflow-menu, .sources-sort-menu, .source-row-menu, .note-block-menu {
+  transition: opacity .14s ease, transform .14s cubic-bezier(0.16, 1, 0.3, 1), display .14s allow-discrete, overlay .14s allow-discrete;
+  transition-behavior: allow-discrete;
+}
+.modal-backdrop, .modal-content { transition-behavior: allow-discrete; }
+@starting-style {
+  .note-popover, .scope-popover, .workspace-overflow-menu, .source-row-menu, .note-block-menu { opacity: 0; transform: translateY(-4px) scale(0.98); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .note-popover, .scope-popover, .workspace-overflow-menu, .sources-sort-menu, .source-row-menu, .note-block-menu, .home-help::details-content { transition: none; }
+}
+
+/* Sliding segmented highlight: let the browser track the active tab instead of JS measurements. */
+@supports (anchor-name: --a) and (position-area: top) {
+  .sliding-tabs:not(.context-view-switcher) { anchor-scope: --tab-active; }
+  .sliding-tabs:not(.context-view-switcher) > :is(.active, [aria-selected="true"]) { anchor-name: --tab-active; }
+  .sliding-tabs:not(.context-view-switcher).sliding-tabs::before {
+    position-anchor: --tab-active;
+    left: anchor(left); width: anchor-size(width); transform: none;
+  }
+  .sliding-tabs[data-ind-ready]:not(.context-view-switcher).sliding-tabs::before {
+    transition: left .24s cubic-bezier(0.16, 1, 0.3, 1), width .24s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+/* Dashboard cards adapt to their own width, not the viewport. */
+.notebook-card { container: notebook-card / inline-size; }
+.notebook-card-body, .notebook-card-footer { min-width: 0; }
+@container notebook-card (max-width: 260px) {
+  .notebook-card-top { margin-bottom: var(--space-2); }
+  .notebook-card-description { display: none; }
+  .notebook-card-meta { font-size: var(--type-caption); }
+}
+@container notebook-card (min-width: 380px) {
+  .notebook-card-title { font-size: calc(var(--type-title, 1.125rem) * 1.08); }
+}
+
+/* Headings and prose break lines more evenly. */
+:is(h1, h2, h3, .notebook-card-title) { text-wrap: balance; }
+.answer-text, .markdown-content, .notebook-card-description { text-wrap: pretty; }

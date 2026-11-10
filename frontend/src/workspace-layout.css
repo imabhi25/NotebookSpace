@@ -1971,3 +1971,44 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .composer-box-stacked .composer-foot .composer-add-btn { margin-left: 0 !important; margin-right: auto; }
 .workspace-layout .composer-box-stacked .composer-foot .composer-send-btn,
 .workspace-layout .composer-box-stacked .composer-foot .composer-stop-btn { margin-left: auto; margin-right: 0; }
+
+/* ==========================================================================
+   Modern web upgrades: containers, scroll behaviour, anchored tooltips
+   ========================================================================== */
+
+/* Panels respond to their own (resizable) width. Named containers keep queries scoped. */
+.sources-panel, .workspace-sources-rail { container: sources-panel / inline-size; }
+.workspace-center, .workspace-main-area { container: workspace-center / inline-size; }
+.study-panel, .workspace-context-panel { container: study-panel / inline-size; }
+@container sources-panel (max-width: 260px) {
+  .sources-panel-body { padding-inline: var(--space-2); }
+  .sources-toolbar { gap: 2px; }
+}
+@container workspace-center (max-width: 560px) {
+  .workspace-main-area .answer-action-toolbar { gap: 0; }
+}
+@container study-panel (max-width: 340px) {
+  .studio-note .note-toolbar { padding-inline: 4px; gap: 0; }
+  .workspace-context-panel .right-panel-body { padding-inline: var(--space-3); }
+}
+
+/* Scrollable panes: no scroll chaining into the page, and no layout shift when a scrollbar appears. */
+:is(.sources-list-scroll, .workspace-nav-list, .right-panel-body, .sidebar-tab-content, .note-studio-canvas, .chat-scroll, .messages-scroll) {
+  overscroll-behavior: contain; scrollbar-gutter: stable;
+}
+
+/* Tooltips via CSS anchor positioning: the browser flips them when they'd leave the viewport/panel,
+   so they never clip across divider lines. Position resets use !important to beat the legacy
+   per-component offsets above; without anchor support those legacy rules still apply. */
+@supports (anchor-name: --a) and (position-area: top) {
+  :is([data-tip], [data-tooltip]) { anchor-name: --tip; anchor-scope: --tip; }
+  :is([data-tip], [data-tooltip])::after {
+    position: fixed !important; position-anchor: --tip; position-area: block-end;
+    inset: auto !important; transform: none !important; margin: 6px 0 !important;
+    justify-self: anchor-center; position-try-fallbacks: flip-block, --tip-from-start, --tip-from-end;
+  }
+  .composer-add-btn[data-tooltip]::after { position-area: block-start; }
+  .nav-rail-sources [data-tip]::after { position-area: inline-end; justify-self: auto; align-self: anchor-center; margin: 0 8px !important; position-try-fallbacks: flip-inline, flip-block; }
+  @position-try --tip-from-start { position-area: block-end span-inline-end; justify-self: start; }
+  @position-try --tip-from-end { position-area: block-end span-inline-start; justify-self: end; }
+}
