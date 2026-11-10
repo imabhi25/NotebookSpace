@@ -280,6 +280,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               setError(null);
             }}
           >
+            <svg className="modal-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><polyline points="14 3 14 8 19 8" /></svg>
             File Uploads
           </button>
           <button
@@ -290,6 +291,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               setError(null);
             }}
           >
+            <svg className="modal-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="4" rx="1" /><path d="M16 5h2a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2" /></svg>
             Paste Text
           </button>
           <button
@@ -300,6 +302,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               setError(null);
             }}
           >
+            <svg className="modal-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18" /><path d="M12 3a14 14 0 0 1 0 18a14 14 0 0 1 0-18z" /></svg>
             Webpage URL
           </button>
         </div>
@@ -365,7 +368,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                       onChange={handleFileChange}
                     />
                     <div className="drop-zone-icon" aria-hidden="true">
-                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                         <polyline points="17 8 12 3 7 8" />
                         <line x1="12" y1="3" x2="12" y2="15" />
@@ -375,7 +378,10 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                       Drag and drop files here, or <span className="drop-zone-link">browse</span>
                     </p>
                     <p className="drop-zone-hint">
-                      Supports PDF, Plain Text (.txt), and Markdown (.md). Max 50 MB per file.
+                      <span className="format-chip">PDF</span>
+                      <span className="format-chip">TXT</span>
+                      <span className="format-chip">MD</span>
+                      <span className="format-chip">Max 50MB</span>
                     </p>
                   </div>
 
@@ -468,6 +474,14 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               </button>
             ) : (
               <>
+                <button
+                  type="button"
+                  className="btn btn-ghost modal-cancel-btn"
+                  onClick={handleDismissDialog}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
                 <button
                   type="submit"
                   className="btn btn-primary"
