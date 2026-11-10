@@ -53,7 +53,7 @@ describe('Scope chip reflects real selection and statuses (mocked)', () => {
   it('counts only ready, selected materials and reports processing and failed ones', () => {
     render(<Harness initial={['a', 'c', 'd']} />); // c and d are selected ids but cannot be used
     const chip = screen.getByTestId('scope-chip');
-    expect(chip).toHaveTextContent('Using 1 of 4 materials · 1 processing · 1 failed');
+    expect(chip).toHaveTextContent('1/4 sources · 1 processing · 1 failed');
     expect(chip).toHaveAccessibleName(/1 of 4 materials selected, 1 processing · 1 failed/);
   });
 
@@ -74,18 +74,18 @@ describe('Scope chip reflects real selection and statuses (mocked)', () => {
     render(<Harness />);
     fireEvent.click(screen.getByTestId('scope-chip'));
     fireEvent.click(screen.getByRole('checkbox', { name: 'Use Title b' }));
-    expect(screen.getByTestId('scope-chip')).toHaveTextContent('Using 2 of 4 materials');
+    expect(screen.getByTestId('scope-chip')).toHaveTextContent('2/4 sources');
     fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
     expect(screen.getByTestId('scope-chip')).toHaveTextContent('No materials selected');
     fireEvent.click(screen.getByRole('button', { name: 'Select all ready' }));
-    expect(screen.getByTestId('scope-chip')).toHaveTextContent('Using 2 of 4 materials');
+    expect(screen.getByTestId('scope-chip')).toHaveTextContent('2/4 sources');
   });
 
   it('follows changes made in the materials panel too, and Escape returns focus to the chip', () => {
     render(<Harness />);
     const panelBox = screen.getAllByRole('checkbox', { name: /Select Title b/ })[0];
     fireEvent.click(panelBox);
-    expect(screen.getByTestId('scope-chip')).toHaveTextContent('Using 2 of 4 materials');
+    expect(screen.getByTestId('scope-chip')).toHaveTextContent('2/4 sources');
     fireEvent.click(screen.getByTestId('scope-chip'));
     fireEvent.keyDown(screen.getByRole('dialog', { name: 'Materials for the next question' }), { key: 'Escape' });
     expect(screen.queryByRole('dialog', { name: 'Materials for the next question' })).toBeNull();
@@ -193,8 +193,8 @@ describe('Answer actions and citation access without the chip row (mocked)', () 
     render(<Harness />);
     // The first citation is selected on load, so the evidence is already open.
     const ev = await screen.findByTestId('inline-evidence');
-    expect(within(ev).getByRole('heading', { level: 3 })).toHaveTextContent(/Page/);
-    expect(within(ev).getByText('1 of 3')).toBeInTheDocument();
+    expect(within(ev).getByRole('heading', { level: 3 })).toHaveTextContent(/p\./);
+    expect(within(ev).getByText('1/3')).toBeInTheDocument();
     fireEvent.click(within(ev).getByRole('button', { name: 'Next citation' }));
     fireEvent.click(within(screen.getByTestId('inline-evidence')).getByRole('button', { name: 'Next citation' }));
     await waitFor(() => expect(screen.getByTestId('inline-evidence')).toHaveTextContent('Third passage, never cited inline.'));

@@ -197,9 +197,9 @@ describe('Sources panel', () => {
 
   it('collapses the study panel from its own button and returns focus to its toggle', () => {
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    const toggle = screen.getByRole('button', { name: 'Toggle study panel' });
     fireEvent.click(screen.getByRole('button', { name: 'Toggle study panel' }));
     expect(screen.queryByRole('complementary', { name: 'Study panel' })).toBeNull();
+    const toggle = screen.getByRole('button', { name: 'Toggle study panel' });
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(toggle).toHaveFocus();
     fireEvent.click(toggle);

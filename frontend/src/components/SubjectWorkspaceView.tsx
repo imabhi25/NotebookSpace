@@ -269,7 +269,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   useEffect(() => {
     if (refocusNavToggle.current && isNavCollapsed) { refocusNavToggle.current = false; navToggleRef.current?.focus(); }
   }, [isNavCollapsed]);
-  const closeContextPanel = () => { setContextCollapsed(true); contextToggleRef.current?.focus(); };
+  // The toggle that reopens the panel only exists once the panel is collapsed, so focus moves to it after the render.
+  const refocusContextToggle = useRef(false);
+  const closeContextPanel = () => { refocusContextToggle.current = true; setContextCollapsed(true); };
+  useEffect(() => {
+    if (isContextCollapsed && refocusContextToggle.current) {
+      refocusContextToggle.current = false;
+      contextToggleRef.current?.focus();
+    }
+  }, [isContextCollapsed]);
 
   const contextOverlayOpen = isContextOverlay && !isContextCollapsed;
   const navDrawerOpen = isCompact && !isNavCollapsed;
@@ -1314,16 +1322,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <button type="button" className="workspace-history-btn" onClick={() => setHistoryOpen(true)} aria-label="Conversation history" title="Conversation history">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 119 10M3 4v7h7M12 7v5l3 2"/></svg>
           </button>
-          <button type="button" ref={contextToggleRef}
-            className={`workspace-toggle-btn ${!isContextCollapsed ? 'active' : ''}`}
-            onClick={() => isContextCollapsed ? setContextCollapsed(false) : closeContextPanel()}
-            title={`${isContextCollapsed ? 'Show study panel' : 'Hide study panel'} (${shortcutLabel('\\')})`}
-            aria-label="Toggle study panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
-            </svg>
-
-          </button>
           <div className="workspace-actions-menu" ref={menuRootRef}>
             <button type="button" ref={menuButtonRef} className="btn-icon workspace-top-icon-btn"
               aria-label="Notebook actions" title="Notebook actions" aria-haspopup="menu" aria-expanded={isActionsOpen}
@@ -1884,6 +1882,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <div
           className={`context-slot ${isContextCollapsed ? 'is-collapsed' : ''}`}
         >
+        {isContextCollapsed && (
+          <button type="button" ref={contextToggleRef} className="rail-icon-btn context-expand-btn" onClick={() => setContextCollapsed(false)}
+            title={`Show study panel (${shortcutLabel('\\')})`} aria-label="Toggle study panel" aria-expanded={false} aria-controls="workspace-sources-panel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
+            </svg>
+          </button>
+        )}
         {/* --------------------------------------------------------------------
             RIGHT: floating materials panel (sources)
             -------------------------------------------------------------------- */}
@@ -1918,8 +1924,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
             <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => setContextView('evidence')} data-testid="right-panel-tab-evidence">Evidence</button>
           </div>
-          <button type="button" className="rail-icon-btn context-collapse-btn" onClick={closeContextPanel}
-            title={`Hide study panel (${shortcutLabel('\\')})`} aria-label="Hide study panel">
+          <button type="button" ref={contextToggleRef} className="rail-icon-btn context-collapse-btn" onClick={closeContextPanel}
+            title={`Hide study panel (${shortcutLabel('\\')})`} aria-label="Toggle study panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
             </svg>
@@ -1946,14 +1952,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     onPrevious={handlePreviousCitation}
                                     onNext={handleNextCitation}
                                     onClose={closeEvidence}
-                                    headerExtra={matchedSource ? (
-                                      <button type="button" className="btn-step evidence-open-source" onClick={() => handleOpenSourceViewer(matchedSource)}
-                                        aria-label="Open source" title="Open source">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                          <path d="M14 4h6v6" /><path d="M20 4 10 14" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
-                                        </svg>
-                                      </button>
-                                    ) : undefined}
+                                    displayTitle={matchedSource ? displayTitleFor(matchedSource) : undefined}
                                     footerExtra={
                                       <button type="button" className="evidence-reader-btn evidence-save-btn" onClick={() => {
                                         setEditingNote(null);
