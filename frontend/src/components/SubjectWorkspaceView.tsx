@@ -18,7 +18,8 @@ import {
 } from '../types';
 import { MarkdownRenderer } from './MarkdownRenderer';
 import { lazyView, preloadWhenIdle } from '../lazyView';
-import { SourceRow } from './SourceRow';
+import { SourceRow, SourceTypeIcon, TYPE_INFO } from './SourceRow';
+import { autoCleanTitle } from '../sourceTitles';
 import { useModalFocus } from '../useModalFocus';
 import { useMediaQuery, READER_NAV_ROOM_MIN_WIDTH } from '../viewport';
 import { SourceReader, type ReaderNotice } from './SourceReader';
@@ -67,6 +68,16 @@ function writeDraft(key: string, value: string): void {
   } catch {
     /* storage unavailable: the draft lives in memory only */
   }
+}
+const AUTO_RENAME_KEY = 'notebookspace_auto_rename';
+type SourceSortKey = 'title' | 'date' | 'pages';
+const SORT_OPTIONS: { value: SourceSortKey; label: string }[] = [
+  { value: 'title', label: 'Title (A–Z)' },
+  { value: 'date', label: 'Date added' },
+  { value: 'pages', label: 'Page count' },
+];
+function readAutoRename(): boolean {
+  try { return window.localStorage.getItem(AUTO_RENAME_KEY) === '1'; } catch { return false; }
 }
 function writePanelPref(key: string, open: boolean): void {
   try {
@@ -352,6 +363,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Search queries
   const [sourceSearch, setSourceSearch] = useState('');
+  const [autoRename, setAutoRename] = useState<boolean>(readAutoRename);
+  const [sourceSort, setSourceSort] = useState<SourceSortKey | null>(null);
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const sortRootRef = useRef<HTMLDivElement>(null);
+  const selectAllRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!isSortOpen) return;
+    const onDown = (e: MouseEvent) => { if (!sortRootRef.current?.contains(e.target as Node)) setIsSortOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setIsSortOpen(false); } };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey, true);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey, true); };
+  }, [isSortOpen]);
   const [webQuery, setWebQuery] = useState('');
   const [webHint, setWebHint] = useState('');
   const [initialUrl, setInitialUrl] = useState('');
@@ -1178,11 +1202,30 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   };
 
   // Filtered sources & notes
+  const displayTitleFor = (src: Source) => (autoRename ? autoCleanTitle(src) : src.title);
   const filteredSources = sources.filter((s) => {
     if (!sourceSearch.trim()) return true;
     const q = sourceSearch.toLowerCase();
-    return s.title.toLowerCase().includes(q) || s.file_name.toLowerCase().includes(q);
+    return s.title.toLowerCase().includes(q) || s.file_name.toLowerCase().includes(q) || displayTitleFor(s).toLowerCase().includes(q);
   });
+  if (sourceSort) {
+    filteredSources.sort((a, b) => {
+      if (sourceSort === 'title') return displayTitleFor(a).localeCompare(displayTitleFor(b), undefined, { sensitivity: 'base', numeric: true });
+      if (sourceSort === 'pages') return (b.page_count || 0) - (a.page_count || 0);
+      return (Date.parse(b.created_at) || 0) - (Date.parse(a.created_at) || 0);
+    });
+  }
+  const allReadySelected = readySources.length > 0 && readySources.every((s) => selectedSourceIds.includes(s.id));
+  const someReadySelected = readySources.some((s) => selectedSourceIds.includes(s.id));
+  useEffect(() => {
+    if (selectAllRef.current) selectAllRef.current.indeterminate = someReadySelected && !allReadySelected;
+  });
+  const toggleAutoRename = () => {
+    const next = !autoRename;
+    setAutoRename(next);
+    try { window.localStorage.setItem(AUTO_RENAME_KEY, next ? '1' : '0'); } catch { /* choice applies for this visit */ }
+  };
+  const toggleSelectAll = () => onSelectSources(allReadySelected ? [] : readySources.map((s) => s.id));
 
   const filteredNotes = notes.filter((n) => {
     if (!noteSearch.trim()) return true;
@@ -1289,44 +1332,54 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               else closeNavPanel();
             }} />
         )}
-        {(isNavCollapsed || navHiddenByReader) && (
-          <div className="nav-expand-rail">
-            <button type="button" ref={navToggleRef} className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
-              title={`Show sources panel (${shortcutLabel('B')})`}
-              aria-label="Toggle sources panel" aria-expanded={false} aria-controls="workspace-nav-panel">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
-              </svg>
-            </button>
-            <button type="button" className="rail-icon-btn" onClick={() => setIsAddSourceOpen(true)}
-              aria-label="Add sources" title="Add sources">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-            </button>
-          </div>
-        )}
         {/* LEFT: sources (notebook, add, find, selection, list) */}
         <div className={`nav-slot ${isNavCollapsed || navHiddenByReader ? 'is-collapsed' : ''}`}>
+          {(isNavCollapsed || navHiddenByReader) && (
+            <div className="nav-expand-rail" role="toolbar" aria-label="Sources rail" aria-orientation="vertical">
+              <button type="button" ref={navToggleRef} className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
+                title={`Show sources panel (${shortcutLabel('B')})`}
+                aria-label="Toggle sources panel" aria-expanded={false} aria-controls="workspace-nav-panel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
+                </svg>
+              </button>
+              <button type="button" className="rail-icon-btn" onClick={() => setIsAddSourceOpen(true)}
+                aria-label="Add sources" title="Add sources">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
+              {sources.length > 0 && <span className="nav-rail-divider" aria-hidden="true" />}
+              <div className="nav-rail-sources">
+                {sources.map((src) => {
+                  const t = (src.source_type || 'doc').toLowerCase();
+                  const info = TYPE_INFO[t] || { badge: 'DOC', label: 'Document' };
+                  const tip = `${displayTitleFor(src)}${src.status === 'ready' && src.page_count > 0 ? ` · ${src.page_count} ${src.page_count === 1 ? 'page' : 'pages'}` : ''}`;
+                  return (
+                    <button key={src.id} type="button" className={`rail-icon-btn rail-source-btn ${selectedSourceIds.includes(src.id) ? 'is-selected' : ''}`}
+                      data-tip={tip} aria-label={tip} aria-pressed={selectedSourceIds.includes(src.id)}
+                      disabled={src.status !== 'ready'} onClick={() => handleToggleSource(src.id)}>
+                      <SourceTypeIcon type={t} badge={info.badge} />
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <aside className="workspace-nav workspace-sources-rail" id="workspace-nav-panel" aria-label="Sources"
             aria-hidden={isNavCollapsed || navHiddenByReader} ref={navPanelRef} tabIndex={-1}>
             <div className="rail-header">
-              <h2 className="rail-title">Sources ({sources.length})</h2>
-              <div className="rail-header-actions">
-                <button type="button" className="rail-icon-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn"
-                  aria-label="Add sources" title="Add sources">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-                <button type="button" className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
-                  title={`Hide sources panel (${shortcutLabel('B')})`}
-                  aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed && !navHiddenByReader} aria-controls="workspace-nav-panel">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-                    <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
-                  </svg>
-                </button>
+              <div className="rail-title-group">
+                <h2 className="rail-title">Sources<span className="sr-only"> ({sources.length})</span></h2>
+                <span className="rail-count-pill" aria-hidden="true">{sources.length}</span>
               </div>
+              <button type="button" className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
+                title={`Hide sources panel (${shortcutLabel('B')})`}
+                aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed && !navHiddenByReader} aria-controls="workspace-nav-panel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                  <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
+                </svg>
+              </button>
             </div>
             <div
               className={`sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
@@ -1348,12 +1401,60 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 }
               }}
             >
+              <div className="sources-search-row">
+                {sources.length > 0 && (
+                  <label className="rail-find sources-search">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="20" y1="20" x2="16.5" y2="16.5" /></svg>
+                    <input type="search" placeholder="Find in sources" aria-label="Find in sources" value={sourceSearch}
+                      onChange={(e) => setSourceSearch(e.target.value)} />
+                  </label>
+                )}
+                <button type="button" className="sources-add-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn"
+                  aria-label="Add sources" title="Add sources">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+              </div>
+
               {sources.length > 0 && (
-                <label className="rail-find">
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="20" y1="20" x2="16.5" y2="16.5" /></svg>
-                  <input type="search" placeholder="Find in sources" aria-label="Find in sources" value={sourceSearch}
-                    onChange={(e) => setSourceSearch(e.target.value)} />
-                </label>
+                <div className="sources-toolbar">
+                  <div className="sources-toolbar-left">
+                    <button type="button" className={`sources-tool-btn ${autoRename ? 'is-active' : ''}`} onClick={toggleAutoRename}
+                      aria-label="Auto-rename sources" aria-pressed={autoRename} data-tip="Auto-clean source titles (click to undo)">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" />
+                      </svg>
+                    </button>
+                    <div className="sources-sort" ref={sortRootRef}>
+                      <button type="button" className={`sources-tool-btn ${isSortOpen || sourceSort ? 'is-active' : ''}`} aria-label="Sort sources"
+                        aria-haspopup="menu" aria-expanded={isSortOpen} title="Sort sources" onClick={() => setIsSortOpen((o) => !o)}>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true">
+                          <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="15" y2="12" /><line x1="4" y1="17" x2="10" y2="17" />
+                        </svg>
+                      </button>
+                      {isSortOpen && (
+                        <div className="sources-sort-menu" role="menu" aria-label="Sort sources">
+                          {SORT_OPTIONS.map((o) => (
+                            <button key={o.value} type="button" role="menuitemradio" aria-checked={sourceSort === o.value}
+                              className={`sources-sort-item ${sourceSort === o.value ? 'is-selected' : ''}`}
+                              onClick={() => { setSourceSort(o.value); setIsSortOpen(false); }}>
+                              <span>{o.label}</span>
+                              {sourceSort === o.value && (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <label className="sources-select-all">
+                    <span>Select all</span>
+                    <input ref={selectAllRef} type="checkbox" className="source-row-checkbox" checked={allReadySelected}
+                      disabled={readySources.length === 0} onChange={toggleSelectAll} aria-label="Select all sources" data-testid="select-all-sources" />
+                  </label>
+                </div>
               )}
 
               {sources.length === 0 ? (
@@ -1378,6 +1479,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                           <SourceRow
                             key={s.id}
                             source={s}
+                            displayTitle={displayTitleFor(s)}
                             isSelected={selectedSourceIds.includes(s.id)}
                             onToggle={() => handleToggleSource(s.id)}
                             onView={() => handleOpenSourceViewer(s)}
@@ -1755,10 +1857,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           id="workspace-sources-panel" aria-hidden={isContextCollapsed} ref={contextPanelRef} tabIndex={-1}
           aria-label={reader ? 'Source reader' : 'Study panel'} data-reader={reader ? (readerExpanded ? 'expanded' : 'compact') : undefined}
         >
-          <div className="workspace-sidebar-header">
-            <h2 className="sources-panel-title study-panel-title">Study</h2>
-
-          </div>
           {reader && (
             <SourceReader
               title={readerSource?.title ?? reader.cite?.citation.file ?? 'Source'}
@@ -1780,9 +1878,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               headingRef={readerHeadingRef}
             />
           )}
+          <div className="context-tabs-row">
           <div className="context-view-switcher sidebar-segment-switcher sliding-tabs" ref={contextTabsRef} role="group" aria-label="Panel view">
             <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>Notes ({notes.length})</button>
             <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => setContextView('evidence')} data-testid="right-panel-tab-evidence">Evidence</button>
+          </div>
+          <button type="button" className="rail-icon-btn context-collapse-btn" onClick={closeContextPanel}
+            title={`Hide study panel (${shortcutLabel('\\')})`} aria-label="Hide study panel">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
+            </svg>
+          </button>
           </div>
 
           {contextView === 'evidence' && (
