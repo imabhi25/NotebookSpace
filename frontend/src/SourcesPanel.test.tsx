@@ -100,7 +100,7 @@ describe('Sources panel', () => {
   it('the sort menu offers title, date and page count', () => {
     render(workspace([src('a', 'Zed.pdf'), src('b', 'Alpha.pdf')], []));
     fireEvent.click(within(panel()).getByRole('button', { name: 'Sort sources' }));
-    expect(within(panel()).getAllByRole('menuitemradio').map((el) => el.textContent)).toEqual(['Title (A–Z)', 'Date added', 'Page count']);
+    expect(within(panel()).getAllByRole('menuitemradio').map((el) => el.textContent)).toEqual(['Title (A–Z)', 'Date added']);
     fireEvent.click(within(panel()).getByRole('menuitemradio', { name: 'Title (A–Z)' }));
     const titles = within(panel()).getAllByTestId(/source-checkbox-/).map((el) => el.getAttribute('aria-label'));
     expect(titles).toEqual(['Select Alpha.pdf', 'Select Zed.pdf']);

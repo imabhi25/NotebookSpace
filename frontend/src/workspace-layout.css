@@ -1425,3 +1425,49 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   padding: 1.5px 5px; border-radius: 5px; background: rgba(0, 0, 0, 0.04); border: 1px solid var(--border-subtle, var(--color-border)); font-size: 0.88em;
 }
 :root[data-theme="dark"] :is(.answer-text, .markdown-content) :not(pre) > code { background: rgba(255, 255, 255, 0.06); }
+
+/* ============================================================
+   Sources polish: one checkbox style, single-layer search, flat rows, inline notebook title
+   ============================================================ */
+.workspace-layout .source-row-checkbox, .workspace-layout .sources-select-all .source-row-checkbox {
+  appearance: none; -webkit-appearance: none; box-sizing: border-box; flex: none; position: relative; display: block;
+  width: 16px !important; height: 16px !important; min-width: 16px; min-height: 16px !important; margin: 0 !important; padding: 0;
+  border: 1.5px solid var(--color-text-muted); border-radius: 4px !important; background: transparent; cursor: pointer;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+.workspace-layout .source-row-checkbox::before { content: none !important; display: none !important; }
+.workspace-layout .source-row-checkbox:hover:not(:disabled) { border-color: var(--color-text-secondary); }
+.workspace-layout .source-row-checkbox:checked, .workspace-layout .source-row-checkbox:indeterminate { border-color: var(--color-text-primary); }
+.workspace-layout .source-row-checkbox:checked::after {
+  content: ''; position: absolute; inset: 0; margin: auto; width: 11px; height: 11px; background: var(--color-text-primary);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='5 12.5 10 17.5 19 7'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='5 12.5 10 17.5 19 7'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.workspace-layout .source-row-checkbox:indeterminate::after {
+  content: ''; position: absolute; inset: 0; margin: auto; width: 8px; height: 1.5px; border-radius: 1px; background: var(--color-text-primary);
+}
+.workspace-layout .source-row-checkbox:disabled { opacity: 0.45; cursor: not-allowed; }
+.workspace-layout .source-row-checkbox:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* Same right edge for Select all and every row checkbox */
+.workspace-layout .sources-toolbar { padding: 0 6px 0 2px; }
+.workspace-layout .source-row { padding: 0 6px 0 6px; box-shadow: none; }
+
+/* Single-layer search; flat add button */
+.workspace-layout .sources-search, .workspace-layout label.rail-find {
+  background: var(--bg-canvas, var(--color-surface)); border: 1px solid var(--border-subtle, var(--color-border)); border-radius: 999px;
+  padding: 0 12px; height: 34px; box-shadow: none !important; outline: none;
+}
+.workspace-layout .sources-search:focus-within, .workspace-layout label.rail-find:focus-within { box-shadow: none !important; border-color: var(--color-text-secondary); }
+.workspace-layout .sources-search input, .workspace-layout label.rail-find input {
+  background: transparent !important; border: none !important; box-shadow: none !important; outline: none !important; padding: 0; border-radius: 0;
+}
+.workspace-layout .sources-add-btn, .workspace-layout .sources-add-btn:hover { box-shadow: none; }
+
+/* Notebook title: plain text until clicked */
+.notebook-title-text { cursor: text; border-radius: 4px; }
+.notebook-title-text:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+.workspace-layout .notebook-title-input {
+  font: inherit; color: inherit; letter-spacing: inherit; background: transparent; border: 0; outline: 0; box-shadow: none; padding: 0; margin: 0;
+  min-width: 3ch; max-width: 40ch; width: auto; height: auto; text-overflow: ellipsis;
+}

@@ -1168,6 +1168,7 @@ export function App({
               onPasteText={handlePasteText}
               onAddUrl={handleAddUrl}
               onRenameSource={handleRenameSource}
+              onRenameSubject={(name) => handleUpdateSubject(activeSubject.id, { name })}
               onDeleteSource={handleDeleteSource}
               onRetrySource={handleRetrySource}
               onReplaceSource={handleReplaceSource}
