@@ -55,7 +55,7 @@ describe('Sources panel', () => {
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
     expect(within(panel()).queryByRole('button', { name: 'Create note' })).toBeNull(); // notes live in the study panel
     expect(within(panel()).queryByRole('button', { name: /Switch notebook/ })).toBeNull(); // the breadcrumb switches notebooks
-    expect(within(panel()).getByRole('button', { name: 'Add materials' })).toBeInTheDocument();
+    expect(within(panel()).queryByRole('button', { name: 'Add materials' })).toBeNull();
     expect(within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' })).toBeInTheDocument();
     expect(within(panel()).queryByRole('combobox', { name: 'Where to search' })).toBeNull(); // the single-option select was removed
     expect(within(panel()).queryByRole('combobox', { name: 'Research depth' })).toBeNull(); // the disabled depth selector was removed
@@ -161,14 +161,15 @@ describe('Sources panel', () => {
 
   it('collapses the Sources rail from its own button, reopens from the top bar, and takes it out of reach', () => {
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
-    const toggle = screen.getByRole('button', { name: 'Toggle sources panel' });
-    expect(toggle).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
     expect(screen.queryByRole('complementary', { name: 'Sources' })).toBeNull();
     expect(screen.queryByRole('checkbox', { name: 'Select Syllabus.pdf' })).toBeNull();
-    expect(toggle).toHaveAttribute('aria-expanded', 'false');
-    expect(toggle).toHaveFocus();
-    fireEvent.click(toggle);
+    // The collapse button lives inside the rail; a rail-edge expand button takes over and keeps focus.
+    const expand = screen.getByRole('button', { name: 'Toggle sources panel' });
+    expect(expand).toHaveAttribute('aria-expanded', 'false');
+    expect(expand).toHaveFocus();
+    fireEvent.click(expand);
     expect(panel()).toBeInTheDocument();
   });
 

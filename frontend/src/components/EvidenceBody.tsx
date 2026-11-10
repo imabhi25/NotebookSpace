@@ -108,11 +108,13 @@ interface InlineEvidenceProps extends EvidenceBodyProps {
   onClose: () => void;
   /** Extra action pinned beside the reader button (e.g. Save to notes). */
   footerExtra?: React.ReactNode;
+  /** Small icon action(s) shown in the header beside the citation stepper. */
+  headerExtra?: React.ReactNode;
 }
 
 /** Evidence shown directly beneath the answer it supports. Escape or Close collapses it. */
 export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(function InlineEvidence(
-  { index, total, onPrevious, onNext, onClose, readerAction, footerExtra, ...body },
+  { index, total, onPrevious, onNext, onClose, readerAction, footerExtra, headerExtra, ...body },
   ref
 ) {
   return (
@@ -142,6 +144,7 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
                 aria-label="Next citation" title="Next citation"><span aria-hidden="true">›</span></button>
             </div>
           )}
+          {headerExtra}
           <button type="button" className="inline-evidence-close" onClick={onClose}
             aria-label="Close evidence" title="Close evidence">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">

@@ -67,7 +67,7 @@ describe('Evidence after sources change (mocked API)', () => {
     expect(spy).not.toHaveBeenCalledWith('b.pdf', expect.anything(), expect.anything(), expect.anything());
     const card = screen.getByTestId('selected-source-card');
     expect(within(card).getByText(/Original Source Removed/)).toBeInTheDocument();
-    expect(within(card).queryByRole('button', { name: 'Open source ↗' })).toBeNull();
+    expect(within(card).queryByRole('button', { name: 'Open source' })).toBeNull();
   });
 
   it('steps between a live source and a removed one without mixing their text', async () => {

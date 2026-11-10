@@ -216,7 +216,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     setIsContextCollapsed(collapsed);
     if (remember && !isContextOverlay) writePanelPref(CONTEXT_PREF_KEY, !collapsed);
   };
-  const closeNavPanel = () => { setNavCollapsed(true); navToggleRef.current?.focus(); };
+  const refocusNavToggle = useRef(false);
+  const closeNavPanel = () => { refocusNavToggle.current = true; setNavCollapsed(true); };
+  // The collapse button that held focus unmounts with the panel; the expand button that replaces it takes focus.
+  useEffect(() => {
+    if (refocusNavToggle.current && isNavCollapsed) { refocusNavToggle.current = false; navToggleRef.current?.focus(); }
+  }, [isNavCollapsed]);
   const closeContextPanel = () => { setContextCollapsed(true); contextToggleRef.current?.focus(); };
 
   const contextOverlayOpen = isContextOverlay && !isContextCollapsed;
@@ -1201,16 +1206,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       <div className="workspace-subject-pill workspace-subject-pill-name workspace-title-measure"
         ref={titleMeasureRef} aria-hidden="true" data-title={`${subject.name} ${subject.course_code || ''}`} />
       <header className="workspace-top-bar workspace-control-bar" ref={headerRef}>
-          <button type="button" ref={navToggleRef}
-            className={`workspace-toggle-btn workspace-nav-toggle ${!isNavCollapsed && !navHiddenByReader ? 'active' : ''}`}
-            onClick={onNavToggle}
-            title={`${isNavCollapsed ? 'Show sources panel' : 'Hide sources panel'} (${shortcutLabel('B')})`}
-            aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed && !navHiddenByReader} aria-controls="workspace-nav-panel">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
-            </svg>
-
-          </button>
         <div className="workspace-brand" ref={brandRef}>
           <span className="workspace-brand-mark" aria-hidden="true">
             <BrandLogo size={22} />
@@ -1294,18 +1289,44 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               else closeNavPanel();
             }} />
         )}
+        {(isNavCollapsed || navHiddenByReader) && (
+          <div className="nav-expand-rail">
+            <button type="button" ref={navToggleRef} className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
+              title={`Show sources panel (${shortcutLabel('B')})`}
+              aria-label="Toggle sources panel" aria-expanded={false} aria-controls="workspace-nav-panel">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
+              </svg>
+            </button>
+            <button type="button" className="rail-icon-btn" onClick={() => setIsAddSourceOpen(true)}
+              aria-label="Add sources" title="Add sources">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
+        )}
         {/* LEFT: sources (notebook, add, find, selection, list) */}
         <div className={`nav-slot ${isNavCollapsed || navHiddenByReader ? 'is-collapsed' : ''}`}>
           <aside className="workspace-nav workspace-sources-rail" id="workspace-nav-panel" aria-label="Sources"
             aria-hidden={isNavCollapsed || navHiddenByReader} ref={navPanelRef} tabIndex={-1}>
             <div className="rail-header">
               <h2 className="rail-title">Sources ({sources.length})</h2>
-              <button type="button" className="rail-icon-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn"
-                aria-label="Add sources" title="Add sources">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
+              <div className="rail-header-actions">
+                <button type="button" className="rail-icon-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn"
+                  aria-label="Add sources" title="Add sources">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
+                <button type="button" className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
+                  title={`Hide sources panel (${shortcutLabel('B')})`}
+                  aria-label="Toggle sources panel" aria-expanded={!isNavCollapsed && !navHiddenByReader} aria-controls="workspace-nav-panel">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" />
+                  </svg>
+                </button>
+              </div>
             </div>
             <div
               className={`sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
@@ -1376,12 +1397,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               )}
 
               <div className="rail-footer">
-                <button type="button" className="rail-add-materials" onClick={() => setIsAddSourceOpen(true)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                  <span>Add materials</span>
-                </button>
                 <form className="sources-web-search" role="search" aria-label="Add a web page as a source" onSubmit={handleWebSearch}>
                   <input type="search" className="sources-web-input" placeholder="Paste a link to add it"
                     aria-label="Search the web for new sources" value={webQuery}
@@ -1790,6 +1805,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     onPrevious={handlePreviousCitation}
                                     onNext={handleNextCitation}
                                     onClose={closeEvidence}
+                                    headerExtra={matchedSource ? (
+                                      <button type="button" className="btn-step evidence-open-source" onClick={() => handleOpenSourceViewer(matchedSource)}
+                                        aria-label="Open source" title="Open source">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                                          <path d="M14 4h6v6" /><path d="M20 4 10 14" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" />
+                                        </svg>
+                                      </button>
+                                    ) : undefined}
                                     footerExtra={
                                       <button type="button" className="evidence-reader-btn evidence-save-btn" onClick={() => {
                                         setEditingNote(null);
@@ -1800,7 +1823,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                       }} aria-label="Save passage to notes">Save to notes</button>
                                     }
                                   />
-                {matchedSource && <button type="button" className="selected-source-view" onClick={() => handleOpenSourceViewer(matchedSource)}>Open source ↗</button>}
               </section> : <p className="study-empty">Select a citation in an answer to inspect its source.</p>}
               {selectedRetrievalMessageId && <button type="button" className="selected-source-view" onClick={() => setContextView('retrieval')}>Show retrieval diagnostics</button>}
             </div>
