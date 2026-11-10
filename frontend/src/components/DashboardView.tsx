@@ -707,10 +707,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <header className="home-header">
             <div className="home-brand">
               <span className="brand-mark-wrapper" aria-hidden="true">
-                <svg className="brand-mark-svg" width="24" height="24" viewBox="0 0 24 24" fill="none">
-                  <path d="M12 6.2C10.3 4.9 7.9 4.4 4.5 4.6v12.9c3.4-.2 5.8.3 7.5 1.6V6.2Z" fill="currentColor" fillOpacity=".32" />
-                  <path d="M12 6.2c1.7-1.3 4.1-1.8 7.5-1.6v12.9c-3.4-.2-5.8.3-7.5 1.6V6.2Z" fill="currentColor" />
-                  <path d="M12 6.2v12.9" stroke="var(--brand-mark-seam, #fff)" strokeWidth="1.2" strokeLinecap="round" />
+                <svg className="brand-mark-svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 6.5 4 4.5v13l8 2 8-2v-13l-8 2Z" fill="currentColor" fillOpacity="0.12" />
+                  <path d="M12 6.5v13" />
+                  <path d="M7 9.5l2.5.6M7 12.5l2.5.6" />
+                  <path d="M15.5 9.6 17 9.2M15.5 12.6 17 12.2" />
                 </svg>
               </span>
               <span className="sidebar-brand-title">NotebookSpace</span>
