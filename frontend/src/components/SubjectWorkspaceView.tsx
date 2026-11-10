@@ -28,7 +28,7 @@ import type { PassageInput } from '../sourcePages';
 import { RetrievalMapView } from './RetrievalMapView';
 import { SessionsView } from './WorkspaceNav';
 import { InlineEvidence } from './EvidenceBody';
-import { abstainCopy } from '../abstain';
+import { abstainCopy, abstainText } from '../abstain';
 import { CommandPalette } from './CommandPalette';
 import { BackendStatus } from './BackendStatus';
 import { CrossSourceCheck } from './CrossSourceCheck';
@@ -1885,7 +1885,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 const copy = abstainCopy(msg, selectedSourceIds.length);
                                 return (
                                   <div className="abstain-prose" data-testid="abstained-view" role={copy.tone === 'error' ? 'alert' : 'status'}>
-                                    <p className="answer-text"><span>{copy.title}</span> <span>{copy.body}</span>{copy.hint ? <> <span>{copy.hint}</span></> : null}</p>
+                                    <p className="answer-text">
+                                      {msg.abstain_reason === 'generation_failed'
+                                        ? <><span>{copy.title}.</span> <span>{copy.body}</span></>
+                                        : abstainText(msg, selectedSourceIds.length)}
+                                    </p>
                                     <div className="answer-action-toolbar">
                                       <button
                                         type="button"
@@ -2039,8 +2043,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
                     {chatLoading && (
                       <div className="thread-turn turn-assistant">
-                        <div className="assistant-message message-loading" role="status" aria-live="polite">
-                          <span className="thinking-indicator">Thinking...</span>
+                        <div className="assistant-message message-loading" role="status" aria-label="Thinking">
+                          <span className="thinking-dot" role="img" aria-label="Thinking" />
                         </div>
                       </div>
                     )}

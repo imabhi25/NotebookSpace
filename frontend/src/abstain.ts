@@ -18,7 +18,6 @@ const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one :
 export function abstainCopy(msg: MessageItem, fallbackSelectedCount = 0): AbstainCopy {
   const used = msg.selected_source_ids?.length || fallbackSelectedCount;
   const materials = used > 0 ? `your ${plural(used, 'selected material', 'selected materials')}` : 'your selected materials';
-  const checked = msg.retrieved?.length || 0;
 
   switch (msg.abstain_reason) {
     case 'generation_failed':
@@ -46,14 +45,25 @@ export function abstainCopy(msg: MessageItem, fallbackSelectedCount = 0): Abstai
     case 'bad_output':
       return { tone: 'info', title: "I couldn't read the reply", body: 'The response came back in a format I could not use. Try again.' };
     default:
-      return {
-        tone: 'info',
-        title: "I couldn't find this in your materials",
-        body:
-          checked > 0
-            ? `I checked ${plural(checked, 'passage', 'passages')} from ${materials}, and none of them answer this.`
-            : `Nothing in ${materials} answers this.`,
-        hint: 'Try rephrasing with terms your materials use, or select more materials.',
-      };
+      return { tone: 'info', title: "I couldn't find this in your materials.", body: '' };
   }
+}
+
+const LEGACY_BOILERPLATE = /\s*I checked \d+ passages?.*?answer this\.?|\s*Try rephrasing with terms your materials use, or select more materials\.?/gis;
+const MACHINE_CODE = /^[A-Z][A-Z0-9_]*$/;
+
+const withPeriod = (t: string) => (/[.!?…]$/.test(t) ? t : `${t}.`);
+
+/**
+ * The text shown for a message that is not a grounded answer: the assistant's own content when it is a
+ * human sentence (with the old "I checked N passages..." boilerplate removed from saved messages), otherwise
+ * short plain wording for the reason. Sentences are always joined with punctuation.
+ */
+export function abstainText(msg: MessageItem, fallbackSelectedCount = 0): string {
+  const content = (msg.content || '').replace(LEGACY_BOILERPLATE, '').trim();
+  if (msg.abstain_reason !== 'stopped' && msg.abstain_reason !== 'generation_failed' && content && !MACHINE_CODE.test(content)) {
+    return withPeriod(content);
+  }
+  const copy = abstainCopy(msg, fallbackSelectedCount);
+  return [copy.title, copy.body, copy.hint].filter(Boolean).map((t) => withPeriod(t as string)).join(' ');
 }
