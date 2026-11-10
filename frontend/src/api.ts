@@ -140,6 +140,10 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
   return res.json();
 }
 
+// Identical subject-list requests made while one is in flight share that request
+// (mount + auth state changes can otherwise fire the same GET several times at once).
+const inflightSubjects = new Map<string, Promise<Subject[]>>();
+
 export const api = {
   // Auth
   async register(email: string, password: string): Promise<{ token: string; user: User }> {
@@ -223,7 +227,12 @@ export const api = {
     if (includeArchived) params.append('include_archived', 'true');
     if (search) params.append('search', search);
     params.append('sort_by', sortBy);
-    return apiFetch<Subject[]>(`/subjects?${params.toString()}`);
+    const path = `/subjects?${params.toString()}`;
+    const pending = inflightSubjects.get(path);
+    if (pending) return pending;
+    const req = apiFetch<Subject[]>(path).finally(() => inflightSubjects.delete(path));
+    inflightSubjects.set(path, req);
+    return req;
   },
 
   async createSubject(data: {
