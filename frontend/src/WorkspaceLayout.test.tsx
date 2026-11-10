@@ -110,7 +110,8 @@ describe('Workspace navigation and progressive disclosure', () => {
   it.each([1440, 768, 390])('opens cited evidence in the study panel at %ipx', async width => {
     window.innerWidth = width;
     render(workspace());
-    fireEvent.click(screen.getByRole('button', { name: 'Citation 1: lecture.pdf, page 1' }));
+    const opener = screen.queryByRole('button', { name: 'Open citations panel' });
+    if (opener) fireEvent.click(opener);
     await waitFor(() => expect(api.getPassages).toHaveBeenCalledWith('lecture.pdf', 1, subject.id, 'source'));
     const evidence = screen.getByTestId('inline-evidence');
     expect(evidence).toBeVisible();

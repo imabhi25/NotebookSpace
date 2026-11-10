@@ -1936,3 +1936,17 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   background: var(--bg-canvas, var(--color-surface)); color: var(--color-text-primary); border: 1px solid var(--border-subtle); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
 }
 .scroll-bottom-btn:hover { background: var(--color-surface-hover); }
+
+/* Chat answers: inline code reads as plain semibold prose, not a boxed chip. */
+.workspace-layout :is(.assistant-answer, .message-content, .workspace-center, .answer-text, .markdown-content) code:not(pre code) {
+  font-family: inherit !important; font-size: inherit !important; font-weight: 600 !important;
+  color: var(--color-text-primary) !important; background: transparent !important; border: none !important;
+  border-radius: 0 !important; padding: 0 !important; box-shadow: none !important;
+}
+
+/* Composer footer: Add sources on the bottom-left, Send on the bottom-right. */
+.workspace-layout .composer-box-stacked .composer-foot { justify-content: space-between; }
+.workspace-layout .composer-box-stacked .composer-foot .composer-add-btn { order: 0; margin-right: auto; }
+.workspace-layout .composer-box-stacked .composer-foot .scope-wrap { order: 1; flex: 0 1 auto; margin: 0 8px 0 0; }
+.workspace-layout .composer-box-stacked .composer-foot .composer-send-btn,
+.workspace-layout .composer-box-stacked .composer-foot .composer-stop-btn { order: 2; margin-left: 0; }

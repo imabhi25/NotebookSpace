@@ -48,7 +48,6 @@ describe('Evidence after sources change (mocked API)', () => {
     const spy = vi.spyOn(api, 'getPassages').mockResolvedValue([
       { file_name: 'a.pdf', page_number: 2, chunk_index: 0, text: 'NEW VERSION TEXT' }]);
     render(view([mkSource('a', 'a.pdf', 2), mkSource('b', 'b.pdf')]));
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
     const evidence = await screen.findByTestId('inline-evidence');
     expect(within(evidence).getByTestId('historical-citation-alert')).toHaveTextContent(/Source Replaced \(v1\)/);
     expect(within(evidence).getByText(chunk)).toBeInTheDocument();
@@ -60,7 +59,8 @@ describe('Evidence after sources change (mocked API)', () => {
   it('a deleted source shows a removed notice and its captured excerpt, not another source', async () => {
     const spy = vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view([mkSource('a', 'a.pdf')])); // b.pdf is gone
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
+    fireEvent.click(within(await screen.findByTestId('inline-evidence')).getByRole('button', { name: 'Next citation' }));
+    await waitFor(() => expect(screen.getByTestId('inline-evidence')).toHaveTextContent('2/2'));
     const evidence = await screen.findByTestId('inline-evidence');
     expect(within(evidence).getByTestId('historical-citation-alert')).toHaveTextContent(/Original Source Removed/);
     expect(within(evidence).getByText('Quizzes are 10%.')).toBeInTheDocument();
@@ -73,7 +73,6 @@ describe('Evidence after sources change (mocked API)', () => {
   it('steps between a live source and a removed one without mixing their text', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([{ file_name: 'a.pdf', page_number: 2, chunk_index: 0, text: 'Live a.pdf passage' }]);
     render(view([mkSource('a', 'a.pdf')]));
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
     await screen.findByText('Live a.pdf passage');
     fireEvent.click(screen.getByRole('button', { name: 'Next citation' }));
     await waitFor(() => expect(within(screen.getByTestId('inline-evidence')).getByTestId('historical-citation-alert')).toBeInTheDocument());
@@ -100,7 +99,7 @@ describe('Evidence after sources change (mocked API)', () => {
   it('scopes every passage lookup to this notebook and source', async () => {
     const spy = vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view([mkSource('a', 'a.pdf'), mkSource('b', 'b.pdf')]));
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
+    fireEvent.click(within(await screen.findByTestId('inline-evidence')).getByRole('button', { name: 'Next citation' }));
     await waitFor(() => expect(spy).toHaveBeenCalledWith('b.pdf', 1, 'ev', 'b'));
   });
 });

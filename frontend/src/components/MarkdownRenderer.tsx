@@ -1,8 +1,8 @@
 import React from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
-import { Citation, normalizeFileName } from '../types';
-import { createCitationRegex, parsePageList, trailingPunctuationGap } from '../citationRefs';
+import { Citation } from '../types';
+import { stripCitationMarkers } from '../citationRefs';
 
 interface MarkdownRendererProps {
   content: string;
@@ -187,92 +187,16 @@ function renderMath(text: string): React.ReactNode[] {
  */
 export function renderTextWithCitations(
   text: string,
-  citations?: Citation[],
-  isThisMessageSelected: boolean = false,
-  selectedCitation?: { file: string; page: number; messageId?: string } | null,
-  onSelectCitation?: (cit: Citation) => void,
-  citationState?: (cit: Citation) => 'replaced' | 'removed' | undefined
+  _citations?: Citation[],
+  _isThisMessageSelected: boolean = false,
+  _selectedCitation?: { file: string; page: number; messageId?: string } | null,
+  _onSelectCitation?: (cit: Citation) => void,
+  _citationState?: (cit: Citation) => 'replaced' | 'removed' | undefined
 ): React.ReactNode {
   if (!text) return null;
 
-  const elements: React.ReactNode[] = [];
-  // Match [document.pdf p.1], [lecture.txt p. 2, 3], [Syllabus pp. 1-2], [notes.md p.1, p.2]
-  const citRegex = createCitationRegex();
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = citRegex.exec(text)) !== null) {
-    const matchStart = match.index;
-    const rawMatchedText = match[0];
-    const file = match[1].trim();
-    const pages = parsePageList(match[2]);
-
-    if (matchStart > lastIndex) {
-      const chunk = text.slice(lastIndex, matchStart);
-      elements.push(...renderMath(chunk));
-    }
-
-    const availableCitations = citations || [];
-    const nodes: React.ReactNode[] = [];
-    pages.forEach((page) => {
-      const listIndex = availableCitations.findIndex((c) => {
-        const citFileNorm = normalizeFileName(c.file);
-        const citTitleNorm = normalizeFileName(c.title || c.file);
-        const targetNorm = normalizeFileName(file);
-        return (citFileNorm === targetNorm || citTitleNorm === targetNorm) && c.page === page;
-      });
-      const matchedCitation = (listIndex >= 0 ? availableCitations[listIndex] : undefined) || (onSelectCitation ? { file, page } : undefined);
-      if (!matchedCitation || !onSelectCitation) return;
-      const isActive =
-        isThisMessageSelected &&
-        normalizeFileName(selectedCitation?.file) === normalizeFileName(matchedCitation.file) &&
-        selectedCitation?.page === matchedCitation.page;
-
-      if (listIndex >= 0) {
-        // A citation the answer actually carries: a numbered marker that matches "Evidence n of N".
-        const state = citationState?.(matchedCitation);
-        nodes.push(
-          <button
-            key={`cit-${matchStart}-${page}`}
-            type="button"
-            className={`citation-marker ${state ?? ''} ${isActive ? 'active' : ''}`}
-            onClick={() => onSelectCitation(matchedCitation)}
-            data-testid="inline-citation"
-            aria-pressed={isActive}
-            aria-label={`Citation ${listIndex + 1}: ${matchedCitation.file}, page ${matchedCitation.page}${state ? `, ${state} source` : ''}`}
-          >
-            {listIndex + 1}
-          </button>
-        );
-      } else {
-        nodes.push(
-          <button
-            key={`cit-${matchStart}-${page}`}
-            type="button"
-            className={`inline-citation-btn ${isActive ? 'active' : ''}`}
-            onClick={() => onSelectCitation(matchedCitation)}
-            data-testid="inline-citation"
-            aria-label={`Citation: ${matchedCitation.file} page ${matchedCitation.page}`}
-          >
-            {pages.length === 1 ? rawMatchedText : `[${file} p.${page}]`}
-          </button>
-        );
-      }
-    });
-
-    if (nodes.length > 0) elements.push(...nodes);
-    else elements.push(...renderMath(rawMatchedText));
-
-    // "[1] ." reads as "[1].": drop the gap before trailing punctuation.
-    citRegex.lastIndex += trailingPunctuationGap(text.slice(citRegex.lastIndex));
-    lastIndex = citRegex.lastIndex;
-  }
-
-  if (lastIndex < text.length) {
-    elements.push(...renderMath(text.slice(lastIndex)));
-  }
-
-  return elements;
+  // Citations stay in the Citations panel; the visible prose carries no markers.
+  return renderMath(stripCitationMarkers(text));
 }
 
 /**

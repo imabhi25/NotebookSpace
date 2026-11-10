@@ -10,7 +10,7 @@ import { api } from './api';
 afterEach(() => vi.restoreAllMocks());
 
 describe('MarkdownRenderer component', () => {
-  it('renders markdown text with inline citation chips and handles citation click', () => {
+  it('renders markdown text with no inline citation markers', () => {
     const onSelect = vi.fn();
     const markdown = 'Algorithms have runtime bounds [eecs3101.pdf p.4].';
 
@@ -21,16 +21,16 @@ describe('MarkdownRenderer component', () => {
       />
     );
 
-    const citationBtn = screen.getByRole('button', { name: /Citation:\s*eecs3101\.pdf\s+page\s+4/i });
-    expect(citationBtn).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Citation/i })).toBeNull();
+    expect(screen.getByText('Algorithms have runtime bounds.')).toBeInTheDocument();
+    expect(onSelect).not.toHaveBeenCalled();
+  });
 
-    fireEvent.click(citationBtn);
-    expect(onSelect).toHaveBeenCalledWith(
-      expect.objectContaining({
-        file: 'eecs3101.pdf',
-        page: 4,
-      })
+  it('strips citation markers without leaving a gap before punctuation', () => {
+    const { container } = render(
+      <MarkdownRenderer content={'Use the algorithm [a.pdf p.1] . It is fast [a.pdf p.2, 3]; see [b.pdf pp. 1-2] next.'} />
     );
+    expect(container.textContent).toBe('Use the algorithm. It is fast; see next.');
   });
 
   it('renders code blocks properly', () => {
@@ -83,13 +83,14 @@ describe('MarkdownRenderer component', () => {
     expect(container.querySelector('code')).toHaveTextContent('echo $a $b');
   });
 
-  it('keeps citations clickable next to math', () => {
+  it('drops citation markers next to math', () => {
     const onSelect = vi.fn();
     const { container } = render(
       <MarkdownRenderer content={'Merge sort is $O(n \\log n)$ [eecs3101.pdf p.3].'} onSelectCitation={onSelect} />
     );
     expect(container.querySelectorAll('.math-inline')).toHaveLength(1);
-    expect(screen.getByRole('button', { name: /Citation:\s*eecs3101\.pdf\s+page\s+3/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Citation/i })).toBeNull();
+    expect(container.textContent).toMatch(/\.$/);
   });
 
   it('renders display math and shows unparseable math as its source', () => {
@@ -395,7 +396,7 @@ describe('SubjectWorkspaceView component', () => {
     expect(handleSelectSources).toHaveBeenCalledWith(['src-1', 'src-2']);
   });
 
-  it('renders chat message with citation and handles inline citation chip click', async () => {
+  it('renders chat message with citation and shows its cited passage in the Citations panel', async () => {
     const handleSaveNote = vi.fn();
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
 
@@ -434,10 +435,7 @@ describe('SubjectWorkspaceView component', () => {
     );
 
     expect(screen.getByText(/What is the grading policy\?/i)).toBeInTheDocument();
-    const citationChip = screen.getByRole('button', { name: /^Citation 1: Syllabus\.pdf, page 2/i });
-    expect(citationChip).toBeInTheDocument();
-
-    fireEvent.click(citationChip);
+    expect(screen.queryByTestId('inline-citation')).toBeNull();
 
     // Inspector panel should display cited passage once loading settles
     await waitFor(() => {
