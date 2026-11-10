@@ -51,6 +51,10 @@ const NAV_W_KEY = 'notebookspace_nav_w';
 const CTX_W_KEY = 'notebookspace_ctx_w';
 const NAV_W = { def: 260, min: 210, max: 400, snap: 130 };
 const CTX_W = { def: 360, min: 300, max: 560, snap: 180, note: 420 };
+// Narrower desktops keep all three columns comfortable: a slimmer default and note width below 1280px.
+const narrowDesktop = () => typeof window !== 'undefined' && window.innerWidth < 1280;
+const ctxDefault = () => (narrowDesktop() ? 340 : CTX_W.def);
+const ctxNoteWidth = () => (narrowDesktop() ? 400 : CTX_W.note);
 const clampW = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(v)));
 function readWidth(key: string, def: number, min: number, max: number): number {
   try {
@@ -228,13 +232,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // LAYOUT STATE: Independently Collapsible Side Panels
   // --------------------------------------------------------------------------
   const compactViewport = () => typeof window !== 'undefined' && window.innerWidth <= 960;
-  const overlayViewport = () => typeof window !== 'undefined' && window.innerWidth <= 1180;
+  const overlayViewport = () => typeof window !== 'undefined' && window.innerWidth <= 768;
   const [isCompact, setIsCompact] = useState(compactViewport);
   // Navigation (left) and materials (right) collapse independently. Where they are docked the
   // choice is remembered; where they are overlays they always start closed.
   const [isNavCollapsed, setIsNavCollapsed] = useState(() => compactViewport() || !readPanelPref(NAV_PREF_KEY));
   const [navW, setNavW] = useState(() => readWidth(NAV_W_KEY, NAV_W.def, NAV_W.min, NAV_W.max));
-  const [ctxW, setCtxW] = useState(() => readWidth(CTX_W_KEY, CTX_W.def, CTX_W.min, CTX_W.max));
+  const [ctxW, setCtxW] = useState(() => readWidth(CTX_W_KEY, ctxDefault(), CTX_W.min, CTX_W.max));
   const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const [isContextCollapsed, setIsContextCollapsed] = useState(() => overlayViewport() || !readPanelPref(CONTEXT_PREF_KEY));
@@ -270,12 +274,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
     onStopGeneration?.();
   };
-  // Below 1180px the materials panel is an on-demand overlay; below 961px navigation is a drawer.
-  const isContextOverlay = useMediaQuery('(max-width: 1180px)', overlayViewport()) || isCompact;
+  // The study panel stays docked beside the conversation from 769px up; below that it is an on-demand overlay.
+  // Navigation becomes a drawer at 960px and below.
+  const isContextOverlay = useMediaQuery('(max-width: 768px)', overlayViewport());
   const resizingRef = useRef(false);
   // Reopening a closed panel always starts from its default width, not the squeezed one it was closed at.
   const resetNavWidth = () => { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); rootRef.current?.style.setProperty('--nav-w', `${NAV_W.def}px`); };
-  const resetCtxWidth = () => { noteWidthRestore.current = null; setCtxW(CTX_W.def); writeWidth(CTX_W_KEY, CTX_W.def); rootRef.current?.style.setProperty('--ctx-w', `${CTX_W.def}px`); };
+  const resetCtxWidth = () => { noteWidthRestore.current = null; setCtxW(ctxDefault()); writeWidth(CTX_W_KEY, ctxDefault()); rootRef.current?.style.setProperty('--ctx-w', `${ctxDefault()}px`); };
   const setNavCollapsed = (collapsed: boolean, remember = true) => {
     if (!collapsed && isNavCollapsed && !resizingRef.current) resetNavWidth();
     setIsNavCollapsed(collapsed);
@@ -341,7 +346,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   );
   const resetWidth = (side: 'left' | 'right') => {
     if (side === 'left') { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); setNavCollapsed(false); }
-    else { setCtxW(CTX_W.def); writeWidth(CTX_W_KEY, CTX_W.def); setContextCollapsed(false); }
+    else { setCtxW(ctxDefault()); writeWidth(CTX_W_KEY, ctxDefault()); setContextCollapsed(false); }
     rootRef.current?.style.removeProperty(side === 'left' ? '--nav-w' : '--ctx-w');
   };
   const nudgeWidth = (side: 'left' | 'right') => (e: React.KeyboardEvent) => {
@@ -835,7 +840,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     const sel = window.getSelection();
     if (!el || !sel || !sel.anchorNode || !el.contains(sel.anchorNode)) return;
     try {
-      setNoteFormats({ bold: document.queryCommandState('bold'), italic: document.queryCommandState('italic') });
+      const block = String(document.queryCommandValue('formatBlock') || '').toLowerCase().replace(/[<>]/g, '');
+      let bold = document.queryCommandState('bold');
+      // Headings are bold by default; only count Bold as pressed there when the selection sits in an explicit <b>/<strong>.
+      if (bold && /^h[1-3]$/.test(block)) {
+        const n = sel.anchorNode;
+        bold = Boolean((n instanceof Element ? n : n.parentElement)?.closest('b,strong'));
+      }
+      setNoteFormats({ bold, italic: document.queryCommandState('italic') });
       const v = String(document.queryCommandValue('formatBlock') || '').toLowerCase().replace(/[<>]/g, '');
       setNoteBlock(/^h[1-3]$/.test(v) ? v : 'normal');
     } catch { /* unsupported (e.g. tests) */ }
@@ -858,11 +870,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const noteWidthRestore = useRef<number | null>(null);
   useEffect(() => {
     if (isCreateNoteOpen && contextView === 'notes') {
-      if (noteWidthRestore.current === null && ctxW < CTX_W.note) { noteWidthRestore.current = ctxW; setCtxW(CTX_W.note); }
+      if (noteWidthRestore.current === null && ctxW < ctxNoteWidth()) { noteWidthRestore.current = ctxW; setCtxW(ctxNoteWidth()); }
     } else if (noteWidthRestore.current !== null) {
       const prev = noteWidthRestore.current;
       noteWidthRestore.current = null;
-      setCtxW((w) => (w === CTX_W.note ? prev : w));
+      setCtxW((w) => (w === ctxNoteWidth() ? prev : w));
     }
   }, [isCreateNoteOpen, contextView, ctxW]);
   // A shortcut never opens on top of another dialog; the dialog owns the keyboard until it closes.
@@ -1657,7 +1669,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 <div className="sources-toolbar">
                   <div className="sources-toolbar-left">
                     <button type="button" className={`sources-tool-btn ${autoRename ? 'is-active' : ''}`} onClick={toggleAutoRename}
-                      aria-label="Auto-rename sources" aria-pressed={autoRename} data-tip="Auto-clean source titles (click to undo)">
+                      aria-label={autoRename ? 'Restore original filenames' : 'Clean up source titles'} aria-pressed={autoRename} data-tip={autoRename ? 'Restore original filenames' : 'Clean up source titles'}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" />
                       </svg>
