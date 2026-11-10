@@ -1714,22 +1714,23 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 }
 
 
-/* ---- Resizable side panels ---- */
+/* ---- Resizable side panels: one 1px line per seam; the handle is an invisible hit area that only
+   thickens that same line on hover / drag. ---- */
 .panel-resize-handle {
-  position: absolute; top: 0; bottom: 0; width: 6px; z-index: 35; flex-shrink: 0; cursor: col-resize; touch-action: none; outline: none;
+  position: absolute; top: 0; bottom: 0; width: 8px; z-index: 35; flex-shrink: 0; cursor: col-resize; touch-action: none; outline: none; background: transparent;
 }
 .panel-resize-handle::after {
-  content: ""; position: absolute; top: 0; bottom: 0; left: 50%; width: 2px; margin-left: -1px; border-radius: 2px;
-  background: transparent; transition: background-color 0.15s ease;
+  content: ""; position: absolute; top: 0; bottom: 0; width: 1px; background: transparent; transition: background-color 0.15s ease, width 0.15s ease;
 }
 .panel-resize-handle:hover::after, .panel-resize-handle:focus-visible::after, .panel-resize-handle[data-resizing="true"]::after {
-  background: var(--color-text-secondary); opacity: 0.55;
+  width: 2px; background: var(--color-text-secondary);
 }
-.panel-resize-handle[data-resizing="true"]::after { background: var(--color-accent); opacity: 1; }
-.workspace-layout .panel-resize-left { right: 9px; }
-.workspace-layout .nav-slot.is-collapsed .panel-resize-left { right: 0; }
-.workspace-layout .panel-resize-right { left: 9px; }
-.workspace-layout .context-slot.is-collapsed .panel-resize-right { left: 0; }
+.panel-resize-handle[data-resizing="true"]::after { background: var(--color-accent); }
+.workspace-layout .panel-resize-left.in-panel { right: 0; } .panel-resize-left.in-panel::after { right: 0; }
+.workspace-layout .panel-resize-right.in-panel { left: 0; } .panel-resize-right.in-panel::after { left: 0; }
+.workspace-layout .panel-resize-left.in-slot { right: 0; } .panel-resize-left.in-slot::after { right: 0; }
+.workspace-layout .panel-resize-right.in-slot { left: 0; } .panel-resize-right.in-slot::after { left: 0; }
+.workspace-layout aside.workspace-nav { position: relative; }
 .workspace-layout.is-resizing, .workspace-layout.is-resizing * {
   transition: none !important; animation: none !important; user-select: none !important; -webkit-user-select: none !important; cursor: col-resize !important;
 }
@@ -1785,3 +1786,9 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .note-studio-canvas li { margin: .15em 0; }
 .note-studio-canvas blockquote { margin: 0 0 .8em; padding: 2px 0 2px 12px; border-left: 3px solid var(--border-subtle); color: var(--color-text-secondary); }
 .note-studio-canvas hr { border: 0; border-top: 1px solid var(--border-subtle); margin: 1em 0; }
+
+/* One hairline per seam: the panels own the border, the slots draw none (they used to double it). */
+@media (min-width: 1181px) {
+  .workspace-layout .nav-slot, .workspace-layout .context-slot,
+  .workspace-layout .nav-slot.is-collapsed, .workspace-layout .context-slot.is-collapsed { border-left: 0; border-right: 0; }
+}
