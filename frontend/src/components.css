@@ -2287,3 +2287,7 @@ aside .retrieval-svg,
 .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill:hover:not(.active) { color: var(--color-text-primary); }
 .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill.active { color: #09090b; font-weight: 550; }
 :root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill.active { color: #fff; }
+
+/* Workspace header uses the same duo-tone open-notebook mark as the dashboard. */
+.workspace-layout .workspace-brand-mark { width: 18px; height: 18px; background: transparent; border-radius: 0; color: var(--color-text-primary); display: grid; place-items: center; }
+.workspace-layout .workspace-brand-mark .brand-logo-icon { display: block; width: 18px; height: 18px; flex: none; }

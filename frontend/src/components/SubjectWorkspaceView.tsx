@@ -1205,8 +1205,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           </button>
         <div className="workspace-brand" ref={brandRef}>
           <span className="workspace-brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M12 6.5C10.4 5.3 8 4.8 4 5v13c4-.2 6.4.3 8 1.5 1.6-1.2 4-1.7 8-1.5V5c-4-.2-6.4.3-8 1.5Z" /><path d="M12 6.5v13" />
+            <svg className="brand-logo-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+              {/* Left page (dominant) */}
+              <path className="logo-page-left" d="M11 5.8C7.8 4.7 4.6 5.1 3.5 6.1C2.6 6.9 2 8 2 9.5V17.2C2 18.5 2.5 19.3 3.5 19.6C6.5 20.6 9.2 21.2 11 21.8V5.8Z" />
+              {/* Right page (lighter / receding) */}
+              <path className="logo-page-right" d="M13 5.8C16.2 4.7 19.4 5.1 20.5 6.1C21.4 6.9 22 8 22 9.5V17.2C22 18.5 21.5 19.3 20.5 19.6C17.5 20.6 14.8 21.2 13 21.8V5.8Z" />
             </svg>
           </span>
           <span className="workspace-brand-name">NotebookSpace</span>
