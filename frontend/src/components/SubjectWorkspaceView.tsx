@@ -2197,7 +2197,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <div className="note-title-row">
                     <input id="note-title-input" className="note-editor-title note-studio-title" type="text" placeholder="New Note" aria-label="Note title"
                       value={noteFormTitle} onChange={(e) => setNoteFormTitle(e.target.value)} onFocus={(e) => { if (e.currentTarget.value === 'New Note') e.currentTarget.select(); }} />
-                    <button type="button" className="rail-icon-btn note-editor-delete" aria-label="Delete note" title="Delete note"
+                    <button type="button" className="rail-icon-btn note-editor-delete" aria-label="Delete note" data-tooltip="Delete note"
                       onClick={() => {
                         if (editingNote) {
                           if (!window.confirm(`Delete note "${editingNote.title}"?`)) return;
@@ -2205,17 +2205,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                         }
                         closeNoteEditor();
                       }}>
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" aria-hidden="true">
-                        <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M10 11v6M14 11v6" />
-                      </svg>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6" /><path d="M4 6h16" /><path d="M6.5 9l1 10a2 2 0 0 0 2 1.8h5a2 2 0 0 0 2-1.8l1-10" /></svg>
                     </button>
                   </div>
                   <div className="note-toolbar" role="toolbar" aria-label="Formatting">
-                    <button type="button" className="note-tool" aria-label="Undo" title="Undo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('undo')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H6" /></svg></button>
-                    <button type="button" className="note-tool" aria-label="Redo" title="Redo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('redo')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5" /><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H18" /></svg></button>
+                    <button type="button" className="note-tool" aria-label="Undo" data-tooltip="Undo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('undo')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H6" /></svg></button>
+                    <button type="button" className="note-tool" aria-label="Redo" data-tooltip="Redo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('redo')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 14l5-5-5-5" /><path d="M20 9H9.5A5.5 5.5 0 0 0 4 14.5v0A5.5 5.5 0 0 0 9.5 20H18" /></svg></button>
                     <span className="note-tool-sep" aria-hidden="true" />
                     <div className="note-menu-anchor" data-note-menu>
-                      <button type="button" className={`note-block-btn ${noteMenu === 'block' ? 'is-open' : ''}`} aria-label="Text style" aria-haspopup="menu" aria-expanded={noteMenu === 'block'}
+                      <button type="button" className={`note-block-btn ${noteMenu === 'block' ? 'is-open' : ''}`} aria-label="Text style" data-tooltip="See options" aria-haspopup="menu" aria-expanded={noteMenu === 'block'}
                         onMouseDown={(e) => e.preventDefault()} onClick={() => setNoteMenu(noteMenu === 'block' ? null : 'block')}>
                         {noteBlock === 'normal' ? 'Normal' : `Heading ${noteBlock[1]}`}<span aria-hidden="true"> ▾</span>
                       </button>
@@ -2229,26 +2227,26 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       )}
                     </div>
                     <span className="note-tool-sep" aria-hidden="true" />
-                    <button type="button" className={`note-tool note-tool-bold ${noteFormats.bold ? 'is-active' : ''}`} aria-label="Bold" aria-pressed={noteFormats.bold} title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => noteExec('bold')}>B</button>
-                    <button type="button" className={`note-tool note-tool-italic ${noteFormats.italic ? 'is-active' : ''}`} aria-label="Italic" aria-pressed={noteFormats.italic} title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => noteExec('italic')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="19" y1="4" x2="10" y2="4" /><line x1="14" y1="20" x2="5" y2="20" /><line x1="15" y1="4" x2="9" y2="20" /></svg></button>
+                    <button type="button" className={`note-tool note-tool-bold ${noteFormats.bold ? 'is-active' : ''}`} aria-label="Bold" aria-pressed={noteFormats.bold} data-tooltip="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => noteExec('bold')}>B</button>
+                    <button type="button" className={`note-tool note-tool-italic ${noteFormats.italic ? 'is-active' : ''}`} aria-label="Italic" aria-pressed={noteFormats.italic} data-tooltip="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => noteExec('italic')}><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="19" y1="4" x2="10" y2="4" /><line x1="14" y1="20" x2="5" y2="20" /><line x1="15" y1="4" x2="9" y2="20" /></svg></button>
                     <span className="note-tool-sep" aria-hidden="true" />
-                    <button type="button" className="note-tool" aria-label="Insert link" title="Insert link" onMouseDown={(e) => e.preventDefault()} onClick={noteLink}>
+                    <button type="button" className="note-tool" aria-label="Insert link" data-tooltip="Insert link" onMouseDown={(e) => e.preventDefault()} onClick={noteLink}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" /></svg>
                     </button>
-                    <button type="button" className="note-tool" aria-label="Inline code" title="Inline code" onMouseDown={(e) => e.preventDefault()} onClick={noteInlineCode}>{'<>'}</button>
-                    <button type="button" className="note-tool" aria-label="Code block" title="Code block" onMouseDown={(e) => e.preventDefault()} onClick={noteCodeBlock}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><polyline points="8 8 4 12 8 16" /><polyline points="16 8 20 12 16 16" /><line x1="13.5" y1="6" x2="10.5" y2="18" /></svg></button>
+                    <button type="button" className="note-tool" aria-label="Inline code" data-tooltip="Inline code" onMouseDown={(e) => e.preventDefault()} onClick={noteInlineCode}>{'<>'}</button>
+                    <button type="button" className="note-tool" aria-label="Code block" data-tooltip="Code block" onMouseDown={(e) => e.preventDefault()} onClick={noteCodeBlock}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="4" /><path d="M10 9l-2.5 3 2.5 3" /><path d="M14 9l2.5 3-2.5 3" /></svg></button>
                     <span className="note-tool-sep" aria-hidden="true" />
                     <div className="note-menu-anchor note-more-anchor" data-note-menu>
-                      <button type="button" className={`note-tool ${noteMenu === 'more' ? 'is-active' : ''}`} aria-label="More formatting" title="More formatting" aria-haspopup="menu" aria-expanded={noteMenu === 'more'}
+                      <button type="button" className={`note-tool ${noteMenu === 'more' ? 'is-active' : ''}`} aria-label="More formatting" data-tooltip="More options" aria-haspopup="menu" aria-expanded={noteMenu === 'more'}
                         onMouseDown={(e) => e.preventDefault()} onClick={() => setNoteMenu(noteMenu === 'more' ? null : 'more')}>•••</button>
                     </div>
                     {noteMenu === 'more' && (
                       <div className="note-popover note-more-pill" role="toolbar" aria-label="More formatting" data-note-menu>
-                        <button type="button" className="note-tool" aria-label="Bulleted list" title="Bulleted list" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('insertUnorderedList'))}>•≡</button>
-                        <button type="button" className="note-tool" aria-label="Numbered list" title="Numbered list" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('insertOrderedList'))}>123≡</button>
-                        <button type="button" className="note-tool" aria-label="Blockquote" title="Blockquote" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('formatBlock', 'blockquote'))}>❞</button>
-                        <button type="button" className="note-tool" aria-label="Horizontal divider" title="Horizontal divider" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('insertHorizontalRule'))}>—</button>
-                        <button type="button" className="note-tool" aria-label="Clear formatting" title="Clear formatting" onMouseDown={(e) => e.preventDefault()} onClick={noteClearFormat}>T̸</button>
+                        <button type="button" className="note-tool" aria-label="Bulleted list" data-tooltip="Bulleted list" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('insertUnorderedList'))}>•≡</button>
+                        <button type="button" className="note-tool" aria-label="Numbered list" data-tooltip="Numbered list" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('insertOrderedList'))}>123≡</button>
+                        <button type="button" className="note-tool" aria-label="Blockquote" data-tooltip="Blockquote" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('formatBlock', 'blockquote'))}>❞</button>
+                        <button type="button" className="note-tool" aria-label="Horizontal divider" data-tooltip="Horizontal divider" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('insertHorizontalRule'))}>—</button>
+                        <button type="button" className="note-tool" aria-label="Clear formatting" data-tooltip="Clear formatting" onMouseDown={(e) => e.preventDefault()} onClick={noteClearFormat}>T̸</button>
                       </div>
                     )}
                   </div>
