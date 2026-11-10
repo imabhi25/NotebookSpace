@@ -1945,32 +1945,47 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 }
 
 /* Composer footer: Add sources on the bottom-left, Send on the bottom-right. */
-.workspace-layout .composer-box-stacked .composer-foot { justify-content: space-between; }
-.workspace-layout .composer-box-stacked .composer-foot .composer-add-btn { order: 0; margin-right: auto; }
-.workspace-layout .composer-box-stacked .composer-foot .scope-wrap { order: 1; flex: 0 1 auto; margin: 0 8px 0 0; }
+.workspace-layout .composer-box-stacked .composer-foot {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  box-sizing: border-box !important;
+}
+.workspace-layout .composer-box-stacked .composer-foot .composer-add-btn {
+  order: 0;
+  margin-left: 0 !important;
+  margin-right: 8px !important;
+  flex-shrink: 0;
+}
+.workspace-layout .composer-box-stacked .composer-foot .scope-wrap {
+  order: 1;
+  flex: 0 1 auto;
+  margin: 0 auto 0 0 !important;
+}
 .workspace-layout .composer-box-stacked .composer-foot .composer-send-btn,
-.workspace-layout .composer-box-stacked .composer-foot .composer-stop-btn { order: 2; margin-left: 0; }
+.workspace-layout .composer-box-stacked .composer-foot .composer-stop-btn {
+  order: 2;
+  margin-left: auto !important;
+  margin-right: 0 !important;
+  flex-shrink: 0;
+}
 
 /* Center column: the thread text and the composer share one 720px column with the same 32px gutters,
    so answer text, action icons and the composer box share left and right edges. */
 .workspace-layout .thread-scroll-container { padding-inline: 32px; box-sizing: border-box; }
-.workspace-layout .thread-content-max { width: 100%; max-width: 720px; margin: 0 auto; box-sizing: content-box; }
+.workspace-layout .thread-content-max { width: 100%; max-width: 720px; margin: 0 auto; box-sizing: border-box; }
 .workspace-layout .workspace-main-area > .composer-container {
   width: 100%; max-width: calc(720px + 64px); margin: 0 auto; padding-left: 32px; padding-right: 32px; box-sizing: border-box;
 }
-.workspace-layout .composer-form { width: 100%; max-width: 100%; }
+.workspace-layout .composer-form { width: 100%; max-width: 720px; margin: 0 auto; }
+.workspace-layout .composer-box { width: 100%; box-sizing: border-box; }
 .workspace-layout .thread-turn, .workspace-layout .assistant-message, .workspace-layout .answer-view-container,
 .workspace-layout .answer-action-toolbar { width: 100%; max-width: 100%; margin-left: 0; margin-right: 0; box-sizing: border-box; }
 @media (max-width: 640px) {
   .workspace-layout .thread-scroll-container { padding-inline: 16px; }
   .workspace-layout .workspace-main-area > .composer-container { padding-left: 16px; padding-right: 16px; max-width: calc(720px + 32px); }
 }
-
-/* Composer footer: Add sources far left, Send far right, never adjacent. */
-.workspace-layout .composer-box-stacked .composer-foot { display: flex; align-items: center; justify-content: space-between; width: 100%; box-sizing: border-box; }
-.workspace-layout .composer-box-stacked .composer-foot .composer-add-btn { margin-left: 0 !important; margin-right: auto; }
-.workspace-layout .composer-box-stacked .composer-foot .composer-send-btn,
-.workspace-layout .composer-box-stacked .composer-foot .composer-stop-btn { margin-left: auto; margin-right: 0; }
 
 /* ==========================================================================
    Modern web upgrades: containers, scroll behaviour, anchored tooltips
@@ -2045,4 +2060,293 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 }
 @container study-panel (min-width: 420px) {
   .stats-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ==========================================================================
+   Modern Web Upgrades: "Sources matched" Drawer, Anchor Positioning, Fluid Transitions
+   ========================================================================== */
+
+/* 1. Sleek Modern-Web Interactive Accordion: "Sources matched" Drawer */
+.sources-matched-drawer {
+  margin: 10px 0 6px;
+  display: block;
+}
+
+.sources-matched-summary {
+  list-style: none;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  user-select: none;
+  outline: none;
+  padding: 0;
+}
+.sources-matched-summary::-webkit-details-marker {
+  display: none;
+}
+
+.sources-matched-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  font-family: var(--font-family-ui);
+  background: var(--color-surface-raised, rgba(0, 0, 0, 0.04));
+  color: var(--color-text-secondary);
+  border: 1px solid var(--border-subtle, var(--color-border));
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+:root[data-theme="dark"] .sources-matched-pill {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.sources-matched-summary:hover .sources-matched-pill {
+  background: var(--color-surface-hover, rgba(0, 0, 0, 0.07));
+  color: var(--color-text-primary);
+  border-color: var(--color-border-strong, var(--color-accent));
+}
+
+.sources-matched-chevron {
+  transition: transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+  transform: rotate(0deg);
+  flex-shrink: 0;
+}
+
+.sources-matched-drawer[open] .sources-matched-chevron {
+  transform: rotate(180deg);
+}
+
+.sources-matched-drawer[open] .sources-matched-pill {
+  background: var(--color-accent-soft, rgba(52, 93, 136, 0.08));
+  color: var(--color-accent-bright, var(--color-accent));
+  border-color: var(--color-accent-border, var(--color-accent));
+}
+
+/* Chrome modern-web accordion transition with ::details-content & interpolate-size */
+.sources-matched-drawer::details-content {
+  interpolate-size: allow-keywords;
+  overflow: clip;
+  contain: layout;
+  transition: block-size 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+              content-visibility 0.28s allow-discrete,
+              opacity 0.22s ease;
+  opacity: 1;
+}
+
+.sources-matched-drawer:not([open])::details-content {
+  block-size: 0;
+  opacity: 0;
+}
+
+@starting-style {
+  .sources-matched-drawer[open]::details-content {
+    block-size: 0;
+    opacity: 0;
+  }
+}
+
+.sources-matched-content {
+  padding: 8px 0 4px;
+}
+
+.sources-matched-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  background: var(--color-surface-raised, rgba(0, 0, 0, 0.02));
+  border: 1px solid var(--border-subtle, var(--color-border));
+  border-radius: 12px;
+  padding: 6px;
+}
+
+:root[data-theme="dark"] .sources-matched-list {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.sources-matched-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  width: 100%;
+}
+
+.sources-matched-item:hover {
+  background: var(--color-surface-hover, rgba(0, 0, 0, 0.06));
+}
+:root[data-theme="dark"] .sources-matched-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+.sources-matched-item:active {
+  transform: scale(0.99);
+}
+
+.sources-matched-item-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.sources-matched-file-icon {
+  flex-shrink: 0;
+  color: var(--color-text-muted);
+}
+
+.sources-matched-item-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sources-matched-item-page {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: var(--color-accent-soft, rgba(52, 93, 136, 0.08));
+  padding: 2px 7px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.sources-matched-item-relevance {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.sources-matched-score-bar {
+  width: 60px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--border-subtle, rgba(0, 0, 0, 0.1));
+  overflow: hidden;
+}
+
+:root[data-theme="dark"] .sources-matched-score-bar {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.sources-matched-score-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--color-accent, #345D88);
+  transition: width 0.3s ease;
+}
+
+.sources-matched-score-label {
+  font-size: 11px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-muted);
+  min-width: 32px;
+  text-align: right;
+}
+
+/* 2. Anchor Positioning Glide for Sliding Tabs */
+@supports (position-anchor: --active-tab) or (position-anchor: auto) {
+  .sliding-tabs .active,
+  .sliding-tabs [aria-selected="true"],
+  .sliding-tabs [aria-pressed="true"] {
+    anchor-name: --active-tab;
+  }
+  .sliding-tabs.sliding-tabs::before {
+    position: absolute;
+    position-anchor: --active-tab;
+    inset-block: 3px;
+    inset-inline-start: anchor(left);
+    inset-inline-end: anchor(right);
+    transform: none !important;
+    width: auto !important;
+    transition: inset-inline-start 0.24s cubic-bezier(0.16, 1, 0.3, 1),
+                inset-inline-end 0.24s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  }
+}
+
+/* 3. Fluid Animations: View Transitions and @starting-style */
+.passage-content {
+  view-transition-name: citation-passage;
+}
+
+@starting-style {
+  .passage-content {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  .note-editor.studio-note {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.note-editor.studio-note {
+  view-transition-name: note-studio-view;
+  transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1), transform 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+::view-transition-old(citation-passage),
+::view-transition-new(citation-passage),
+::view-transition-old(note-studio-view),
+::view-transition-new(note-studio-view) {
+  animation-duration: 0.22s;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* 4. Turn actions & In-place retry */
+.user-turn-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.user-turn-actions {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.user-turn-wrapper:hover .user-turn-actions,
+.user-turn-wrapper:focus-within .user-turn-actions {
+  opacity: 1;
+}
+
+.delete-turn-btn {
+  color: var(--color-text-muted);
+  border-radius: var(--radius-control);
+  transition: color 0.15s ease, background-color 0.15s ease;
+}
+
+.delete-turn-btn:hover {
+  color: var(--color-danger-text, #e5484d) !important;
+  background: var(--color-danger-surface, rgba(229, 72, 77, 0.1)) !important;
+}
+
+.in-place-retry {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
 }

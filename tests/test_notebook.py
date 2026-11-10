@@ -225,11 +225,9 @@ def test_source_management_and_formats(auth_headers):
 
 
 def test_conversational_chat_and_isolation(auth_headers, other_user_headers, monkeypatch):
-    import os
-    if not os.getenv("LLM_API_KEY"):
-        from answering.llm import FakeLLMClient
-        fake_response = '{"supported": true, "answer": "The secret code for Subject A is ALPHA-42 [doc_a.pdf p.1].", "citations": [{"file": "doc_a.pdf", "page": 1}]}'
-        monkeypatch.setattr("answering.notebook_answer.get_llm_client", lambda *args, **kwargs: FakeLLMClient(default_response=fake_response))
+    from answering.llm import FakeLLMClient
+    fake_response = '{"supported": true, "answer": "The secret code for Subject A is ALPHA-42 [doc_a.pdf p.1].", "citations": [{"file": "doc_a.pdf", "page": 1}]}'
+    monkeypatch.setattr("answering.notebook_answer.get_llm_client", lambda *args, **kwargs: FakeLLMClient(default_response=fake_response))
 
     # Subject A
     subj_a = client.post("/subjects", json={"name": "Subject A"}, headers=auth_headers).json()
@@ -291,6 +289,20 @@ def test_conversational_chat_and_isolation(auth_headers, other_user_headers, mon
         headers=auth_headers,
     ).json()
     assert len(history) >= 4  # (user + asst) turns
+
+    # 5. Delete message turn
+    target_msg_id = history[0]["id"]
+    del_resp = client.delete(
+        f"/subjects/{subj_a['id']}/conversations/{conv_a['id']}/messages/{target_msg_id}",
+        headers=auth_headers,
+    )
+    assert del_resp.status_code == 200
+    assert del_resp.json()["deleted"] is True
+    history_after = client.get(
+        f"/subjects/{subj_a['id']}/conversations/{conv_a['id']}/messages",
+        headers=auth_headers,
+    ).json()
+    assert all(m["id"] != target_msg_id for m in history_after)
 
 
 def test_notes_management(auth_headers):
