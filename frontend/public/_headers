@@ -1,5 +1,8 @@
 /*
+  Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-M2H144UsGUjR7lHIVkqgNMynUf6kzblUMbL9mmAo+Tw='; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https: http://localhost:* http://127.0.0.1:*; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
 /assets/*
   Cache-Control: public, max-age=31536000, immutable

@@ -3,7 +3,7 @@ import { BackendStatus } from './BackendStatus';
 import { useModalFocus } from '../useModalFocus';
 import { ReferenceIcon } from './ReferenceIcon';
 import { EmptyStateIcon } from './EmptyStateIcon';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useDeferredValue } from 'react';
 import { useSlidingIndicator } from '../useSlidingIndicator';
 import { SortMenu } from './SortMenu';
 import { SettingsPanel, readDefaultResponseSettings } from './SettingsPanel';
@@ -259,13 +259,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     }
   };
 
-  // Filter and sort notebooks (shared by the launcher grid and the in-workspace sidebar)
+  // Filter and sort notebooks (shared by the launcher grid and the in-workspace sidebar). The query is deferred so typing stays instant.
+  const deferredSearch = useDeferredValue(search);
   const filterAndSort = (mode: 'all' | 'active' | 'archived') =>
     subjects
       .filter((s) => (mode === 'all' ? true : mode === 'active' ? !s.is_archived : s.is_archived))
       .filter((s) => {
-        if (!search.trim()) return true;
-        const q = search.toLowerCase();
+        if (!deferredSearch.trim()) return true;
+        const q = deferredSearch.toLowerCase();
         return (
           s.name.toLowerCase().includes(q) ||
           (s.course_code && s.course_code.toLowerCase().includes(q)) ||

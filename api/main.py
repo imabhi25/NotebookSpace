@@ -108,6 +108,27 @@ app.add_middleware(
     expose_headers=["Retry-After"],
 )
 
+_API_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+}
+# The API only returns JSON/files, so nothing it serves may load or run anything. The interactive docs pages
+# load their UI from a CDN and are left without a CSP.
+_API_CSP = "default-src 'none'; frame-ancestors 'none'; base-uri 'none'; form-action 'none'"
+
+
+@app.middleware("http")
+async def _security_headers(request: Request, call_next):
+    response = await call_next(request)
+    for name, value in _API_SECURITY_HEADERS.items():
+        response.headers.setdefault(name, value)
+    if not request.url.path.startswith(("/docs", "/redoc")):
+        response.headers.setdefault("Content-Security-Policy", _API_CSP)
+    return response
+
+
 MAX_UPLOAD_SIZE_BYTES = int(os.getenv("MAX_UPLOAD_SIZE_BYTES", str(50 * 1024 * 1024)))  # 50 MB for PDF
 MAX_TEXT_SIZE_BYTES = int(os.getenv("MAX_TEXT_SIZE_BYTES", str(10 * 1024 * 1024)))      # 10 MB for TXT/MD
 _UPLOAD_READ_CHUNK = 1024 * 1024
