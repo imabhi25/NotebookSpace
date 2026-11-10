@@ -89,7 +89,7 @@ describe('Sources panel', () => {
 
   it('auto-rename cleans filenames in the list and toggles back', () => {
     render(workspace([src('a', 'QUESTIONS_v1.pdf'), src('b', 'announcement_week4.md')], ['a']));
-    const toggle = within(panel()).getByRole('button', { name: 'Auto-rename sources' });
+    const toggle = within(panel()).getByRole('button', { name: /clean up source titles|restore original filenames/i });
     fireEvent.click(toggle);
     expect(within(panel()).getByText('Questions (v1)')).toBeInTheDocument();
     expect(within(panel()).getByText('Week 4 Announcement')).toBeInTheDocument();
@@ -268,11 +268,21 @@ describe('Sources panel', () => {
     expect(screen.queryByRole('complementary', { name: 'Sources' })).toBeNull();
   });
 
-  it('starts the study panel as an overlay at tablet width and does not store its open state', () => {
+  it('keeps the study panel docked (not an overlay) at 1024px, with a slimmer default width', () => {
     window.innerWidth = 1024;
+    const { container } = render(workspace([src('a', 'Syllabus.pdf')], ['a']));
+    expect(screen.getByRole('button', { name: /Toggle study panel/ })).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');
+    expect(container.querySelector<HTMLElement>('.workspace-layout')!.style.getPropertyValue('--ctx-w')).toBe('340px');
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(study()).toBeVisible();
+    expect(screen.getByRole('separator', { name: 'Resize study panel' })).toBeInTheDocument();
+  });
+
+  it('starts the study panel as an overlay at phone width and does not store its open state', () => {
+    window.innerWidth = 700;
     render(workspace([src('a', 'Syllabus.pdf')], ['a']));
     expect(screen.getByRole('button', { name: /Toggle study panel|Open citations panel/ })).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');
     fireEvent.click(screen.getByRole('button', { name: /Toggle study panel|Open citations panel/ }));
     expect(study()).toBeVisible();
     expect(window.localStorage.getItem('notebookspace_context_open')).toBeNull();

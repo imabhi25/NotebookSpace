@@ -176,8 +176,8 @@ describe('Source reader: closing', () => {
   });
 });
 
-describe('Source reader: overlay (1024px)', () => {
-  beforeEach(() => { window.innerWidth = 1024; });
+describe('Source reader: overlay (700px)', () => {
+  beforeEach(() => { window.innerWidth = 700; });
 
   it('Escape steps back one level, then closes the panel and returns to the opener', async () => {
     render(view());

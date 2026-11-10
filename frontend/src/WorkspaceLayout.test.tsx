@@ -177,11 +177,18 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(screen.getByTestId('nav-new-session')).toBeVisible();
   });
 
-  it('opens the study panel on demand at 1024px while Sources stays docked on the left', () => {
+  it('keeps the study panel docked beside the conversation at 1024px', () => {
     window.innerWidth = 1024;
     render(workspace());
-    expect(studyToggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(studyToggle()).toHaveAttribute('aria-expanded', 'true');
     expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'true');
+    expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
+  });
+
+  it('opens the study panel on demand as an overlay at 700px', () => {
+    window.innerWidth = 700;
+    render(workspace());
+    expect(studyToggle()).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(studyToggle());
     expect(studyToggle()).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
