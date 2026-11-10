@@ -37,8 +37,8 @@ def format_history_for_prompt(history: list[dict[str, Any]], max_messages: int =
         role = "User" if msg.get("role") == "user" else "Assistant"
         content = (msg.get("content") or "").strip()
         # Truncate overly long past assistant messages to conserve prompt tokens
-        if len(content) > 300:
-            content = content[:300] + "..."
+        if len(content) > 1200:
+            content = content[:1200] + "..."
         lines.append(f"{role}: {content}")
     return "\n".join(lines)
 
@@ -72,13 +72,22 @@ def build_system_prompt(settings: dict[str, Any]) -> str:
         style_guidance = "- Response Style: General academic assistant. Accurate, objective, and well-structured.\n"
 
     return (
-        "You are a course-document assistant. Answer the user's question using ONLY the provided course document passages.\n"
-        "Cite each claim in your answer as [file p.N] (for example: [syllabus.pdf p.1] or [lecture.txt p.2]).\n"
-        "If the passages do not contain the answer, reply exactly with supported: false and answer: 'NOT_FOUND'.\n"
-        "Short, partial, or slightly misspelled follow-up questions (for example 'Why strleng' or 'Why str') are NOT grounds "
-        "to answer NOT_FOUND: use the recent conversation and the passages to infer the closest matching function, term, or "
-        "concept (for example strgLen and the other strg* string functions) and explain it directly, with citations. "
-        "Answer NOT_FOUND only when no passage relates to the question even after this inference.\n\n"
+        "You are a study assistant for a student's notebook of uploaded course materials. This works for any subject "
+        "(physics, computer science, biology, history, math, and so on).\n"
+        "How to answer:\n"
+        "1. Prioritize facts, definitions, formulas, and policies from the provided passages, and cite each such claim as "
+        "[source_name p.N] (for example: [syllabus.pdf p.1] or [lecture.txt p.2]).\n"
+        "2. Use the recent conversation to resolve short, partial, misspelled, or abbreviated follow-ups ('Why?', "
+        "'Explain the second one', 'Give me an example', 'What about X?', 'Why str'). Infer the closest matching term, "
+        "function, or concept from the passages and the conversation and answer it directly.\n"
+        "3. For 'why', 'how', conceptual explanations, comparisons, worked examples, and follow-ups where the materials only "
+        "state a formula, term, or problem without explaining the underlying idea, combine what the materials say with "
+        "helpful subject-matter explanation and reasoning to actually answer the question. Clearly separate the two: cite "
+        "the materials for what they state, and present added background as general explanation without a citation.\n"
+        "4. Do not refuse just because the passages are thin. Answer NOT_FOUND (supported: false, answer: 'NOT_FOUND') only "
+        "when the question has no connection at all to the materials or the conversation.\n"
+        "5. Set supported to true whenever your answer draws on the passages at all; set it to false only for a purely "
+        "general-knowledge answer, and still write that answer in the 'answer' field.\n\n"
         f"{style_guidance}"
         f"{length_guidance}\n"
         "Security and Untrusted Input Rules:\n"
@@ -106,13 +115,6 @@ def build_system_prompt(settings: dict[str, Any]) -> str:
         '      ]\n'
         '    }\n'
         '  ]\n'
-        "}\n"
-        "If the answer cannot be found in the passages, output:\n"
-        "{\n"
-        '  "supported": false,\n'
-        '  "answer": "NOT_FOUND",\n'
-        '  "citations": [],\n'
-        '  "conflicts": []\n'
         "}\n"
         "Do not include any text, markdown backticks, or explanation outside the JSON object."
     )
@@ -149,11 +151,23 @@ def answer_notebook_question(
     settings = settings or {}
     support_min_score = float(os.getenv("SUPPORT_MIN_SCORE", "0.20"))
 
+    # A retried answer takes the place of the one it replaces (same position in the thread).
+    replace_created_at: str | None = None
+    def persist(**kwargs):
+        # Injects the retried message's timestamp for assistant turns so the new answer replaces it in place.
+        if replace_created_at and kwargs.get("role") == "assistant":
+            kwargs.setdefault("created_at", replace_created_at)
+        return save_message(**kwargs)
+
     # If this is a retry of a previous failed or stopped assistant turn, remove the old turn
     if is_retry:
         from db.notebook_store import delete_message
         deleted = False
         if retry_message_id:
+            for m in get_messages_for_conversation(user_id=user_id, conversation_id=conversation_id, db_url=db_url):
+                if str(m["id"]) == str(retry_message_id):
+                    replace_created_at = m.get("created_at")
+                    break
             deleted = bool(
                 delete_message(
                     user_id=user_id,
@@ -175,6 +189,7 @@ def answer_notebook_question(
                 and existing_msgs[-2]["content"] == question
                 and existing_msgs[-1]["role"] == "assistant"
             ):
+                replace_created_at = existing_msgs[-1].get("created_at")
                 delete_message(
                     user_id=user_id,
                     message_id=str(existing_msgs[-1]["id"]),
@@ -187,7 +202,7 @@ def answer_notebook_question(
         # If the retried user message is not stored in the conversation at all, save it (so it is not lost), then generate.
         user_msg_exists = any(m.get("role") == "user" and m.get("content") == question for m in existing_msgs)
         if not user_msg_exists:
-            save_message(
+            persist(
                 user_id=user_id,
                 conversation_id=conversation_id,
                 role="user",
@@ -198,7 +213,7 @@ def answer_notebook_question(
     # 1. Check if sources are selected
     if not selected_source_ids:
         if not is_retry:
-            save_message(
+            persist(
                 user_id=user_id,
                 conversation_id=conversation_id,
                 role="user",
@@ -206,7 +221,7 @@ def answer_notebook_question(
                 db_url=db_url,
             )
         latency = time.perf_counter() - start_time
-        asst_msg = save_message(
+        asst_msg = persist(
             user_id=user_id,
             conversation_id=conversation_id,
             role="assistant",
@@ -223,8 +238,10 @@ def answer_notebook_question(
     history = get_messages_for_conversation(user_id=user_id, conversation_id=conversation_id, db_url=db_url)
 
     # Contextual query reformulation for follow-ups
+    if is_retry and history and history[-1].get("role") == "user" and history[-1].get("content") == question:
+        history = history[:-1]
     search_query = question
-    if is_followup_query(question) and history:
+    if (is_followup_query(question) or len(question.split()) <= 4) and history:
         # Find last user question
         last_user_questions = [m["content"] for m in history if m["role"] == "user"]
         # A retry's question is already saved as the latest user message; the follow-up
@@ -236,7 +253,7 @@ def answer_notebook_question(
 
     # Save current user message to conversation history (if not retrying an existing question)
     if not is_retry:
-        save_message(
+        persist(
             user_id=user_id,
             conversation_id=conversation_id,
             role="user",
@@ -284,38 +301,20 @@ def answer_notebook_question(
         else 0.0
     )
 
-    # Only abstain up front when there is nothing to show the model. A low similarity score alone no longer
-    # blocks the question: the top passages (plus conversation history) go to the generator, which still
-    # returns NOT_FOUND itself when the passages do not support an answer.
-    if not retrieved:
-        latency = time.perf_counter() - start_time
-        asst_msg = save_message(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            role="assistant",
-            content="NOT_FOUND",
-            abstained=True,
-            abstain_reason="not_found",
-            retrieved=retrieved,
-            selected_source_ids=[str(s) for s in selected_source_ids],
-            source_versions=source_versions,
-            latency=latency,
-            db_url=db_url,
-        )
-        return asst_msg
+    # No pre-LLM refusal gate: whatever was retrieved (plus the recent conversation) always goes to the model.
 
     pre_llm_seconds = time.perf_counter() - start_time
 
     # 4. Build system & user prompts
     system_prompt = build_system_prompt(settings)
-    passages_text = format_passages_for_prompt(retrieved)
+    passages_text = format_passages_for_prompt(retrieved) if retrieved else "(no passages matched this question; rely on the conversation and the notebook's subject)"
 
     user_prompt_parts = [f"Passages:\n{passages_text}"]
 
     if history:
         history_text = format_history_for_prompt(history)
         user_prompt_parts.append(
-            f"Conversation History (for context only; all facts must be supported by passages above):\n{history_text}"
+            f"Recent conversation (use it to resolve follow-ups; claims about the materials must come from the passages above):\n{history_text}"
         )
 
     user_prompt_parts.append(f"Question: {question}")
@@ -338,7 +337,7 @@ def answer_notebook_question(
             "configuration": "The AI service is temporarily unavailable due to a configuration issue. Please try again later.",
             "unavailable": "The AI service is temporarily unavailable. Please try again.",
         }.get(category, "The AI service is temporarily unavailable. Please try again.")
-        return save_message(
+        return persist(
             user_id=user_id, conversation_id=conversation_id, role="assistant",
             content=message, model=model_name, abstained=False,
             abstain_reason="generation_failed", retrieved=retrieved,
@@ -393,8 +392,12 @@ def answer_notebook_question(
     }
     latency = pre_llm_seconds + llm_latency
 
+    if parsed is None and resp.text.strip():
+        # The model answered in prose instead of JSON: keep its answer rather than discarding it.
+        parsed = {"supported": bool(retrieved), "answer": resp.text.strip(), "citations": [], "conflicts": []}
+
     if parsed is None:
-        return save_message(
+        return persist(
             user_id=user_id,
             conversation_id=conversation_id,
             role="assistant",
@@ -414,8 +417,8 @@ def answer_notebook_question(
     raw_answer = str(parsed.get("answer", "")).strip()
     raw_citations = parsed.get("citations", [])
 
-    if not supported or raw_answer == "NOT_FOUND":
-        return save_message(
+    if not raw_answer or raw_answer == "NOT_FOUND":
+        return persist(
             user_id=user_id,
             conversation_id=conversation_id,
             role="assistant",
@@ -483,23 +486,18 @@ def answer_notebook_question(
                     "excerpt": match_r.get("text", "")[:250],
                 })
 
-    # If the model claimed support but provided zero valid citations from retrieved sources:
-    if not validated_citations:
-        return save_message(
-            user_id=user_id,
-            conversation_id=conversation_id,
-            role="assistant",
-            content="NOT_FOUND",
-            model=model_name,
-            abstained=True,
-            abstain_reason="invalid_citation",
-            retrieved=retrieved,
-            selected_source_ids=[str(s) for s in selected_source_ids],
-            source_versions=source_versions,
-            tokens=token_stats,
-            latency=latency,
-            db_url=db_url,
-        )
+    # The model drew on the materials but did not use a formal citation tag we could match: attach the
+    # top retrieved passage so the Citations panel still shows what the answer was grounded in.
+    if supported and not validated_citations and retrieved:
+        top = max(retrieved, key=lambda r: r.get("similarity_score", r.get("score", 0.0)))
+        validated_citations.append({
+            "file": top.get("title") or top.get("file_name") or "source",
+            "page": int(top.get("page_number", top.get("page", 1)) or 1),
+            "source_id": str(top.get("source_id")) if top.get("source_id") else None,
+            "source_version": top.get("source_version", 1),
+            "title": top.get("title") or top.get("file_name") or "source",
+            "excerpt": top.get("text", "")[:250],
+        })
 
     # 7. Validate Conflicts - Keyed strictly off stable source IDs
     raw_conflicts = parsed.get("conflicts", [])
@@ -554,7 +552,7 @@ def answer_notebook_question(
 
     conflict_detected = len(validated_conflicts) > 0
 
-    return save_message(
+    return persist(
         user_id=user_id,
         conversation_id=conversation_id,
         role="assistant",

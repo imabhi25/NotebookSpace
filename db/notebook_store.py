@@ -1144,7 +1144,9 @@ def save_message(
     tokens: dict[str, int] | None = None,
     latency: float = 0.0,
     db_url: str | None = None,
+    created_at: str | None = None,
 ) -> dict[str, Any]:
+    """Insert a message. `created_at` (ISO timestamp) lets a retried answer take its predecessor's place."""
     with get_connection(db_url) as conn:
         with conn.transaction():
             with conn.cursor() as cur:
@@ -1153,12 +1155,12 @@ def save_message(
                     INSERT INTO messages (
                         conversation_id, user_id, role, content, model,
                         citations, conflicts, conflict_detected, abstained, abstain_reason,
-                        retrieved, selected_source_ids, source_versions, tokens, latency
+                        retrieved, selected_source_ids, source_versions, tokens, latency, created_at
                     )
                     VALUES (
                         %s, %s, %s, %s, %s,
                         %s::jsonb, %s::jsonb, %s, %s, %s,
-                        %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s
+                        %s::jsonb, %s::jsonb, %s::jsonb, %s::jsonb, %s, COALESCE(%s::timestamptz, CURRENT_TIMESTAMP)
                     )
                     RETURNING id, conversation_id, user_id, role, content, model,
                               citations, conflicts, conflict_detected, abstained, abstain_reason,
@@ -1180,6 +1182,7 @@ def save_message(
                         json.dumps(source_versions or {}),
                         json.dumps(tokens or {"input": 0, "output": 0, "total": 0}),
                         latency,
+                        created_at,
                     ),
                 )
                 row = cur.fetchone()
