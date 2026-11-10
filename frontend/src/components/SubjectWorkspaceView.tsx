@@ -34,6 +34,7 @@ import { BackendStatus } from './BackendStatus';
 import { CrossSourceCheck } from './CrossSourceCheck';
 import { crossSourceCheck } from '../answerTelemetry';
 import { CommandItem, matchShortcut, shortcutLabel } from '../commandPalette';
+import { toEditorHtml, noteToText } from '../noteHtml';
 import { getThemeSetting, setThemeSetting, ThemeSetting } from '../theme';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
@@ -46,6 +47,18 @@ const SAMPLE_TAG = /^\*\*\[Sample Answer\]\*\*\s*/;
 
 const NAV_PREF_KEY = 'notebookspace_nav_open';
 const CONTEXT_PREF_KEY = 'notebookspace_context_open';
+const NAV_W_KEY = 'notebookspace_nav_w';
+const CTX_W_KEY = 'notebookspace_ctx_w';
+const NAV_W = { def: 260, min: 210, max: 400, snap: 130 };
+const CTX_W = { def: 350, min: 300, max: 560, snap: 180, note: 420 };
+const clampW = (v: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(v)));
+function readWidth(key: string, def: number, min: number, max: number): number {
+  try {
+    const n = Number(window.localStorage.getItem(key));
+    return Number.isFinite(n) && n > 0 ? clampW(n, min, max) : def;
+  } catch { return def; }
+}
+function writeWidth(key: string, v: number): void { try { window.localStorage.setItem(key, String(v)); } catch { /* optional */ } }
 function readPanelPref(key: string): boolean {
   try {
     const stored = window.localStorage.getItem(key);
@@ -220,6 +233,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Navigation (left) and materials (right) collapse independently. Where they are docked the
   // choice is remembered; where they are overlays they always start closed.
   const [isNavCollapsed, setIsNavCollapsed] = useState(() => compactViewport() || !readPanelPref(NAV_PREF_KEY));
+  const [navW, setNavW] = useState(() => readWidth(NAV_W_KEY, NAV_W.def, NAV_W.min, NAV_W.max));
+  const [ctxW, setCtxW] = useState(() => readWidth(CTX_W_KEY, CTX_W.def, CTX_W.min, CTX_W.max));
+  const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
   const [isContextCollapsed, setIsContextCollapsed] = useState(() => overlayViewport() || !readPanelPref(CONTEXT_PREF_KEY));
   const [isActionsOpen, setIsActionsOpen] = useState(false);
   const [titleBelowBar, setTitleBelowBar] = useState(compactViewport);
@@ -272,6 +289,54 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // The toggle that reopens the panel only exists once the panel is collapsed, so focus moves to it after the render.
   const refocusContextToggle = useRef(false);
   const closeContextPanel = () => { refocusContextToggle.current = true; setContextCollapsed(true); };
+  // Drag the inner edge of a side panel. Width is written straight to a CSS variable while dragging (no re-render
+  // per frame) and committed on release; dragging far enough in collapses the panel, dragging out re-opens it.
+  const startResize = (side: 'left' | 'right') => (e: React.PointerEvent<HTMLElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const handle = e.currentTarget;
+    try { handle.setPointerCapture(e.pointerId); } catch { /* not capturable */ }
+    const cfg = side === 'left' ? NAV_W : CTX_W;
+    const collapsed0 = side === 'left' ? isNavCollapsed : isContextCollapsed;
+    const startW = collapsed0 ? (side === 'left' ? 52 : 0) : (side === 'left' ? navW : ctxW);
+    const startX = e.clientX;
+    const varName = side === 'left' ? '--nav-w' : '--ctx-w';
+    let width = side === 'left' ? navW : ctxW;
+    let collapsed = collapsed0;
+    setResizing(side);
+    const move = (ev: PointerEvent) => {
+      const raw = startW + (side === 'left' ? ev.clientX - startX : startX - ev.clientX);
+      const shouldCollapse = raw < cfg.snap;
+      if (shouldCollapse !== collapsed) {
+        collapsed = shouldCollapse;
+        if (side === 'left') setNavCollapsed(shouldCollapse); else setContextCollapsed(shouldCollapse);
+      }
+      width = clampW(raw, cfg.min, cfg.max);
+      rootRef.current?.style.setProperty(varName, `${width}px`);
+    };
+    const done = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', done);
+      handle.removeEventListener('pointercancel', done);
+      setResizing(null);
+      if (side === 'left') { setNavW(width); writeWidth(NAV_W_KEY, width); } else { setCtxW(width); writeWidth(CTX_W_KEY, width); }
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', done);
+    handle.addEventListener('pointercancel', done);
+  };
+  const resetWidth = (side: 'left' | 'right') => {
+    if (side === 'left') { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); setNavCollapsed(false); }
+    else { setCtxW(CTX_W.def); writeWidth(CTX_W_KEY, CTX_W.def); setContextCollapsed(false); }
+    rootRef.current?.style.removeProperty(side === 'left' ? '--nav-w' : '--ctx-w');
+  };
+  const nudgeWidth = (side: 'left' | 'right') => (e: React.KeyboardEvent) => {
+    if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+    e.preventDefault();
+    const dir = (e.key === 'ArrowRight' ? 1 : -1) * (side === 'left' ? 1 : -1) * (e.shiftKey ? 48 : 16);
+    if (side === 'left') { const v = clampW(navW + dir, NAV_W.min, NAV_W.max); setNavW(v); writeWidth(NAV_W_KEY, v); }
+    else { const v = clampW(ctxW + dir, CTX_W.min, CTX_W.max); setCtxW(v); writeWidth(CTX_W_KEY, v); }
+  };
   useEffect(() => {
     if (isContextCollapsed && refocusContextToggle.current) {
       refocusContextToggle.current = false;
@@ -666,14 +731,22 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const openNoteEditor = (note: Note | null) => {
     setEditingNote(note);
     setNoteFormTitle(note?.title ?? 'New Note');
-    setNoteFormContent(note?.content ?? '');
-    noteSavedRef.current = { title: note?.title ?? 'New Note', content: (note?.content ?? '').trim() };
+    const html = toEditorHtml(note?.content ?? '');
+    noteInitialHtml.current = html;
+    setNoteFormContent(html);
+    noteSavedRef.current = { title: note?.title ?? 'New Note', content: html.trim() };
+    setNoteSession((n) => n + 1);
     setNoteBlock('normal');
+    setNoteMenu(null);
     setIsCreateNoteOpen(true);
     setContextView('notes');
     setContextCollapsed(false);
   };
-  const noteBodyRef = useRef<HTMLTextAreaElement>(null);
+  const noteBodyRef = useRef<HTMLDivElement>(null);
+  const noteInitialHtml = useRef('');
+  const [noteSession, setNoteSession] = useState(0);
+  const [noteMenu, setNoteMenu] = useState<null | 'block' | 'more'>(null);
+  const [noteFormats, setNoteFormats] = useState({ bold: false, italic: false });
   const noteSavedRef = useRef({ title: '', content: '' });
   const [noteBlock, setNoteBlock] = useState('normal');
   // Persist the open note (no Save button). New notes are created once they have something worth keeping.
@@ -709,51 +782,75 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     return () => window.clearTimeout(t);
   }, [noteFormTitle, noteFormContent, isCreateNoteOpen, editingNote]);
 
-  const noteReplace = (start: number, end: number, text: string, selStart: number, selEnd: number) => {
-    const ta = noteBodyRef.current;
-    if (!ta) return;
-    ta.focus();
-    ta.setSelectionRange(start, end);
-    let done = false;
-    try { done = typeof document.execCommand === 'function' && document.execCommand('insertText', false, text); } catch { done = false; }
-    if (!done) {
-      const next = ta.value.slice(0, start) + text + ta.value.slice(end);
-      setNoteFormContent(next);
+  // WYSIWYG canvas: the browser edits real HTML, the toolbar issues editing commands against the live selection.
+  useLayoutEffect(() => {
+    const el = noteBodyRef.current;
+    if (!isCreateNoteOpen || !el) return;
+    el.innerHTML = noteInitialHtml.current;
+    try { document.execCommand('defaultParagraphSeparator', false, 'p'); } catch { /* unsupported */ }
+  }, [isCreateNoteOpen, noteSession]);
+  const noteIsBlank = (el: HTMLElement) => !(el.textContent ?? '').trim() && !el.querySelector('hr,li,pre,img');
+  const noteInput = () => {
+    const el = noteBodyRef.current;
+    if (!el) return;
+    setNoteFormContent(noteIsBlank(el) ? '' : el.innerHTML);
+    noteSyncFormats();
+  };
+  const noteExec = (cmd: string, value?: string) => {
+    const el = noteBodyRef.current;
+    if (!el) return;
+    el.focus();
+    try { document.execCommand(cmd, false, value); } catch { /* unsupported */ }
+    noteInput();
+  };
+  const noteInsertHtml = (html: string) => noteExec('insertHTML', html);
+  const noteSelectedText = () => window.getSelection()?.toString() ?? '';
+  const escapeHtmlText = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const noteBlockFormat = (tag: 'p' | 'h1' | 'h2' | 'h3') => { noteExec('formatBlock', tag); setNoteBlock(tag === 'p' ? 'normal' : tag); setNoteMenu(null); };
+  const noteLink = () => {
+    const url = window.prompt('Link URL', 'https://');
+    if (url && /^(https?:|mailto:)/i.test(url.trim())) noteExec('createLink', url.trim());
+  };
+  const noteInlineCode = () => noteInsertHtml(`<code>${escapeHtmlText(noteSelectedText() || 'code')}</code>`);
+  const noteCodeBlock = () => noteInsertHtml(`<pre><code>${escapeHtmlText(noteSelectedText() || 'code')}</code></pre><p><br></p>`);
+  const noteClearFormat = () => { noteExec('removeFormat'); noteExec('formatBlock', 'p'); noteExec('unlink'); setNoteMenu(null); };
+  const noteMore = (cmd: () => void) => { cmd(); setNoteMenu(null); };
+  const noteHistory = (cmd: 'undo' | 'redo') => noteExec(cmd);
+  const noteSyncFormats = () => {
+    const el = noteBodyRef.current;
+    const sel = window.getSelection();
+    if (!el || !sel || !sel.anchorNode || !el.contains(sel.anchorNode)) return;
+    try {
+      setNoteFormats({ bold: document.queryCommandState('bold'), italic: document.queryCommandState('italic') });
+      const v = String(document.queryCommandValue('formatBlock') || '').toLowerCase().replace(/[<>]/g, '');
+      setNoteBlock(/^h[1-3]$/.test(v) ? v : 'normal');
+    } catch { /* unsupported (e.g. tests) */ }
+  };
+  useEffect(() => {
+    if (!isCreateNoteOpen) return;
+    document.addEventListener('selectionchange', noteSyncFormats);
+    return () => document.removeEventListener('selectionchange', noteSyncFormats);
+  });
+  // Close the block-style / more-formatting popovers on an outside press or Escape.
+  useEffect(() => {
+    if (!noteMenu) return;
+    const onDown = (e: PointerEvent) => { if (!(e.target as Element | null)?.closest?.('[data-note-menu]')) setNoteMenu(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setNoteMenu(null); } };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey, true);
+    return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey, true); };
+  }, [noteMenu]);
+  // A note needs room: widen the study panel to 420px while one is open (and restore it afterwards).
+  const noteWidthRestore = useRef<number | null>(null);
+  useEffect(() => {
+    if (isCreateNoteOpen && contextView === 'notes') {
+      if (noteWidthRestore.current === null && ctxW < CTX_W.note) { noteWidthRestore.current = ctxW; setCtxW(CTX_W.note); }
+    } else if (noteWidthRestore.current !== null) {
+      const prev = noteWidthRestore.current;
+      noteWidthRestore.current = null;
+      setCtxW((w) => (w === CTX_W.note ? prev : w));
     }
-    window.requestAnimationFrame(() => { ta.setSelectionRange(selStart, selEnd); });
-  };
-  const noteWrap = (before: string, after: string, placeholder: string) => {
-    const ta = noteBodyRef.current;
-    if (!ta) return;
-    const { selectionStart: a, selectionEnd: b, value } = ta;
-    const sel = value.slice(a, b) || placeholder;
-    noteReplace(a, b, before + sel + after, a + before.length, a + before.length + sel.length);
-  };
-  const noteLinePrefix = (prefix: string, stripHeading = false) => {
-    const ta = noteBodyRef.current;
-    if (!ta) return;
-    const { selectionStart: a, selectionEnd: b, value } = ta;
-    const ls = value.lastIndexOf('\n', a - 1) + 1;
-    let le = value.indexOf('\n', b);
-    if (le === -1) le = value.length;
-    const block = value.slice(ls, le).split('\n').map((l) => {
-      const bare = stripHeading ? l.replace(/^#{1,3}\s+/, '') : l;
-      if (!stripHeading && /^[-*]\s/.test(l)) return l.replace(/^[-*]\s/, '');
-      return prefix + bare;
-    }).join('\n');
-    noteReplace(ls, le, block, ls, ls + block.length);
-  };
-  const noteHistory = (cmd: 'undo' | 'redo') => {
-    noteBodyRef.current?.focus();
-    try { document.execCommand(cmd); } catch { /* unsupported */ }
-  };
-  const noteSyncBlock = () => {
-    const ta = noteBodyRef.current;
-    if (!ta) return;
-    const ls = ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1;
-    const m = /^(#{1,3})\s/.exec(ta.value.slice(ls));
-    setNoteBlock(m ? `h${m[1].length}` : 'normal');
-  };
+  }, [isCreateNoteOpen, contextView, ctxW]);
   // A shortcut never opens on top of another dialog; the dialog owns the keyboard until it closes.
   const dialogOpen = isAddSourceOpen || isCreateNoteOpen || isSettingsOpen || historyOpen || Boolean(viewingSource) || Boolean(renamingSource);
   const shortcutRef = useRef({ dialogOpen, paletteOpen, toggleSourcesPanel, toggleStudyPanel });
@@ -815,8 +912,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     for (const n of notes) {
       items.push({
         id: `n-${n.id}`, group: 'Notes', label: n.title || 'Untitled note',
-        hint: n.content.replace(/\s+/g, ' ').trim().slice(0, 80) || undefined,
-        keywords: n.content.slice(0, 400), run: () => openNoteEditor(n),
+        hint: noteToText(n.content).replace(/\s+/g, ' ').trim().slice(0, 80) || undefined,
+        keywords: noteToText(n.content).slice(0, 400), run: () => openNoteEditor(n),
       });
     }
     return items;
@@ -1357,12 +1454,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const filteredNotes = notes.filter((n) => {
     if (!noteSearch.trim()) return true;
     const q = noteSearch.toLowerCase();
-    return n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q);
+    return n.title.toLowerCase().includes(q) || noteToText(n.content).toLowerCase().includes(q);
   });
 
 
   return (
-    <div className="workspace-root workspace-layout" data-nav-open={!isNavCollapsed && !navHiddenByReader} data-context-open={!isContextCollapsed}
+    <div className={`workspace-root workspace-layout${resizing ? ' is-resizing' : ''}`} ref={rootRef}
+      style={{
+        ...(isCompact ? {} : { '--nav-w': `${navW}px` }),
+        ...(isContextOverlay || reader ? {} : { '--ctx-w': `${ctxW}px` }),
+      } as React.CSSProperties}
+      data-nav-open={!isNavCollapsed && !navHiddenByReader} data-context-open={!isContextCollapsed}
       data-note-open={contextView === 'notes' && isCreateNoteOpen && !reader ? 'true' : undefined}
       data-reader={reader ? (readerExpanded ? 'expanded' : 'compact') : undefined}>
       <div className="sr-only" role="status" aria-live="polite" data-testid="reader-live-region">{readerAnnouncement}</div>
@@ -1452,6 +1554,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         )}
         {/* LEFT: sources (notebook, add, find, selection, list) */}
         <div className={`nav-slot ${isNavCollapsed || navHiddenByReader ? 'is-collapsed' : ''}`}>
+          <div className="panel-resize-handle panel-resize-left" role="separator" aria-orientation="vertical" aria-label="Resize sources panel" tabIndex={0}
+            aria-valuemin={NAV_W.min} aria-valuemax={NAV_W.max} aria-valuenow={isNavCollapsed ? 0 : navW} title="Drag to resize · double-click to reset"
+            data-resizing={resizing === 'left' ? 'true' : undefined}
+            onPointerDown={startResize('left')} onDoubleClick={() => resetWidth('left')} onKeyDown={nudgeWidth('left')} />
           {(isNavCollapsed || navHiddenByReader) && (
             <div className="nav-expand-rail" role="toolbar" aria-label="Sources rail" aria-orientation="vertical">
               <button type="button" ref={navToggleRef} className="rail-icon-btn workspace-nav-toggle" onClick={onNavToggle}
@@ -1967,6 +2073,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <div
           className={`context-slot ${isContextCollapsed ? 'is-collapsed' : ''}`}
         >
+          <div className="panel-resize-handle panel-resize-right" role="separator" aria-orientation="vertical" aria-label="Resize study panel" tabIndex={0}
+            aria-valuemin={CTX_W.min} aria-valuemax={CTX_W.max} aria-valuenow={isContextCollapsed ? 0 : ctxW} title="Drag to resize · double-click to reset"
+            data-resizing={resizing === 'right' ? 'true' : undefined}
+            onPointerDown={startResize('right')} onDoubleClick={() => resetWidth('right')} onKeyDown={nudgeWidth('right')} />
         {isContextCollapsed && (
           <button type="button" ref={contextToggleRef} className="rail-icon-btn context-expand-btn" onClick={() => setContextCollapsed(false)}
             title={`Open citations panel (${shortcutLabel('\\')})`} aria-label="Open citations panel" aria-expanded={false} aria-controls="workspace-sources-panel">
@@ -2075,7 +2185,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     </button>
                   </div>
                   <div className="note-title-row">
-                    <input id="note-title-input" className="note-editor-title" type="text" placeholder="New Note" aria-label="Note title"
+                    <input id="note-title-input" className="note-editor-title note-studio-title" type="text" placeholder="New Note" aria-label="Note title"
                       value={noteFormTitle} onChange={(e) => setNoteFormTitle(e.target.value)} onFocus={(e) => { if (e.currentTarget.value === 'New Note') e.currentTarget.select(); }} />
                     <button type="button" className="rail-icon-btn note-editor-delete" aria-label="Delete note" title="Delete note"
                       onClick={() => {
@@ -2091,25 +2201,46 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     </button>
                   </div>
                   <div className="note-toolbar" role="toolbar" aria-label="Formatting">
-                    <button type="button" className="note-tool" aria-label="Undo" title="Undo" onClick={() => noteHistory('undo')}>↶</button>
-                    <button type="button" className="note-tool" aria-label="Redo" title="Redo" onClick={() => noteHistory('redo')}>↷</button>
+                    <button type="button" className="note-tool" aria-label="Undo" title="Undo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('undo')}>↶</button>
+                    <button type="button" className="note-tool" aria-label="Redo" title="Redo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('redo')}>↷</button>
                     <span className="note-tool-sep" aria-hidden="true" />
-                    <select className="note-block-select" aria-label="Text style" value={noteBlock}
-                      onChange={(e) => { const v = e.target.value; setNoteBlock(v); noteLinePrefix(v === 'normal' ? '' : `${'#'.repeat(Number(v[1]))} `, true); }}>
-                      <option value="normal">Normal</option>
-                      <option value="h1">Heading 1</option>
-                      <option value="h2">Heading 2</option>
-                      <option value="h3">Heading 3</option>
-                    </select>
+                    <div className="note-menu-anchor" data-note-menu>
+                      <button type="button" className={`note-block-btn ${noteMenu === 'block' ? 'is-open' : ''}`} aria-label="Text style" aria-haspopup="menu" aria-expanded={noteMenu === 'block'}
+                        onMouseDown={(e) => e.preventDefault()} onClick={() => setNoteMenu(noteMenu === 'block' ? null : 'block')}>
+                        {noteBlock === 'normal' ? 'Normal' : `Heading ${noteBlock[1]}`}<span aria-hidden="true"> ▾</span>
+                      </button>
+                      {noteMenu === 'block' && (
+                        <div className="note-popover note-block-menu" role="menu" aria-label="Text style">
+                          {([['p', 'Normal'], ['h1', 'Heading 1'], ['h2', 'Heading 2'], ['h3', 'Heading 3']] as const).map(([tag, label]) => (
+                            <button key={tag} type="button" role="menuitemradio" aria-checked={(noteBlock === 'normal' ? 'p' : noteBlock) === tag}
+                              className={`note-menu-item note-menu-${tag}`} onMouseDown={(e) => e.preventDefault()} onClick={() => noteBlockFormat(tag)}>{label}</button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
                     <span className="note-tool-sep" aria-hidden="true" />
-                    <button type="button" className="note-tool note-tool-bold" aria-label="Bold" title="Bold" onClick={() => noteWrap('**', '**', 'bold')}>B</button>
-                    <button type="button" className="note-tool note-tool-italic" aria-label="Italic" title="Italic" onClick={() => noteWrap('*', '*', 'italic')}>I</button>
+                    <button type="button" className={`note-tool note-tool-bold ${noteFormats.bold ? 'is-active' : ''}`} aria-label="Bold" aria-pressed={noteFormats.bold} title="Bold" onMouseDown={(e) => e.preventDefault()} onClick={() => noteExec('bold')}>B</button>
+                    <button type="button" className={`note-tool note-tool-italic ${noteFormats.italic ? 'is-active' : ''}`} aria-label="Italic" aria-pressed={noteFormats.italic} title="Italic" onMouseDown={(e) => e.preventDefault()} onClick={() => noteExec('italic')}>I</button>
                     <span className="note-tool-sep" aria-hidden="true" />
-                    <button type="button" className="note-tool" aria-label="Insert link" title="Insert link" onClick={() => noteWrap('[', '](https://)', 'link text')}>
+                    <button type="button" className="note-tool" aria-label="Insert link" title="Insert link" onMouseDown={(e) => e.preventDefault()} onClick={noteLink}>
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" /></svg>
                     </button>
-                    <button type="button" className="note-tool" aria-label="Inline code" title="Inline code" onClick={() => noteWrap('`', '`', 'code')}>{'<>'}</button>
-                    <button type="button" className="note-tool" aria-label="Bullet list" title="Bullet list" onClick={() => noteLinePrefix('- ')}>•</button>
+                    <button type="button" className="note-tool" aria-label="Inline code" title="Inline code" onMouseDown={(e) => e.preventDefault()} onClick={noteInlineCode}>{'<>'}</button>
+                    <button type="button" className="note-tool" aria-label="Code block" title="Code block" onMouseDown={(e) => e.preventDefault()} onClick={noteCodeBlock}>{'[<>]'}</button>
+                    <span className="note-tool-sep" aria-hidden="true" />
+                    <div className="note-menu-anchor note-more-anchor" data-note-menu>
+                      <button type="button" className={`note-tool ${noteMenu === 'more' ? 'is-active' : ''}`} aria-label="More formatting" title="More formatting" aria-haspopup="menu" aria-expanded={noteMenu === 'more'}
+                        onMouseDown={(e) => e.preventDefault()} onClick={() => setNoteMenu(noteMenu === 'more' ? null : 'more')}>•••</button>
+                    </div>
+                    {noteMenu === 'more' && (
+                      <div className="note-popover note-more-pill" role="toolbar" aria-label="More formatting" data-note-menu>
+                        <button type="button" className="note-tool" aria-label="Bulleted list" title="Bulleted list" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('insertUnorderedList'))}>•≡</button>
+                        <button type="button" className="note-tool" aria-label="Numbered list" title="Numbered list" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('insertOrderedList'))}>123≡</button>
+                        <button type="button" className="note-tool" aria-label="Blockquote" title="Blockquote" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('formatBlock', 'blockquote'))}>❞</button>
+                        <button type="button" className="note-tool" aria-label="Horizontal divider" title="Horizontal divider" onMouseDown={(e) => e.preventDefault()} onClick={() => noteMore(() => noteExec('insertHorizontalRule'))}>—</button>
+                        <button type="button" className="note-tool" aria-label="Clear formatting" title="Clear formatting" onMouseDown={(e) => e.preventDefault()} onClick={noteClearFormat}>T̸</button>
+                      </div>
+                    )}
                   </div>
                   {editingNote?.citations && editingNote.citations.length > 0 && (
                     <div className="note-citations-chips">
@@ -2124,9 +2255,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       ))}
                     </div>
                   )}
-                  <textarea id="note-content-input" ref={noteBodyRef} className="note-editor-body" placeholder="Write your study notes, formulas, or key takeaways..."
-                    aria-label="Note content" value={noteFormContent} onChange={(e) => setNoteFormContent(e.target.value)}
-                    onSelect={noteSyncBlock} />
+                  <div id="note-content-input" ref={noteBodyRef} className="note-editor-body note-studio-canvas" contentEditable suppressContentEditableWarning
+                    role="textbox" aria-multiline="true" aria-label="Note body" data-placeholder="Write your study notes, formulas, or key takeaways..."
+                    data-empty={noteFormContent === '' ? 'true' : 'false'} spellCheck
+                    onInput={noteInput}
+                    onPaste={(e) => { e.preventDefault(); const t = e.clipboardData.getData('text/plain'); if (t) noteExec('insertText', t); }}
+                    onKeyUp={noteSyncFormats} onMouseUp={noteSyncFormats} />
                 </form>
               ) : (
               <>
@@ -2185,7 +2319,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             <span className="personal-note-tag">Note</span>
                           )}
                         </div>
-                        <p className="note-snippet-text">{n.content}</p>
+                        <p className="note-snippet-text">{noteToText(n.content)}</p>
                         {n.citations && n.citations.length > 0 && (
                           <div className="note-citations-container" onClick={(e) => e.stopPropagation()}>
                             <div className="note-citations-chips">
