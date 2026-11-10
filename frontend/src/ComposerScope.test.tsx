@@ -179,12 +179,10 @@ describe('Session drafts (mocked)', () => {
 });
 
 describe('Answer actions and citation access without the chip row (mocked)', () => {
-  it('shows numbered markers that match Evidence n of N, plus every action', () => {
+  it('shows no inline markers in the answer, plus every action', () => {
     render(<Harness />);
     expect(screen.queryByTestId('citation-chip-0')).toBeNull();
-    const markers = screen.getAllByTestId('inline-citation');
-    expect(markers.map((m) => m.textContent)).toEqual(['1', '2']);
-    expect(markers[1]).toHaveAccessibleName('Citation 2: b.pdf, page 2');
+    expect(screen.queryByTestId('inline-citation')).toBeNull();
     for (const name of ['Copy', 'Save to note', 'Retrieval details']) {
       expect(screen.getByRole('button', { name: new RegExp(name.replace('Copy', '^Copy')) })).toBeInTheDocument();
     }
@@ -199,10 +197,12 @@ describe('Answer actions and citation access without the chip row (mocked)', () 
     fireEvent.click(within(screen.getByTestId('inline-evidence')).getByRole('button', { name: 'Next citation' }));
     await waitFor(() => expect(screen.getByTestId('inline-evidence')).toHaveTextContent('Third passage, never cited inline.'));
   });
-  it('marks a replaced source on its citation marker', () => {
+  it('flags a replaced source in the Citations panel, not in the answer', async () => {
     const replaced = [mk('a', 'ready', { version: 2 }), mk('b', 'ready')];
     render(<Harness srcs={replaced} />);
-    expect(screen.getByRole('button', { name: 'Citation 1: a.pdf, page 1, replaced source' })).toHaveClass('replaced');
+    expect(screen.queryByRole('button', { name: /^Citation 1:/ })).toBeNull();
+    const ev = await screen.findByTestId('inline-evidence');
+    expect(within(ev).getByTestId('historical-citation-alert')).toHaveTextContent(/Source Replaced/);
   });
   it('removes the disabled research-depth selector but keeps the link form', () => {
     render(<Harness />);

@@ -31,3 +31,19 @@ export function trailingPunctuationGap(rest: string): number {
   const m = rest.match(/^\s+(?=[.,;:!?](?:\s|$))/);
   return m ? m[0].length : 0;
 }
+
+/**
+ * Removes every bracketed citation marker from visible answer text. Whitespace around a marker collapses so
+ * "algorithm [1] ." reads "algorithm." and "a [1] b" reads "a b".
+ */
+export function stripCitationMarkers(text: string): string {
+  const re = new RegExp(`[ \\t]*(?:${CITATION_PATTERN}[ \\t]*)+`, 'giu');
+  return text.replace(re, (m: string, ...args: unknown[]) => {
+    const offset = args[args.length - 2] as number;
+    const whole = args[args.length - 1] as string;
+    const before = offset === 0 || whole[offset - 1] === '\n';
+    const next = whole[offset + m.length];
+    const after = next === undefined || /[\s.,;:!?)\]]/.test(next);
+    return before || after ? '' : ' ';
+  });
+}

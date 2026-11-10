@@ -55,7 +55,8 @@ beforeEach(() => {
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 
 const openEvidence = async () => {
-  fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
+  const opener = screen.queryByRole('button', { name: 'Open citations panel' });
+  if (opener) fireEvent.click(opener);
   return screen.findByTestId('inline-evidence');
 };
 const openReader = async () => {

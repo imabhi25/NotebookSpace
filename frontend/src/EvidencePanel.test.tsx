@@ -50,7 +50,6 @@ describe('Evidence panel', () => {
       { file_name: 'a.pdf', page_number: 2, chunk_index: 1, text: chunk },
     ]);
     render(view());
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
     const pane = await screen.findByTestId('inline-evidence');
     await waitFor(() => expect(within(pane).getByText(chunk)).toBeInTheDocument());
     expect(within(pane).queryByText('Retrieved for this answer')).toBeNull();
@@ -60,17 +59,19 @@ describe('Evidence panel', () => {
     expect(within(pane).queryByText(/Citations point to a page/)).toBeNull();
   });
 
-  it('exposes citation markers as pressed toggles, and the Evidence button controls the evidence under the answer', async () => {
+  it('keeps the answer prose free of citation markers while the Citations panel steps through every citation', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view());
-    const chip = screen.getByRole('button', { name: /^Citation 1:/ });
+    const answer = screen.getByTestId('answer-view');
+    expect(screen.queryByTestId('inline-citation')).toBeNull();
+    expect(answer.querySelector('.answer-text')).toHaveTextContent('Exam is 40% and quizzes count.');
     // Citation 1 is selected when the notebook opens.
-    expect(chip).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /^Citation 2:/ })).toHaveAttribute('aria-pressed', 'true'));
-    expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveAttribute('aria-pressed', 'false');
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
-    await waitFor(() => expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveAttribute('aria-pressed', 'true'));
+    const evidence = await screen.findByTestId('inline-evidence');
+    expect(within(evidence).getByText('1/2')).toBeInTheDocument();
+    fireEvent.click(within(evidence).getByRole('button', { name: 'Next citation' }));
+    await waitFor(() => expect(within(screen.getByTestId('inline-evidence')).getByText('2/2')).toBeInTheDocument());
+    fireEvent.click(within(screen.getByTestId('inline-evidence')).getByRole('button', { name: 'Previous citation' }));
+    await waitFor(() => expect(within(screen.getByTestId('inline-evidence')).getByText('1/2')).toBeInTheDocument());
   });
 
   it('lets keyboard users open a conflict claim: each claim is a native button, so Enter and Space activate it', async () => {
@@ -94,8 +95,7 @@ describe('Evidence panel', () => {
     vi.spyOn(api, 'getPassages').mockImplementation((file: string) =>
       file === 'a.pdf' ? pendingA : Promise.resolve([{ file_name: 'b.pdf', page_number: 1, chunk_index: 0, text: 'B text' }]));
     render(view());
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
+    fireEvent.click(within(await screen.findByTestId('inline-evidence')).getByRole('button', { name: 'Next citation' }));
     await waitFor(() => expect(screen.getByText('B text')).toBeInTheDocument());
     releaseA([{ file_name: 'a.pdf', page_number: 2, chunk_index: 0, text: 'Stale A text' }]);
     await new Promise((r) => setTimeout(r, 20));
@@ -105,7 +105,6 @@ describe('Evidence panel', () => {
   it('shows the evidence in the study panel, with real file, page and passage text', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([{ file_name: 'a.pdf', page_number: 2, chunk_index: 1, text: chunk }]);
     render(view());
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 1:/ }));
     const evidence = await screen.findByTestId('inline-evidence');
     const answer = screen.getByTestId('answer-view');
     expect(screen.getByRole('complementary', { name: 'Study panel' }).contains(evidence)).toBe(true);
@@ -115,48 +114,32 @@ describe('Evidence panel', () => {
     expect(evidence.querySelector('mark')).toBeNull();
   });
 
-  it('collapses on Close and on Escape, and returns focus to the citation that opened it', async () => {
+  it('collapses on Escape', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       render(view());
-      const chip = screen.getByRole('button', { name: /^Citation 1:/ });
-      chip.focus();
-      fireEvent.click(chip);
       await screen.findByTestId('inline-evidence');
       fireEvent.keyDown(screen.getByTestId('inline-evidence'), { key: 'Escape' });
       vi.advanceTimersByTime(10);
       expect(screen.queryByTestId('inline-evidence')).toBeNull();
-      expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveFocus();
-
-      const chip1 = screen.getByRole('button', { name: /^Citation 2:/ });
-      chip1.focus();
-      fireEvent.click(chip1);
-      const evidence = await screen.findByTestId('inline-evidence');
-      fireEvent.keyDown(evidence, { key: 'Escape' });
-      vi.advanceTimersByTime(10);
-      expect(screen.queryByTestId('inline-evidence')).toBeNull();
-      expect(screen.getByRole('button', { name: /^Citation 2:/ })).toHaveFocus();
     } finally {
       vi.useRealTimers();
     }
   });
 
-  it('steps between the answer\'s citations without losing the original opener', async () => {
+  it('steps between the answer\'s citations and closes on Escape', async () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     vi.useFakeTimers({ shouldAdvanceTime: true });
     try {
       render(view());
-      const chip = screen.getByRole('button', { name: /^Citation 1:/ });
-      chip.focus();
-      fireEvent.click(chip);
       const evidence = await screen.findByTestId('inline-evidence');
       expect(within(evidence).getByText('1/2')).toBeInTheDocument();
       fireEvent.click(within(evidence).getByRole('button', { name: 'Next citation' }));
       await waitFor(() => expect(within(screen.getByTestId('inline-evidence')).getByText('2/2')).toBeInTheDocument());
       fireEvent.keyDown(screen.getByTestId('inline-evidence'), { key: 'Escape' });
       vi.advanceTimersByTime(10);
-      expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveFocus();
+      expect(screen.queryByTestId('inline-evidence')).toBeNull();
     } finally {
       vi.useRealTimers();
     }
@@ -166,7 +149,8 @@ describe('Evidence panel', () => {
     vi.spyOn(api, 'getPassages').mockResolvedValue([]);
     render(view());
     expect(screen.getByTestId('selected-source-card')).toBeInTheDocument(); // citation 1 auto-selected
-    fireEvent.click(screen.getByRole('button', { name: /^Citation 2:/ }));
+    fireEvent.click(within(await screen.findByTestId('inline-evidence')).getByRole('button', { name: 'Next citation' }));
+    await waitFor(() => expect(within(screen.getByTestId('selected-source-card')).getByRole('heading', { level: 3 })).toHaveTextContent('b.pdf'));
     const card = await screen.findByTestId('selected-source-card');
     const panel = screen.getByRole('complementary', { name: 'Study panel' });
     expect(panel.contains(card)).toBe(true);
