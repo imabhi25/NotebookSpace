@@ -39,6 +39,7 @@ import { getThemeSetting, setThemeSetting, ThemeSetting } from '../theme';
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
 import { Composer, ComposerScope } from './Composer';
+import { BrandLogo } from './BrandLogo';
 
 const NAV_PREF_KEY = 'notebookspace_nav_open';
 const CONTEXT_PREF_KEY = 'notebookspace_context_open';
@@ -1205,12 +1206,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           </button>
         <div className="workspace-brand" ref={brandRef}>
           <span className="workspace-brand-mark" aria-hidden="true">
-            <svg className="brand-logo-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-              {/* Left page (dominant) */}
-              <path className="logo-page-left" d="M11 5.8C7.8 4.7 4.6 5.1 3.5 6.1C2.6 6.9 2 8 2 9.5V17.2C2 18.5 2.5 19.3 3.5 19.6C6.5 20.6 9.2 21.2 11 21.8V5.8Z" />
-              {/* Right page (lighter / receding) */}
-              <path className="logo-page-right" d="M13 5.8C16.2 4.7 19.4 5.1 20.5 6.1C21.4 6.9 22 8 22 9.5V17.2C22 18.5 21.5 19.3 20.5 19.6C17.5 20.6 14.8 21.2 13 21.8V5.8Z" />
-            </svg>
+            <BrandLogo size={26} />
           </span>
           <span className="workspace-brand-name">NotebookSpace</span>
         </div>
