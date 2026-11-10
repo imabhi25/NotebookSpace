@@ -530,8 +530,8 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: v
     background: var(--color-surface); box-shadow: var(--shadow-1);
     transition: transform var(--motion-thumb) var(--motion-ease-out);
   }
-  :is(.sidebar-filter-pills, .sidebar-segment-switcher, .modal-tab-bar):has(> :nth-child(2).active)::before { transform: translateX(100%); }
-  :is(.sidebar-segment-switcher, .modal-tab-bar):has(> :nth-child(3).active)::before { transform: translateX(200%); }
+  :is(.sidebar-filter-pills, .sidebar-segment-switcher, .modal-tab-bar):not(.sliding-tabs):has(> :nth-child(2).active)::before { transform: translateX(100%); }
+  :is(.sidebar-segment-switcher, .modal-tab-bar):not(.sliding-tabs):has(> :nth-child(3).active)::before { transform: translateX(200%); }
   :is(.sidebar-filter-pill, .segment-btn, .modal-tab-btn).active { background: var(--color-transparent); box-shadow: none; }
 }
 :is(.sidebar-filter-pill, .segment-btn, .modal-tab-btn) { text-align: center; }
@@ -833,8 +833,8 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
 .home-filter-tabs { flex: 0 1 auto; }
 .home-filter-tabs .sidebar-filter-pill { padding: 0 var(--space-4); min-width: var(--size-56); }
 @supports selector(:has(*)) {
-  .home-filter-tabs::before { width: calc((100% - var(--space-2)) / 3); }
-  .home-filter-tabs:has(> :nth-child(3).active)::before { transform: translateX(200%); }
+  .home-filter-tabs:not(.sliding-tabs)::before { width: calc((100% - var(--space-2)) / 3); }
+  .home-filter-tabs:not(.sliding-tabs):has(> :nth-child(3).active)::before { transform: translateX(200%); }
 }
 
 .notebook-grid {
@@ -2204,7 +2204,7 @@ aside .retrieval-svg,
    Header refinement, brand mark, settings overhaul
    ============================================================ */
 .notebooks-home .brand-mark-wrapper { width: 28px; height: 28px; border-radius: 8px; background: transparent; color: var(--color-text-primary); --brand-mark-seam: var(--color-background); }
-.notebooks-home .brand-mark-svg { filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.18)); }
+.notebooks-home .brand-mark-svg { display: block; color: var(--color-text-primary); }
 .notebooks-home .home-brand { gap: 8px; }
 .notebooks-home .home-brand .sidebar-brand-title { font-size: 16px; font-weight: 650; letter-spacing: -0.028em; color: var(--color-text-primary); }
 .notebooks-home .home-header-actions { gap: 6px; }
@@ -2261,3 +2261,26 @@ aside .retrieval-svg,
 .settings-action-danger:hover:not(:disabled) { background: rgba(220, 38, 38, 0.08); }
 :root[data-theme="dark"] .settings-action-danger { color: #F87171; border-color: rgba(248, 113, 113, 0.3); }
 @media (pointer: coarse) { .settings-action-btn, .settings-field select { min-height: 44px; } }
+
+/* ---- Segmented filter tabs: a measured pill that sits exactly under the active label ---- */
+.notebooks-home .home-filter-tabs.sliding-tabs {
+  position: relative; display: inline-flex; align-items: center; gap: 0; padding: 3px; border-radius: 10px;
+  background: rgba(0, 0, 0, 0.05); border: 1px solid var(--border-subtle, var(--color-border)); box-shadow: none;
+}
+:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs { background: rgba(255, 255, 255, 0.06); }
+.notebooks-home .home-filter-tabs.sliding-tabs.sliding-tabs::before {
+  display: block; top: 3px; bottom: 3px; left: 0; border-radius: 7px; pointer-events: none;
+  background: var(--bg-canvas, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  transition: transform .22s cubic-bezier(0.16, 1, 0.3, 1), width .22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs.sliding-tabs::before {
+  background: rgba(255, 255, 255, 0.12); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+.notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill {
+  border-radius: 7px; min-height: 28px; padding: 5px 14px; font-size: 13px; font-weight: 500; line-height: 1.2;
+  color: var(--color-text-secondary);
+}
+:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill:not(.active) { color: rgba(255, 255, 255, 0.65); }
+.notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill:hover:not(.active) { color: var(--color-text-primary); }
+.notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill.active { color: #09090b; font-weight: 550; }
+:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill.active { color: #fff; }
