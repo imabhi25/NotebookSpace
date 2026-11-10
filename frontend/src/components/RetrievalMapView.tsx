@@ -286,6 +286,16 @@ export const RetrievalMapView: React.FC<RetrievalMapViewProps> = ({
     <div className="retrieval-map-root" data-testid="retrieval-map-view">
       <HybridWeightControl alpha={alpha} onChange={setAlpha} disabled={!canWeight} />
 
+      <details className="stats-accordion" data-testid="retrieval-stats">
+        <summary>Retrieval details</summary>
+        <dl className="stats-grid">
+          <div><dt>Sources</dt><dd>{new Set(data.chunks.map((c) => c.source_id)).size}</dd></div>
+          <div><dt>Passages</dt><dd>{data.chunks.length}</dd></div>
+          <div><dt>Retrieved</dt><dd>{retrievedChunks.length}</dd></div>
+          <div><dt>Top score</dt><dd>{(() => { const v = retrievedChunks.map((c) => c.score).filter((n): n is number => typeof n === 'number'); return v.length ? Math.max(...v).toFixed(2) : '—'; })()}</dd></div>
+        </dl>
+      </details>
+
       {/* Header Info */}
       <div className="retrieval-map-header">
         <div className="retrieval-map-meta">

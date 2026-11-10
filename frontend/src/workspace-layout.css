@@ -2031,3 +2031,18 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 /* ---- Not-found / failed replies read as ordinary assistant prose ---- */
 .abstain-prose { display: flex; flex-direction: column; gap: var(--space-2); }
 .abstain-prose .answer-text { margin: 0; color: var(--color-text-primary); }
+
+/* ---- Container-aware panels (round 2): adapt to their own width, not the viewport ---- */
+@container sources-panel (max-width: 260px) {
+  .sources-panel-header, .sources-toolbar { padding-inline: var(--space-2); gap: var(--space-1); }
+  .source-row-meta { display: none; }
+}
+@container workspace-center (max-width: 560px) {
+  .workspace-top-bar, .composer-container { padding-inline: var(--space-3); }
+}
+@container workspace-center (min-width: 900px) {
+  .composer-container { padding-inline: var(--space-6); }
+}
+@container study-panel (min-width: 420px) {
+  .stats-grid { grid-template-columns: repeat(4, 1fr); }
+}

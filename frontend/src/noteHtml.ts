@@ -7,6 +7,16 @@ const HTML_HINT = /<(p|h[1-3]|ul|ol|li|blockquote|pre|hr|strong|em|code|a|br|div
 
 export const looksLikeHtml = (s: string) => HTML_HINT.test(s);
 
+/** Only http(s) and mailto links survive; javascript:, data:, vbscript: and anything unparsable are dropped. */
+export function safeNoteUrl(raw: string): string | null {
+  const v = raw.trim();
+  if (!v) return null;
+  try {
+    const u = new URL(v);
+    return u.protocol === 'http:' || u.protocol === 'https:' || u.protocol === 'mailto:' ? v : null;
+  } catch { return null; }
+}
+
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 export function plainToHtml(text: string): string {
@@ -37,16 +47,16 @@ function cleanNode(node: Node, doc: Document): Node | null {
   const tag = RENAME[el.tagName] ?? el.tagName;
   if (!ALLOWED.has(tag)) {
     // Unknown wrapper: keep its children, drop the element (and anything scripty entirely).
-    if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED'].includes(el.tagName)) return null;
+    if (['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'TEMPLATE', 'NOSCRIPT', 'SVG', 'MATH', 'FORM', 'TEXTAREA', 'SELECT'].includes(el.tagName)) return null;
     const frag = doc.createDocumentFragment();
     el.childNodes.forEach((c) => { const k = cleanNode(c, doc); if (k) frag.appendChild(k); });
     return frag;
   }
   const out = doc.createElement(tag.toLowerCase());
   if (tag === 'A') {
-    const href = el.getAttribute('href') ?? '';
-    if (/^(https?:|mailto:)/i.test(href.trim())) {
-      out.setAttribute('href', href.trim());
+    const href = safeNoteUrl(el.getAttribute('href') ?? '');
+    if (href) {
+      out.setAttribute('href', href);
       out.setAttribute('target', '_blank');
       out.setAttribute('rel', 'noopener noreferrer');
     }

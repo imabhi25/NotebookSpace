@@ -400,7 +400,7 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: v
 
 /* ---------- Entrances: only for things that appear occasionally ---------- */
 @starting-style {
-  .modal-backdrop { opacity: 0; }
+  .modal-backdrop { opacity: 0; -webkit-backdrop-filter: blur(0); backdrop-filter: blur(0); }
   .modal-content { opacity: 0; transform: translateY(var(--enter-shift)) scale(var(--enter-scale)); }
   .notebook-overflow-menu, .sort-menu-list { opacity: 0; transform: scale(var(--menu-scale)); }
   .floating-sidebar-reopen-btn { opacity: 0; }
@@ -2438,13 +2438,13 @@ aside .retrieval-svg,
 
 /* Sliding segmented highlight: let the browser track the active tab instead of JS measurements. */
 @supports (anchor-name: --a) and (position-area: top) {
-  .sliding-tabs:not(.context-view-switcher) { anchor-scope: --tab-active; }
-  .sliding-tabs:not(.context-view-switcher) > :is(.active, [aria-selected="true"]) { anchor-name: --tab-active; }
-  .sliding-tabs:not(.context-view-switcher).sliding-tabs::before {
+  .sliding-tabs { anchor-scope: --tab-active; }
+  .sliding-tabs > :is(.active, [aria-selected="true"]) { anchor-name: --tab-active; }
+  .sliding-tabs.sliding-tabs::before {
     position-anchor: --tab-active;
     left: anchor(left); width: anchor-size(width); transform: none;
   }
-  .sliding-tabs[data-ind-ready]:not(.context-view-switcher).sliding-tabs::before {
+  .sliding-tabs[data-ind-ready].sliding-tabs::before {
     transition: left .24s cubic-bezier(0.16, 1, 0.3, 1), width .24s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
@@ -2464,3 +2464,34 @@ aside .retrieval-svg,
 /* Headings and prose break lines more evenly. */
 :is(h1, h2, h3, .notebook-card-title) { text-wrap: balance; }
 .answer-text, .markdown-content, .notebook-card-description { text-wrap: pretty; }
+
+/* ---- Modern web upgrades, round 2 ---- */
+
+/* Accordion stats (retrieval view): a native <details> whose body animates height to/from auto. */
+.stats-accordion { border: 1px solid var(--border-subtle, var(--color-border)); border-radius: var(--radius-md, 10px); margin: var(--space-2, 8px) 0; background: var(--color-surface, transparent); }
+.stats-accordion > summary {
+  list-style: none; display: flex; align-items: center; gap: .5ch; cursor: pointer; padding: var(--space-2, 8px) var(--space-3, 12px);
+  font-size: var(--type-caption, .8125rem); font-weight: 600; color: var(--color-text-secondary);
+}
+.stats-accordion > summary::-webkit-details-marker { display: none; }
+.stats-accordion > summary::before {
+  content: ""; inline-size: .6em; block-size: .6em; flex: none; border-inline-end: 2px solid currentColor; border-block-end: 2px solid currentColor;
+  rotate: -45deg; transition: rotate var(--motion-fast, .15s) ease;
+}
+.stats-accordion[open] > summary::before { rotate: 45deg; }
+.stats-accordion > summary:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; border-radius: var(--radius-md, 10px); }
+.stats-accordion::details-content {
+  block-size: 0; overflow: clip; contain: layout;
+  transition: block-size .25s ease, content-visibility .25s allow-discrete;
+}
+.stats-accordion[open]::details-content { block-size: auto; }
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: var(--space-2, 8px); margin: 0; padding: 0 var(--space-3, 12px) var(--space-3, 12px); }
+.stats-grid > div { display: flex; flex-direction: column; gap: 2px; }
+.stats-grid dt { font-size: var(--type-caption, .75rem); color: var(--color-text-secondary); }
+.stats-grid dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--color-text-primary); }
+@media (prefers-reduced-motion: reduce) { .stats-accordion::details-content, .stats-accordion > summary::before { transition: none; } }
+
+/* Tooltips never exceed the panel/viewport width; they wrap instead of clipping. */
+@supports (anchor-name: --a) and (position-area: top) {
+  :is([data-tip], [data-tooltip])::after { max-inline-size: min(280px, calc(100vw - 16px)); white-space: normal; width: max-content; }
+}

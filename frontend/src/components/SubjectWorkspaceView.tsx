@@ -1,6 +1,7 @@
 import { ReferenceIcon } from './ReferenceIcon';
 import { EmptyStateIcon } from './EmptyStateIcon';
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef, startTransition } from 'react';
+import { yieldToMain } from '../yieldToMain';
 import { useSlidingIndicator } from '../useSlidingIndicator';
 import { api } from '../api';
 import {
@@ -34,7 +35,7 @@ import { BackendStatus } from './BackendStatus';
 import { CrossSourceCheck } from './CrossSourceCheck';
 import { crossSourceCheck } from '../answerTelemetry';
 import { CommandItem, matchShortcut, shortcutLabel } from '../commandPalette';
-import { toEditorHtml, noteToText } from '../noteHtml';
+import { toEditorHtml, noteToText, sanitizeNoteHtml, safeNoteUrl } from '../noteHtml';
 import { getThemeSetting, setThemeSetting, ThemeSetting } from '../theme';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
@@ -786,7 +787,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Persist the open note (no Save button). New notes are created once they have something worth keeping.
   const persistNote = async () => {
     const title = noteFormTitle.trim() || 'New Note';
-    const content = noteFormContent.trim();
+    // Let the keystroke paint first, then sanitize what is about to be stored (the editor DOM is untrusted).
+    await yieldToMain();
+    const content = sanitizeNoteHtml(noteFormContent).trim();
     const saved = noteSavedRef.current;
     if (title === saved.title && content === saved.content) return;
     if (editingNote) {
@@ -827,7 +830,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const noteInput = () => {
     const el = noteBodyRef.current;
     if (!el) return;
-    setNoteFormContent(noteIsBlank(el) ? '' : el.innerHTML);
+    const html = noteIsBlank(el) ? '' : el.innerHTML;
+    startTransition(() => setNoteFormContent(html));
     noteSyncFormats();
   };
   const noteExec = (cmd: string, value?: string) => {
@@ -842,8 +846,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const escapeHtmlText = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   const noteBlockFormat = (tag: 'p' | 'h1' | 'h2' | 'h3') => { noteExec('formatBlock', tag); setNoteBlock(tag === 'p' ? 'normal' : tag); setNoteMenu(null); };
   const noteLink = () => {
-    const url = window.prompt('Link URL', 'https://');
-    if (url && /^(https?:|mailto:)/i.test(url.trim())) noteExec('createLink', url.trim());
+    const url = safeNoteUrl(window.prompt('Link URL', 'https://') ?? '');
+    if (url) noteExec('createLink', url);
   };
   const noteInlineCode = () => noteInsertHtml(`<code>${escapeHtmlText(noteSelectedText() || 'code')}</code>`);
   const noteCodeBlock = () => noteInsertHtml(`<pre><code>${escapeHtmlText(noteSelectedText() || 'code')}</code></pre><p><br></p>`);
@@ -2286,6 +2290,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     data-empty={noteFormContent === '' ? 'true' : 'false'} spellCheck
                     onInput={noteInput}
                     onPaste={(e) => { e.preventDefault(); const t = e.clipboardData.getData('text/plain'); if (t) noteExec('insertText', t); }}
+                    onDrop={(e) => { e.preventDefault(); const t = e.dataTransfer.getData('text/plain'); if (t) noteExec('insertText', t); }}
                     onKeyUp={noteSyncFormats} onMouseUp={noteSyncFormats} />
                 </form>
               ) : (
