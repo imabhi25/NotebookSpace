@@ -85,7 +85,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const [isPrivacyBannerDismissed, setIsPrivacyBannerDismissed] = useState<boolean>(() => {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        return window.localStorage.getItem('notebookspace_privacy_banner_dismissed') === 'true';
+        return window.localStorage.getItem('notebookspace_privacy_dismissed') === 'true'
+          || window.localStorage.getItem('notebookspace_privacy_banner_dismissed') === 'true';
       }
     } catch {
       // ignore
@@ -96,7 +97,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const handleDismissBanner = () => {
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        window.localStorage.setItem('notebookspace_privacy_banner_dismissed', 'true');
+        window.localStorage.setItem('notebookspace_privacy_dismissed', 'true');
       }
     } catch {
       // ignore
@@ -838,6 +839,19 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   ? `No notebooks match "${search}". Try adjusting your search query.`
                   : 'Give your course, project, or curiosity a home. Bring the materials; your notebook keeps the ideas connected.'}
               </p>
+              {homeTab !== 'archived' && !search && onCreateSampleSubject && subjects.length === 0 && (
+                <button
+                  type="button"
+                  className="featured-sample-card"
+                  onClick={onCreateSampleSubject}
+                  data-testid="create-sample-notebook-btn"
+                >
+                  <span className="featured-sample-badge">⚡ Instant Sample Course (Pre-loaded) · 2 Sources &amp; Conflicts</span>
+                  <strong className="featured-sample-title">Featured Sample: CS 401 Systems Programming</strong>
+                  <span className="featured-sample-desc">Ask questions and see cited answers, with a syllabus and lecture notes that disagree. Opens in seconds.</span>
+                  <span className="featured-sample-cta">Open the sample →</span>
+                </button>
+              )}
               {homeTab !== 'archived' && !search && (
                 <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', flexWrap: 'wrap' }}>
                   <button
@@ -847,16 +861,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   >
                     + Create a notebook
                   </button>
-                  {onCreateSampleSubject && (!currentUser || currentUser.is_guest || currentUser.email?.startsWith('guest_') || currentUser.email === 'Guest Workspace') && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={onCreateSampleSubject}
-                      data-testid="create-sample-notebook-btn"
-                    >
-                      Try a sample ↗
-                    </button>
-                  )}
                 </div>
               )}
               {!search && homeTab !== 'archived' && <div className="library-welcome-art" aria-hidden="true"><ReferenceIcon name="book" size={26} /><strong>Your next big idea<br />starts here.</strong><small>NOTEBOOK 001</small></div>}

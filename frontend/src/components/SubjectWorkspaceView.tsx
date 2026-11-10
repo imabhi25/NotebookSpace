@@ -422,6 +422,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [selectedCitation, setSelectedCitation] = useState<ActiveCitation | null>(null);
   const [passages, setPassages] = useState<PassageItem[]>([]);
   const [passageLoading, setPassageLoading] = useState(false);
+  // Passages already fetched this session, so stepping back to a citation renders at once with no spinner.
+  const passageCache = useRef<Map<string, PassageItem[]>>(new Map());
 
   // Composer & Turn Feedback
   // The draft question is kept per notebook and session, so switching, reloading or a failed send never loses it.
@@ -761,6 +763,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       return;
     }
 
+    const cacheKey = `${subject.id}:${matchingSource.id}:v${matchingSource.version ?? 0}:${cit.page}`;
+    const cached = passageCache.current.get(cacheKey);
+    if (cached) {
+      setPassages(cached);
+      setPassageLoading(false);
+      return;
+    }
+
     setPassageLoading(true);
     try {
       const lookupFile = matchingSource.file_name || cit.file;
@@ -774,6 +784,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         seen.add(key);
         return true;
       });
+      passageCache.current.set(cacheKey, deduped);
       if (isLatest()) setPassages(deduped);
     } catch {
       if (isLatest()) setPassages([]);
