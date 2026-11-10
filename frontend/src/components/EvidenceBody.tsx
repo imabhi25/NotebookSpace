@@ -123,11 +123,13 @@ interface InlineEvidenceProps extends EvidenceBodyProps {
   footerExtra?: React.ReactNode;
   /** Small icon action(s) shown in the header beside the citation stepper. */
   headerExtra?: React.ReactNode;
+  /** Readable title for the cited source (e.g. an auto-cleaned name); defaults to the file name. */
+  displayTitle?: string;
 }
 
 /** Evidence shown directly beneath the answer it supports. Escape or Close collapses it. */
 export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(function InlineEvidence(
-  { index, total, onPrevious, onNext, onClose, readerAction, footerExtra, headerExtra, ...body },
+  { index, total, onPrevious, onNext, onClose, readerAction, footerExtra, headerExtra, displayTitle, ...body },
   ref
 ) {
   return (
@@ -146,25 +148,18 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
       }}
     >
       <div className="inline-evidence-header">
-        <h3 className="inline-evidence-title"><span className="inline-evidence-file" title={body.citation.file}>{body.citation.file}</span><span className="inline-evidence-count"> · Page {body.citation.page}</span></h3>
+        <h3 className="inline-evidence-title"><span className="inline-evidence-file" title={body.citation.file}>{displayTitle || body.citation.file}</span><span className="inline-evidence-count"> · p. {body.citation.page}</span></h3>
         <div className="inline-evidence-actions">
           {total > 1 && index >= 0 && (
             <div className="citation-step-controls">
               <button type="button" className="btn-step" onClick={onPrevious} disabled={index <= 0}
                 aria-label="Previous citation" title="Previous citation"><span aria-hidden="true">‹</span></button>
-              <span className="citation-step-counter" aria-label={`Citation ${index + 1} of ${total}`}>{index + 1} of {total}</span>
+              <span className="citation-step-counter" aria-label={`Citation ${index + 1} of ${total}`}>{index + 1}/{total}</span>
               <button type="button" className="btn-step" onClick={onNext} disabled={index >= total - 1}
                 aria-label="Next citation" title="Next citation"><span aria-hidden="true">›</span></button>
             </div>
           )}
           {headerExtra}
-          <button type="button" className="inline-evidence-close" onClick={onClose}
-            aria-label="Close evidence" title="Close evidence">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
-              <line x1="18" y1="6" x2="6" y2="18" />
-              <line x1="6" y1="6" x2="18" y2="18" />
-            </svg>
-          </button>
         </div>
       </div>
       <EvidenceBody {...body} />

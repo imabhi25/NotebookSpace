@@ -110,7 +110,7 @@ describe('Evidence panel', () => {
     const answer = screen.getByTestId('answer-view');
     expect(screen.getByRole('complementary', { name: 'Study panel' }).contains(evidence)).toBe(true);
     expect(answer.querySelector('.chips-row')).toBeNull(); // no separate chip row: markers and the Evidence button reach every passage
-    expect(within(evidence).getByRole('heading', { level: 3 })).toHaveTextContent('a.pdf · Page 2');
+    expect(within(evidence).getByRole('heading', { level: 3 })).toHaveTextContent('a.pdf · p. 2');
     await waitFor(() => expect(within(evidence).getByText(chunk)).toBeInTheDocument());
     expect(evidence.querySelector('mark')).toBeNull();
   });
@@ -124,7 +124,7 @@ describe('Evidence panel', () => {
       chip.focus();
       fireEvent.click(chip);
       await screen.findByTestId('inline-evidence');
-      fireEvent.click(screen.getByRole('button', { name: 'Close evidence' }));
+      fireEvent.keyDown(screen.getByTestId('inline-evidence'), { key: 'Escape' });
       vi.advanceTimersByTime(10);
       expect(screen.queryByTestId('inline-evidence')).toBeNull();
       expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveFocus();
@@ -151,10 +151,10 @@ describe('Evidence panel', () => {
       chip.focus();
       fireEvent.click(chip);
       const evidence = await screen.findByTestId('inline-evidence');
-      expect(within(evidence).getByText('1 of 2')).toBeInTheDocument();
+      expect(within(evidence).getByText('1/2')).toBeInTheDocument();
       fireEvent.click(within(evidence).getByRole('button', { name: 'Next citation' }));
-      await waitFor(() => expect(within(screen.getByTestId('inline-evidence')).getByText('2 of 2')).toBeInTheDocument());
-      fireEvent.click(screen.getByRole('button', { name: 'Close evidence' }));
+      await waitFor(() => expect(within(screen.getByTestId('inline-evidence')).getByText('2/2')).toBeInTheDocument());
+      fireEvent.keyDown(screen.getByTestId('inline-evidence'), { key: 'Escape' });
       vi.advanceTimersByTime(10);
       expect(screen.getByRole('button', { name: /^Citation 1:/ })).toHaveFocus();
     } finally {
@@ -171,10 +171,10 @@ describe('Evidence panel', () => {
     const panel = screen.getByRole('complementary', { name: 'Study panel' });
     expect(panel.contains(card)).toBe(true);
     expect(within(card).getAllByText('b.pdf').length).toBeGreaterThan(0);
-    expect(within(card).getByRole('heading', { level: 3 })).toHaveTextContent('b.pdf · Page 1');
+    expect(within(card).getByRole('heading', { level: 3 })).toHaveTextContent('b.pdf · p. 1');
     expect(within(card).getByTestId('passage-content')).toBeInTheDocument(); // passage is inline, not duplicated
     expect(screen.getAllByTestId('passage-content')).toHaveLength(1);
-    fireEvent.click(within(card).getByRole('button', { name: 'Close evidence' }));
+    fireEvent.keyDown(within(card).getByTestId('inline-evidence'), { key: 'Escape' });
     expect(screen.queryByTestId('selected-source-card')).toBeNull();
     expect(screen.queryByTestId('inline-evidence')).toBeNull();
   });

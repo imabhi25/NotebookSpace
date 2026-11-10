@@ -43,7 +43,9 @@ function ScopeChip({ scope }: { scope: ComposerScope }) {
   const processing = sources.filter(isPending).length;
   const failed = sources.filter((s) => s.status === 'failed').length;
   const extra = [processing ? `${processing} processing` : '', failed ? `${failed} failed` : ''].filter(Boolean).join(' · ');
-  const label = used === 0 ? 'No materials selected' : `Using ${used} of ${sources.length} ${sources.length === 1 ? 'material' : 'materials'}`;
+  const label = used === 0 ? 'No materials selected' : `${used}/${sources.length} ${sources.length === 1 ? 'source' : 'sources'}`;
+  // Everything is selected and nothing needs attention: the chip has nothing to say.
+  const allSelected = used > 0 && used === sources.length && !processing && !failed;
   const tone = used === 0 ? 'error' : processing ? 'processing' : failed ? 'error' : 'ready';
 
   const close = (restore: boolean) => {
@@ -72,6 +74,8 @@ function ScopeChip({ scope }: { scope: ComposerScope }) {
       window.removeEventListener('keydown', onKey, true);
     };
   }, [open]);
+
+  if (allSelected && !open) return null;
 
   return (
     <div className="scope-wrap">

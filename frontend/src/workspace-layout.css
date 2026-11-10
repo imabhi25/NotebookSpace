@@ -1471,3 +1471,71 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   font: inherit; color: inherit; letter-spacing: inherit; background: transparent; border: 0; outline: 0; box-shadow: none; padding: 0; margin: 0;
   min-width: 3ch; max-width: 40ch; width: auto; height: auto; text-overflow: ellipsis;
 }
+
+/* ============================================================
+   Refinements: bare + button, segmented Notes/Evidence pill, document-sheet evidence, quiet composer, carbon chips
+   ============================================================ */
+.workspace-layout .sources-add-btn, .workspace-layout .sources-add-btn:hover, .workspace-layout .sources-add-btn:active {
+  background: transparent !important; border: none !important; box-shadow: none !important; transform: none;
+  width: 28px; height: 28px; border-radius: 6px; color: var(--color-text-secondary);
+}
+.workspace-layout .sources-add-btn:hover { background: var(--bg-hover, var(--color-surface-hover)) !important; color: var(--color-text-primary); }
+
+/* Study panel header: segmented pill left, collapse right */
+.workspace-layout .workspace-context-panel .context-tabs-row { margin: 0 var(--space-4) var(--space-3); padding-top: var(--space-3); gap: 8px; }
+.workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher.sliding-tabs {
+  flex: 0 0 auto; display: inline-flex; flex-direction: row; align-items: center; gap: 0; height: 30px; padding: 3px; margin: 0;
+  border: 0; border-bottom: 0; border-radius: 8px; background: rgba(0, 0, 0, 0.05);
+}
+:root[data-theme="dark"] .workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher.sliding-tabs { background: rgba(255, 255, 255, 0.06); }
+.workspace-layout .context-tabs-row .context-view-switcher.sliding-tabs.sliding-tabs::before {
+  top: 3px; bottom: 3px; height: auto; border-radius: 6px; background: var(--bg-canvas, #fff);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+:root[data-theme="dark"] .workspace-layout .context-tabs-row .context-view-switcher.sliding-tabs.sliding-tabs::before { background: rgba(255, 255, 255, 0.12); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
+.workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher .segment-btn {
+  flex: 0 0 auto; min-height: 24px; height: 24px; padding: 0 12px; border: 0 !important; border-radius: 6px; font-size: 12.5px; font-weight: 500; line-height: 1;
+  color: var(--color-text-secondary); background: transparent !important;
+}
+.workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher .segment-btn.active { color: var(--color-text-primary); }
+.context-tabs-row .context-collapse-btn { margin-left: auto; }
+
+/* Floating expand button when the study panel is collapsed (mirrors the left rail) */
+.workspace-layout .context-expand-btn { position: absolute; top: 10px; right: 10px; z-index: 30; width: 34px; height: 34px; border-radius: 10px; }
+
+/* Evidence header: title gets the room */
+.workspace-layout .inline-evidence-title { flex: 1 1 auto; min-width: 0; }
+.workspace-layout .inline-evidence-file { flex: 0 1 auto; max-width: 100%; }
+
+/* Evidence passage as a document sheet */
+.workspace-layout .inline-evidence .passage-content {
+  background: var(--bg-canvas, var(--color-surface)); border: 1px solid var(--border-subtle, var(--color-border)); border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03); padding: 16px 18px 0; overflow: hidden;
+}
+.workspace-layout .inline-evidence .passage-chunks-list {
+  overflow-y: auto; padding: 0 2px 22px 0; margin: 0; gap: 12px;
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 20px), transparent 100%);
+}
+.workspace-layout .inline-evidence .passage-chunk,
+.workspace-layout .inline-evidence .passage-chunk.passage-chunk-highlighted { background: transparent; border: 0; border-left: 0; box-shadow: none; padding: 0; }
+.workspace-layout .inline-evidence .passage-chunk-text {
+  background: transparent; border: 0; border-radius: 0; padding: 0 0 4px; font-size: 13.5px; line-height: 1.65;
+}
+
+/* Composer: the fade blends with the app background */
+.workspace-layout .workspace-main-area > .composer-container { background: linear-gradient(to bottom, transparent, var(--bg-app, var(--color-desk)) 45%); }
+.workspace-layout .workspace-main-area > .composer-container::before { background: linear-gradient(to top, var(--bg-app, var(--color-desk)), transparent); }
+
+/* Query heading reads as a title */
+.workspace-layout .question-heading::first-letter { text-transform: uppercase; }
+
+/* Carbon & zinc citation chips */
+.workspace-layout .citation-marker {
+  background: rgba(0, 0, 0, 0.05); color: var(--color-text-secondary); border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.workspace-layout .citation-marker:hover { background: rgba(0, 0, 0, 0.09); color: var(--color-text-primary); }
+.workspace-layout .citation-marker.active { background: #18181B; color: #FFFFFF; border-color: #18181B; }
+:root[data-theme="dark"] .workspace-layout .citation-marker { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.75); }
+:root[data-theme="dark"] .workspace-layout .citation-marker:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
+:root[data-theme="dark"] .workspace-layout .citation-marker.active { background: #FFFFFF; color: #09090B; border-color: #FFFFFF; }
