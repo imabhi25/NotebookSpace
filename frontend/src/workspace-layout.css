@@ -1654,3 +1654,38 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .inline-evidence .passage-bullet { position: relative; padding-left: 16px; }
 .workspace-layout .inline-evidence .passage-bullet::before { content: "•"; position: absolute; left: 3px; color: var(--color-text-muted); }
 .workspace-layout .inline-evidence .passage-numbered { padding-left: 4px; }
+
+/* ---- Studio note editor ---- */
+.workspace-layout .right-panel-body:has(.studio-note) { padding: 0; overflow: hidden; display: flex; flex-direction: column; }
+.studio-note { gap: 0; }
+.studio-note .note-editor-bar { padding: 8px 12px 4px; }
+.note-breadcrumb { display: inline-flex; align-items: center; gap: 2px; font-size: 12.5px; }
+.note-breadcrumb .note-editor-back { padding: 0 6px; }
+.note-crumb-sep { color: var(--color-text-muted); }
+.note-crumb-current { color: var(--color-text-muted); padding: 0 6px; }
+.note-title-row { display: flex; align-items: center; gap: 8px; padding: 6px 14px 10px 18px; flex: none; }
+.note-title-row .note-editor-title {
+  flex: 1; min-width: 0; border: none; outline: none; background: transparent; padding: 0;
+  font: inherit; font-size: 20px; font-weight: 500; color: var(--color-text-primary);
+}
+.note-toolbar {
+  display: flex; align-items: center; gap: 4px; height: 38px; padding: 0 12px; flex: none;
+  border-top: 1px solid var(--border-subtle); border-bottom: 1px solid var(--border-subtle);
+}
+.note-tool {
+  min-width: 26px; height: 26px; padding: 0 6px; border: 0; border-radius: 6px; background: transparent; cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center; font-size: 14px; color: var(--color-text-secondary);
+}
+.note-tool:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
+.note-tool-bold { font-weight: 700; }
+.note-tool-italic { font-style: italic; font-family: serif; }
+.note-tool-sep { width: 1px; height: 16px; background: var(--border-subtle); margin: 0 4px; flex: none; }
+.note-block-select {
+  height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--color-text-secondary); font-size: 12.5px; cursor: pointer; padding: 0 4px;
+}
+.note-block-select:hover { background: var(--color-surface-hover); }
+.studio-note .note-citations-chips { padding: 8px 14px 0; }
+.studio-note .note-editor-body {
+  flex: 1; width: 100%; min-height: 0; padding: 16px 18px; border: none; outline: none; background: transparent; resize: none;
+  font: inherit; font-size: 14px; line-height: 1.65; color: var(--color-text-primary);
+}

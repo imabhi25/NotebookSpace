@@ -559,7 +559,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         if (renamingSource) {
           setRenamingSource(null);
         } else if (isCreateNoteOpen) {
-          setIsCreateNoteOpen(false);
+          void flushRef.current();
         } else if (isSettingsOpen) {
           setIsSettingsOpen(false);
         } else if (viewingSource) {
@@ -665,22 +665,95 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const toggleStudyPanel = () => (isContextCollapsed ? setContextCollapsed(false) : closeContextPanel());
   const openNoteEditor = (note: Note | null) => {
     setEditingNote(note);
-    setNoteFormTitle(note?.title ?? '');
+    setNoteFormTitle(note?.title ?? 'New Note');
     setNoteFormContent(note?.content ?? '');
+    noteSavedRef.current = { title: note?.title ?? 'New Note', content: (note?.content ?? '').trim() };
+    setNoteBlock('normal');
     setIsCreateNoteOpen(true);
     setContextView('notes');
     setContextCollapsed(false);
   };
-  const saveNoteInline = async () => {
-    const title = noteFormTitle.trim();
+  const noteBodyRef = useRef<HTMLTextAreaElement>(null);
+  const noteSavedRef = useRef({ title: '', content: '' });
+  const [noteBlock, setNoteBlock] = useState('normal');
+  // Persist the open note (no Save button). New notes are created once they have something worth keeping.
+  const persistNote = async () => {
+    const title = noteFormTitle.trim() || 'New Note';
     const content = noteFormContent.trim();
-    if (!title || !content) return;
-    if (editingNote) await onUpdateNote(editingNote.id, title, content);
-    else await onCreateNote(title, content);
+    const saved = noteSavedRef.current;
+    if (title === saved.title && content === saved.content) return;
+    if (editingNote) {
+      noteSavedRef.current = { title, content };
+      await onUpdateNote(editingNote.id, title, content);
+    } else if (content || title !== 'New Note') {
+      noteSavedRef.current = { title, content };
+      await onCreateNote(title, content);
+      setEditingNote(null);
+    }
+  };
+  const flushNote = async () => {
+    if (!isCreateNoteOpen) return;
+    await persistNote();
     setIsCreateNoteOpen(false);
     setEditingNote(null);
   };
   const closeNoteEditor = () => { setIsCreateNoteOpen(false); setEditingNote(null); };
+  const flushRef = useRef(flushNote);
+  flushRef.current = flushNote;
+  const persistRef = useRef(persistNote);
+  persistRef.current = persistNote;
+  // Debounced autosave for notes that already exist (a new note is created when you leave it).
+  useEffect(() => {
+    if (!isCreateNoteOpen || !editingNote) return;
+    const t = window.setTimeout(() => { void persistRef.current(); }, 700);
+    return () => window.clearTimeout(t);
+  }, [noteFormTitle, noteFormContent, isCreateNoteOpen, editingNote]);
+
+  const noteReplace = (start: number, end: number, text: string, selStart: number, selEnd: number) => {
+    const ta = noteBodyRef.current;
+    if (!ta) return;
+    ta.focus();
+    ta.setSelectionRange(start, end);
+    let done = false;
+    try { done = typeof document.execCommand === 'function' && document.execCommand('insertText', false, text); } catch { done = false; }
+    if (!done) {
+      const next = ta.value.slice(0, start) + text + ta.value.slice(end);
+      setNoteFormContent(next);
+    }
+    window.requestAnimationFrame(() => { ta.setSelectionRange(selStart, selEnd); });
+  };
+  const noteWrap = (before: string, after: string, placeholder: string) => {
+    const ta = noteBodyRef.current;
+    if (!ta) return;
+    const { selectionStart: a, selectionEnd: b, value } = ta;
+    const sel = value.slice(a, b) || placeholder;
+    noteReplace(a, b, before + sel + after, a + before.length, a + before.length + sel.length);
+  };
+  const noteLinePrefix = (prefix: string, stripHeading = false) => {
+    const ta = noteBodyRef.current;
+    if (!ta) return;
+    const { selectionStart: a, selectionEnd: b, value } = ta;
+    const ls = value.lastIndexOf('\n', a - 1) + 1;
+    let le = value.indexOf('\n', b);
+    if (le === -1) le = value.length;
+    const block = value.slice(ls, le).split('\n').map((l) => {
+      const bare = stripHeading ? l.replace(/^#{1,3}\s+/, '') : l;
+      if (!stripHeading && /^[-*]\s/.test(l)) return l.replace(/^[-*]\s/, '');
+      return prefix + bare;
+    }).join('\n');
+    noteReplace(ls, le, block, ls, ls + block.length);
+  };
+  const noteHistory = (cmd: 'undo' | 'redo') => {
+    noteBodyRef.current?.focus();
+    try { document.execCommand(cmd); } catch { /* unsupported */ }
+  };
+  const noteSyncBlock = () => {
+    const ta = noteBodyRef.current;
+    if (!ta) return;
+    const ls = ta.value.lastIndexOf('\n', ta.selectionStart - 1) + 1;
+    const m = /^(#{1,3})\s/.exec(ta.value.slice(ls));
+    setNoteBlock(m ? `h${m[1].length}` : 'normal');
+  };
   // A shortcut never opens on top of another dialog; the dialog owns the keyboard until it closes.
   const dialogOpen = isAddSourceOpen || isCreateNoteOpen || isSettingsOpen || historyOpen || Boolean(viewingSource) || Boolean(renamingSource);
   const shortcutRef = useRef({ dialogOpen, paletteOpen, toggleSourcesPanel, toggleStudyPanel });
@@ -1932,8 +2005,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           )}
           <div className="context-tabs-row">
           <div className="context-view-switcher sidebar-segment-switcher sliding-tabs" ref={contextTabsRef} role="group" aria-label="Panel view" data-active={contextView === 'notes' ? 'notes' : 'evidence'}>
-            <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => setContextView('notes')}>{notes.length > 0 ? `Notes · ${notes.length}` : 'Notes'}</button>
-            <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => setContextView('evidence')} data-testid="right-panel-tab-evidence">Citations</button>
+            <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => { void flushNote(); setContextView('notes'); }}>{notes.length > 0 ? `Notes · ${notes.length}` : 'Notes'}</button>
+            <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => { void flushNote(); setContextView('evidence'); }} data-testid="right-panel-tab-evidence">Citations</button>
           </div>
           <button type="button" ref={contextToggleRef} className="rail-icon-btn context-collapse-btn" onClick={closeContextPanel}
             title={`Hide study panel (${shortcutLabel('\\')})`} aria-label="Toggle study panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
@@ -1984,47 +2057,75 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           {contextView === 'notes' && (
             <div className="right-panel-body tab-panel-fade" key="panel-notes">
               {isCreateNoteOpen ? (
-                <form className="note-editor" data-testid="inline-note-editor" aria-label={editingNote ? 'Edit note' : 'New note'}
-                  onSubmit={(e) => { e.preventDefault(); void saveNoteInline(); }}
-                  onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void saveNoteInline(); } }}>
+                <form className="note-editor studio-note" data-testid="inline-note-editor" aria-label={editingNote ? 'Edit note' : 'New note'}
+                  onSubmit={(e) => { e.preventDefault(); void flushNote(); }}
+                  onKeyDown={(e) => { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') { e.preventDefault(); void flushNote(); } }}>
                   <div className="note-editor-bar">
-                    <button type="button" className="note-editor-back" onClick={closeNoteEditor}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
-                      <span>All notes</span>
+                    <nav className="note-breadcrumb" aria-label="Breadcrumb">
+                      <button type="button" className="note-editor-back" onClick={() => void flushNote()}>Notes</button>
+                      <svg className="note-crumb-sep" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+                      <span className="note-crumb-current" aria-current="page">Note</span>
+                    </nav>
+                    <button type="button" className="rail-icon-btn context-collapse-btn" onClick={() => { void flushNote(); closeContextPanel(); }}
+                      title="Hide study panel" aria-label="Collapse panel">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
+                        <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
+                      </svg>
                     </button>
-                    <div className="note-editor-actions">
-                      {editingNote && (
-                        <button type="button" className="rail-icon-btn note-editor-delete" aria-label="Delete note" title="Delete note"
-                          onClick={() => {
-                            if (window.confirm(`Delete note "${editingNote.title}"?`)) { onDeleteNote(editingNote.id); closeNoteEditor(); }
-                          }}>
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" aria-hidden="true">
-                            <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                          </svg>
+                  </div>
+                  <div className="note-title-row">
+                    <input id="note-title-input" className="note-editor-title" type="text" placeholder="New Note" aria-label="Note title"
+                      value={noteFormTitle} onChange={(e) => setNoteFormTitle(e.target.value)} onFocus={(e) => { if (e.currentTarget.value === 'New Note') e.currentTarget.select(); }} />
+                    <button type="button" className="rail-icon-btn note-editor-delete" aria-label="Delete note" title="Delete note"
+                      onClick={() => {
+                        if (editingNote) {
+                          if (!window.confirm(`Delete note "${editingNote.title}"?`)) return;
+                          onDeleteNote(editingNote.id);
+                        }
+                        closeNoteEditor();
+                      }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" aria-hidden="true">
+                        <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" /><path d="M10 11v6M14 11v6" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="note-toolbar" role="toolbar" aria-label="Formatting">
+                    <button type="button" className="note-tool" aria-label="Undo" title="Undo" onClick={() => noteHistory('undo')}>↶</button>
+                    <button type="button" className="note-tool" aria-label="Redo" title="Redo" onClick={() => noteHistory('redo')}>↷</button>
+                    <span className="note-tool-sep" aria-hidden="true" />
+                    <select className="note-block-select" aria-label="Text style" value={noteBlock}
+                      onChange={(e) => { const v = e.target.value; setNoteBlock(v); noteLinePrefix(v === 'normal' ? '' : `${'#'.repeat(Number(v[1]))} `, true); }}>
+                      <option value="normal">Normal</option>
+                      <option value="h1">Heading 1</option>
+                      <option value="h2">Heading 2</option>
+                      <option value="h3">Heading 3</option>
+                    </select>
+                    <span className="note-tool-sep" aria-hidden="true" />
+                    <button type="button" className="note-tool note-tool-bold" aria-label="Bold" title="Bold" onClick={() => noteWrap('**', '**', 'bold')}>B</button>
+                    <button type="button" className="note-tool note-tool-italic" aria-label="Italic" title="Italic" onClick={() => noteWrap('*', '*', 'italic')}>I</button>
+                    <span className="note-tool-sep" aria-hidden="true" />
+                    <button type="button" className="note-tool" aria-label="Insert link" title="Insert link" onClick={() => noteWrap('[', '](https://)', 'link text')}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.07 0l3-3a5 5 0 0 0-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 0 0-7.07 0l-3 3a5 5 0 0 0 7.07 7.07l1.5-1.5" /></svg>
+                    </button>
+                    <button type="button" className="note-tool" aria-label="Inline code" title="Inline code" onClick={() => noteWrap('`', '`', 'code')}>{'<>'}</button>
+                    <button type="button" className="note-tool" aria-label="Bullet list" title="Bullet list" onClick={() => noteLinePrefix('- ')}>•</button>
+                  </div>
+                  {editingNote?.citations && editingNote.citations.length > 0 && (
+                    <div className="note-citations-chips">
+                      {editingNote.citations.map((c, cIdx) => (
+                        <button key={cIdx} type="button" className="citation-chip note-citation-chip"
+                          onClick={() => { void flushNote(); handleSelectCitation(c, editingNote.id); }}
+                          title={`${c.file} (Page ${c.page})`}>
+                          <span className="citation-chip-num">{cIdx + 1}</span>
+                          <span className="citation-chip-name">{c.file}</span>
+                          <span className="citation-chip-page">p.{c.page}</span>
                         </button>
-                      )}
-                      <button type="submit" className="note-editor-save" disabled={!noteFormTitle.trim() || !noteFormContent.trim()}>Save</button>
+                      ))}
                     </div>
-                  </div>
-                  <div className="note-editor-sheet">
-                    <input id="note-title-input" className="note-editor-title" type="text" placeholder="Note title..." aria-label="Note title"
-                      value={noteFormTitle} onChange={(e) => setNoteFormTitle(e.target.value)} autoFocus />
-                    {editingNote?.citations && editingNote.citations.length > 0 && (
-                      <div className="note-citations-chips">
-                        {editingNote.citations.map((c, cIdx) => (
-                          <button key={cIdx} type="button" className="citation-chip note-citation-chip"
-                            onClick={() => { closeNoteEditor(); handleSelectCitation(c, editingNote.id); }}
-                            title={`${c.file} (Page ${c.page})`}>
-                            <span className="citation-chip-num">{cIdx + 1}</span>
-                            <span className="citation-chip-name">{c.file}</span>
-                            <span className="citation-chip-page">p.{c.page}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                    <textarea id="note-content-input" className="note-editor-body" placeholder="Write your study notes, formulas, or key takeaways..."
-                      aria-label="Note content" value={noteFormContent} onChange={(e) => setNoteFormContent(e.target.value)} />
-                  </div>
+                  )}
+                  <textarea id="note-content-input" ref={noteBodyRef} className="note-editor-body" placeholder="Write your study notes, formulas, or key takeaways..."
+                    aria-label="Note content" value={noteFormContent} onChange={(e) => setNoteFormContent(e.target.value)}
+                    onSelect={noteSyncBlock} />
                 </form>
               ) : (
               <>
