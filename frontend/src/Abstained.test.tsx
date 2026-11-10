@@ -64,18 +64,19 @@ describe('Not-found answers in the workspace (mocked)', () => {
   it('replaces NOT_FOUND with a clear message and hides scores', () => {
     render(view([question, notFound()]));
     const notice = screen.getByTestId('abstained-view');
-    expect(within(notice).getByRole('heading', { name: "I couldn't find this in your materials" })).toBeInTheDocument();
+    expect(within(notice).getByText(/I couldn't find this in your materials/)).toBeInTheDocument();
+    expect(within(notice).queryByRole('heading')).toBeNull();
     expect(screen.queryByText('NOT_FOUND')).toBeNull();
     expect(document.body.textContent).not.toMatch(/NOT_FOUND|Score:|0\.2143|0\.214\b/);
-    expect(document.querySelector('.card-not-found, .related-passages-section')).toBeNull();
+    expect(document.querySelector('.card-not-found, .related-passages-section, .answer-notice')).toBeNull();
     expect(notice).toHaveAttribute('role', 'status');
   });
-  it('offers Retry, Choose materials and Retrieval details', () => {
+  it('offers quiet Retry and Retrieval details icon actions', () => {
     const onSend = vi.fn();
     render(view([question, notFound()], onSend));
     fireEvent.click(screen.getByRole('button', { name: 'Retry question' }));
     expect(onSend).toHaveBeenCalledWith(question.content, { is_retry: true, retry_message_id: 'nf' });
-    expect(screen.getByRole('button', { name: 'Choose materials' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Choose materials' })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Retrieval details' }));
     expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
     expect(screen.getByTestId('right-panel-tab-evidence')).toHaveAttribute('aria-pressed', 'true');
@@ -91,15 +92,6 @@ describe('Not-found answers in the workspace (mocked)', () => {
     expect(notice).toHaveAttribute('role', 'alert');
     expect(screen.getAllByText('The AI service has reached its usage limit.')).toHaveLength(1);
     expect(screen.queryByRole('button', { name: 'Choose materials' })).toBeNull();
-  });
-  it('Choose materials opens the Sources panel when it is closed', () => {
-    window.innerWidth = 1024;
-    window.localStorage.setItem('notebookspace_nav_open', '0');
-    render(view([question, notFound()]));
-    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'false');
-    fireEvent.click(screen.getByRole('button', { name: 'Choose materials' }));
-    expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');
-    expect(screen.getByRole('complementary', { name: 'Sources' })).toBeVisible();
   });
   it('keeps model and latency metadata out of the chat feed', () => {
     const answer: MessageItem = { ...question, id: 'ok', role: 'assistant', content: 'Fine.', latency: 1.2, model: 'm', retrieved: [] };

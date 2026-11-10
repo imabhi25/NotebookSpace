@@ -341,7 +341,7 @@ describe('SubjectWorkspaceView component', () => {
       />
     );
     expect(screen.getAllByText(failure.content)).toHaveLength(1);
-    expect(screen.getByRole('heading', { name: "Couldn't generate an answer" })).toBeInTheDocument();
+    expect(screen.getByText("Couldn't generate an answer")).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Retry question' }));
     expect(retry).toHaveBeenCalledWith(mockMessages[0].content, { is_retry: true, retry_message_id: 'failed' });
   });

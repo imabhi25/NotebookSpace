@@ -2012,3 +2012,19 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   @position-try --tip-from-start { position-area: block-end span-inline-end; justify-self: start; }
   @position-try --tip-from-end { position-area: block-end span-inline-start; justify-self: end; }
 }
+
+/* ---- Generating state: single circular pause button, minimal "Thinking..." indicator ---- */
+.workspace-layout .composer-foot .composer-stop-btn { display: inline-flex; align-items: center; justify-content: center; overflow: hidden; gap: 0; font-size: 0; }
+.workspace-layout .composer-foot .composer-stop-btn .stop-btn-icon { width: 12px; height: 12px; flex: 0 0 12px; display: block; }
+.thinking-indicator {
+  display: inline-block; font-size: var(--type-body, 0.9375rem); color: var(--color-text-muted);
+  background: linear-gradient(90deg, var(--color-text-muted) 0%, var(--color-text-primary) 50%, var(--color-text-muted) 100%) 0 0 / 200% 100%;
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+  animation: thinking-shimmer 1.6s ease-in-out infinite;
+}
+@keyframes thinking-shimmer { from { background-position: 100% 0; } to { background-position: -100% 0; } }
+@media (prefers-reduced-motion: reduce) { .thinking-indicator { animation: none; -webkit-text-fill-color: currentColor; color: var(--color-text-muted); background: none; } }
+
+/* ---- Not-found / failed replies read as ordinary assistant prose ---- */
+.abstain-prose { display: flex; flex-direction: column; gap: var(--space-2); }
+.abstain-prose .answer-text { margin: 0; color: var(--color-text-primary); }

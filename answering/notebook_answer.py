@@ -250,6 +250,22 @@ def answer_notebook_question(
         db_url=db_url,
     )
 
+    # Follow-ups about something the assistant just showed must not fail retrieval: union the chunks the
+    # previous answer was grounded in with the new retrieval when the question is short or scores low.
+    new_top = max((r.get("similarity_score", r.get("score", 0.0)) for r in retrieved), default=0.0)
+    if history and (is_followup_query(question) or len(question.split()) <= 4 or new_top < support_min_score):
+        selected_str = {str(s) for s in selected_source_ids}
+        seen = {r.get("id") for r in retrieved}
+        prior = next(
+            (m for m in reversed(history) if m.get("role") == "assistant" and not m.get("abstained") and m.get("retrieved")),
+            None,
+        )
+        for chunk in (prior or {}).get("retrieved", []):
+            if str(chunk.get("source_id")) in selected_str and chunk.get("id") not in seen:
+                retrieved.append({**chunk, "carried_forward": True})
+                seen.add(chunk.get("id"))
+        retrieved = retrieved[: k + 3]
+
     # Record source versions for all selected sources and retrieved sources
     all_sources = get_sources_for_subject(user_id=user_id, subject_id=subject_id, db_url=db_url)
     sources_map = {s["id"]: s["version"] for s in all_sources}
@@ -264,8 +280,10 @@ def answer_notebook_question(
         else 0.0
     )
 
-    # Cheap pre-check for empty / irrelevant retrieval
-    if not retrieved or top_score < support_min_score:
+    # Only abstain up front when there is nothing to show the model. A low similarity score alone no longer
+    # blocks the question: the top passages (plus conversation history) go to the generator, which still
+    # returns NOT_FOUND itself when the passages do not support an answer.
+    if not retrieved:
         latency = time.perf_counter() - start_time
         asst_msg = save_message(
             user_id=user_id,
