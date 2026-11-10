@@ -2204,7 +2204,10 @@ aside .retrieval-svg,
    Header refinement, brand mark, settings overhaul
    ============================================================ */
 .notebooks-home .brand-mark-wrapper { width: 28px; height: 28px; border-radius: 8px; background: transparent; color: var(--color-text-primary); --brand-mark-seam: var(--color-background); }
-.notebooks-home .brand-mark-svg { display: block; color: var(--color-text-primary); }
+.notebooks-home .brand-logo-icon { display: block; width: 18px; height: 18px; flex: none; color: var(--color-text-primary); }
+.brand-logo-icon .logo-page-left { fill: currentColor; }
+.brand-logo-icon .logo-page-right { fill: currentColor; fill-opacity: 0.4; }
+.notebooks-home .brand-mark-wrapper { width: 18px; height: 18px; border-radius: 0; }
 .notebooks-home .home-brand { gap: 8px; }
 .notebooks-home .home-brand .sidebar-brand-title { font-size: 16px; font-weight: 650; letter-spacing: -0.028em; color: var(--color-text-primary); }
 .notebooks-home .home-header-actions { gap: 6px; }
