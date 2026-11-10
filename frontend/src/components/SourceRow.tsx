@@ -1,4 +1,3 @@
-import { ReferenceIcon } from './ReferenceIcon';
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Source } from '../types';
@@ -23,6 +22,18 @@ const TYPE_INFO: Record<string, { badge: string; label: string }> = {
   markdown: { badge: 'MD', label: 'Markdown' },
   txt: { badge: 'TXT', label: 'Text' },
 };
+
+const BADGE_COLORS: Record<string, string> = { pdf: '#E11D48', markdown: '#2563EB', txt: '#2563EB', pasted: '#2563EB' };
+
+// Document glyph: folded top-right corner and a bold type badge across the lower half.
+const SourceTypeIcon: React.FC<{ type: string; badge: string }> = ({ type, badge }) => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <path d="M6 2.5h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1Z" stroke="currentColor" strokeOpacity="0.55" strokeWidth="1.4" strokeLinejoin="round" />
+    <path d="M14 2.5V7a1 1 0 0 0 1 1h4" stroke="currentColor" strokeOpacity="0.55" strokeWidth="1.4" strokeLinejoin="round" />
+    <rect x="2" y="12.5" width="20" height="8.5" rx="2.2" fill={BADGE_COLORS[type] || '#64748B'} />
+    <text x="12" y="18.9" textAnchor="middle" fontSize="6.4" fontWeight="800" fill="#fff" fontFamily="Inter, system-ui, sans-serif" letterSpacing="0.2">{badge}</text>
+  </svg>
+);
 
 // One slim list row: type badge, name, a quiet meta line, then a "more" menu and the selection checkbox.
 export const SourceRow: React.FC<SourceRowProps> = ({
@@ -128,7 +139,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
       className={`source-row ${isSelected ? 'selected' : ''} ${isMenuOpen ? 'menu-open' : ''} source-row-${s.status}`}
     >
       <span className={`source-type-badge type-${type}`} aria-hidden="true">
-        <ReferenceIcon name="file" size={18} />
+        <SourceTypeIcon type={type} badge={info.badge} />
       </span>
 
       <div
@@ -149,7 +160,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         <span className="sr-only">
           {info.label}{isReady ? `, ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}, ready` : s.status === 'failed' ? `, failed: ${s.error_message || 'failed'}` : ''}
         </span>
-        {isReady && <span className="source-row-sub" aria-hidden="true">{info.label} · {s.page_count} {s.page_count === 1 ? 'page' : 'pages'}</span>}
+        {isReady && s.page_count > 0 && <span className="source-row-pages" aria-hidden="true">{s.page_count}p</span>}
         {s.status === 'processing' && <span className="source-row-status status-processing">Processing...</span>}
         {s.status === 'failed' && (
           <span className="source-row-status status-failed" title={s.error_message || 'Failed'}>
@@ -218,6 +229,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
               <button type="button" className="notebook-menu-item" role="menuitem" onClick={run(onReplace)}>
                 Replace
               </button>
+              <div className="menu-divider" role="separator" />
               <button type="button" className="notebook-menu-item menu-item-danger" role="menuitem" onClick={run(onRemove)}>
                 Remove
               </button>
