@@ -1363,6 +1363,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   return (
     <div className="workspace-root workspace-layout" data-nav-open={!isNavCollapsed && !navHiddenByReader} data-context-open={!isContextCollapsed}
+      data-note-open={contextView === 'notes' && isCreateNoteOpen && !reader ? 'true' : undefined}
       data-reader={reader ? (readerExpanded ? 'expanded' : 'compact') : undefined}>
       <div className="sr-only" role="status" aria-live="polite" data-testid="reader-live-region">{readerAnnouncement}</div>
       <input
@@ -2003,7 +2004,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               headingRef={readerHeadingRef}
             />
           )}
-          <div className="context-tabs-row">
+          {!(contextView === 'notes' && isCreateNoteOpen) && <div className="context-tabs-row">
           <div className="context-view-switcher sidebar-segment-switcher sliding-tabs" ref={contextTabsRef} role="group" aria-label="Panel view" data-active={contextView === 'notes' ? 'notes' : 'evidence'}>
             <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => { void flushNote(); setContextView('notes'); }}>{notes.length > 0 ? `Notes · ${notes.length}` : 'Notes'}</button>
             <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => { void flushNote(); setContextView('evidence'); }} data-testid="right-panel-tab-evidence">Citations</button>
@@ -2014,7 +2015,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
             </svg>
           </button>
-          </div>
+          </div>}
 
           {contextView === 'evidence' && (
             <div className="right-panel-body study-evidence-body tab-panel-fade" key="panel-evidence">
@@ -2066,7 +2067,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       <svg className="note-crumb-sep" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
                       <span className="note-crumb-current" aria-current="page">Note</span>
                     </nav>
-                    <button type="button" className="rail-icon-btn context-collapse-btn" onClick={() => { void flushNote(); closeContextPanel(); }}
+                    <button type="button" ref={contextToggleRef} className="rail-icon-btn context-collapse-btn" onClick={() => { void flushNote(); closeContextPanel(); }}
                       title="Hide study panel" aria-label="Collapse panel">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
                         <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
