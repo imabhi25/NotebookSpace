@@ -41,6 +41,8 @@ const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) 
 import { Composer, ComposerScope } from './Composer';
 import { BrandLogo } from './BrandLogo';
 
+const SAMPLE_TAG = /^\*\*\[Sample Answer\]\*\*\s*/;
+
 const NAV_PREF_KEY = 'notebookspace_nav_open';
 const CONTEXT_PREF_KEY = 'notebookspace_context_open';
 function readPanelPref(key: string): boolean {
@@ -1206,7 +1208,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           </button>
         <div className="workspace-brand" ref={brandRef}>
           <span className="workspace-brand-mark" aria-hidden="true">
-            <BrandLogo size={26} />
+            <BrandLogo size={22} />
           </span>
           <span className="workspace-brand-name">NotebookSpace</span>
         </div>
@@ -1229,10 +1231,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <BackendStatus className="backend-status-bar" />
           <button type="button" className="workspace-history-btn" onClick={() => setPaletteOpen(true)} aria-label="Search and commands"
             title={`Search and commands (${shortcutLabel('K')})`} aria-haspopup="dialog" data-testid="open-command-palette">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><span>Search</span>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><span>Search</span><kbd className="workspace-kbd" aria-hidden="true">{shortcutLabel('K')}</kbd>
           </button>
           <button type="button" className="workspace-history-btn" onClick={() => setHistoryOpen(true)} aria-label="Conversation history" title="Conversation history">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 119 10M3 4v7h7M12 7v5l3 2"/></svg><span>History</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 119 10M3 4v7h7M12 7v5l3 2"/></svg>
           </button>
           <button type="button" ref={contextToggleRef}
             className={`workspace-toggle-btn ${!isContextCollapsed ? 'active' : ''}`}
@@ -1292,8 +1294,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <aside className="workspace-nav workspace-sources-rail" id="workspace-nav-panel" aria-label="Sources"
             aria-hidden={isNavCollapsed || navHiddenByReader} ref={navPanelRef} tabIndex={-1}>
             <div className="rail-header">
-              <h2 className="rail-title">Sources</h2>
-
+              <h2 className="rail-title">Sources ({sources.length})</h2>
+              <button type="button" className="rail-icon-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn"
+                aria-label="Add sources" title="Add sources">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                </svg>
+              </button>
             </div>
             <div
               className={`sources-panel-body ${isPanelDragOver ? 'is-drag-over' : ''}`}
@@ -1315,18 +1322,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 }
               }}
             >
-              <button type="button" className="notebook-switch" onClick={onBackToDashboard}
-                title="Switch notebook" aria-label={`Switch notebook. Current notebook: ${subject.name}`}>
-                <span className="notebook-switch-name">{subject.name}</span>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m7 15 5 5 5-5M7 9l5-5 5 5" /></svg>
-              </button>
-              <button type="button" className="rail-add-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-                <span>Add sources</span>
-              </button>
               {sources.length > 0 && (
                 <label className="rail-find">
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="20" y1="20" x2="16.5" y2="16.5" /></svg>
@@ -1348,7 +1343,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               ) : (
                 <>
                   <div className="sources-select-row">
-                    <h3 className="rail-count-label">In this notebook <span aria-hidden="true">·</span> {sources.length}</h3>
                     <label className="sources-select-all">
                       <span>Select all</span>
                       <input type="checkbox" ref={selectAllRef} className="source-row-checkbox" checked={allReadySelected}
@@ -1386,6 +1380,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               )}
 
               <div className="rail-footer">
+                <button type="button" className="rail-add-materials" onClick={() => setIsAddSourceOpen(true)}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                  <span>Add materials</span>
+                </button>
                 {sources.length > 0 && (
                   <p className="rail-selected-count" data-testid="rail-selected-count">
                     {selectedSourceIds.length} {selectedSourceIds.length === 1 ? 'source' : 'sources'} selected
@@ -1499,22 +1499,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             <>
               <div className="thread-scroll-container">
                 <div className="thread-content-max">
-                  <div className="session-heading" data-testid="session-heading">
-                    <p className="session-title">{conversations?.find((c) => c.id === activeConversationId)?.title || 'New session'}</p>
-                    <p className="session-sub">
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12Z" /></svg>
-                      <span>Study session &middot; {subject.name}</span>
-                    </p>
-                  </div>
                   <div className="thread-messages-list">
                     {messages.map((msg) => (
                       <div key={msg.id} className={`thread-turn turn-${msg.role}`} data-turn-id={msg.id}>
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
-                            <span className="turn-label turn-label-user" aria-hidden="true">
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
-                              <span>Question</span>
-                            </span>
                             <h2 className="question-heading" data-testid="question-heading">{msg.content}</h2>
                           </div>
                         ) : (
@@ -1618,9 +1607,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 })()}
 
                                 {/* Grounded Answer Body */}
+                                {SAMPLE_TAG.test(msg.content) && <span className="sample-answer-badge" data-testid="sample-answer-badge">Sample</span>}
                                 <div className="answer-text">
                                   <MarkdownRenderer
-                                    content={msg.content}
+                                    content={msg.content.replace(SAMPLE_TAG, '')}
                                     citations={msg.citations || []}
                                     isThisMessageSelected={selectedCitation?.messageId === msg.id}
                                     selectedCitation={selectedCitation}
@@ -1859,15 +1849,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     onPrevious={handlePreviousCitation}
                                     onNext={handleNextCitation}
                                     onClose={closeEvidence}
+                                    footerExtra={
+                                      <button type="button" className="evidence-reader-btn evidence-save-btn" onClick={() => {
+                                        setEditingNote(null);
+                                        setNoteFormTitle(matchedSource?.title || selectedCitation.file);
+                                        const passage = retrievedMatchingChunks.map(c => c.text).join('\n\n') || selectedCitation.excerpt || '';
+                                        setNoteFormContent(`${passage}\n\nSource: ${selectedCitation.file}, page ${selectedCitation.page}`);
+                                        setIsCreateNoteOpen(true);
+                                      }} aria-label="Save passage to notes">Save to notes</button>
+                                    }
                                   />
                 {matchedSource && <button type="button" className="selected-source-view" onClick={() => handleOpenSourceViewer(matchedSource)}>Open source ↗</button>}
-                <button type="button" className="btn btn-secondary" onClick={() => {
-                  setEditingNote(null);
-                  setNoteFormTitle(matchedSource?.title || selectedCitation.file);
-                  const passage = retrievedMatchingChunks.map(c => c.text).join('\n\n') || selectedCitation.excerpt || '';
-                  setNoteFormContent(`${passage}\n\nSource: ${selectedCitation.file}, page ${selectedCitation.page}`);
-                  setIsCreateNoteOpen(true);
-                }} aria-label="Save passage to notes">Save to notes</button>
               </section> : <p className="study-empty">Select a citation in an answer to inspect its source.</p>}
               {selectedRetrievalMessageId && <button type="button" className="selected-source-view" onClick={() => setContextView('retrieval')}>Show retrieval diagnostics</button>}
             </div>

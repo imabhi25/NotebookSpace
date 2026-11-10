@@ -130,11 +130,13 @@ interface InlineEvidenceProps extends EvidenceBodyProps {
   onPrevious: () => void;
   onNext: () => void;
   onClose: () => void;
+  /** Extra action pinned beside the reader button (e.g. Save to notes). */
+  footerExtra?: React.ReactNode;
 }
 
 /** Evidence shown directly beneath the answer it supports. Escape or Close collapses it. */
 export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(function InlineEvidence(
-  { index, total, onPrevious, onNext, onClose, readerAction, ...body },
+  { index, total, onPrevious, onNext, onClose, readerAction, footerExtra, ...body },
   ref
 ) {
   return (
@@ -153,15 +155,15 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
       }}
     >
       <div className="inline-evidence-header">
-        <h3 className="inline-evidence-title">Evidence{index >= 0 && total > 0 ? <span className="inline-evidence-count"> {index + 1} of {total}</span> : null}</h3>
+        <h3 className="inline-evidence-title">{index >= 0 && total > 0 ? `Source ${index + 1} of ${total}` : 'Source'}<span className="inline-evidence-count"> · {body.citation.file}</span></h3>
         <div className="inline-evidence-actions">
           {total > 1 && index >= 0 && (
             <div className="citation-step-controls">
               <button type="button" className="btn-step" onClick={onPrevious} disabled={index <= 0}
-                aria-label="Previous citation" title="Previous citation">Prev</button>
+                aria-label="Previous citation" title="Previous citation"><span aria-hidden="true">‹</span></button>
               <span className="citation-step-counter" aria-label={`Citation ${index + 1} of ${total}`}>{index + 1}/{total}</span>
               <button type="button" className="btn-step" onClick={onNext} disabled={index >= total - 1}
-                aria-label="Next citation" title="Next citation">Next</button>
+                aria-label="Next citation" title="Next citation"><span aria-hidden="true">›</span></button>
             </div>
           )}
           <button type="button" className="inline-evidence-close" onClick={onClose}
@@ -174,11 +176,14 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
         </div>
       </div>
       <EvidenceBody {...body} />
-      {readerAction && (
+      {(readerAction || footerExtra) && (
         <div className="evidence-footer">
-          <button type="button" className="evidence-reader-btn" onClick={readerAction.onOpen} data-testid="open-reader-btn">
-            {readerAction.label}
-          </button>
+          {readerAction && (
+            <button type="button" className="evidence-reader-btn" onClick={readerAction.onOpen} data-testid="open-reader-btn">
+              {readerAction.label}
+            </button>
+          )}
+          {footerExtra}
         </div>
       )}
     </section>

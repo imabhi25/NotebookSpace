@@ -9,7 +9,7 @@ interface CrossSourceCheckProps {
 
 const heading = (check: Check): string => {
   const topics = check.topics.join(', ');
-  if (check.status === 'conflict') return topics ? `Policy update detected: ${topics}` : 'These documents disagree';
+  if (check.status === 'conflict') return topics ? `Policy Update Detected: ${topics}` : 'These documents disagree';
   if (check.status === 'update') return 'Possible update across sources';
   return 'Draws on more than one source';
 };
