@@ -2,6 +2,7 @@ import React from 'react';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { Citation, normalizeFileName } from '../types';
+import { createCitationRegex, parsePageList, trailingPunctuationGap } from '../citationRefs';
 
 interface MarkdownRendererProps {
   content: string;
@@ -195,34 +196,33 @@ export function renderTextWithCitations(
   if (!text) return null;
 
   const elements: React.ReactNode[] = [];
-  // Match [document.pdf p.1], [lecture.txt p.2], [Syllabus p.1]
-  const citRegex = /\[\s*([^\[\]\r\n]+?)\s*,?\s*(?:p\.|page\.?|p)\s*(\d+)\s*\]/giu;
+  // Match [document.pdf p.1], [lecture.txt p. 2, 3], [Syllabus pp. 1-2], [notes.md p.1, p.2]
+  const citRegex = createCitationRegex();
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = citRegex.exec(text)) !== null) {
     const matchStart = match.index;
-    const matchEnd = citRegex.lastIndex;
     const rawMatchedText = match[0];
     const file = match[1].trim();
-    const page = parseInt(match[2], 10);
+    const pages = parsePageList(match[2]);
 
     if (matchStart > lastIndex) {
       const chunk = text.slice(lastIndex, matchStart);
       elements.push(...renderMath(chunk));
     }
 
-    // Match citation against available validated citations
     const availableCitations = citations || [];
-    const listIndex = availableCitations.findIndex((c) => {
-      const citFileNorm = normalizeFileName(c.file);
-      const citTitleNorm = normalizeFileName(c.title || c.file);
-      const targetNorm = normalizeFileName(file);
-      return (citFileNorm === targetNorm || citTitleNorm === targetNorm) && c.page === page;
-    });
-    const matchedCitation = (listIndex >= 0 ? availableCitations[listIndex] : undefined) || (onSelectCitation ? { file, page } : undefined);
-
-    if (matchedCitation && onSelectCitation) {
+    const nodes: React.ReactNode[] = [];
+    pages.forEach((page) => {
+      const listIndex = availableCitations.findIndex((c) => {
+        const citFileNorm = normalizeFileName(c.file);
+        const citTitleNorm = normalizeFileName(c.title || c.file);
+        const targetNorm = normalizeFileName(file);
+        return (citFileNorm === targetNorm || citTitleNorm === targetNorm) && c.page === page;
+      });
+      const matchedCitation = (listIndex >= 0 ? availableCitations[listIndex] : undefined) || (onSelectCitation ? { file, page } : undefined);
+      if (!matchedCitation || !onSelectCitation) return;
       const isActive =
         isThisMessageSelected &&
         normalizeFileName(selectedCitation?.file) === normalizeFileName(matchedCitation.file) &&
@@ -231,9 +231,9 @@ export function renderTextWithCitations(
       if (listIndex >= 0) {
         // A citation the answer actually carries: a numbered marker that matches "Evidence n of N".
         const state = citationState?.(matchedCitation);
-        elements.push(
+        nodes.push(
           <button
-            key={`cit-${matchStart}`}
+            key={`cit-${matchStart}-${page}`}
             type="button"
             className={`citation-marker ${state ?? ''} ${isActive ? 'active' : ''}`}
             onClick={() => onSelectCitation(matchedCitation)}
@@ -245,24 +245,27 @@ export function renderTextWithCitations(
           </button>
         );
       } else {
-        elements.push(
+        nodes.push(
           <button
-            key={`cit-${matchStart}`}
+            key={`cit-${matchStart}-${page}`}
             type="button"
             className={`inline-citation-btn ${isActive ? 'active' : ''}`}
             onClick={() => onSelectCitation(matchedCitation)}
             data-testid="inline-citation"
             aria-label={`Citation: ${matchedCitation.file} page ${matchedCitation.page}`}
           >
-            {rawMatchedText}
+            {pages.length === 1 ? rawMatchedText : `[${file} p.${page}]`}
           </button>
         );
       }
-    } else {
-      elements.push(...renderMath(rawMatchedText));
-    }
+    });
 
-    lastIndex = matchEnd;
+    if (nodes.length > 0) elements.push(...nodes);
+    else elements.push(...renderMath(rawMatchedText));
+
+    // "[1] ." reads as "[1].": drop the gap before trailing punctuation.
+    citRegex.lastIndex += trailingPunctuationGap(text.slice(citRegex.lastIndex));
+    lastIndex = citRegex.lastIndex;
   }
 
   if (lastIndex < text.length) {

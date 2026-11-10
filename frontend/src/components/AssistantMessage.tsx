@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { AskResponse, Citation, normalizeFileName } from '../types';
+import { createCitationRegex, parsePageList, trailingPunctuationGap } from '../citationRefs';
 
 export const getPlainAbstainReason = (reason?: string | null): string => {
   switch (reason) {
@@ -32,51 +33,53 @@ export function renderFormattedAnswer(
   if (!text) return null;
 
   const elements: React.ReactNode[] = [];
-  const regex = /\[\s*([^\[\]\r\n]+?\.pdf)\s*,?\s*(?:p\.|page\.?|p)\s*(\d+)\s*\]/giu;
+  const regex = createCitationRegex();
   let lastIndex = 0;
   let match: RegExpExecArray | null;
 
   while ((match = regex.exec(text)) !== null) {
     const matchStart = match.index;
-    const matchEnd = regex.lastIndex;
     const rawMatchedText = match[0];
     const file = match[1].trim();
-    const page = parseInt(match[2], 10);
+    const pages = parsePageList(match[2]);
 
     // Push preceding text segment
     if (matchStart > lastIndex) {
       elements.push(text.slice(lastIndex, matchStart));
     }
 
-    // Resolve marker against response's validated citation metadata
-    const matchedCitation = citations.find(
-      (c) => normalizeFileName(c.file) === normalizeFileName(file) && c.page === page
-    );
+    // Resolve each cited page against the response's validated citation metadata
+    const resolved = pages
+      .map((page) => citations.find((c) => normalizeFileName(c.file) === normalizeFileName(file) && c.page === page))
+      .filter((c): c is Citation => Boolean(c));
 
-    if (matchedCitation) {
-      const isActive =
-        isThisMessageSelected &&
-        normalizeFileName(selectedCitation?.file) === normalizeFileName(matchedCitation.file) &&
-        selectedCitation?.page === matchedCitation.page;
+    if (resolved.length > 0) {
+      resolved.forEach((matchedCitation) => {
+        const isActive =
+          isThisMessageSelected &&
+          normalizeFileName(selectedCitation?.file) === normalizeFileName(matchedCitation.file) &&
+          selectedCitation?.page === matchedCitation.page;
 
-      elements.push(
-        <button
-          key={`inline-cit-${matchStart}`}
-          type="button"
-          className={`inline-citation-btn ${isActive ? 'active' : ''}`}
-          onClick={() => onSelect(matchedCitation)}
-          data-testid="inline-citation"
-          aria-label={`Citation: ${matchedCitation.file} page ${matchedCitation.page}`}
-        >
-          {rawMatchedText}
-        </button>
-      );
+        elements.push(
+          <button
+            key={`inline-cit-${matchStart}-${matchedCitation.page}`}
+            type="button"
+            className={`inline-citation-btn ${isActive ? 'active' : ''}`}
+            onClick={() => onSelect(matchedCitation)}
+            data-testid="inline-citation"
+            aria-label={`Citation: ${matchedCitation.file} page ${matchedCitation.page}`}
+          >
+            {pages.length === 1 ? rawMatchedText : `[${matchedCitation.file} p.${matchedCitation.page}]`}
+          </button>
+        );
+      });
     } else {
       // Preserve unmatched marker as plain text
       elements.push(rawMatchedText);
     }
 
-    lastIndex = matchEnd;
+    regex.lastIndex += trailingPunctuationGap(text.slice(regex.lastIndex));
+    lastIndex = regex.lastIndex;
   }
 
   // Push remaining text

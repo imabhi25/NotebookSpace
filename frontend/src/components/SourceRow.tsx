@@ -4,6 +4,8 @@ import { Source } from '../types';
 
 interface SourceRowProps {
   source: Source;
+  /** Title shown in the list (auto-cleaned when enabled); the stored title is untouched. */
+  displayTitle?: string;
   isSelected: boolean;
   onToggle: () => void;
   onView: () => void;
@@ -15,7 +17,7 @@ interface SourceRowProps {
   onRemove: () => void;
 }
 
-const TYPE_INFO: Record<string, { badge: string; label: string }> = {
+export const TYPE_INFO: Record<string, { badge: string; label: string }> = {
   pdf: { badge: 'PDF', label: 'PDF' },
   url: { badge: 'WEB', label: 'Web page' },
   pasted: { badge: 'TXT', label: 'Pasted text' },
@@ -23,10 +25,10 @@ const TYPE_INFO: Record<string, { badge: string; label: string }> = {
   txt: { badge: 'TXT', label: 'Text' },
 };
 
-const BADGE_COLORS: Record<string, string> = { pdf: '#E11D48', markdown: '#2563EB', txt: '#2563EB', pasted: '#2563EB' };
+export const BADGE_COLORS: Record<string, string> = { pdf: '#E11D48', markdown: '#2563EB', txt: '#2563EB', pasted: '#2563EB' };
 
 // Document glyph: folded top-right corner and a bold type badge across the lower half.
-const SourceTypeIcon: React.FC<{ type: string; badge: string }> = ({ type, badge }) => (
+export const SourceTypeIcon: React.FC<{ type: string; badge: string }> = ({ type, badge }) => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
     <path d="M6 2.5h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1Z" stroke="currentColor" strokeOpacity="0.55" strokeWidth="1.4" strokeLinejoin="round" />
     <path d="M14 2.5V7a1 1 0 0 0 1 1h4" stroke="currentColor" strokeOpacity="0.55" strokeWidth="1.4" strokeLinejoin="round" />
@@ -38,6 +40,7 @@ const SourceTypeIcon: React.FC<{ type: string; badge: string }> = ({ type, badge
 // One slim list row: type badge, name, a quiet meta line, then a "more" menu and the selection checkbox.
 export const SourceRow: React.FC<SourceRowProps> = ({
   source: s,
+  displayTitle,
   isSelected,
   onToggle,
   onView,
@@ -57,6 +60,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
   const info = TYPE_INFO[type] || { badge: 'DOC', label: s.source_type || 'Document' };
   const isReady = s.status === 'ready';
   const isFailed = s.status === 'failed';
+  const shownTitle = displayTitle ?? s.title;
 
   const handleRetryClick = () => {
     if (type === 'url' || type === 'pasted') {
@@ -154,8 +158,8 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         role="button"
         tabIndex={0}
       >
-        <span className="source-row-title" title={`${s.title} · ${info.label}${isReady ? ` · ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}` : s.status === 'failed' ? ` · ${s.error_message || 'Failed'}` : ''}`}>
-          {s.title}
+        <span className="source-row-title" title={`${shownTitle} · ${info.label}${isReady ? ` · ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}` : s.status === 'failed' ? ` · ${s.error_message || 'Failed'}` : ''}`}>
+          {shownTitle}
         </span>
         <span className="sr-only">
           {info.label}{isReady ? `, ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}, ready` : s.status === 'failed' ? `, failed: ${s.error_message || 'failed'}` : ''}

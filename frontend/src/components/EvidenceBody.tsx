@@ -1,6 +1,19 @@
 import React, { forwardRef } from 'react';
 import { ActiveCitation, PassageItem, RetrievedPassage } from '../types';
 
+/**
+ * PDF extraction often collapses numbered lists and section headings into one line.
+ * Break them back onto their own lines for reading; the stored text is untouched.
+ */
+export function formatPassageText(text: string): string {
+  let out = text;
+  if (/(?:^|\s)1\.\s/.test(out) && /\s2\.\s/.test(out)) {
+    out = out.replace(/\s+(?=\d{1,2}\.\s+\S)/g, '\n');
+  }
+  out = out.replace(/\s+(?=(?:Question|Section|Part|Problem|Exercise|Task)\s+\d+\s*[:.)])/g, '\n\n');
+  return out.trim();
+}
+
 export interface EvidenceBodyProps {
   citation: ActiveCitation;
   /** Passages stored for the cited page, as returned by the passages endpoint. */
@@ -69,7 +82,7 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
                 const highlighted = hasRetrievedText && isHighlighted(text, p.chunk_index);
                 return (
                   <div key={idx} className={`passage-chunk ${highlighted ? 'passage-chunk-highlighted' : ''}`}>
-                    <p className="passage-chunk-text">{text}</p>
+                    <p className="passage-chunk-text">{formatPassageText(text)}</p>
                   </div>
                 );
               })}
@@ -78,14 +91,14 @@ export const EvidenceBody: React.FC<EvidenceBodyProps> = ({
             <div className="passage-chunks-list">
               {retrievedChunks.map((r, idx) => (
                 <div key={idx} className="passage-chunk passage-chunk-highlighted">
-                  <p className="passage-chunk-text">{r.text || r.chunk_text}</p>
+                  <p className="passage-chunk-text">{formatPassageText(r.text || r.chunk_text || '')}</p>
                 </div>
               ))}
             </div>
           ) : citation.excerpt ? (
             <div className="passage-chunks-list">
               <div className="passage-chunk passage-chunk-highlighted">
-                <p className="passage-chunk-text">{citation.excerpt}</p>
+                <p className="passage-chunk-text">{formatPassageText(citation.excerpt)}</p>
               </div>
             </div>
           ) : (

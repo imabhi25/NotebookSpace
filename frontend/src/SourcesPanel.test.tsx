@@ -78,10 +78,32 @@ describe('Sources panel', () => {
     expect(within(panel()).queryByRole('button', { name: /Drop PDFs here/ })).toBeNull();
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
     expect(within(panel()).getByRole('heading', { name: /^Sources \(\d+\)$/ })).toHaveTextContent(/^Sources \(\d+\)$/);
-    expect(within(panel()).queryByText('Select all')).toBeNull();
+    expect(within(panel()).getByText('Select all')).toBeInTheDocument();
 
     fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Select Lecture 7.pdf' }));
     expect(onSelectSources).toHaveBeenCalledWith(['a', 'b']);
+
+    fireEvent.click(within(panel()).getByRole('checkbox', { name: 'Select all sources' }));
+    expect(onSelectSources).toHaveBeenLastCalledWith(['a', 'b']);
+  });
+
+  it('auto-rename cleans filenames in the list and toggles back', () => {
+    render(workspace([src('a', 'QUESTIONS_v1.pdf'), src('b', 'announcement_week4.md')], ['a']));
+    const toggle = within(panel()).getByRole('button', { name: 'Auto-rename sources' });
+    fireEvent.click(toggle);
+    expect(within(panel()).getByText('Questions (v1)')).toBeInTheDocument();
+    expect(within(panel()).getByText('Week 4 Announcement')).toBeInTheDocument();
+    fireEvent.click(toggle);
+    expect(within(panel()).getByText('QUESTIONS_v1.pdf')).toBeInTheDocument();
+  });
+
+  it('the sort menu offers title, date and page count', () => {
+    render(workspace([src('a', 'Zed.pdf'), src('b', 'Alpha.pdf')], []));
+    fireEvent.click(within(panel()).getByRole('button', { name: 'Sort sources' }));
+    expect(within(panel()).getAllByRole('menuitemradio').map((el) => el.textContent)).toEqual(['Title (A–Z)', 'Date added', 'Page count']);
+    fireEvent.click(within(panel()).getByRole('menuitemradio', { name: 'Title (A–Z)' }));
+    const titles = within(panel()).getAllByTestId(/source-checkbox-/).map((el) => el.getAttribute('aria-label'));
+    expect(titles).toEqual(['Select Alpha.pdf', 'Select Zed.pdf']);
   });
 
   it('the link bar opens the add dialog on the link tab with the link filled in, and explains anything else', async () => {
