@@ -1,10 +1,10 @@
 import json
 import logging
 import re
-from difflib import SequenceMatcher
 from typing import Any, Sequence
 from uuid import UUID
 from db.connection import get_connection
+from db.fuzzy import fuzzy_term_in_text
 from ingestion.chunker import Chunk
 
 logger = logging.getLogger("course_assistant.db.notebook_store")
@@ -802,28 +802,6 @@ def extract_key_terms(query: str) -> list[str]:
         if clean_word.lower() not in stop_words and len(clean_word) >= 2:
             terms.add(clean_word)
     return list(terms)
-
-
-_IDENT_RE = re.compile(r"[A-Za-z_][A-Za-z0-9_]{3,}")
-FUZZY_MATCH_RATIO = 0.72
-
-
-def fuzzy_term_in_text(term: str, text: str, ratio: float = FUZZY_MATCH_RATIO) -> bool:
-    """True when `term` is a slight misspelling of an identifier in `text` (e.g. 'stglen' ~ 'strgLen').
-
-    Only single-word identifier-like terms of 4+ characters are compared, against tokens of similar length,
-    so short words and numbers never match by accident.
-    """
-    t = term.lower()
-    if len(t) < 4 or not _IDENT_RE.fullmatch(t):
-        return False
-    for tok in set(_IDENT_RE.findall(text)):
-        w = tok.lower()
-        if abs(len(w) - len(t)) > 3:
-            continue
-        if SequenceMatcher(None, t, w).ratio() >= ratio:
-            return True
-    return False
 
 
 def search_scoped(

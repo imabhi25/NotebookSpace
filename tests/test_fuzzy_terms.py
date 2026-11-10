@@ -1,4 +1,4 @@
-from db.notebook_store import fuzzy_term_in_text
+from db.fuzzy import fuzzy_term_in_text
 
 
 def test_typos_match_camel_case_identifier():
