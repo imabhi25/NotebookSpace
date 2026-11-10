@@ -48,13 +48,14 @@ describe('Sources panel', () => {
     render(workspace([], []));
     const zone = within(panel()).getByRole('button', { name: /Drop PDFs here or click to browse/ });
     expect(zone).toHaveTextContent('PDFs, links, pasted text');
-    expect(within(panel()).getByRole('heading', { name: 'Sources' })).toHaveTextContent(/^Sources$/);
+    expect(within(panel()).getByRole('heading', { name: /^Sources \(\d+\)$/ })).toHaveTextContent(/^Sources \(\d+\)$/);
     expect(within(panel()).queryByText(/of \d+ selected/)).toBeNull();
     expect(within(panel()).queryByText('Select all')).toBeNull();
     expect(screen.queryByText('No materials added yet.')).toBeNull();
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
     expect(within(panel()).queryByRole('button', { name: 'Create note' })).toBeNull(); // notes live in the study panel
-    expect(within(panel()).getByRole('button', { name: /Switch notebook/ })).toBeInTheDocument();
+    expect(within(panel()).queryByRole('button', { name: /Switch notebook/ })).toBeNull(); // the breadcrumb switches notebooks
+    expect(within(panel()).getByRole('button', { name: 'Add materials' })).toBeInTheDocument();
     expect(within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' })).toBeInTheDocument();
     expect(within(panel()).queryByRole('combobox', { name: 'Where to search' })).toBeNull(); // the single-option select was removed
     expect(within(panel()).queryByRole('combobox', { name: 'Research depth' })).toBeNull(); // the disabled depth selector was removed
@@ -76,7 +77,7 @@ describe('Sources panel', () => {
     const { rerender } = render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a'], onSelectSources));
     expect(within(panel()).queryByRole('button', { name: /Drop PDFs here/ })).toBeNull();
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
-    expect(within(panel()).getByRole('heading', { name: 'Sources' })).toHaveTextContent(/^Sources$/);
+    expect(within(panel()).getByRole('heading', { name: /^Sources \(\d+\)$/ })).toHaveTextContent(/^Sources \(\d+\)$/);
     const selectAll = within(panel()).getByRole('checkbox', { name: 'Select all sources' }) as HTMLInputElement;
     expect(within(panel()).getByText('Select all')).toBeInTheDocument();
     expect(selectAll.checked).toBe(false);
@@ -111,7 +112,7 @@ describe('Sources panel', () => {
 
   it('Find in sources filters the list by name; Create note lives in the study panel', () => {
     render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a']));
-    expect(within(panel()).getByRole('heading', { name: /In this notebook/ })).toHaveTextContent('2');
+    expect(within(panel()).getByRole('heading', { name: /^Sources \(2\)$/ })).toBeInTheDocument();
     expect(within(panel()).getByTestId('rail-selected-count')).toHaveTextContent('1 source selected');
     fireEvent.change(within(panel()).getByRole('searchbox', { name: 'Find in sources' }), { target: { value: 'lect' } });
     expect(within(panel()).queryByText('Syllabus.pdf')).toBeNull();

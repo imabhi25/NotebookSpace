@@ -128,7 +128,7 @@ describe('CrossSourceCheck', () => {
     render(<CrossSourceCheck check={check} onOpen={vi.fn()} />);
     const region = screen.getByRole('region', { name: 'Cross-Source Evidence Check' });
     expect(region).toHaveAttribute('data-status', 'conflict');
-    expect(within(region).getByRole('heading', { name: 'Policy update detected: Late penalty' })).toBeInTheDocument();
+    expect(within(region).getByRole('heading', { name: 'Policy Update Detected: Late penalty' })).toBeInTheDocument();
     const cards = within(region).getAllByTestId('cross-source-card');
     expect(cards).toHaveLength(2);
     expect(cards[0]).toHaveTextContent('syllabus.pdf');
