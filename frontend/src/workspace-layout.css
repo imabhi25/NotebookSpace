@@ -1153,3 +1153,65 @@
 .workspace-layout .answer-text + .cross-source { margin-top: 12px; }
 .workspace-layout .cross-source-pill { font-size: 12px; }
 .workspace-layout .cross-source-file::after { content: ' —'; font-weight: 400; color: var(--color-text-muted); }
+
+/* ============================================================
+   Fluid motion: panels glide, citations pop, passages and messages ease in.
+   Tokens (--ease-fluid, --ease-spring, --duration-*) live in tokens.css.
+   ============================================================ */
+@keyframes passageSlideIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes messageEnter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes citationPop { 0% { transform: scale(1); } 40% { transform: scale(1.08); } 100% { transform: scale(1); } }
+
+/* Left Sources and right Inspector: width glides, content slides off, the canvas eases to fill */
+.workspace-layout .nav-slot,
+.workspace-layout .context-slot {
+  transition: width var(--duration-smooth) var(--ease-fluid), min-width var(--duration-smooth) var(--ease-fluid),
+    max-width var(--duration-smooth) var(--ease-fluid), opacity var(--duration-fast) ease;
+}
+.workspace-layout .workspace-main-area { transition: padding var(--duration-smooth) var(--ease-fluid); }
+.workspace-layout aside.workspace-nav {
+  transition: opacity var(--duration-fast) ease, transform var(--duration-smooth) var(--ease-fluid), visibility 0s linear 0s;
+}
+.workspace-layout .nav-slot.is-collapsed aside.workspace-nav {
+  opacity: 0; transform: translateX(-12px);
+  transition: opacity var(--duration-fast) ease, transform var(--duration-smooth) var(--ease-fluid), visibility 0s linear var(--duration-smooth);
+}
+.workspace-layout .context-slot aside.workspace-context-panel {
+  transition: opacity var(--duration-fast) ease, transform var(--duration-smooth) var(--ease-fluid), visibility 0s linear 0s;
+}
+.workspace-layout .context-slot.is-collapsed aside.workspace-context-panel {
+  opacity: 0; transform: translateX(12px);
+  transition: opacity var(--duration-fast) ease, transform var(--duration-smooth) var(--ease-fluid), visibility 0s linear var(--duration-smooth);
+}
+
+/* Citations and evidence */
+.workspace-layout .inline-citation-btn {
+  transition: background var(--duration-fast) var(--ease-fluid), border-color var(--duration-fast) var(--ease-fluid),
+    color var(--duration-fast) var(--ease-fluid), transform var(--duration-normal) var(--ease-spring);
+}
+.workspace-layout .inline-citation-btn.active { animation: citationPop var(--duration-normal) var(--ease-spring); }
+.workspace-layout .inline-evidence .btn-step { transition: background var(--duration-fast) var(--ease-fluid), transform var(--duration-fast) var(--ease-spring); }
+.workspace-layout .inline-evidence .btn-step:active:not(:disabled) { transform: scale(0.92); }
+.workspace-layout .passage-content { animation: passageSlideIn 0.2s var(--ease-fluid); }
+
+/* Composer */
+.workspace-layout .composer-box {
+  transition: border-color var(--duration-normal) var(--ease-fluid), box-shadow var(--duration-normal) var(--ease-fluid), background var(--duration-normal) var(--ease-fluid);
+}
+.workspace-layout .composer-send-btn { transition: all var(--duration-fast) var(--ease-fluid); }
+.workspace-layout .composer-send-btn:hover:not(:disabled) { transform: scale(1.05); }
+.workspace-layout .composer-send-btn:active:not(:disabled) { transform: scale(0.96); }
+
+/* New messages */
+.workspace-layout .thread-turn { animation: messageEnter 0.28s var(--ease-fluid) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .workspace-layout .nav-slot, .workspace-layout .context-slot, .workspace-layout .workspace-main-area,
+  .workspace-layout aside.workspace-nav, .workspace-layout .context-slot aside.workspace-context-panel,
+  .workspace-layout .inline-citation-btn, .workspace-layout .inline-evidence .btn-step,
+  .workspace-layout .composer-box, .workspace-layout .composer-send-btn { transition: none !important; }
+  .workspace-layout .thread-turn, .workspace-layout .passage-content, .workspace-layout .inline-citation-btn.active { animation: none !important; }
+  .workspace-layout .nav-slot.is-collapsed aside.workspace-nav, .workspace-layout .context-slot.is-collapsed aside.workspace-context-panel { transform: none; }
+  .workspace-layout .composer-send-btn:hover:not(:disabled), .workspace-layout .composer-send-btn:active:not(:disabled),
+  .workspace-layout .inline-evidence .btn-step:active:not(:disabled) { transform: none; }
+}
