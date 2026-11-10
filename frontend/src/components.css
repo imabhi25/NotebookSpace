@@ -2204,10 +2204,10 @@ aside .retrieval-svg,
    Header refinement, brand mark, settings overhaul
    ============================================================ */
 .notebooks-home .brand-mark-wrapper { width: 28px; height: 28px; border-radius: 8px; background: transparent; color: var(--color-text-primary); --brand-mark-seam: var(--color-background); }
-.notebooks-home .brand-logo-icon { display: block; width: 18px; height: 18px; flex: none; color: var(--color-text-primary); }
+.notebooks-home .brand-logo-icon { display: block; width: 26px; height: 26px; flex: none; color: var(--color-text-primary); }
 .brand-logo-icon .logo-page-left { fill: currentColor; }
-.brand-logo-icon .logo-page-right { fill: currentColor; fill-opacity: 0.4; }
-.notebooks-home .brand-mark-wrapper { width: 18px; height: 18px; border-radius: 0; }
+.brand-logo-icon .logo-page-right { fill: currentColor; fill-opacity: 0.55; }
+.notebooks-home .brand-mark-wrapper { width: 26px; height: 26px; border-radius: 0; }
 .notebooks-home .home-brand { gap: 8px; }
 .notebooks-home .home-brand .sidebar-brand-title { font-size: 16px; font-weight: 650; letter-spacing: -0.028em; color: var(--color-text-primary); }
 .notebooks-home .home-header-actions { gap: 6px; }
@@ -2289,5 +2289,5 @@ aside .retrieval-svg,
 :root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill.active { color: #fff; }
 
 /* Workspace header uses the same duo-tone open-notebook mark as the dashboard. */
-.workspace-layout .workspace-brand-mark { width: 18px; height: 18px; background: transparent; border-radius: 0; color: var(--color-text-primary); display: grid; place-items: center; }
-.workspace-layout .workspace-brand-mark .brand-logo-icon { display: block; width: 18px; height: 18px; flex: none; }
+.workspace-layout .workspace-brand-mark { width: 26px; height: 26px; background: transparent; border-radius: 0; color: var(--color-text-primary); display: grid; place-items: center; }
+.workspace-layout .workspace-brand-mark .brand-logo-icon { display: block; width: 26px; height: 26px; flex: none; }
