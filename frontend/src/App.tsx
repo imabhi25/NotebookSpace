@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { api } from './api';
+import { takePrefetched } from './prefetch';
 import {
   Subject,
   Source,
@@ -204,13 +205,16 @@ export function App({
       const authed = await ensureAuthenticated();
       if (!authed) return;
 
-      const [subj, srcs, convs, nts, sqs] = await Promise.all([
-        api.getSubject(subjectId),
-        api.getSources(subjectId),
-        api.getConversations(subjectId),
-        api.getNotes(subjectId),
-        api.getStarterQuestions(subjectId),
-      ]);
+      const warmed = await takePrefetched(subjectId);
+      const [subj, srcs, convs, nts, sqs] = warmed
+        ? [warmed.subject, warmed.sources, warmed.conversations, warmed.notes, warmed.starterQuestions] as const
+        : await Promise.all([
+            api.getSubject(subjectId),
+            api.getSources(subjectId),
+            api.getConversations(subjectId),
+            api.getNotes(subjectId),
+            api.getStarterQuestions(subjectId),
+          ]);
 
       setActiveSubject(subj);
       setSources(srcs);
@@ -228,7 +232,7 @@ export function App({
         setActiveConversationId(firstConvId);
         setHistoryLoading(true);
         try {
-          const msgs = await api.getMessages(subjectId, firstConvId);
+          const msgs = warmed?.firstMessages ?? await api.getMessages(subjectId, firstConvId);
           setMessages(applyStoppedFilter(firstConvId, msgs));
         } finally {
           setHistoryLoading(false);
