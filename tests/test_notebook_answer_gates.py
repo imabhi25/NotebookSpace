@@ -189,3 +189,46 @@ def test_unrelated_zero_relation_abstains_immediately(monkeypatch, env):
     assert res["abstained"] is True
     assert res["abstain_reason"] == "not_found"
 
+
+def test_meta_query_show_more_pdf_content_does_not_abstain(monkeypatch, env):
+    syllabus_chunk = {
+        "id": 20, "source_id": "src-syl", "file": "syllabus.pdf", "file_name": "syllabus.pdf",
+        "title": "syllabus.pdf", "page": 1, "page_number": 1,
+        "text": "Course Syllabus: CS101 Introduction to Systems. Topics include C programming, pointers, and memory.",
+        "score": 0.85, "similarity_score": 0.85, "source_version": 1, "matched_source": True, "matched_terms": ["syllabus"],
+    }
+    monkeypatch.setattr(na, "search_scoped", lambda *a, **kw: [syllabus_chunk])
+
+    reply = json.dumps({
+        "supported": True,
+        "answer": "The syllabus covers CS101 Introduction to Systems, with topics including C programming, pointers, and memory management [syllabus.pdf p.1].",
+        "citations": [{"file": "syllabus.pdf", "page": 1}],
+        "conflicts": [],
+    })
+    res = ask("Can you show more pdf content of syllabus", reply)
+    assert res["abstained"] is False
+    assert "CS101" in res["content"]
+    assert res["citations"][0]["file"] == "syllabus.pdf"
+
+
+def test_meta_query_fallback_when_llm_returns_not_found(monkeypatch, env):
+    syllabus_chunk = {
+        "id": 21, "source_id": "src-syl", "file": "syllabus.pdf", "file_name": "syllabus.pdf",
+        "title": "syllabus.pdf", "page": 2, "page_number": 2,
+        "text": "Grading Breakdown: Assignments 40%, Midterm 25%, Final Project 35%. Late submissions are penalized 10% per day.",
+        "score": 0.80, "similarity_score": 0.80, "source_version": 1, "matched_source": True,
+    }
+    monkeypatch.setattr(na, "search_scoped", lambda *a, **kw: [syllabus_chunk])
+
+    # LLM returns NOT_FOUND on both attempts for a meta query
+    replies = [
+        json.dumps({"supported": False, "answer": "NOT_FOUND", "citations": []}),
+        json.dumps({"supported": False, "answer": "NOT_FOUND", "citations": []}),
+    ]
+    res = ask("Summarize this file", replies)
+    assert res["abstained"] is False
+    assert "Grading Breakdown" in res["content"]
+    assert len(res["citations"]) >= 1
+    assert res["citations"][0]["file"] == "syllabus.pdf"
+
+

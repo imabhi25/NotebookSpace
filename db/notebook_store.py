@@ -804,6 +804,27 @@ def extract_key_terms(query: str) -> list[str]:
     return list(terms)
 
 
+def is_meta_query(query: str) -> bool:
+    """Detect queries asking for document summaries, overview, or more content."""
+    q_lower = query.lower().strip()
+    patterns = [
+        r'\bshow\s+(?:me\s+)?(?:more|all|rest|content)\b',
+        r'\bmore\s+(?:pdf\s+)?content\b',
+        r'\bsummariz[e|ing]\b',
+        r'\bsummary\b',
+        r'\boverview\b',
+        r'\bwhat\s+(?:else\s+)?(?:does|is|are)\s+(?:this|the)?\s*(?:document|pdf|file|source|syllabus|announcement|material|paper|notes)?\s*(?:cover|contain|say|about|discuss)\b',
+        r'\bwhat\s+is\s+in\b',
+        r'\bwhat\s+else\b',
+        r'\bshow\s+(?:me\s+)?the\s+rest\b',
+        r'\bexplain\s+(?:this|the)\s+(?:file|document|pdf|syllabus|paper)\b',
+        r'\btable\s+of\s+contents\b',
+        r'\boutline\b',
+        r'\bwalk\s+through\b',
+    ]
+    return any(re.search(p, q_lower) for p in patterns)
+
+
 def search_scoped(
     question: str,
     user_id: str | UUID,
@@ -817,20 +838,107 @@ def search_scoped(
     - Current authenticated user
     - Active subject
     - Only user-selected sources that are 'ready'
-    Combines semantic vector similarity with keyword/exact term matching for terms like 'Ksi' and 'Eq. 3'.
+    Combines semantic vector similarity, source name matching, and keyword matching.
     """
     if not question.strip() or k <= 0 or not selected_source_ids:
         return []
 
+    from pathlib import Path
     from ingestion.embedder import embed_text
     query_vector = embed_text(question)
     selected_ids_str = [str(s_id) for s_id in selected_source_ids]
     key_terms = extract_key_terms(question)
+    q_lower = question.lower()
 
     results_by_id: dict[int, dict[str, Any]] = {}
 
     with get_connection(db_url) as conn:
         with conn.cursor() as cur:
+            # Query source metadata for selected sources to detect source name mentions and meta-queries
+            cur.execute(
+                """
+                SELECT id, title, file_name, version, updated_at
+                FROM sources
+                WHERE id = ANY(%s::uuid[])
+                  AND status = 'ready';
+                """,
+                (selected_ids_str,),
+            )
+            sources_info = cur.fetchall()
+
+            # Source Name Matching in Retrieval:
+            # If user query mentions the name or partial name of any selected source (e.g. "syllabus", "announcement", "questions", "tables", "pdf"),
+            # automatically boost and include chunks from that matching source!
+            matching_source_ids = []
+            for s_id, s_title, s_file_name, s_ver, s_upd in sources_info:
+                stems = []
+                if s_title:
+                    stems.append(Path(str(s_title)).stem.lower())
+                    stems.extend([w for w in re.findall(r'[a-zA-Z0-9]+', str(s_title).lower()) if len(w) >= 3])
+                if s_file_name:
+                    stems.append(Path(str(s_file_name)).stem.lower())
+                    stems.extend([w for w in re.findall(r'[a-zA-Z0-9]+', str(s_file_name).lower()) if len(w) >= 3])
+                if any(stem in q_lower for stem in stems if stem):
+                    matching_source_ids.append(str(s_id))
+                elif "pdf" in q_lower and (str(s_title or "").lower().endswith(".pdf") or str(s_file_name or "").lower().endswith(".pdf")):
+                    matching_source_ids.append(str(s_id))
+
+            meta_query = is_meta_query(question)
+            target_source_ids = matching_source_ids if matching_source_ids else ([str(s[0]) for s in sources_info] if meta_query else [])
+
+            # If target sources identified, fetch their top/initial chunks to support meta-queries and source-specific questions
+            if target_source_ids:
+                cur.execute(
+                    """
+                    SELECT 
+                        c.id,
+                        c.source_id,
+                        c.file_name,
+                        c.page_number,
+                        c.chunk_text,
+                        c.chunk_index,
+                        1 - (c.embedding <=> %s::vector) AS similarity_score,
+                        s.title,
+                        s.version,
+                        s.updated_at
+                    FROM chunks c
+                    JOIN sources s ON c.source_id = s.id
+                    WHERE s.id = ANY(%s::uuid[])
+                      AND s.status = 'ready'
+                    ORDER BY c.page_number ASC, c.chunk_index ASC
+                    LIMIT %s;
+                    """,
+                    (
+                        query_vector,
+                        target_source_ids,
+                        max(k * 2, 8),
+                    ),
+                )
+                for row in cur.fetchall():
+                    c_id, src_id, file_name, page_num, text, chunk_idx, score, s_title, s_version, s_updated = row
+                    if c_id not in results_by_id:
+                        results_by_id[c_id] = {
+                            "id": c_id,
+                            "source_id": str(src_id),
+                            "file": s_title or file_name,
+                            "file_name": file_name,
+                            "title": s_title or file_name,
+                            "page": page_num,
+                            "page_number": page_num,
+                            "text": text,
+                            "chunk_text": text,
+                            "chunk_index": chunk_idx,
+                            "score": float(score),
+                            "similarity_score": float(score),
+                            "raw_cosine": float(score),
+                            "source_version": s_version,
+                            "upload_date": s_updated.isoformat() if hasattr(s_updated, "isoformat") else str(s_updated),
+                            "matched_terms": [],
+                            "matched_source": True,
+                        }
+                    else:
+                        results_by_id[c_id]["matched_source"] = True
+
             # 1. Semantic vector search (fetch up to max(k * 2, 8) candidates)
             cur.execute(
                 """
@@ -866,24 +974,25 @@ def search_scoped(
             )
             for row in cur.fetchall():
                 c_id, src_id, file_name, page_num, text, chunk_idx, score, s_title, s_version, s_updated = row
-                results_by_id[c_id] = {
-                    "id": c_id,
-                    "source_id": str(src_id),
-                    "file": s_title or file_name,
-                    "file_name": file_name,
-                    "title": s_title or file_name,
-                    "page": page_num,
-                    "page_number": page_num,
-                    "text": text,
-                    "chunk_text": text,
-                    "chunk_index": chunk_idx,
-                    "score": float(score),
-                    "similarity_score": float(score),
-                    "raw_cosine": float(score),
-                    "source_version": s_version,
-                    "upload_date": s_updated.isoformat() if hasattr(s_updated, "isoformat") else str(s_updated),
-                    "matched_terms": [],
-                }
+                if c_id not in results_by_id:
+                    results_by_id[c_id] = {
+                        "id": c_id,
+                        "source_id": str(src_id),
+                        "file": s_title or file_name,
+                        "file_name": file_name,
+                        "title": s_title or file_name,
+                        "page": page_num,
+                        "page_number": page_num,
+                        "text": text,
+                        "chunk_text": text,
+                        "chunk_index": chunk_idx,
+                        "score": float(score),
+                        "similarity_score": float(score),
+                        "raw_cosine": float(score),
+                        "source_version": s_version,
+                        "upload_date": s_updated.isoformat() if hasattr(s_updated, "isoformat") else str(s_updated),
+                        "matched_terms": [],
+                    }
 
             # 2. Exact keyword search for key terms (e.g. "Ksi", "Eq. 3", prefixes for typos like "strleng")
             if key_terms:
@@ -948,7 +1057,7 @@ def search_scoped(
                             "matched_terms": [],
                         }
 
-    # 3. Hybrid scoring: check which chunks contain key terms
+    # 3. Hybrid scoring: check which chunks contain key terms or match target sources
     for res in results_by_id.values():
         chunk_text_lower = res["text"].lower()
         matched = [t for t in key_terms if t.lower() in chunk_text_lower]
@@ -961,6 +1070,13 @@ def search_scoped(
             res["score"] = min(1.0, boosted)
             res["similarity_score"] = res["score"]
             # res["raw_cosine"] keeps the unboosted similarity; "score" is the final boosted one.
+        if res.get("matched_source"):
+            # Boost chunks from matching sources or meta-queries so they are always included and prioritized
+            boosted = max(res["score"] + 0.50, 0.85)
+            res["score"] = min(1.0, boosted)
+            res["similarity_score"] = res["score"]
+            if not res["matched_terms"]:
+                res["matched_terms"] = ["source_match"]
 
     # 4. Rank by score descending and take top k
     ranked = sorted(results_by_id.values(), key=lambda x: x["score"], reverse=True)
