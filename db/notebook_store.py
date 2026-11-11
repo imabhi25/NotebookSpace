@@ -885,9 +885,13 @@ def search_scoped(
                     "matched_terms": [],
                 }
 
-            # 2. Exact keyword search for key terms (e.g. "Ksi", "Eq. 3")
+            # 2. Exact keyword search for key terms (e.g. "Ksi", "Eq. 3", prefixes for typos like "strleng")
             if key_terms:
-                like_patterns = [f"%{_escape_like(term)}%" for term in key_terms]
+                like_patterns = []
+                for term in key_terms:
+                    like_patterns.append(f"%{_escape_like(term)}%")
+                    if len(term) >= 4 and term[:3].isalpha():
+                        like_patterns.append(f"%{_escape_like(term[:3])}%")
                 cur.execute(
                     """
                     SELECT 
