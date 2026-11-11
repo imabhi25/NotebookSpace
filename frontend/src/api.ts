@@ -35,6 +35,7 @@ export const setToken = (token: string | null): void => {
   } catch {
     // Ignore localStorage errors
   }
+  clearInFlightRequests();
 };
 
 export const getAuthHeaders = (extraHeaders: Record<string, string> = {}): Record<string, string> => {
@@ -45,6 +46,21 @@ export const getAuthHeaders = (extraHeaders: Record<string, string> = {}): Recor
   }
   return headers;
 };
+
+const inFlightRequests = new Map<string, Promise<any>>();
+
+/** Clears all or matching in-flight request promises. */
+export function clearInFlightRequests(endpointPrefix?: string): void {
+  if (!endpointPrefix) {
+    inFlightRequests.clear();
+  } else {
+    for (const key of Array.from(inFlightRequests.keys())) {
+      if (key.startsWith(endpointPrefix) || key.startsWith(`GET:${endpointPrefix}`)) {
+        inFlightRequests.delete(key);
+      }
+    }
+  }
+}
 
 let sessionInitPromise: Promise<string | null> | null = null;
 
@@ -84,7 +100,7 @@ async function isSessionLost(tokenUsed: string | null): Promise<boolean> {
 }
 
 // Generic fetch wrapper with error parsing and automatic guest session init
-async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function rawApiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`;
   if (!endpoint.startsWith('/auth/') && !getToken()) {
     try {
@@ -138,6 +154,37 @@ async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise
     throw new Error(errorDetail);
   }
   return res.json();
+}
+
+/**
+ * Deduplicated fetch wrapper:
+ * In-flight GET requests sharing the same endpoint share the same Promise.
+ * When the Promise resolves or rejects, it is removed from in-flight storage so subsequent
+ * calls fire fresh requests. Mutations (POST/PUT/DELETE) clear in-flight GET requests.
+ */
+async function apiFetch<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+  const method = (options.method || 'GET').toUpperCase();
+  const isGet = method === 'GET' && !options.body && !options.signal;
+
+  if (!isGet) {
+    clearInFlightRequests();
+    return rawApiFetch<T>(endpoint, options);
+  }
+
+  const key = `GET:${endpoint}`;
+  const existing = inFlightRequests.get(key);
+  if (existing) {
+    return existing as Promise<T>;
+  }
+
+  const promise = rawApiFetch<T>(endpoint, options).finally(() => {
+    if (inFlightRequests.get(key) === promise) {
+      inFlightRequests.delete(key);
+    }
+  });
+
+  inFlightRequests.set(key, promise);
+  return promise;
 }
 
 export const api = {
@@ -504,5 +551,10 @@ export const api = {
       throw new Error(err.detail || `Server returned ${res.status}`);
     }
     return res.json();
+  },
+
+  /** Invalidate in-flight cached promises manually if needed. */
+  clearInFlight(endpointPrefix?: string): void {
+    clearInFlightRequests(endpointPrefix);
   },
 };
