@@ -86,13 +86,19 @@ def build_system_prompt(settings: dict[str, Any]) -> str:
         "Connect the student's question to relevant terms and functions in the material (e.g. strgLen, strg.c, string.h, types, pointers, "
         "or libraries) and explain the concept or reasoning helpfully. Cite the materials for the terms, functions, or rules they specify "
         "[source_name p.N], and provide the accompanying conceptual explanation and reasoning clearly.\n"
-        "4. Strict NOT_FOUND rule: Output NOT_FOUND (supported: false, answer: 'NOT_FOUND', citations: [], conflicts: []) ONLY when "
-        "the question has ZERO relation to the subject or sources (e.g., completely unrelated topics like cooking recipes or celebrity "
-        "gossip in a computer science or engineering course). If the question relates to the course subject or terms in the materials, "
-        "you must explain it helpfully, never abstaining with NOT_FOUND.\n"
-        "5. Set supported to true whenever your answer draws on or connects to the passages at all; set it to false only for a purely "
+        "4. Meta-queries, summarization, and 'show more' requests: If the user asks to see more content, "
+        "explain a section, or summarize a selected source (such as 'Can you show more pdf content of syllabus', "
+        "'Summarize this file', 'What does this document cover?', 'Show me the rest', 'Give an overview'), "
+        "do NOT refuse or output NOT_FOUND. Present the key topics, sections, policies, and details from the provided passages "
+        "helpfully and clearly, citing the source and page numbers [source_name p.N].\n"
+        "5. Strict NOT_FOUND rule: When sources are selected in a notebook, NEVER abort or refuse with NOT_FOUND based on a "
+        "low similarity score or mathematical cosine cutoff. Output NOT_FOUND (supported: false, answer: 'NOT_FOUND', citations: [], conflicts: []) ONLY when "
+        "the question has ZERO relation to the subject or sources (e.g., completely unrelated topics like sports scores, cooking recipes, "
+        "or celebrity gossip in an academic course). If the question relates to the course subject, asks about the documents, "
+        "or references terms in the materials, you must answer or summarize helpfully, never abstaining with NOT_FOUND.\n"
+        "6. Set supported to true whenever your answer draws on or connects to the passages at all; set it to false only for a purely "
         "general-knowledge answer with no connection to the passages, and still write that answer in the 'answer' field.\n"
-        "6. In the citations list, include only passages that are directly relevant to your answer. Do not include low-relevance noise passages.\n\n"
+        "7. In the citations list, include only passages that are directly relevant to your answer. Do not include low-relevance noise passages.\n\n"
         f"{style_guidance}"
         f"{length_guidance}\n"
         "Security and Untrusted Input Rules:\n"
@@ -324,9 +330,12 @@ def answer_notebook_question(
 
     user_prompt_parts.append(
         f"Question: {question}\n\n"
-        "Note: Whenever course sources are present, connect the question to relevant terms and functions in the material "
-        "(e.g. strgLen, strg.c, string.h) and explain the concept or reasoning helpfully rather than abstaining with NOT_FOUND. "
-        "Only output NOT_FOUND when the question has zero relation to the subject or sources."
+        "Instructions:\n"
+        "- If the user asks to see more content, explain a section, or summarize a selected source (e.g. 'show more pdf content of syllabus', 'summarize this file', 'what does this document cover?'), "
+        "present the key topics, sections, policies, or details from the provided passages helpfully, citing [source_name p.N].\n"
+        "- Connect conceptual or reasoning questions to relevant terms and functions in the material and explain the reasoning helpfully.\n"
+        "- When sources are selected in a notebook, NEVER abort or refuse with NOT_FOUND based on a low similarity score.\n"
+        "- Only output NOT_FOUND if the question is completely outside the universe of the documents (e.g. sports scores, cooking recipes, or celebrity gossip)."
     )
     user_prompt = "\n\n".join(user_prompt_parts)
 
@@ -430,9 +439,15 @@ def answer_notebook_question(
     def check_question_has_relation(q: str, retr: list[dict[str, Any]]) -> bool:
         if not retr:
             return False
-        if any(r.get("matched_terms") for r in retr):
+        if any(r.get("matched_source") or r.get("matched_terms") for r in retr):
             return True
-        if any(float(r.get("similarity_score", r.get("score", 0.0))) >= 0.30 for r in retr):
+        q_lower = q.lower()
+        if any(w in q_lower for w in ["syllabus", "announcement", "questions", "tables", "pdf", "file", "document", "notes", "slides", "handout", "lecture"]):
+            return True
+        from db.notebook_store import is_meta_query
+        if is_meta_query(q):
+            return True
+        if any(float(r.get("similarity_score", r.get("score", 0.0))) >= 0.20 for r in retr):
             return True
         from db.fuzzy import fuzzy_term_in_text
         from db.notebook_store import extract_key_terms
@@ -447,10 +462,9 @@ def answer_notebook_question(
     if has_relation and (not raw_answer or raw_answer == "NOT_FOUND" or "couldn't find this in your materials" in raw_answer.lower()):
         retry_prompt = (
             f"{user_prompt}\n\n"
-            "Clarification: The student's question relates to terms, functions, or concepts in the provided course materials "
-            "(e.g., function declarations, code, assignments, or definitions). "
-            "Do NOT output NOT_FOUND or abstain. Connect the question to the relevant functions and terms in the material "
-            "and explain the underlying concept or reasoning helpfully."
+            "Clarification: The user is asking about the provided course materials, terms, or asking to see more content / summary / explanation of the documents (e.g. syllabus, notes). "
+            "Do NOT output NOT_FOUND or abstain. Present the key sections, topics, policies, or details from the provided passages helpfully, "
+            "citing [file p.N]."
         )
         try:
             retry_resp = client.generate(system=system_prompt, user=retry_prompt)
@@ -467,6 +481,27 @@ def answer_notebook_question(
                 latency = pre_llm_seconds + llm_latency
         except Exception:
             pass
+
+    # If the user asked a question related to materials or a meta-query, never abstain with NOT_FOUND
+    if has_relation and (not raw_answer or raw_answer == "NOT_FOUND" or "couldn't find this in your materials" in raw_answer.lower()) and retrieved:
+        top_chunks = retrieved[:4]
+        summary_lines = []
+        citations_fallback = []
+        for c in top_chunks:
+            fn = c.get("title") or c.get("file_name") or c.get("file", "document.pdf")
+            pn = c.get("page_number", c.get("page", 1))
+            txt = (c.get("text") or c.get("chunk_text", "")).strip()
+            first_sentence = txt.split(". ")[0].strip()
+            if first_sentence:
+                summary_lines.append(f"- **{fn} (p. {pn})**: {first_sentence}. [{fn} p.{pn}]")
+                citations_fallback.append({"file": fn, "page": pn})
+        if summary_lines:
+            raw_answer = (
+                "Here is an overview of the content and sections covered in your selected materials:\n\n"
+                + "\n".join(summary_lines)
+            )
+            raw_citations = citations_fallback
+            supported = True
 
     if not raw_answer or raw_answer == "NOT_FOUND":
         return persist(
@@ -537,6 +572,8 @@ def answer_notebook_question(
 
     def is_noise_chunk(r_chunk: dict[str, Any]) -> bool:
         """Filter out low-relevance noise chunks from citations so the panel stays clean."""
+        if r_chunk.get("matched_source"):
+            return False
         score = float(r_chunk.get("similarity_score", r_chunk.get("score", 0.0)))
         matched_terms = r_chunk.get("matched_terms", [])
         if matched_terms:

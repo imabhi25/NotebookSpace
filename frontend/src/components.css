@@ -643,7 +643,24 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
 /* Thread rhythm */
 .thread-messages-list { gap: var(--space-8); }
 .thread-turn { animation: content-in var(--motion-content) var(--motion-ease-out) both; }
-.user-turn-wrapper { gap: var(--space-2); }
+.user-turn-wrapper {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.user-turn-actions,
+.user-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.user-turn-wrapper:hover .user-turn-actions,
+.user-turn-wrapper:focus-within .user-turn-actions,
+.message-user-wrap:hover .user-delete-btn,
+.message-user-wrap:focus-within .user-delete-btn {
+  opacity: 1;
+}
 .user-message-bubble { padding: var(--space-3) var(--space-4); line-height: var(--leading-body); }
 .assistant-message { display: flex; flex-direction: column; gap: var(--space-4); }
 .answer-text > :last-child, .markdown-content > :last-child { margin-bottom: 0; }
