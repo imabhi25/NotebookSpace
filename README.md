@@ -229,7 +229,7 @@ The repository maintains full automated test coverage across both frontend and b
 
 ### Frontend Test Suite (Vitest)
 
-The frontend test suite includes **295 passing tests** across 30 test files, validating components, layout transitions, keyboard interactions, WYSIWYG note sanitization, and security headers:
+The frontend test suite includes **300 passing tests** across 31 test files, validating components, layout transitions, keyboard interactions, WYSIWYG note sanitization, and security headers:
 
 ```bash
 cd frontend
