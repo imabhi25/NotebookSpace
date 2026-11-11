@@ -98,3 +98,94 @@ def test_retry_replaces_the_turn_in_place(env):
     ask("Q1", reply, is_retry=True, retry_message_id="a0")
     assistant = [m for m in env["saved"] if m["role"] == "assistant"][-1]
     assert assistant["created_at"] == "2026-01-01T00:00:01+00:00"
+
+
+def test_conceptual_question_with_c_sources_does_not_abstain(monkeypatch, env):
+    c_chunk = {
+        "id": 10, "source_id": "src-c", "file": "c_strings.pdf", "file_name": "c_strings.pdf",
+        "title": "c_strings.pdf", "page": 1, "page_number": 1,
+        "text": "Assignment 2: int strgLen( char *s ) returns the number of characters in string s. Include <string.h>.",
+        "score": 0.85, "similarity_score": 0.85, "source_version": 1, "matched_terms": ["strglen"],
+    }
+    monkeypatch.setattr(na, "search_scoped", lambda *a, **kw: [c_chunk])
+
+    reply = json.dumps({
+        "supported": True,
+        "answer": "In C programming, strings are represented as null-terminated character arrays (char *s). The strgLen function calculates the length by traversing until the null character '\\0' [c_strings.pdf p.1].",
+        "citations": [{"file": "c_strings.pdf", "page": 1}],
+        "conflicts": [],
+    })
+    res = ask("Why strleng?", reply)
+    assert res["abstained"] is False
+    assert "c_strings.pdf" in res["citations"][0]["file"]
+    assert "null-terminated" in res["content"]
+
+
+def test_related_question_initial_not_found_is_retried_and_answered(monkeypatch, env):
+    c_chunk = {
+        "id": 10, "source_id": "src-c", "file": "c_strings.pdf", "file_name": "c_strings.pdf",
+        "title": "c_strings.pdf", "page": 1, "page_number": 1,
+        "text": "Assignment 2: int strgLen( char *s ) returns the number of characters in string s. Include <string.h>.",
+        "score": 0.80, "similarity_score": 0.80, "source_version": 1, "matched_terms": ["str"],
+    }
+    monkeypatch.setattr(na, "search_scoped", lambda *a, **kw: [c_chunk])
+
+    # First attempt the model returns NOT_FOUND, second attempt it explains helpfully
+    replies = [
+        json.dumps({"supported": False, "answer": "NOT_FOUND", "citations": []}),
+        json.dumps({
+            "supported": True,
+            "answer": "In C, 'str' refers to string manipulation functions like strgLen in strg.c [c_strings.pdf p.1].",
+            "citations": [{"file": "c_strings.pdf", "page": 1}],
+            "conflicts": [],
+        }),
+    ]
+    res = ask("Why str?", replies)
+    assert res["abstained"] is False
+    assert len(res["citations"]) == 1
+    assert res["citations"][0]["file"] == "c_strings.pdf"
+    assert "strgLen" in res["content"]
+
+
+def test_low_relevance_noise_chunks_filtered_from_citations(monkeypatch, env):
+    good_chunk = {
+        "id": 10, "source_id": "src-c", "file": "c_strings.pdf", "file_name": "c_strings.pdf",
+        "title": "c_strings.pdf", "page": 1, "page_number": 1,
+        "text": "Assignment 2: int strgLen( char *s ) returns characters.",
+        "score": 0.85, "similarity_score": 0.85, "source_version": 1, "matched_terms": ["strglen"],
+    }
+    noise_chunk = {
+        "id": 11, "source_id": "src-noise", "file": "syllabus.pdf", "file_name": "syllabus.pdf",
+        "title": "syllabus.pdf", "page": 10, "page_number": 10,
+        "text": "Grading scale and university attendance policies.",
+        "score": 0.12, "similarity_score": 0.12, "source_version": 1, "matched_terms": [],
+    }
+    monkeypatch.setattr(na, "search_scoped", lambda *a, **kw: [good_chunk, noise_chunk])
+
+    # LLM erroneously cited both the relevant chunk and the noise chunk
+    reply = json.dumps({
+        "supported": True,
+        "answer": "The strgLen function measures length [c_strings.pdf p.1] [syllabus.pdf p.10].",
+        "citations": [
+            {"file": "c_strings.pdf", "page": 1},
+            {"file": "syllabus.pdf", "page": 10},
+        ],
+        "conflicts": [],
+    })
+    res = ask("What is strgLen?", reply)
+    assert res["abstained"] is False
+    # Noise chunk (syllabus.pdf p.10) must be filtered out, leaving only c_strings.pdf p.1
+    assert len(res["citations"]) == 1
+    assert res["citations"][0]["file"] == "c_strings.pdf"
+    assert res["citations"][0]["page"] == 1
+
+
+def test_unrelated_zero_relation_abstains_immediately(monkeypatch, env):
+    chunk = dict(CHUNK)
+    monkeypatch.setattr(na, "search_scoped", lambda *a, **kw: [chunk])
+
+    reply = json.dumps({"supported": False, "answer": "NOT_FOUND", "citations": []})
+    res = ask("What is the capital of Mars?", reply)
+    assert res["abstained"] is True
+    assert res["abstain_reason"] == "not_found"
+

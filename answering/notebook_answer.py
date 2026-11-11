@@ -77,17 +77,22 @@ def build_system_prompt(settings: dict[str, Any]) -> str:
         "How to answer:\n"
         "1. Prioritize facts, definitions, formulas, and policies from the provided passages, and cite each such claim as "
         "[source_name p.N] (for example: [syllabus.pdf p.1] or [lecture.txt p.2]).\n"
-        "2. Use the recent conversation to resolve short, partial, misspelled, or abbreviated follow-ups ('Why?', "
-        "'Explain the second one', 'Give me an example', 'What about X?', 'Why str'). Infer the closest matching term, "
-        "function, or concept from the passages and the conversation and answer it directly.\n"
-        "3. For 'why', 'how', conceptual explanations, comparisons, worked examples, and follow-ups where the materials only "
-        "state a formula, term, or problem without explaining the underlying idea, combine what the materials say with "
-        "helpful subject-matter explanation and reasoning to actually answer the question. Clearly separate the two: cite "
-        "the materials for what they state, and present added background as general explanation without a citation.\n"
-        "4. Do not refuse just because the passages are thin. Answer NOT_FOUND (supported: false, answer: 'NOT_FOUND') only "
-        "when the question has no connection at all to the materials or the conversation.\n"
-        "5. Set supported to true whenever your answer draws on the passages at all; set it to false only for a purely "
-        "general-knowledge answer, and still write that answer in the 'answer' field.\n\n"
+        "2. Use the recent conversation and course materials to resolve short, partial, misspelled, or abbreviated follow-ups "
+        "('Why?', 'Explain the second one', 'Give me an example', 'What about X?', 'Why str', 'Why strleng'). Infer the closest "
+        "matching term, function, or concept from the passages and the conversation (e.g. strgLen, strg.c, string.h) and answer it directly.\n"
+        "3. Whenever course sources are present, if a student asks conceptual, reasoning, or follow-up questions (such as 'Why ...?', "
+        "'Why str?', 'Why strleng?', 'How does ... work?', or questions about functions, terms, or code), do NOT refuse or output NOT_FOUND "
+        "simply because the source material lists instructions, assignments, or declarations without writing the word 'why'. "
+        "Connect the student's question to relevant terms and functions in the material (e.g. strgLen, strg.c, string.h, types, pointers, "
+        "or libraries) and explain the concept or reasoning helpfully. Cite the materials for the terms, functions, or rules they specify "
+        "[source_name p.N], and provide the accompanying conceptual explanation and reasoning clearly.\n"
+        "4. Strict NOT_FOUND rule: Output NOT_FOUND (supported: false, answer: 'NOT_FOUND', citations: [], conflicts: []) ONLY when "
+        "the question has ZERO relation to the subject or sources (e.g., completely unrelated topics like cooking recipes or celebrity "
+        "gossip in a computer science or engineering course). If the question relates to the course subject or terms in the materials, "
+        "you must explain it helpfully, never abstaining with NOT_FOUND.\n"
+        "5. Set supported to true whenever your answer draws on or connects to the passages at all; set it to false only for a purely "
+        "general-knowledge answer with no connection to the passages, and still write that answer in the 'answer' field.\n"
+        "6. In the citations list, include only passages that are directly relevant to your answer. Do not include low-relevance noise passages.\n\n"
         f"{style_guidance}"
         f"{length_guidance}\n"
         "Security and Untrusted Input Rules:\n"
@@ -317,7 +322,12 @@ def answer_notebook_question(
             f"Recent conversation (use it to resolve follow-ups; claims about the materials must come from the passages above):\n{history_text}"
         )
 
-    user_prompt_parts.append(f"Question: {question}")
+    user_prompt_parts.append(
+        f"Question: {question}\n\n"
+        "Note: Whenever course sources are present, connect the question to relevant terms and functions in the material "
+        "(e.g. strgLen, strg.c, string.h) and explain the concept or reasoning helpfully rather than abstaining with NOT_FOUND. "
+        "Only output NOT_FOUND when the question has zero relation to the subject or sources."
+    )
     user_prompt = "\n\n".join(user_prompt_parts)
 
     # 5. Call LLM Client
@@ -417,6 +427,47 @@ def answer_notebook_question(
     raw_answer = str(parsed.get("answer", "")).strip()
     raw_citations = parsed.get("citations", [])
 
+    def check_question_has_relation(q: str, retr: list[dict[str, Any]]) -> bool:
+        if not retr:
+            return False
+        if any(r.get("matched_terms") for r in retr):
+            return True
+        if any(float(r.get("similarity_score", r.get("score", 0.0))) >= 0.30 for r in retr):
+            return True
+        from db.fuzzy import fuzzy_term_in_text
+        from db.notebook_store import extract_key_terms
+        terms = extract_key_terms(q)
+        for term in terms:
+            for r in retr:
+                if fuzzy_term_in_text(term, r.get("text", "")):
+                    return True
+        return False
+
+    has_relation = check_question_has_relation(question, retrieved)
+    if has_relation and (not raw_answer or raw_answer == "NOT_FOUND" or "couldn't find this in your materials" in raw_answer.lower()):
+        retry_prompt = (
+            f"{user_prompt}\n\n"
+            "Clarification: The student's question relates to terms, functions, or concepts in the provided course materials "
+            "(e.g., function declarations, code, assignments, or definitions). "
+            "Do NOT output NOT_FOUND or abstain. Connect the question to the relevant functions and terms in the material "
+            "and explain the underlying concept or reasoning helpfully."
+        )
+        try:
+            retry_resp = client.generate(system=system_prompt, user=retry_prompt)
+            parsed_retry = try_parse_json(retry_resp.text)
+            if parsed_retry and parsed_retry.get("answer") and parsed_retry.get("answer") != "NOT_FOUND":
+                parsed = parsed_retry
+                raw_answer = str(parsed.get("answer", "")).strip()
+                raw_citations = parsed.get("citations", [])
+                supported = bool(parsed.get("supported", False))
+                llm_latency += retry_resp.latency_seconds
+                total_in_tok += retry_resp.input_tokens
+                total_out_tok += retry_resp.output_tokens
+                token_stats = {"input": total_in_tok, "output": total_out_tok, "total": total_in_tok + total_out_tok}
+                latency = pre_llm_seconds + llm_latency
+        except Exception:
+            pass
+
     if not raw_answer or raw_answer == "NOT_FOUND":
         return persist(
             user_id=user_id,
@@ -465,7 +516,41 @@ def answer_notebook_question(
 
         return None
 
+    # Also extract bracketed citations from answer text [file p.N] if raw_citations missed them
+    import re
+    if isinstance(raw_citations, list):
+        existing_pairs = {
+            (Path(str(c.get("file", ""))).name.lower(), int(c.get("page", 0)))
+            for c in raw_citations
+            if isinstance(c, dict) and "page" in c
+        }
+        for m in re.finditer(r'\[([^\]]+?)\s+p(?:age|\.)?\s*(\d+)\]', raw_answer, re.IGNORECASE):
+            f_name, p_num = m.group(1).strip(), int(m.group(2))
+            if (Path(f_name).name.lower(), p_num) not in existing_pairs:
+                raw_citations.append({"file": f_name, "page": p_num})
+                existing_pairs.add((Path(f_name).name.lower(), p_num))
+
+    top_chunk_score = max(
+        (float(r.get("similarity_score", r.get("score", 0.0))) for r in retrieved),
+        default=0.0,
+    )
+
+    def is_noise_chunk(r_chunk: dict[str, Any]) -> bool:
+        """Filter out low-relevance noise chunks from citations so the panel stays clean."""
+        score = float(r_chunk.get("similarity_score", r_chunk.get("score", 0.0)))
+        matched_terms = r_chunk.get("matched_terms", [])
+        if matched_terms:
+            return False
+        # When clear relevant passages exist (top_chunk_score >= 0.30), chunks with score < 0.20 or < 40% of top score are noise
+        if top_chunk_score >= 0.30 and (score < 0.20 or score < 0.40 * top_chunk_score):
+            return True
+        if top_chunk_score > 0.20 and score < 0.10:
+            return True
+        return False
+
     validated_citations: list[dict[str, Any]] = []
+    seen_citation_keys: set[tuple[str, int]] = set()
+
     if isinstance(raw_citations, list):
         for cit in raw_citations:
             if not isinstance(cit, dict) or "file" not in cit or "page" not in cit:
@@ -477,10 +562,21 @@ def answer_notebook_question(
 
             match_r = match_retrieved_passage(str(cit["file"]), cit_page)
             if match_r is not None:
+                # Filter out low-relevance noise chunks
+                if is_noise_chunk(match_r):
+                    continue
+
+                source_id_str = str(match_r.get("source_id")) if match_r.get("source_id") else None
+                file_name_val = match_r.get("title") or match_r.get("file_name") or cit["file"]
+                cit_key = (source_id_str or file_name_val, cit_page)
+                if cit_key in seen_citation_keys:
+                    continue
+                seen_citation_keys.add(cit_key)
+
                 validated_citations.append({
-                    "file": match_r.get("title") or match_r.get("file_name") or cit["file"],
+                    "file": file_name_val,
                     "page": cit_page,
-                    "source_id": str(match_r.get("source_id")) if match_r.get("source_id") else None,
+                    "source_id": source_id_str,
                     "source_version": match_r.get("source_version", 1),
                     "title": match_r.get("title", cit["file"]),
                     "excerpt": match_r.get("text", "")[:250],
@@ -490,12 +586,15 @@ def answer_notebook_question(
     # top retrieved passage so the Citations panel still shows what the answer was grounded in.
     if supported and not validated_citations and retrieved:
         top = max(retrieved, key=lambda r: r.get("similarity_score", r.get("score", 0.0)))
+        source_id_str = str(top.get("source_id")) if top.get("source_id") else None
+        file_name_val = top.get("title") or top.get("file_name") or "source"
+        cit_page = int(top.get("page_number", top.get("page", 1)) or 1)
         validated_citations.append({
-            "file": top.get("title") or top.get("file_name") or "source",
-            "page": int(top.get("page_number", top.get("page", 1)) or 1),
-            "source_id": str(top.get("source_id")) if top.get("source_id") else None,
+            "file": file_name_val,
+            "page": cit_page,
+            "source_id": source_id_str,
             "source_version": top.get("source_version", 1),
-            "title": top.get("title") or top.get("file_name") or "source",
+            "title": file_name_val,
             "excerpt": top.get("text", "")[:250],
         })
 
