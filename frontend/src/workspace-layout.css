@@ -1855,37 +1855,217 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
    Center chat: open canvas (ChatGPT / Claude / Gemini)
    ============================================================ */
 .workspace-layout { --center-canvas: #FFFFFF; --sidebar-surface: #F9F9F8; --user-pill: #F4F4F5; --composer-border: rgba(0, 0, 0, 0.1); --composer-bg: var(--bg-elevated, #FFFFFF); }
-:root[data-theme="dark"] .workspace-layout { --center-canvas: #131417; --sidebar-surface: #0F1012; --user-pill: rgba(255, 255, 255, 0.1); --composer-border: rgba(255, 255, 255, 0.1); --composer-bg: #1C1D22; }
+:root[data-theme="dark"] .workspace-layout { --center-canvas: #0C0D0E; --sidebar-surface: #121316; --user-pill: rgba(255, 255, 255, 0.06); --composer-border: rgba(255, 255, 255, 0.08); --composer-bg: #181A20; }
 
 @media (min-width: 769px) {
   .workspace-layout .workspace-main-area { background: var(--center-canvas); border: 0; border-radius: 0; box-shadow: none; }
-  .workspace-layout .context-slot, .workspace-layout .context-slot aside.workspace-context-panel { background: var(--sidebar-surface); }
+  .workspace-layout .context-slot, .workspace-layout .context-slot aside.workspace-context-panel { background: var(--sidebar-surface); border-color: rgba(255, 255, 255, 0.07); }
 }
 @media (min-width: 961px) {
-  .workspace-layout .nav-slot, .workspace-layout aside.workspace-nav.workspace-sources-rail { background: var(--sidebar-surface); }
+  .workspace-layout .nav-slot, .workspace-layout aside.workspace-nav.workspace-sources-rail { background: var(--sidebar-surface); border-color: rgba(255, 255, 255, 0.07); }
 }
 
 .workspace-layout .thread-content-max { max-width: 720px; }
 .workspace-layout .workspace-main-area .composer-container { max-width: 720px; position: relative; padding: 0 24px 18px; background: transparent; }
 .workspace-layout .thread-messages-list { gap: 0; }
 
-/* User message: right-aligned pill */
-.workspace-layout .thread-turn.turn-user { align-self: stretch; align-items: stretch; }
-.workspace-layout .user-turn-wrapper { display: flex; justify-content: flex-end; width: 100%; }
-.workspace-layout .question-heading {
-  margin: 20px 0 16px auto; max-width: 72%; width: fit-content; padding: 10px 18px; border-radius: 20px;
-  background: var(--user-pill); color: var(--color-text-primary); border: none; box-shadow: none;
-  font-family: var(--font-family-ui, inherit); font-size: 14.5px; font-weight: 450; line-height: 1.5; letter-spacing: 0;
-  text-align: left; text-wrap: pretty; align-self: flex-end;
+/* Grounding status above question heading */
+.workspace-layout .grounding-status {
+  font-size: 12px;
+  color: #8A8D95;
+  font-weight: 500;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  letter-spacing: 0.01em;
 }
 
-/* Assistant: no card, text flows on the canvas */
+/* User message: bold clean heading on canvas */
+.workspace-layout .thread-turn.turn-user { align-self: stretch; align-items: stretch; }
+.workspace-layout .user-turn-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  margin: 24px 0 16px 0;
+}
+.workspace-layout .question-heading {
+  margin: 0;
+  max-width: 100%;
+  width: 100%;
+  padding: 0;
+  background: transparent;
+  color: var(--color-text-primary, #F4F4F5);
+  font-family: var(--font-family-ui, inherit);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  text-align: left;
+  text-wrap: pretty;
+  border: none;
+  box-shadow: none;
+}
+
+/* Assistant: text flows on canvas with generous line-height */
 .workspace-layout .assistant-message, .workspace-layout .answer-view-container {
   background: transparent !important; border: none !important; box-shadow: none !important; border-radius: 0 !important;
   padding: 4px 0 8px; max-width: 720px; width: 100%; margin: 0 auto;
 }
 .workspace-layout .assistant-message .answer-text, .workspace-layout .assistant-message .answer-text .md-paragraph,
-.workspace-layout .assistant-message .answer-text .md-list-item, .workspace-layout .assistant-message .markdown-content { font-size: 15px; line-height: 1.72; max-width: none; }
+.workspace-layout .assistant-message .answer-text .md-list-item, .workspace-layout .assistant-message .markdown-content {
+  font-size: 14.5px;
+  line-height: 1.7;
+  max-width: none;
+  color: var(--color-text-primary, #F4F4F5);
+}
+
+/* Citation chips row and named badges */
+.answer-citations-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+
+.citation-pill-badge {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 1.5px 7px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-text-primary, #F4F4F5);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.citation-pill-badge:hover,
+.citation-pill-badge.is-active {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #FFFFFF;
+}
+
+/* Suggestion Chips Dock above Composer */
+.composer-suggestions-dock {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 auto 10px auto;
+  max-width: 720px;
+  width: 100%;
+  padding: 0 24px;
+}
+
+.composer-suggestion-pill {
+  background: #181A20;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 9999px;
+  padding: 5px 13px;
+  font-size: 12px;
+  color: #8A8D95;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+}
+
+.composer-suggestion-pill:hover {
+  background: #22252C;
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #F4F4F5;
+}
+
+/* Explorer Sources Rails items */
+.workspace-tag {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #8A8D95;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-bottom: 2px;
+  display: inline-block;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sources-toolbar-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #8A8D95;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.sources-clear-btn {
+  background: transparent;
+  border: none;
+  font-size: 11.5px;
+  color: #8A8D95;
+  cursor: pointer;
+  padding: 0 4px;
+  text-decoration: underline;
+  transition: color 0.15s ease;
+}
+
+.sources-clear-btn:hover {
+  color: #F4F4F5;
+}
+
+.source-page-badge {
+  font-size: 11px;
+  color: #8A8D95;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
+  padding: 1px 5px;
+  font-weight: 500;
+  margin-left: 6px;
+  flex-shrink: 0;
+}
+
+.inline-evidence-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.evidence-reader-link-btn {
+  background: transparent;
+  border: none;
+  font-size: 12px;
+  color: var(--color-accent, #8FB4DC);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+}
+
+.evidence-reader-link-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+
+:root[data-theme="dark"] .workspace-layout .inline-evidence {
+  background: #181A20 !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+  border-radius: 12px !important;
+  padding: 16px !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25) !important;
+}
 
 /* Quiet icon action row under answers */
 .workspace-layout .answer-action-toolbar { display: flex; align-items: center; gap: 4px; margin-top: 6px; padding-top: 0; border-top: 0; flex-wrap: nowrap; }
@@ -1908,7 +2088,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 /* Composer: two-row rounded card */
 .workspace-layout .composer-form { max-width: 720px; }
 .workspace-layout .composer-box.composer-box-stacked {
-  border-radius: 22px; background: var(--composer-bg); border: 1px solid var(--composer-border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  border-radius: 16px; background: var(--composer-bg); border: 1px solid var(--composer-border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
   padding: 12px 14px 10px 16px; display: flex; flex-direction: column; gap: 8px;
 }
 .workspace-layout .composer-box.composer-box-stacked:focus-within { border-color: var(--composer-border); box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05); }

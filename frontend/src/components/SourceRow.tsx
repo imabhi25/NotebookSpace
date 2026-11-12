@@ -25,17 +25,24 @@ export const TYPE_INFO: Record<string, { badge: string; label: string }> = {
   txt: { badge: 'TXT', label: 'Text' },
 };
 
-export const BADGE_COLORS: Record<string, string> = { pdf: '#E11D48', markdown: '#2563EB', txt: '#2563EB', pasted: '#2563EB' };
+export const BADGE_COLORS: Record<string, string> = { pdf: '#EF4444', markdown: '#3B82F6', txt: '#3B82F6', pasted: '#3B82F6' };
 
-// Document glyph: folded top-right corner and a bold type badge across the lower half.
-export const SourceTypeIcon: React.FC<{ type: string; badge: string }> = ({ type, badge }) => (
-  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-    <path d="M6 2.5h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1Z" stroke="currentColor" strokeOpacity="0.55" strokeWidth="1.4" strokeLinejoin="round" />
-    <path d="M14 2.5V7a1 1 0 0 0 1 1h4" stroke="currentColor" strokeOpacity="0.55" strokeWidth="1.4" strokeLinejoin="round" />
-    <rect x="2" y="12.5" width="20" height="8.5" rx="2.2" fill={BADGE_COLORS[type] || '#64748B'} />
-    <text x="12" y="18.9" textAnchor="middle" fontSize="6.4" fontWeight="800" fill="#fff" fontFamily="Inter, system-ui, sans-serif" letterSpacing="0.2">{badge}</text>
-  </svg>
-);
+// Document glyph: custom Red icon for PDFs, Blue for Markdown/Text
+export const SourceTypeIcon: React.FC<{ type: string; badge: string }> = ({ type, badge }) => {
+  const isPdf = type === 'pdf';
+  const strokeColor = isPdf ? '#EF4444' : '#3B82F6';
+  const fillColor = isPdf ? 'rgba(239, 68, 68, 0.12)' : 'rgba(59, 130, 246, 0.12)';
+  const badgeFill = isPdf ? '#EF4444' : '#3B82F6';
+
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <path d="M6 2.5h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1Z" stroke={strokeColor} strokeWidth="1.5" strokeLinejoin="round" fill={fillColor} />
+      <path d="M14 2.5V7a1 1 0 0 0 1 1h4" stroke={strokeColor} strokeWidth="1.5" strokeLinejoin="round" />
+      <rect x="2" y="13" width="20" height="7.5" rx="2" fill={badgeFill} />
+      <text x="12" y="18.8" textAnchor="middle" fontSize="6.2" fontWeight="700" fill="#fff" fontFamily="Inter, system-ui, sans-serif" letterSpacing="0.2">{badge}</text>
+    </svg>
+  );
+};
 
 // One slim list row: type badge, name, a quiet meta line, then a "more" menu and the selection checkbox.
 export const SourceRow: React.FC<SourceRowProps> = ({
@@ -161,6 +168,9 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         <span className="source-row-title" title={`${shownTitle} · ${info.label}${isReady ? ` · ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}` : s.status === 'failed' ? ` · ${s.error_message || 'Failed'}` : ''}`}>
           {shownTitle}
         </span>
+        {isReady && typeof s.page_count === 'number' && s.page_count > 0 && (
+          <span className="source-page-badge" aria-hidden="true">{s.page_count}p</span>
+        )}
         <span className="sr-only">
           {info.label}{isReady ? `, ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}, ready` : s.status === 'failed' ? `, failed: ${s.error_message || 'failed'}` : ''}
         </span>
