@@ -11,10 +11,11 @@ export const getThemeSetting = (): ThemeSetting => {
   try {
     const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
     if (stored === 'light' || stored === 'dark') return stored;
+    if (stored === 'auto' || stored === 'system') return 'auto';
   } catch {
     // ignore
   }
-  return 'auto';
+  return 'light';
 };
 
 export const resolveTheme = (setting: ThemeSetting): 'light' | 'dark' =>
@@ -33,8 +34,7 @@ export const applyTheme = (setting: ThemeSetting = getThemeSetting()): void => {
 
 export const setThemeSetting = (setting: ThemeSetting): void => {
   try {
-    if (setting === 'auto') window.localStorage.removeItem(THEME_STORAGE_KEY);
-    else window.localStorage.setItem(THEME_STORAGE_KEY, setting);
+    window.localStorage.setItem(THEME_STORAGE_KEY, setting);
   } catch {
     // ignore
   }

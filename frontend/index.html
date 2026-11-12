@@ -11,12 +11,15 @@
         var theme = 'light';
         try {
           var stored = localStorage.getItem('notebookspace_theme');
-          if (stored === 'light' || stored === 'dark') theme = stored;
-          else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
+          if (stored === 'dark') theme = 'dark';
+          else if (stored === 'light') theme = 'light';
+          else if (stored === 'auto' || stored === 'system') {
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
+          }
         } catch (e) {}
         document.documentElement.setAttribute('data-theme', theme);
         var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', theme === 'dark' ? '#0F1012' : '#F5F5F7');
+        if (meta) meta.setAttribute('content', theme === 'dark' ? '#0F1012' : '#F7F7F8');
       })();
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />

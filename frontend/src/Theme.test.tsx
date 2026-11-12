@@ -27,24 +27,24 @@ describe('Theme setting', () => {
     document.documentElement.removeAttribute('data-theme');
   });
 
-  it('defaults to Auto and follows the system, including later changes', () => {
+  it('defaults to Light on fresh load regardless of OS dark mode preference', () => {
     const system = mockSystem(true);
     applyTheme();
     const stop = watchSystemTheme();
-    expect(getThemeSetting()).toBe('auto');
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(getThemeSetting()).toBe('light');
+    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 
     system.set(false);
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
     stop();
   });
 
-  it('offers Auto, Light and Dark in Settings, applies the choice and persists it', () => {
+  it('offers System, Light and Dark in Settings, applies the choice and persists it', () => {
     mockSystem(false);
     renderSettings();
     const group = screen.getByRole('radiogroup', { name: 'Appearance' });
     expect(group).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'System' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
 
     fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
@@ -57,7 +57,7 @@ describe('Theme setting', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
   });
 
-  it('an explicit choice ignores system changes; Auto clears the stored choice', () => {
+  it('an explicit choice ignores system changes; System follows system changes', () => {
     const system = mockSystem(false);
     const stop = watchSystemTheme();
     renderSettings();
@@ -66,7 +66,7 @@ describe('Theme setting', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
 
     fireEvent.click(screen.getByRole('radio', { name: 'System' }));
-    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('auto');
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
     stop();
   });
