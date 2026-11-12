@@ -9,30 +9,30 @@
 
   /* 1. Palette, light theme: crisp white surfaces on a faint cool-grey ground, soft ink, one accent (blue, hue 262).
      Every colour token here has a dark counterpart in the [data-theme="dark"] block at the end of this file. */
-  --color-desk: #F5F5F7;
+  --color-desk: #F7F7F8;
   --color-background: var(--color-desk);
   --color-surface: #FFFFFF;
-  --color-surface-raised: #F7F7F9;
-  --color-surface-hover: #EEEEF1;
-  --color-surface-active: #E4E4E8;
-  --color-border: #E4E4E8;
-  --color-border-strong: #C9CBD1;
+  --color-surface-raised: #F7F7F8;
+  --color-surface-hover: #F0F0F2;
+  --color-surface-active: #E4E4E7;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-strong: rgba(0, 0, 0, 0.14);
   /* Outlines that identify a form control (checkbox, input) need 3:1 against the surface. */
   --color-control-border: #858A91;
-  --color-border-sheet: #E4E4E8;
-  --color-text-primary: #1D1D1F;
-  --color-text-secondary: #686D73;
-  --color-text-muted: #686D73;
+  --color-border-sheet: rgba(0, 0, 0, 0.08);
+  --color-text-primary: #18181B;
+  --color-text-secondary: #52525B;
+  --color-text-muted: #8E8E93;
   --color-on-accent: #FFFFFF;
-  --color-accent: #345D88;
-  --color-accent-hover: #284A6D;
-  --color-accent-bright: #3F6C9C;
+  --color-accent: #18181B;
+  --color-accent-hover: #27272A;
+  --color-accent-bright: #27272A;
   /* Evidence highlight: the retrieved passage, never a sentence. */
-  --color-evidence: #EEF4FA;
-  --color-accent-soft: color-mix(in oklab, var(--color-accent) 8%, var(--color-surface));
-  --color-accent-soft-strong: color-mix(in oklab, var(--color-accent) 14%, var(--color-surface));
-  --color-accent-border: color-mix(in oklab, var(--color-accent) 32%, var(--color-surface));
-  --color-accent-ring: color-mix(in oklab, var(--color-accent) 30%, transparent);
+  --color-evidence: #F4F4F5;
+  --color-accent-soft: #F4F4F5;
+  --color-accent-soft-strong: #E4E4E7;
+  --color-accent-border: #E4E4E7;
+  --color-accent-ring: rgba(24, 24, 27, 0.18);
   --color-overlay: oklch(0.2 0.01 260 / 0.4);
   --color-transparent: transparent;
   --color-highlight-top: oklch(1 0 0 / 0.75);
@@ -57,7 +57,7 @@
   --tone-4: color-mix(in oklab, var(--color-danger-border) 34%, var(--color-surface));
   --tone-5: color-mix(in oklab, var(--color-marker-edge) 30%, var(--color-surface));
   --tone-6: var(--color-surface-active);
-  --theme-color: #F5F5F7;
+  --theme-color: #F7F7F8;
 
   /* Type: locally available SF Pro, with platform system sans-serif fallbacks. */
   --font-family-ui: "SF Pro Text", "SF Pro", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -118,12 +118,12 @@
   --radius-circle: 50%;
 
   /* 3. Elevation: one light from above, shadows tinted with warm ink rather than black. */
-  --shadow-ink: oklch(0.25 0.02 260);
-  --shadow-accent-ink: oklch(0.36 0.12 262);
-  --shadow-1: 0 1px 1px color-mix(in oklab, var(--shadow-ink) 5%, transparent), 0 1px 3px color-mix(in oklab, var(--shadow-ink) 7%, transparent);
-  --shadow-2: 0 1px 1px color-mix(in oklab, var(--shadow-ink) 5%, transparent), 0 4px 12px -2px color-mix(in oklab, var(--shadow-ink) 10%, transparent);
-  --shadow-3: 0 1px 1px color-mix(in oklab, var(--shadow-ink) 4%, transparent), 0 8px 20px -6px color-mix(in oklab, var(--shadow-ink) 12%, transparent), 0 24px 48px -24px color-mix(in oklab, var(--shadow-ink) 16%, transparent);
-  --shadow-4: 0 2px 4px color-mix(in oklab, var(--shadow-ink) 6%, transparent), 0 18px 40px -10px color-mix(in oklab, var(--shadow-ink) 22%, transparent), 0 48px 96px -32px color-mix(in oklab, var(--shadow-ink) 28%, transparent);
+  --shadow-ink: rgba(0, 0, 0, 0.04);
+  --shadow-accent-ink: rgba(0, 0, 0, 0.08);
+  --shadow-1: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 14px rgba(0, 0, 0, 0.03);
+  --shadow-2: 0 1px 3px rgba(0, 0, 0, 0.04), 0 6px 18px rgba(0, 0, 0, 0.05);
+  --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.05), 0 12px 28px rgba(0, 0, 0, 0.08);
+  --shadow-4: 0 4px 12px rgba(0, 0, 0, 0.08), 0 24px 48px rgba(0, 0, 0, 0.12);
   --shadow-inset-top: inset 0 1px 0 var(--color-highlight-top);
   --shadow-well: inset 0 1px 2px color-mix(in oklab, var(--shadow-ink) 9%, transparent);
   --shadow-accent: inset 0 1px 0 var(--color-highlight-soft), 0 1px 2px color-mix(in oklab, var(--shadow-accent-ink) 30%, transparent), 0 6px 14px -6px color-mix(in oklab, var(--shadow-accent-ink) 45%, transparent);

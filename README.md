@@ -68,7 +68,7 @@ Demo clip: [demo-desktop.mp4](docs/media/demo-desktop.mp4) — warm-backend desk
 - **Embeddings**: `sentence-transformers/all-MiniLM-L6-v2` (384-dimensional dense vectors) executed on the backend via FastEmbed ONNX runtime.
 - **LLM Grounding**: Google Gemini (`gemini-3.5-flash-lite` / `gemini-3.5-flash`) via the official Gemini API SDK.
 - **Security Boundaries**:
-  - **Content Security Policy**: Enforces `default-src 'self'`, inline theme script hash validation (`sha256-M2H144UsGUjR7lHIVkqgNMynUf6kzblUMbL9mmAo+Tw=`), `frame-ancestors 'none'`, and `object-src 'none'`.
+  - **Content Security Policy**: Enforces `default-src 'self'`, inline theme script hash validation (`sha256-PbmCJEYtl8MflCHWhasAsf3s2xYU9NhuEMaTM+8UnI4=`), `frame-ancestors 'none'`, and `object-src 'none'`.
   - **SSRF Defense**: Validates external webpage URLs prior to ingestion, forbidding RFC 1918 private ranges, loopback addresses (`127.0.0.1`), link-local IPs, and metadata endpoints.
   - **XSS Sanitization**: WYSIWYG notes run through strict DOMParser whitelist filtering, rejecting `<script>`, `<iframe>`, `SVG`, event handlers (`onload`, `onerror`), and unsafe URI protocols.
   - **API Key Protection**: The LLM API key lives strictly on the backend environment; it is never exposed in frontend code, any `VITE_` variables, or the browser.
