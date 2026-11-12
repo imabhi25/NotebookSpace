@@ -1750,6 +1750,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             {!isNavCollapsed && resizeHandle('left', true)}
             <div className="rail-header">
               <div className="rail-title-group">
+                <span className="workspace-tag">{subject.name}</span>
                 <h2 className="rail-title">Sources<span className="sr-only"> ({sources.length})</span></h2>
                 <span className="rail-count-pill" aria-hidden="true">{sources.length}</span>
               </div>
@@ -1800,6 +1801,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               {sources.length > 0 && (
                 <div className="sources-toolbar">
                   <div className="sources-toolbar-left">
+                    <span className="sources-toolbar-title">Sources</span>
+                    {selectedSourceIds.length > 0 && (
+                      <button type="button" className="sources-clear-btn" onClick={() => onSelectSources([])} aria-label="Clear selection">
+                        Clear
+                      </button>
+                    )}
                     <button type="button" className={`sources-tool-btn ${autoRename ? 'is-active' : ''}`} onClick={toggleAutoRename}
                       aria-label={autoRename ? 'Restore original filenames' : 'Clean up source titles'} aria-pressed={autoRename} data-tip={autoRename ? 'Restore original filenames' : 'Clean up source titles'}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1994,6 +2001,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       <div key={msg.id} className={`thread-turn turn-${msg.role}`} data-turn-id={msg.id}>
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
+                            <div className="grounding-status">
+                              ⚡ Grounded on {selectedSourceIds.length > 0 ? selectedSourceIds.length : sources.length} {(selectedSourceIds.length > 0 ? selectedSourceIds.length : sources.length) === 1 ? 'source' : 'sources'} · Verified
+                            </div>
                             <h2 className="question-heading" data-testid="question-heading">{msg.content}</h2>
                           </div>
                         ) : isThisRetrying ? (
@@ -2111,6 +2121,32 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     citationState={citationStateOf}
                                   />
                                 </div>
+
+                                {/* Named Citation Pills */}
+                                {msg.citations && msg.citations.length > 0 && (
+                                  <div className="answer-citations-row">
+                                    {msg.citations.map((c, cIdx) => {
+                                      const src = sources.find((s) => s.id === c.source_id || normalizeFileName(s.file_name) === normalizeFileName(c.file));
+                                      const label = src?.title || c.file.replace(/\.(pdf|md|txt)$/i, '');
+                                      const isSelected = Boolean(
+                                        selectedCitation?.messageId === msg.id &&
+                                        selectedCitation.page === c.page &&
+                                        normalizeFileName(selectedCitation.file) === normalizeFileName(c.file)
+                                      );
+                                      return (
+                                        <button
+                                          key={cIdx}
+                                          type="button"
+                                          className={`citation-pill-badge ${isSelected ? 'is-active' : ''}`}
+                                          onClick={() => handleSelectCitation(c, msg.id)}
+                                          title={`Jump to ${label} page ${c.page} in Citations panel`}
+                                        >
+                                          [{label} p.{c.page}]
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                )}
 
                                 {/* Cross-Source Evidence Check: several sources, or a flagged contradiction */}
                                 {(() => {
@@ -2278,6 +2314,25 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
             </>
           )}
+              {/* Floating Suggestion Chips Dock */}
+              {sources.length > 0 && !chatLoading && (
+                <div className="composer-suggestions-dock" role="group" aria-label="Suggested questions">
+                  {[
+                    'What is the late penalty?',
+                    'List required C functions',
+                    'Show exam dates',
+                  ].map((suggestion, sIdx) => (
+                    <button
+                      key={sIdx}
+                      type="button"
+                      className="composer-suggestion-pill"
+                      onClick={() => onSendMessage(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              )}
               {/* Pinned Bottom Composer */}
               <Composer
                 question={question}

@@ -173,9 +173,11 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
       }}
     >
       <div className="inline-evidence-header">
-        <h3 className="inline-evidence-title"><span className="inline-evidence-file" title={body.citation.file}>{displayTitle || body.citation.file}</span></h3>
-        <div className="inline-evidence-actions">
+        <div className="inline-evidence-header-left">
+          <h3 className="inline-evidence-title"><span className="inline-evidence-file" title={body.citation.file}>{displayTitle || body.citation.file}</span></h3>
           <span className="inline-evidence-count evidence-page-pill">Page {body.citation.page}</span>
+        </div>
+        <div className="inline-evidence-actions">
           {total > 1 && index >= 0 && (
             <div className="citation-step-controls">
               <button type="button" className="btn-step" onClick={onPrevious} disabled={index <= 0}
@@ -185,17 +187,17 @@ export const InlineEvidence = forwardRef<HTMLElement, InlineEvidenceProps>(funct
                 aria-label="Next citation" title="Next citation"><span aria-hidden="true">›</span></button>
             </div>
           )}
+          {readerAction && (
+            <button type="button" className="evidence-reader-btn evidence-reader-link-btn" onClick={readerAction.onOpen} data-testid="open-reader-btn">
+              {readerAction.label} <span aria-hidden="true">↗</span>
+            </button>
+          )}
           {headerExtra}
         </div>
       </div>
       <EvidenceBody {...body} />
-      {(readerAction || footerExtra) && (
+      {footerExtra && (
         <div className="evidence-footer">
-          {readerAction && (
-            <button type="button" className="evidence-reader-btn" onClick={readerAction.onOpen} data-testid="open-reader-btn">
-              {readerAction.label}
-            </button>
-          )}
           {footerExtra}
         </div>
       )}
