@@ -1,6 +1,19 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { CommandItem, rankCommands, shortcutLabel } from '../commandPalette';
+import { CommandIcon, CommandItem, rankCommands, shortcutLabel } from '../commandPalette';
+import { SourceTypeIcon } from './SourceRow';
 import { useModalFocus } from '../useModalFocus';
+
+const ip = { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, 'aria-hidden': true };
+const ICONS: Record<CommandIcon, React.ReactNode> = {
+  session: <svg {...ip}><path d="M12 5v14M5 12h14" /></svg>,
+  add: <svg {...ip}><path d="M12 15V4M7.5 8.5 12 4l4.5 4.5M5 15v4h14v-4" /></svg>,
+  note: <svg {...ip}><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16v4Z" /><path d="m13.5 6.5 4 4" /></svg>,
+  history: <svg {...ip}><path d="M3 11a9 9 0 1 1 3 6.7M3 4v7h7M12 7v5l3 2" /></svg>,
+  sources: <svg {...ip}><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M9 3v18" /></svg>,
+  notes: <svg {...ip}><rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" /></svg>,
+  back: <svg {...ip}><path d="M15 6l-6 6 6 6" /></svg>,
+  chat: <svg {...ip}><path d="M21 12a8 8 0 0 1-11.7 7L4 20l1.1-4.6A8 8 0 1 1 21 12Z" /></svg>,
+};
 
 interface CommandPaletteProps {
   items: CommandItem[];
@@ -80,10 +93,16 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ items, onClose }
                   onMouseMove={() => { if (i !== active) setActive(i); }}
                   onClick={() => run(item)}
                 >
+                  <span className="command-palette-icon" aria-hidden="true">
+                    {item.sourceBadge ? <SourceTypeIcon type={item.sourceBadge.type} badge={item.sourceBadge.badge} />
+                      : item.icon ? ICONS[item.icon] : null}
+                  </span>
                   <span className="command-palette-text">
                     <span className="command-palette-label">{item.label}</span>
                     {item.hint && <span className="command-palette-hint">{item.hint}</span>}
                   </span>
+                  {item.tag && <span className="command-palette-tag">{item.tag}</span>}
+                  {i === active && !item.shortcut && !item.tag && <kbd className="command-palette-kbd command-palette-enter" aria-hidden="true">↵</kbd>}
                   {item.shortcut && <kbd className="command-palette-kbd">{shortcutLabel(item.shortcut)}</kbd>}
                 </li>
               </React.Fragment>
@@ -91,6 +110,9 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ items, onClose }
           })}
         </ul>
         {!results.length && <p className="command-palette-empty" role="status">Nothing matches &ldquo;{query}&rdquo;.</p>}
+        <div className="command-palette-footer" aria-hidden="true">
+          <span><kbd>↑</kbd><kbd>↓</kbd> Navigate</span><span><kbd>↵</kbd> Select</span><span><kbd>Esc</kbd> Close</span>
+        </div>
         <div className="sr-only" role="status" aria-live="polite">{results.length ? `${results.length} results` : 'No results'}</div>
       </div>
     </div>

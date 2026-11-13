@@ -16,8 +16,15 @@ export interface CommandItem {
   keywords?: string;
   /** Written as "B" or "\\"; shown with the platform's modifier. */
   shortcut?: string;
+  /** Left glyph: a named action icon, or a source file badge. */
+  icon?: CommandIcon;
+  sourceBadge?: { type: string; badge: string };
+  /** Quiet tag on the right, e.g. "Open in reader". */
+  tag?: string;
   run: () => void;
 }
+
+export type CommandIcon = 'session' | 'add' | 'note' | 'history' | 'sources' | 'notes' | 'back' | 'chat';
 
 const normalize = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '');
 

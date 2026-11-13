@@ -1021,19 +1021,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     const typeLabel = (t: string) => ({ pdf: 'PDF', url: 'Web page', pasted: 'Pasted text', markdown: 'Markdown', txt: 'Text' }[t] ?? 'Document');
     const items: CommandItem[] = [];
     if (onCreateConversation) {
-      items.push({ id: 'a-new-session', group: 'Actions', label: 'New session', keywords: 'conversation chat start', run: () => { void onCreateConversation(); } });
+      items.push({ id: 'a-new-session', group: 'Actions', label: 'New session', icon: 'session', keywords: 'conversation chat start', run: () => { void onCreateConversation(); } });
     }
     items.push(
-      { id: 'a-add-sources', group: 'Actions', label: 'Add sources', keywords: 'upload paste link pdf file', run: () => setIsAddSourceOpen(true) },
-      { id: 'a-new-note', group: 'Actions', label: 'New note', keywords: 'write save', run: () => openNoteEditor(null) },
-      { id: 'a-history', group: 'Actions', label: 'Conversation history', keywords: 'sessions past chats', run: () => setHistoryOpen(true) },
-      { id: 'a-sources-panel', group: 'Actions', label: isNavCollapsed ? 'Show sources panel' : 'Hide sources panel', keywords: 'sidebar rail', shortcut: 'B', run: toggleSourcesPanel },
-      { id: 'a-study-panel', group: 'Actions', label: isContextCollapsed ? 'Show study panel' : 'Hide study panel', keywords: 'notes evidence', shortcut: '\\', run: toggleStudyPanel },
-      { id: 'a-notebooks', group: 'Actions', label: 'Back to notebooks', keywords: 'library home dashboard', run: onBackToDashboard },
+      { id: 'a-add-sources', group: 'Actions', label: 'Add sources', icon: 'add', keywords: 'upload paste link pdf file', run: () => setIsAddSourceOpen(true) },
+      { id: 'a-new-note', group: 'Actions', label: 'New note', icon: 'note', keywords: 'write save', run: () => openNoteEditor(null) },
+      { id: 'a-history', group: 'Actions', label: 'Conversation history', icon: 'history', keywords: 'sessions past chats', run: () => setHistoryOpen(true) },
+      { id: 'a-sources-panel', group: 'Actions', label: isNavCollapsed ? 'Show sources panel' : 'Hide sources panel', icon: 'sources', keywords: 'sidebar rail', shortcut: 'B', run: toggleSourcesPanel },
+      { id: 'a-study-panel', group: 'Actions', label: isContextCollapsed ? 'Show notes panel' : 'Hide notes panel', icon: 'notes', keywords: 'notes study evidence', shortcut: '\\', run: toggleStudyPanel },
+      { id: 'a-notebooks', group: 'Actions', label: 'Back to notebooks', icon: 'back', keywords: 'library home dashboard', run: onBackToDashboard },
     );
     for (const c of conversations ?? []) {
       items.push({
-        id: `c-${c.id}`, group: 'Sessions', label: c.title || 'New session',
+        id: `c-${c.id}`, group: 'Sessions', icon: 'chat', label: c.title || 'New session',
         hint: c.id === activeConversationId ? 'Current session' : undefined,
         run: () => onSelectConversation?.(c.id),
       });
@@ -1041,13 +1041,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     for (const src of readySources) {
       items.push({
         id: `s-${src.id}`, group: 'Sources', label: src.title,
-        hint: `${typeLabel(src.source_type)} · ${src.page_count} ${src.page_count === 1 ? 'page' : 'pages'} · open full text`,
-        keywords: `${src.file_name} read view`, run: () => { void handleOpenSourceViewer(src); },
+        sourceBadge: { type: (src.source_type || 'doc').toLowerCase(), badge: (TYPE_INFO[(src.source_type || '').toLowerCase()] || { badge: 'DOC' }).badge },
+        tag: 'Open in reader',
+        keywords: `${typeLabel(src.source_type)} ${src.file_name} read view reader`, run: () => { void handleOpenSourceViewer(src); },
       });
     }
     for (const n of notes) {
       items.push({
-        id: `n-${n.id}`, group: 'Notes', label: n.title || 'Untitled note',
+        id: `n-${n.id}`, group: 'Notes', icon: 'note', label: n.title || 'Untitled note',
         hint: noteToText(n.content).replace(/\s+/g, ' ').trim().slice(0, 80) || undefined,
         keywords: noteToText(n.content).slice(0, 400), run: () => openNoteEditor(n),
       });
