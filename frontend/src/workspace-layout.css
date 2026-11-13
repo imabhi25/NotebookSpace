@@ -1323,14 +1323,31 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   align-items: center !important;
   justify-content: space-between !important;
   gap: 8px !important;
-  padding: 0 12px !important;
+  padding: 0 14px !important;
   border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08)) !important;
 }
 :root[data-theme="dark"] .workspace-layout .rail-header,
 :root[data-theme="dark"] .sources-panel-header {
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
-.rail-title-group { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.sources-panel-header .workspace-nav-toggle,
+.workspace-layout .rail-header .rail-icon-btn.workspace-nav-toggle,
+.sources-panel-header .rail-icon-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 6px !important;
+  flex-shrink: 0 !important;
+}
+.rail-title-group { display: inline-flex; align-items: center; gap: 6px; min-width: 0; margin: 0; padding: 0; }
 .rail-title { font-size: 13px; font-weight: 600; color: var(--color-text-primary); margin: 0; letter-spacing: -0.01em; }
 .rail-count-pill {
   display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
@@ -1343,12 +1360,12 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   align-items: center !important;
   gap: 8px !important;
   flex: none !important;
-  padding: 10px 12px 6px !important;
+  padding: 10px 14px 6px !important;
   box-sizing: border-box !important;
   margin: 0 !important;
 }
 .workspace-layout .sources-search, .workspace-layout .rail-find {
-  flex: 1; min-width: 0; min-height: 34px; height: 34px; display: flex; align-items: center; gap: 6px; padding: 0 12px;
+  flex: 1; min-width: 0; min-height: 34px; height: 34px; display: flex; align-items: center; gap: 6px; padding: 0 12px; margin: 0 !important;
   border-radius: 999px; overflow: hidden; background: var(--bg-canvas, var(--color-surface)); border: 1px solid var(--border-subtle, var(--color-border));
 }
 .workspace-layout .sources-search input, .workspace-layout .rail-find input,
@@ -1357,8 +1374,24 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important; border-radius: 0; height: 100%; min-height: 0;
 }
 .sources-add-btn {
-  flex: none; width: 34px; height: 34px; display: grid; place-items: center; padding: 0; border-radius: 10px; cursor: pointer;
-  border: 1px solid var(--border-subtle, var(--color-border)); background: var(--bg-canvas, var(--color-surface)); color: var(--color-text-secondary);
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  flex-shrink: 0 !important;
+  flex: none !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 6px !important;
+  cursor: pointer;
+  border: 1px solid var(--border-subtle, var(--color-border));
+  background: var(--bg-canvas, var(--color-surface));
+  color: var(--color-text-secondary);
   transition: transform 0.18s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 .sources-add-btn:hover { transform: translateY(-1px); color: var(--color-text-primary); background: var(--color-surface-hover); box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12); }
@@ -1376,18 +1409,33 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   box-sizing: border-box !important;
   flex: none !important;
   margin: 0 !important;
-  padding: 4px 12px 6px !important;
+  padding: 4px 14px 6px !important;
 }
-.sources-toolbar-left { display: flex; align-items: center; gap: 6px; }
+.sources-toolbar-left { display: flex !important; align-items: center !important; gap: 6px !important; margin: 0 !important; padding: 0 !important; }
 .sources-tool-btn {
-  position: relative; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; cursor: pointer;
+  position: relative; width: 28px !important; height: 28px !important; min-width: 28px !important; min-height: 28px !important;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important; padding: 0 !important; margin: 0 !important;
+  border: 0 !important; border-radius: 7px !important; cursor: pointer;
   background: transparent; color: var(--color-text-muted); transition: background-color 0.15s ease, color 0.15s ease;
+}
+.sources-toolbar-left > .sources-tool-btn:first-child {
+  margin-left: -6px !important;
+  padding-left: 6px !important;
+  padding-right: 6px !important;
+  box-sizing: border-box !important;
+  justify-content: flex-start !important;
 }
 .sources-tool-btn:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
 .sources-tool-btn.is-active { color: var(--color-accent); background: var(--color-accent-soft, var(--color-surface-hover)); }
 .sources-tool-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
-.sources-select-all { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; user-select: none; }
-.sources-select-all .source-row-checkbox { margin: 0; width: 16px; height: 16px; border-radius: 4px; }
+.sources-select-all {
+  display: inline-flex !important; align-items: center !important; gap: 8px !important; margin: 0 !important; padding: 0 !important;
+  font-size: 12px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; user-select: none;
+}
+.sources-select-all .source-row-checkbox {
+  margin: 0 !important; padding: 0 !important; width: 16px !important; height: 16px !important; min-width: 16px !important; max-width: 16px !important;
+  min-height: 16px !important; max-height: 16px !important; border-radius: 4px; flex-shrink: 0 !important;
+}
 .sources-sort { position: relative; }
 .sources-sort-menu {
   position: absolute; top: calc(100% + 4px); left: 0; z-index: 70; min-width: 140px; padding: 4px; border-radius: 8px;
@@ -1420,11 +1468,16 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   overflow-x: hidden !important;
   padding: 0 !important;
   margin: 0 !important;
+  scrollbar-gutter: auto !important;
+}
+.workspace-layout .sources-list {
+  padding: 2px 6px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
 }
 .workspace-layout .workspace-sources-ul,
-.workspace-layout .sources-list,
 .workspace-layout .sources-list-items {
-  padding: 2px 6px !important;
+  padding: 0 !important;
   margin: 0 !important;
   display: flex !important;
   flex-direction: column !important;
@@ -1432,15 +1485,17 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   list-style: none !important;
 }
 .workspace-layout .source-row,
-.workspace-layout .workspace-sources-rail .source-row {
-  padding: 0 6px !important;
+.workspace-layout .workspace-sources-rail .source-row,
+.sources-panel .source-row {
+  padding: 0 8px !important;
+  margin: 0 !important;
   height: 34px !important;
   min-height: 34px !important;
   max-height: 34px !important;
   box-sizing: border-box !important;
   display: grid !important;
   grid-template-columns: 18px minmax(0, 1fr) 22px 16px !important;
-  gap: 6px !important;
+  gap: 8px !important;
   align-items: center !important;
   border-radius: 6px !important;
   box-shadow: none !important;
@@ -1457,10 +1512,16 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .source-row .source-type-badge {
   width: 18px !important;
   height: 18px !important;
+  min-width: 18px !important;
+  max-width: 18px !important;
+  min-height: 18px !important;
+  max-height: 18px !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
   flex: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
   background: transparent !important;
 }
 .workspace-layout .source-row .source-row-main {
@@ -1485,6 +1546,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   min-width: 22px !important;
   max-width: 22px !important;
   padding: 0 !important;
+  margin: 0 !important;
   display: flex !important;
   align-items: center !important;
   justify-content: center !important;
@@ -1506,8 +1568,12 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   width: 16px !important;
   height: 16px !important;
   min-width: 16px !important;
+  max-width: 16px !important;
+  min-height: 16px !important;
+  max-height: 16px !important;
   margin: 0 !important;
   padding: 0 !important;
+  box-sizing: border-box !important;
   justify-self: end !important;
 }
 

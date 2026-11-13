@@ -1817,7 +1817,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <div className="sources-toolbar-left">
                     <button type="button" className={`sources-tool-btn ${autoRename ? 'is-active' : ''}`} onClick={toggleAutoRename}
                       aria-label={autoRename ? 'Restore original filenames' : 'Clean up source titles'} aria-pressed={autoRename} data-tip={autoRename ? 'Restore original filenames' : 'Clean up source titles'}>
-                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                         <path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8L12 3z" /><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8L19 15z" />
                       </svg>
                     </button>
