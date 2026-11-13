@@ -24,6 +24,15 @@ export const readDefaultResponseSettings = (): SubjectSettings | null => {
   return null;
 };
 
+/** Two-or-three-way pill control; replaces native selects so the dialog matches the rest of the UI. */
+const SettingsSegmented: React.FC<{ labelledBy: string; value: string; options: [string, string][]; onChange: (v: string) => void }> = ({ labelledBy, value, options, onChange }) => (
+  <div className="settings-segmented" role="radiogroup" aria-labelledby={labelledBy}>
+    {options.map(([v, text]) => (
+      <button key={v} type="button" role="radio" aria-checked={value === v} className="settings-seg" onClick={() => onChange(v)}>{text}</button>
+    ))}
+  </div>
+);
+
 interface SettingsPanelProps {
   currentUser?: User | null;
   onRequestReset: () => void;
@@ -89,18 +98,14 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onRequestReset, on
           <section className="settings-section" aria-labelledby="settings-reading-title">
             <h3 id="settings-reading-title" className="settings-section-title">Reading &amp; study</h3>
             <div className="settings-field">
-              <label htmlFor="reading-font">Reading font</label>
-              <select id="reading-font" value={font} onChange={(e) => chooseFont(e.target.value as ReadingFont)}>
-                <option value="sans">Clean Sans (Inter)</option>
-                <option value="serif">Academic Serif (Editorial)</option>
-              </select>
+              <span className="settings-field-label" id="reading-font-label">Reading font</span>
+              <SettingsSegmented labelledBy="reading-font-label" value={font}
+                options={[['sans', 'Clean Sans'], ['serif', 'Academic Serif']]} onChange={(v) => chooseFont(v as ReadingFont)} />
             </div>
             <div className="settings-field">
-              <label htmlFor="answer-depth">Answer depth</label>
-              <select id="answer-depth" value={depth} onChange={(e) => chooseDepth(e.target.value as 'concise' | 'detailed')}>
-                <option value="concise">Concise (Bullet Points)</option>
-                <option value="detailed">Detailed (Study Guide)</option>
-              </select>
+              <span className="settings-field-label" id="answer-depth-label">Answer depth</span>
+              <SettingsSegmented labelledBy="answer-depth-label" value={depth}
+                options={[['concise', 'Concise'], ['detailed', 'Detailed']]} onChange={(v) => chooseDepth(v as 'concise' | 'detailed')} />
             </div>
             <p className="settings-section-hint">Depth applies to new notebooks. Each notebook can change its own.</p>
           </section>

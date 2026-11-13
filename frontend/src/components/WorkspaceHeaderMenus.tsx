@@ -4,7 +4,6 @@ import { useModalFocus } from '../useModalFocus';
 import { exportAllNotes } from '../exportNotes';
 import { getReadingFont, setReadingFont, ReadingFont } from '../readingFont';
 import { shortcutLabel } from '../commandPalette';
-import { SettingsPanel } from './SettingsPanel';
 
 const svgProps = {
   width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor',
@@ -20,7 +19,6 @@ const Icon: Record<string, React.ReactNode> = {
   help: <svg {...svgProps}><circle cx="12" cy="12" r="9" /><path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5M12 17h.01" /></svg>,
   gear: <svg {...svgProps}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>,
   reset: <svg {...svgProps}><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4" /></svg>,
-  settings: <svg {...svgProps}><path d="M4 8h9M17 8h3M4 16h3M11 16h9" /><circle cx="15" cy="8" r="2" /><circle cx="9" cy="16" r="2" /></svg>,
 };
 
 /** A header icon button with a floating menu. Outside press and Escape close it; arrows move between rows. */
@@ -104,6 +102,8 @@ const ShortcutsDialog: React.FC<{ onClose: () => void }> = ({ onClose }) => {
 
 export interface WorkspaceHeaderMenusProps {
   hasChat: boolean;
+  answerDepth: 'concise' | 'detailed';
+  onAnswerDepth: (depth: 'concise' | 'detailed') => void;
   onConfigureChat: () => void;
   onCustomize: () => void;
   onRetrievalAnalytics: () => void;
@@ -113,10 +113,10 @@ export interface WorkspaceHeaderMenusProps {
 }
 
 export const WorkspaceHeaderMenus: React.FC<WorkspaceHeaderMenusProps> = ({
-  hasChat, onConfigureChat, onCustomize, onRetrievalAnalytics, onExportNotes, onClearChat, onResetWorkspace,
+  hasChat, answerDepth, onAnswerDepth, onConfigureChat, onCustomize, onRetrievalAnalytics, onExportNotes, onClearChat, onResetWorkspace,
 }) => {
   const [font, setFont] = useState<ReadingFont>(getReadingFont);
-  const [dialog, setDialog] = useState<null | 'clear' | 'reset' | 'help' | 'settings'>(null);
+  const [dialog, setDialog] = useState<null | 'clear' | 'reset' | 'help'>(null);
   const close = () => setDialog(null);
   const row = (icon: React.ReactNode, text: React.ReactNode, onClick: () => void, o: { disabled?: boolean; danger?: boolean; value?: string } = {}) => (
     <button type="button" role="menuitem" className={`header-menu-item${o.danger ? ' is-danger' : ''}`} disabled={o.disabled} onClick={onClick}>
@@ -141,9 +141,10 @@ export const WorkspaceHeaderMenus: React.FC<WorkspaceHeaderMenusProps> = ({
         {(done) => (<>
           {row(Icon.type, 'Reading font', () => { const next = font === 'sans' ? 'serif' : 'sans'; setFont(next); setReadingFont(next); },
             { value: font === 'sans' ? 'Sans' : 'Serif' })}
+          {row(Icon.sliders, 'Answer depth', () => onAnswerDepth(answerDepth === 'concise' ? 'detailed' : 'concise'),
+            { value: answerDepth === 'concise' ? 'Concise' : 'Detailed' })}
           {row(Icon.help, 'Help & shortcuts', () => { done(); setDialog('help'); })}
           {row(Icon.download, 'Export notes', () => { done(); void exportAllNotes().catch(() => undefined); })}
-          {row(Icon.settings, 'All settings...', () => { done(); setDialog('settings'); })}
           <div className="header-menu-divider" role="separator" />
           {row(Icon.reset, 'Reset workspace', () => { done(); setDialog('reset'); }, { danger: true, disabled: !onResetWorkspace })}
         </>)}
@@ -157,8 +158,6 @@ export const WorkspaceHeaderMenus: React.FC<WorkspaceHeaderMenusProps> = ({
           action="Reset Workspace" onCancel={close} onConfirm={() => { close(); void onResetWorkspace?.(); }} />
       )}
       {dialog === 'help' && <ShortcutsDialog onClose={close} />}
-      {dialog === 'settings' && createPortal(
-        <SettingsPanel onRequestReset={() => setDialog('reset')} onClose={close} />, document.body)}
     </>
   );
 };
