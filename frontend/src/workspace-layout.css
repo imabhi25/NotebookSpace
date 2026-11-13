@@ -1303,20 +1303,21 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   align-items: center !important;
   justify-content: space-between !important;
   gap: 8px !important;
-  padding: 0 16px !important;
+  padding: 0 14px !important;
   border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08)) !important;
 }
 :root[data-theme="dark"] .workspace-layout .rail-header {
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
-.rail-title-group { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
+.rail-title-group { display: inline-flex; align-items: center; gap: 6px; min-width: 0; }
+.rail-title { font-size: 13.5px; font-weight: 600; color: var(--color-text-primary); margin: 0; letter-spacing: -0.01em; }
 .rail-count-pill {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 999px;
-  background: var(--color-surface-hover); color: var(--color-text-secondary); font: 500 11px/1 var(--font-family-ui); font-variant-numeric: tabular-nums;
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--color-surface-hover); color: var(--color-text-muted); font: 500 11px/1.4 var(--font-family-ui); font-variant-numeric: tabular-nums;
 }
 
 /* ---- Search pill + beside-it [+] ---- */
-.sources-search-row { display: flex; align-items: center; gap: 8px; flex: none; }
+.sources-search-row { display: flex; align-items: center; gap: 8px; flex: none; padding: 10px 14px 4px; box-sizing: border-box; }
 .workspace-layout .sources-search, .workspace-layout .rail-find {
   flex: 1; min-width: 0; min-height: 34px; height: 34px; display: flex; align-items: center; gap: 6px; padding: 0 12px;
   border-radius: 999px; overflow: hidden; background: var(--bg-canvas, var(--color-surface)); border: 1px solid var(--border-subtle, var(--color-border));
@@ -1335,9 +1336,20 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .sources-add-btn:active { transform: scale(0.95); }
 .sources-add-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
 
-/* ---- Smart toolbar ---- */
-.sources-toolbar { display: flex; align-items: center; justify-content: space-between; height: 28px; flex: none; margin-top: -4px; }
-.sources-toolbar-left { display: flex; align-items: center; gap: 2px; }
+/* ---- Clean Toolbar Below Search (Figma Alignment & Slicing Fix) ---- */
+.sources-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  box-sizing: border-box !important;
+  flex: none !important;
+  margin: 4px 0 !important;
+  padding: 0 14px !important;
+}
+.sources-toolbar-left { display: flex; align-items: center; gap: 6px; }
 .sources-tool-btn {
   position: relative; width: 28px; height: 28px; display: grid; place-items: center; padding: 0; border: 0; border-radius: 7px; cursor: pointer;
   background: transparent; color: var(--color-text-muted); transition: background-color 0.15s ease, color 0.15s ease;
@@ -1345,8 +1357,8 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .sources-tool-btn:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
 .sources-tool-btn.is-active { color: var(--color-accent); background: var(--color-accent-soft, var(--color-surface-hover)); }
 .sources-tool-btn:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 1px; }
-.sources-select-all { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-secondary); cursor: pointer; user-select: none; }
-.sources-select-all .source-row-checkbox { margin: 0; width: 16px; height: 16px; border-radius: 5px; }
+.sources-select-all { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; user-select: none; }
+.sources-select-all .source-row-checkbox { margin: 0; width: 16px; height: 16px; border-radius: 4px; }
 .sources-sort { position: relative; }
 .sources-sort-menu {
   position: absolute; top: calc(100% + 4px); left: 0; z-index: 70; min-width: 140px; padding: 4px; border-radius: 8px;
@@ -1371,9 +1383,84 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .sources-toolbar [data-tip]::after { top: calc(100% + 6px); left: 0; }
 [data-tip]:hover::after, [data-tip]:focus-visible::after { opacity: 1; transition-delay: 0.35s; }
 
-/* ---- Source rows: icon, name, page badge ---- */
-.workspace-layout .source-row .source-row-pages {
-  padding: 1px 6px; border-radius: 999px; background: var(--color-surface-hover); font-size: 10.5px; line-height: 1.4;
+/* ---- Source rows: Figma Grid & Inset Alignment ---- */
+.workspace-layout .source-row,
+.workspace-layout .workspace-sources-rail .source-row {
+  padding: 0 14px !important;
+  height: 36px !important;
+  min-height: 36px !important;
+  max-height: 36px !important;
+  box-sizing: border-box !important;
+  display: grid !important;
+  grid-template-columns: 20px minmax(0, 1fr) 26px 16px !important;
+  gap: 8px !important;
+  align-items: center !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  transition: background-color 0.12s ease !important;
+}
+.workspace-layout .source-row:hover,
+.workspace-layout .workspace-sources-rail .source-row:hover {
+  background: rgba(0, 0, 0, 0.04) !important;
+}
+:root[data-theme="dark"] .workspace-layout .source-row:hover,
+:root[data-theme="dark"] .workspace-layout .workspace-sources-rail .source-row:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+}
+.workspace-layout .source-row .source-type-badge {
+  width: 20px !important;
+  height: 20px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex: none !important;
+  background: transparent !important;
+}
+.workspace-layout .source-row .source-row-main {
+  display: flex !important;
+  align-items: center !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+}
+.workspace-layout .source-row .source-row-title {
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  color: var(--color-text-primary, #18181B) !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+  width: 100% !important;
+}
+.workspace-layout .source-row .source-row-more {
+  width: 26px !important;
+  height: 26px !important;
+  min-width: 26px !important;
+  padding: 0 !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 6px !important;
+  border: none !important;
+  background: transparent !important;
+  color: var(--color-text-muted, #71717A) !important;
+  cursor: pointer !important;
+}
+.workspace-layout .source-row .source-row-more:hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: var(--color-text-primary, #18181B) !important;
+}
+:root[data-theme="dark"] .workspace-layout .source-row .source-row-more:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #FFFFFF !important;
+}
+.workspace-layout .source-row .source-row-checkbox {
+  width: 16px !important;
+  height: 16px !important;
+  min-width: 16px !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  justify-self: end !important;
 }
 
 /* ---- Collapsed 52px vertical studio rail ---- */
@@ -1474,9 +1561,6 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .source-row-checkbox:disabled { opacity: 0.45; cursor: not-allowed; }
 .workspace-layout .source-row-checkbox:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
 
-/* Same right edge for Select all and every row checkbox */
-.workspace-layout .sources-toolbar { padding: 0 6px 0 2px; }
-.workspace-layout .source-row { padding: 0 6px 0 6px; box-shadow: none; }
 
 /* Single-layer search; flat add button */
 .workspace-layout .sources-search, .workspace-layout label.rail-find {
@@ -1875,7 +1959,6 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 /* ---- Polish ---- */
 .workspace-context-panel, .workspace-context-panel:focus, .workspace-context-panel:focus-visible,
 .study-panel, .study-panel:focus, .study-panel:focus-visible { outline: none !important; box-shadow: none !important; }
-.workspace-layout .sources-toolbar, .workspace-layout .workspace-sources-rail .source-row { padding-right: 12px; }
 
 /* ============================================================
    Note toolbar: one row, always; tooltips anchored away from panel edges

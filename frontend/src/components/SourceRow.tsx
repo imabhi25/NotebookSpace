@@ -168,9 +168,6 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         <span className="source-row-title" title={`${shownTitle} · ${info.label}${isReady ? ` · ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}` : s.status === 'failed' ? ` · ${s.error_message || 'Failed'}` : ''}`}>
           {shownTitle}
         </span>
-        {isReady && typeof s.page_count === 'number' && s.page_count > 0 && (
-          <span className="source-page-badge" aria-hidden="true">{s.page_count}p</span>
-        )}
         <span className="sr-only">
           {info.label}{isReady ? `, ${s.page_count} ${s.page_count === 1 ? 'page' : 'pages'}, ready` : s.status === 'failed' ? `, failed: ${s.error_message || 'failed'}` : ''}
         </span>
