@@ -1905,7 +1905,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .context-slot aside.workspace-context-panel .right-panel-body:not(:has(.studio-note)),
 .workspace-layout .workspace-context-panel .right-panel-body:not(:has(.studio-note)),
 .workspace-layout .study-panel .right-panel-body:not(:has(.studio-note)) {
-  padding: 14px !important;
+  padding: 12px !important;
   box-sizing: border-box !important;
 }
 .workspace-layout .context-slot aside.workspace-context-panel {
@@ -3438,6 +3438,16 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 /* ============================================================
    Panel 3 (Study / Notes): Identical Full-Height Stretch & Surface to Panel 1 (Sources)
    ============================================================ */
+.workspace-layout .nav-slot,
+.workspace-layout .context-slot {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 .workspace-layout .study-panel,
 .workspace-layout .context-slot aside.workspace-context-panel {
   height: 100% !important;
@@ -3448,8 +3458,8 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   flex-direction: column !important;
   margin: 0 !important;
   top: 0 !important;
-  background: var(--color-bg-surface, var(--color-surface)) !important;
-  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
   border-radius: 14px !important;
   box-shadow: none !important;
   box-sizing: border-box !important;
@@ -3457,6 +3467,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 }
 :root[data-theme="dark"] .workspace-layout .study-panel,
 :root[data-theme="dark"] .workspace-layout .context-slot aside.workspace-context-panel {
+  background: #181A20 !important;
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
@@ -3471,8 +3482,14 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   align-items: center !important;
   justify-content: space-between !important;
   gap: 8px !important;
-  padding: 0 14px !important;
+  padding: 0 12px !important;
   border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08)) !important;
+  border-top: none !important;
+  border-left: none !important;
+  border-right: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
 }
 .sources-panel-header,
 .workspace-layout .workspace-sources-rail .rail-header {
@@ -3496,8 +3513,30 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 
 .workspace-layout .study-panel .right-panel-body,
 .workspace-layout .study-panel-body,
+.workspace-layout .context-slot aside.workspace-context-panel .right-panel-body,
+.workspace-layout .study-panel .notes-list-scroll,
+.workspace-layout .context-slot aside.workspace-context-panel .notes-list-scroll,
+.workspace-layout .study-panel .notes-list-shell,
+.workspace-layout .context-slot aside.workspace-context-panel .notes-list-shell,
+.workspace-layout .study-panel .notes-empty,
+.workspace-layout .context-slot aside.workspace-context-panel .notes-empty,
+.workspace-layout .study-panel .study-card,
+.workspace-layout .study-panel .study-panel-inner,
+.workspace-layout .study-panel .study-panel-content,
+.study-panel-body,
+.study-panel-inner,
+.study-panel-content {
+  border: none !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  background: transparent !important;
+}
+
+.workspace-layout .study-panel .right-panel-body,
+.workspace-layout .study-panel-body,
 .workspace-layout .context-slot aside.workspace-context-panel .right-panel-body {
-  padding: 12px 14px !important;
+  padding: 12px !important;
   flex: 1 1 auto !important;
   display: flex !important;
   flex-direction: column !important;
@@ -3526,6 +3565,110 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   gap: 6px !important;
   padding: 24px 20px !important;
   margin: auto 0 !important;
+}
+
+.workspace-layout .study-panel .notes-top-bar,
+.study-panel .notes-top-bar {
+  display: flex !important;
+  align-items: center !important;
+  width: 100% !important;
+  margin: 0 0 10px !important;
+  padding: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.workspace-layout .notes-new-pill,
+.study-panel .notes-new-pill {
+  width: 100% !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  max-height: 34px !important;
+  border-radius: 8px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  box-sizing: border-box !important;
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+  color: #18181B !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  cursor: pointer !important;
+  transition: background-color 0.15s ease, border-color 0.15s ease !important;
+}
+.workspace-layout .notes-new-pill:hover,
+.study-panel .notes-new-pill:hover {
+  background: #F4F4F5 !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  color: #000000 !important;
+  transform: none !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05) !important;
+}
+:root[data-theme="dark"] .workspace-layout .notes-new-pill,
+:root[data-theme="dark"] .study-panel .notes-new-pill {
+  background: #181A20 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #F4F4F5 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+:root[data-theme="dark"] .workspace-layout .notes-new-pill:hover,
+:root[data-theme="dark"] .study-panel .notes-new-pill:hover {
+  background: #22252C !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
+}
+
+.workspace-layout .workspace-note-item,
+.study-panel .workspace-note-item {
+  width: 100% !important;
+  box-sizing: border-box !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  border-radius: 10px !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03) !important;
+  background: #FFFFFF !important;
+  margin: 0 0 8px !important;
+  padding: 12px !important;
+}
+.workspace-layout .workspace-note-item:hover,
+.study-panel .workspace-note-item:hover {
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05) !important;
+  transform: none !important;
+}
+:root[data-theme="dark"] .workspace-layout .workspace-note-item,
+:root[data-theme="dark"] .study-panel .workspace-note-item {
+  background: #181A20 !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
+}
+:root[data-theme="dark"] .workspace-layout .workspace-note-item:hover,
+:root[data-theme="dark"] .study-panel .workspace-note-item:hover {
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4) !important;
+}
+
+.workspace-layout aside.workspace-nav.workspace-sources-rail,
+.workspace-layout .sources-panel,
+.workspace-layout .workspace-main-area,
+.workspace-layout .workspace-center,
+.workspace-layout .study-panel,
+.workspace-layout .context-slot aside.workspace-context-panel {
+  box-shadow: none !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+:root[data-theme="dark"] .workspace-layout aside.workspace-nav.workspace-sources-rail,
+:root[data-theme="dark"] .workspace-layout .sources-panel,
+:root[data-theme="dark"] .workspace-layout .workspace-main-area,
+:root[data-theme="dark"] .workspace-layout .workspace-center,
+:root[data-theme="dark"] .workspace-layout .study-panel,
+:root[data-theme="dark"] .workspace-layout .context-slot aside.workspace-context-panel {
+  border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
 /* ===== Add sources modal: Midnight Navy refresh ===== */

@@ -46,8 +46,8 @@ const NAV_PREF_KEY = 'notebookspace_nav_open';
 const CONTEXT_PREF_KEY = 'notebookspace_context_open';
 const NAV_W_KEY = 'notebookspace_nav_w';
 const CTX_W_KEY = 'notebookspace_ctx_w';
-const NAV_W = { def: 280, min: 220, max: 440, snap: 130 };
-const CTX_W = { def: 340, min: 280, max: 540, snap: 180, note: 420 };
+const NAV_W = { def: 260, min: 210, max: 400, snap: 130 };
+const CTX_W = { def: 360, min: 280, max: 520, snap: 160, note: 420 };
 // Narrower desktops keep all three columns comfortable: a slimmer default and note width below 1280px.
 const narrowDesktop = () => typeof window !== 'undefined' && window.innerWidth < 1280;
 const ctxDefault = () => (narrowDesktop() ? 340 : CTX_W.def);
@@ -342,6 +342,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       }
       width = clampW(raw, cfg.min, cfg.max);
       rootRef.current?.style.setProperty(varName, `${width}px`);
+      if (side === 'right') {
+        rootRef.current?.style.setProperty('--study-panel-width', `${width}px`);
+      }
     };
     const done = () => {
       window.removeEventListener('pointermove', move);
@@ -367,6 +370,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (side === 'left') { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); setNavCollapsed(false); }
     else { setCtxW(ctxDefault()); writeWidth(CTX_W_KEY, ctxDefault()); setContextCollapsed(false); }
     rootRef.current?.style.removeProperty(side === 'left' ? '--nav-w' : '--ctx-w');
+    if (side === 'right') {
+      rootRef.current?.style.removeProperty('--study-panel-width');
+    }
   };
   const nudgeWidth = (side: 'left' | 'right') => (e: React.KeyboardEvent) => {
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
