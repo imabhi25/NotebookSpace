@@ -264,8 +264,13 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(screen.getByTestId('nav-new-session')).toBeVisible();
   });
 
-  it('keeps the study panel docked beside the conversation at 1024px', () => {
+  it('starts Sources and Notes as closed drawers at 1024px and below, docked above it', () => {
     window.innerWidth = 1024;
+    const { unmount } = render(workspace());
+    expect(studyToggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'false');
+    unmount();
+    window.innerWidth = 1025;
     render(workspace());
     expect(studyToggle()).toHaveAttribute('aria-expanded', 'true');
     expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'true');

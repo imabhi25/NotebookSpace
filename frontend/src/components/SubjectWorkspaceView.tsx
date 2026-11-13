@@ -271,8 +271,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // --------------------------------------------------------------------------
   // LAYOUT STATE: Independently Collapsible Side Panels
   // --------------------------------------------------------------------------
-  const compactViewport = () => typeof window !== 'undefined' && window.innerWidth <= 960;
-  const overlayViewport = () => typeof window !== 'undefined' && window.innerWidth <= 960;
+  const compactViewport = () => typeof window !== 'undefined' && window.innerWidth <= 1024;
+  const overlayViewport = () => typeof window !== 'undefined' && window.innerWidth <= 1024;
   const [isCompact, setIsCompact] = useState(compactViewport);
   // Navigation (left) and materials (right) collapse independently. Where they are docked the
   // choice is remembered; where they are overlays they always start closed.
@@ -324,9 +324,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
     onStopGeneration?.();
   };
-  // The study panel stays docked beside the conversation above 960px; at 960px and below it is an on-demand overlay drawer.
-  // Navigation becomes a drawer at 960px and below.
-  const isContextOverlay = useMediaQuery('(max-width: 960px)', overlayViewport());
+  // The study panel stays docked beside the conversation above 1024px; at 1024px and below it is an on-demand overlay drawer.
+  // Navigation becomes a drawer at 1024px and below.
+  const isContextOverlay = useMediaQuery('(max-width: 1024px)', overlayViewport());
   const resizingRef = useRef(false);
   // Reopening a closed panel always starts from its default width, not the squeezed one it was closed at.
   const resetNavWidth = () => { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); rootRef.current?.style.setProperty('--nav-w', `${NAV_W.def}px`); };
@@ -1020,7 +1020,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (isCreateNoteOpen && contextView === 'notes') {
       if (noteWidthRestore.current === null && ctxW < ctxNoteWidth()) { noteWidthRestore.current = ctxW; setCtxW(ctxNoteWidth()); }
       // On <=1420px desktops the note editor would squeeze the chat, so Sources folds to its rail (not remembered).
-      if (window.innerWidth <= 1420 && window.innerWidth > 960 && !isNavCollapsed && !navAutoCollapsed.current) {
+      if (window.innerWidth <= 1420 && window.innerWidth > 1024 && !isNavCollapsed && !navAutoCollapsed.current) {
         navAutoCollapsed.current = true; setNavCollapsed(true, false);
       }
     } else if (noteWidthRestore.current !== null) {

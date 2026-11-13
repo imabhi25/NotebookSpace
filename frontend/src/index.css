@@ -3812,7 +3812,7 @@ button, input[type="file"], .btn {
 /* ==========================================================================
    RESPONSIVE WORKSPACE LAYOUT (Tablets & Mobile)
    ========================================================================== */
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .floating-reopen-btn {
     display: none !important;
   }
