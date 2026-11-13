@@ -121,7 +121,7 @@ export const WorkspaceHeaderMenus: React.FC<WorkspaceHeaderMenusProps> = ({
   const row = (icon: React.ReactNode, text: React.ReactNode, onClick: () => void, o: { disabled?: boolean; danger?: boolean; value?: string } = {}) => (
     <button type="button" role="menuitem" className={`header-menu-item${o.danger ? ' is-danger' : ''}`} disabled={o.disabled} onClick={onClick}>
       {icon}<span className="header-menu-text">{text}</span>
-      {o.value && <span className="header-menu-value">{o.value}</span>}
+      {o.value && <span className="header-menu-value" aria-hidden="true">{o.value}</span>}
     </button>
   );
   return (
