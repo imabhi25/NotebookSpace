@@ -4225,3 +4225,22 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 /* The "more" menu hangs from the right so it never runs off a narrow screen. */
 .workspace-layout .answer-action-toolbar > .answer-sources-anchor:last-child .answer-sources-menu { left: auto; right: 0; }
 .workspace-layout .composer-box-pill .composer-depth-wrap { height: 30px; } .workspace-layout .composer-box-pill .composer-depth { min-height: 30px !important; height: 30px !important; }
+
+/* Answer action row (spec): 4px under the text, Copy glyph flush with the text edge, 28px buttons, 18px icons. */
+.answer-toolbar,
+.workspace-layout .answer-view-container .answer-action-toolbar.answer-action-toolbar {
+  margin-top: 4px !important; margin-bottom: 0 !important; padding: 0 !important; margin-left: -5px !important;
+  display: flex !important; align-items: center !important; gap: 6px !important;
+}
+.answer-toolbar button,
+.workspace-layout .answer-action-toolbar .answer-action-btn.answer-action-btn {
+  width: 28px !important; height: 28px !important; min-width: 28px !important; min-height: 28px !important; padding: 0 !important; margin: 0 !important;
+  border-radius: 7px !important; color: #71717A; background: transparent; border: none;
+  display: inline-flex !important; align-items: center !important; justify-content: center !important;
+  transition: background-color 0.14s ease, color 0.14s ease;
+}
+.answer-toolbar button:hover,
+.workspace-layout .answer-action-toolbar .answer-action-btn.answer-action-btn:hover { background: rgba(0, 0, 0, 0.05) !important; color: #18181B !important; }
+:root[data-theme="dark"] .workspace-layout .answer-action-toolbar .answer-action-btn.answer-action-btn:hover { background: rgba(255, 255, 255, 0.1) !important; color: #FFFFFF !important; }
+.answer-toolbar svg,
+.workspace-layout .answer-action-toolbar .answer-action-btn svg { width: 18px !important; height: 18px !important; }
