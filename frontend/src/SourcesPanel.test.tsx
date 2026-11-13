@@ -208,21 +208,21 @@ describe('Sources panel', () => {
   it('has draggable resize handles that reset on double-click, and starts at the default widths', () => {
     const { container } = render(workspace([src('a', 'Syllabus.pdf')], ['a']));
     const root = container.querySelector<HTMLElement>('.workspace-layout')!;
-    expect(root.style.getPropertyValue('--nav-w')).toBe('260px');
-    expect(root.style.getPropertyValue('--ctx-w')).toBe('360px');
+    expect(root.style.getPropertyValue('--nav-w')).toBe('280px');
+    expect(root.style.getPropertyValue('--ctx-w')).toBe('340px');
     const left = screen.getByRole('separator', { name: 'Resize sources panel' });
     fireEvent.keyDown(left, { key: 'ArrowRight' });
-    expect(root.style.getPropertyValue('--nav-w')).toBe('276px');
+    expect(root.style.getPropertyValue('--nav-w')).toBe('296px');
     fireEvent.doubleClick(left);
-    expect(root.style.getPropertyValue('--nav-w')).toBe('260px');
+    expect(root.style.getPropertyValue('--nav-w')).toBe('280px');
     expect(screen.getByRole('separator', { name: 'Resize study panel' })).toBeInTheDocument();
     expect(left).not.toHaveAttribute('title');
     // A squeezed panel reopens at its default width after being closed.
     fireEvent.keyDown(left, { key: 'ArrowLeft', shiftKey: true });
-    expect(root.style.getPropertyValue('--nav-w')).toBe('212px');
+    expect(root.style.getPropertyValue('--nav-w')).toBe('232px');
     fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
     fireEvent.click(screen.getByRole('button', { name: 'Toggle sources panel' }));
-    expect(root.style.getPropertyValue('--nav-w')).toBe('260px');
+    expect(root.style.getPropertyValue('--nav-w')).toBe('280px');
     expect(study()).toHaveClass('workspace-context-panel');
     expect(study().closest('.context-slot')).not.toHaveClass('is-collapsed');
     expect(panel().closest('.nav-slot')).not.toHaveClass('is-collapsed');

@@ -3623,3 +3623,43 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
     background: #F7F7F8 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 !important;
   }
 }
+
+/* ==========================================================================
+   Resize handles + flat Notes surface (final word).
+   Widths come only from --nav-w / --ctx-w (set inline by SubjectWorkspaceView); defaults 280 / 340.
+   ========================================================================== */
+.workspace-layout { --nav-w: 280px; --ctx-w: 340px; }
+.workspace-layout .panel-resize-handle {
+  width: 10px; z-index: 40; pointer-events: auto; cursor: col-resize;
+}
+.workspace-layout .panel-resize-left.in-panel, .workspace-layout .panel-resize-left.in-slot { right: 0; }
+.workspace-layout .panel-resize-right.in-panel, .workspace-layout .panel-resize-right.in-slot { left: 0; }
+.workspace-layout .panel-resize-left.in-panel::after, .workspace-layout .panel-resize-left.in-slot::after { right: 0; }
+.workspace-layout .panel-resize-right.in-panel::after, .workspace-layout .panel-resize-right.in-slot::after { left: 0; }
+
+/* Source rows: tighter title / menu / checkbox spacing so long filenames get the room. */
+.workspace-layout .source-row,
+.workspace-layout .workspace-sources-rail .source-row,
+.sources-panel .source-row {
+  grid-template-columns: 18px minmax(0, 1fr) 20px 16px !important;
+  gap: 4px !important;
+}
+
+/* NOTES: one flat surface — no card inside the card. */
+.workspace-layout .study-panel .right-panel-body,
+.workspace-layout .study-panel .study-panel-body,
+.workspace-layout .study-panel .notes-list-shell,
+.workspace-layout .study-panel .notes-list-scroll {
+  border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 !important; background: transparent !important;
+}
+.workspace-layout .study-panel .workspace-note-item {
+  box-shadow: none !important; border: 0 !important; border-bottom: 1px solid var(--color-border, rgba(0, 0, 0, 0.08)) !important;
+  border-radius: 8px !important; background: transparent !important; transform: none !important;
+}
+.workspace-layout .study-panel .workspace-note-item:hover { background: rgba(0, 0, 0, 0.04) !important; }
+:root[data-theme="dark"] .workspace-layout .study-panel .workspace-note-item:hover { background: rgba(255, 255, 255, 0.05) !important; }
+.workspace-layout .study-panel .notes-top-bar { display: block; width: 100%; padding: 0; box-sizing: border-box; }
+.workspace-layout .study-panel .notes-new-pill {
+  display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 34px; min-height: 34px;
+  border-radius: 8px !important; box-shadow: none !important; box-sizing: border-box;
+}
