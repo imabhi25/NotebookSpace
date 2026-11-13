@@ -1441,7 +1441,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <div className="workspace-brand" ref={brandRef}>
           <button type="button" className="workspace-logo-btn workspace-back-btn" ref={backButtonRef}
             onClick={onBackToDashboard} title="All notebooks" aria-label="Back to notebooks">
-            <BrandLogo size={22} />
+            <BrandLogo size={24} />
           </button>
         </div>
         <div className="workspace-breadcrumb">
