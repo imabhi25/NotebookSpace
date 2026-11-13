@@ -3690,3 +3690,34 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 :root[data-theme="dark"] .history-new-btn:hover:not(:disabled), :root[data-theme="dark"] .history-row:hover, :root[data-theme="dark"] .history-row.active { background: rgba(255, 255, 255, 0.07); }
 :root[data-theme="dark"] .history-row-title { color: #F4F4F5; }
 :root[data-theme="dark"] .history-row-check { color: #A9C1E4; }
+
+/* ==========================================================================
+   Sources right edge: collapse [◧], add [+], select-all [✓] and every row [✓] share one centerline.
+   Each sits in a 24px slot; every container ends 10px from the panel edge, so glyph centers land 22px in.
+   ========================================================================== */
+.workspace-layout .sources-panel .sources-panel-header,
+.workspace-layout .sources-panel .sources-search-row,
+.workspace-layout .sources-panel .sources-toolbar,
+.workspace-layout .sources-panel .sources-list-scroll { padding-right: 10px !important; box-sizing: border-box; }
+.workspace-layout .sources-panel .workspace-sources-ul { padding-right: 0 !important; }
+.workspace-layout .sources-panel .source-row { padding: 0 !important; }
+.workspace-layout .sources-panel-header .workspace-nav-toggle,
+.workspace-layout .sources-search-row .sources-add-btn {
+  width: 24px !important; height: 24px !important; min-width: 24px !important; padding: 0 !important; margin: 0 !important;
+  display: inline-flex !important; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.workspace-layout .sources-panel-header .workspace-nav-toggle svg,
+.workspace-layout .sources-search-row .sources-add-btn svg { display: block; margin: 0; }
+.workspace-layout .sources-select-all { display: flex; align-items: center; gap: 0; padding: 0; }
+.workspace-layout .sources-select-all .source-row-checkbox {
+  width: 16px !important; height: 16px !important; min-width: 16px; margin: 0 4px !important; flex: none; box-sizing: border-box;
+}
+.workspace-layout .sources-select-all > span { margin-right: 6px; }
+.workspace-layout .sources-panel .source-row,
+.workspace-layout .workspace-sources-rail .source-row {
+  grid-template-columns: 18px minmax(0, 1fr) 20px 24px !important; justify-items: center;
+}
+.workspace-layout .sources-panel .source-row > .source-row-main { justify-self: stretch; }
+.workspace-layout .sources-panel .source-row .source-row-checkbox {
+  width: 16px !important; height: 16px !important; min-width: 16px !important; margin: 0 !important; justify-self: center !important; place-self: center !important;
+}
