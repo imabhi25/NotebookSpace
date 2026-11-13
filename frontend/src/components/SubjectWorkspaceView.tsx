@@ -1875,9 +1875,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       <div key={msg.id} className={`thread-turn turn-${msg.role}`} data-turn-id={msg.id}>
                         {msg.role === 'user' ? (
                           <div className="user-turn-wrapper">
-                            <div className="grounding-status">
-                              ⚡ Grounded on {selectedSourceIds.length > 0 ? selectedSourceIds.length : sources.length} {(selectedSourceIds.length > 0 ? selectedSourceIds.length : sources.length) === 1 ? 'source' : 'sources'} · Verified
-                            </div>
                             <h2 className="question-heading" data-testid="question-heading">{msg.content}</h2>
                           </div>
                         ) : isThisRetrying ? (

@@ -265,7 +265,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
     const bulletMatch = line.match(/^(\s*)[-*•]\s+(.*)$/);
     if (bulletMatch && !/^\s*\*\*/.test(line)) {
       blocks.push(
-        <li key={`li-${i}`} className="md-list-item" style={bulletMatch[1].length >= 2 ? { marginLeft: 16 } : undefined}>
+        <li key={`li-${i}`} className="md-list-item" style={bulletMatch[1].length >= 2 ? { marginLeft: 18 + 16 * Math.floor(bulletMatch[1].length / 2) } : undefined}>
           {renderTextWithCitations(bulletMatch[2], citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}
         </li>
       );
