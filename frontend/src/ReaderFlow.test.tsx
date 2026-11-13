@@ -55,10 +55,11 @@ beforeEach(() => {
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 
 const openReader = async () => {
-  const pill = await screen.findByRole('button', { name: /a\.pdf, page 2/ });
-  pill.focus();
-  fireEvent.click(pill);
-  return pill;
+  const trigger = await screen.findByRole('button', { name: 'Retrieval details' });
+  trigger.focus();
+  fireEvent.click(trigger);
+  fireEvent.click(await screen.findByRole('menuitem', { name: /a\.pdf, page 2/ }));
+  return trigger;
 };
 const reader = () => screen.getByTestId('source-reader');
 const escape = () => act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
@@ -198,8 +199,10 @@ describe('Source reader: replaced and removed sources', () => {
   it('offers only the current version for a replaced source and shows no mark', async () => {
     detail.mockImplementation(async (_s, id) => ({ ...mkSource({ id, version: 2 }), raw_content: raw }));
     render(view([mkSource({ version: 2 })]));
-    expect(screen.queryByRole('button', { name: 'a.pdf, page 2' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Open current version in reader (v2)' }));
+    expect(screen.queryByRole('menuitem', { name: 'a.pdf, page 2' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Retrieval details' }));
+    expect(screen.queryByRole('menuitem', { name: 'a.pdf, page 2' })).toBeNull();
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Open current version in reader (v2)' }));
     await waitFor(() => expect(reader()).toHaveTextContent('Second line of intro.'));
     expect(reader()).toHaveTextContent(/Current version \(v2\), not what the answer used/);
     expect(reader().querySelector('mark.reader-mark')).toBeNull();

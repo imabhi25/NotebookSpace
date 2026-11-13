@@ -71,6 +71,8 @@ function NoteDeleteButton({ variant, label, onConfirm, skipConfirm }: { variant:
   );
 }
 
+// Source tags like [syllabus.pdf p.2] stay out of the reading view; sources are one click away on the Sources icon.
+const stripCitationTags = (text: string) => text.replace(/[ \t]*\[[^\]\n]*?\bp\.\s*\d+[^\]\n]*\]/gi, '').replace(/[ \t]+([.,;:!?])/g, '$1');
 const SAMPLE_TAG = /^\*\*\[Sample Answer\]\*\*\s*/;
 
 const NAV_PREF_KEY = 'notebookspace_nav_open';
@@ -643,68 +645,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
   };
 
-  const getMatchedItemsForMessage = (msg: MessageItem) => {
-    const list: Array<{
-      file: string;
-      title: string;
-      page: number;
-      score: number;
-      citation: Citation;
-    }> = [];
-    const seen = new Set<string>();
-
-    if (msg.citations && msg.citations.length > 0) {
-      msg.citations.forEach((cit) => {
-        const key = `${normalizeFileName(cit.file)}:${cit.page}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-
-        const match = msg.retrieved?.find(
-          (r) =>
-            normalizeFileName(r.file || r.file_name) === normalizeFileName(cit.file) &&
-            (r.page ?? r.page_number) === cit.page
-        );
-        let rawScore = match?.score ?? match?.similarity_score;
-        if (typeof rawScore !== 'number' || isNaN(rawScore)) {
-          rawScore = 0.88;
-        }
-        const normalizedScore = Math.min(1, Math.max(0.2, rawScore > 1 ? rawScore / 1.5 : rawScore));
-        list.push({
-          file: cit.file,
-          title: cit.title || cit.file,
-          page: cit.page,
-          score: normalizedScore,
-          citation: cit,
-        });
-      });
-    } else if (msg.retrieved && msg.retrieved.length > 0) {
-      msg.retrieved.forEach((r) => {
-        const file = r.file || r.file_name || 'Source document';
-        const page = r.page ?? r.page_number ?? 1;
-        const key = `${normalizeFileName(file)}:${page}`;
-        if (seen.has(key)) return;
-        seen.add(key);
-
-        let rawScore = r.score ?? r.similarity_score;
-        if (typeof rawScore !== 'number' || isNaN(rawScore)) rawScore = 0.85;
-        const normalizedScore = Math.min(1, Math.max(0.2, rawScore > 1 ? rawScore / 1.5 : rawScore));
-        list.push({
-          file,
-          title: r.title || file,
-          page,
-          score: normalizedScore,
-          citation: {
-            file,
-            page,
-            source_id: r.source_id,
-            title: r.title,
-          },
-        });
-      });
-    }
-    return list;
-  };
-
   useEffect(() => {
     if (!isSettingsOpen) setSettingsError(null);
   }, [isSettingsOpen]);
@@ -898,6 +838,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // COMMAND PALETTE AND SHORTCUTS (Cmd/Ctrl+K, B and \)
   // --------------------------------------------------------------------------
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [sourcesMenuFor, setSourcesMenuFor] = useState<string | null>(null);
+  useEffect(() => {
+    if (!sourcesMenuFor) return;
+    const onDown = (e: PointerEvent) => { if (!(e.target as Element | null)?.closest?.('[data-sources-menu]')) setSourcesMenuFor(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSourcesMenuFor(null); };
+    document.addEventListener('pointerdown', onDown); document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [sourcesMenuFor]);
   const toggleSourcesPanel = () => (isNavCollapsed ? setNavCollapsed(false) : closeNavPanel());
   const toggleStudyPanel = () => (isContextCollapsed ? setContextCollapsed(false) : closeContextPanel());
   const openNoteEditor = (note: Note | null) => {
@@ -2011,7 +1959,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 {/* Grounded Answer Body */}
                                 <div className="answer-text">
                                   <MarkdownRenderer
-                                    content={(msg.content || '').replace(SAMPLE_TAG, '')}
+                                    content={stripCitationTags((msg.content || '').replace(SAMPLE_TAG, ''))}
                                     citations={msg.citations || []}
                                     isThisMessageSelected={selectedCitation?.messageId === msg.id}
                                     selectedCitation={selectedCitation}
@@ -2019,48 +1967,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     citationState={citationStateOf}
                                   />
                                 </div>
-
-                                {/* Named Citation Pills */}
-                                {msg.citations && msg.citations.length > 0 && (
-                                  <div className="answer-citations-row">
-                                    {msg.citations.map((c, cIdx) => {
-                                      const src = sources.find((s) => s.id === c.source_id || normalizeFileName(s.file_name) === normalizeFileName(c.file));
-                                      const label = src?.title || c.file?.replace(/\.(pdf|md|txt)$/i, '') || 'Source';
-                                      const isSelected = Boolean(
-                                        selectedCitation?.messageId === msg.id &&
-                                        selectedCitation.page === c.page &&
-                                        normalizeFileName(selectedCitation.file) === normalizeFileName(c.file)
-                                      );
-                                      const state = citationStateOf(c);
-                                      if (state === 'removed') {
-                                        return (
-                                          <span
-                                            key={cIdx}
-                                            className="citation-pill-badge is-removed"
-                                            title={`${label} was removed from the notebook`}
-                                            data-testid={`citation-pill-${cIdx}`}
-                                          >
-                                            [{label} p.{c.page} (removed)]
-                                          </span>
-                                        );
-                                      }
-                                      const isReplaced = state === 'replaced';
-                                      return (
-                                        <button
-                                          key={cIdx}
-                                          type="button"
-                                          className={`citation-pill-badge ${isReplaced ? 'is-replaced' : ''} ${isSelected ? 'is-active' : ''}`}
-                                          onClick={() => handleSelectCitation(c, msg.id)}
-                                          aria-label={isReplaced ? `Open current version in reader (v${src?.version})` : `${c.file}, page ${c.page}`}
-                                          data-testid={`citation-pill-${cIdx}`}
-                                          title={isReplaced ? `Open current version of ${label} (v${src?.version}) in reader` : `Open ${label} page ${c.page} in reader`}
-                                        >
-                                          [{label} p.{c.page}{isReplaced ? ` (v${src?.version})` : ''}]
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                )}
 
                                 {/* Cross-Source Evidence Check: several sources, or a flagged contradiction */}
                                 {(() => {
@@ -2073,80 +1979,52 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   ) : null;
                                 })()}
 
-                                {/* Modern-Web Interactive Accordion: "Sources matched" Drawer */}
-                                {(() => {
-                                  const matchedItems = getMatchedItemsForMessage(msg);
-                                  if (matchedItems.length === 0) return null;
-                                  const uniqueFiles = new Set(matchedItems.map((m) => m.file));
-                                  const matchedCount = uniqueFiles.size;
-
-                                  return (
-                                    <details className="sources-matched-drawer" data-testid={`sources-matched-drawer-${msg.id}`}>
-                                      <summary className="sources-matched-summary">
-                                        <span className="sources-matched-pill">
-                                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-                                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-                                          </svg>
-                                          <span>{matchedCount} {matchedCount === 1 ? 'source' : 'sources'} matched</span>
-                                          <svg className="sources-matched-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                            <polyline points="6 9 12 15 18 9" />
-                                          </svg>
-                                        </span>
-                                      </summary>
-                                      <div className="sources-matched-content">
-                                        <div className="sources-matched-list">
-                                          {matchedItems.map((item, iIdx) => {
-                                            const percent = Math.round(item.score * 100);
+                                {/* One quiet icon row, hugging the last line: Copy, Save, Sources, Retry, Remove */}
+                                <div className="answer-action-toolbar">
+                                  <button type="button" className="answer-action-btn" onClick={() => handleCopyAnswer(stripCitationTags(msg.content || ''), msg.id)}
+                                    aria-label="Copy" data-tooltip={copiedMsgId === msg.id ? 'Copied' : 'Copy'}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" /></svg>
+                                  </button>
+                                  <button type="button" className="answer-action-btn" onClick={() => handleSaveToNote(msg)}
+                                    data-tooltip={savedNoteMsgId === msg.id ? 'Saved to notes' : 'Save to notes'} aria-label="Save to note" data-testid={`save-note-btn-${msg.id}`}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" /></svg>
+                                  </button>
+                                  {msg.retrieved && msg.retrieved.length > 0 && (
+                                    <span className="answer-sources-anchor" data-sources-menu>
+                                      <button type="button" className="answer-action-btn" onClick={() => setSourcesMenuFor((id) => (id === msg.id ? null : msg.id))}
+                                        data-tooltip="Sources" aria-label="Retrieval details" aria-haspopup="menu" aria-expanded={sourcesMenuFor === msg.id} data-testid={`see-retrieval-btn-${msg.id}`}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>
+                                      </button>
+                                      {sourcesMenuFor === msg.id && (
+                                        <div className="answer-sources-menu" role="menu" aria-label="Sources for this answer">
+                                          {(msg.citations || []).map((c, cIdx) => {
+                                            const src = sources.find((x) => x.id === c.source_id || normalizeFileName(x.file_name) === normalizeFileName(c.file));
+                                            const label = src?.title || c.file?.replace(/\.(pdf|md|txt)$/i, '') || 'Source';
+                                            const state = citationStateOf(c);
+                                            if (state === 'removed') {
+                                              return (
+                                                <span key={`${c.file}-${c.page}-${cIdx}`} className="answer-sources-item is-removed" title={`${label} was removed from the notebook`}>
+                                                  <span className="answer-sources-item-title">{label}</span><span className="answer-sources-item-page">removed</span>
+                                                </span>
+                                              );
+                                            }
+                                            const isReplaced = state === 'replaced';
                                             return (
-                                              <button
-                                                key={`${item.file}-${item.page}-${iIdx}`}
-                                                type="button"
-                                                className="sources-matched-item"
-                                                onClick={() => handleSelectCitation(item.citation, msg.id)}
-                                                title={`Open ${item.title}, page ${item.page} in reader`}
-                                                data-testid={`matched-source-item-${item.file}-${item.page}`}
-                                              >
-                                                <div className="sources-matched-item-info">
-                                                  <svg className="sources-matched-file-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                                                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                                                    <polyline points="14 2 14 8 20 8" />
-                                                  </svg>
-                                                  <span className="sources-matched-item-title" title={item.file}>{item.title}</span>
-                                                  <span className="sources-matched-item-page">p. {item.page}</span>
-                                                </div>
-                                                <div className="sources-matched-item-relevance">
-                                                  <div className="sources-matched-score-bar" aria-hidden="true">
-                                                    <div className="sources-matched-score-fill" style={{ width: `${percent}%` }} />
-                                                  </div>
-                                                  <span className="sources-matched-score-label">{percent}%</span>
-                                                </div>
+                                              <button key={`${c.file}-${c.page}-${cIdx}`} type="button" role="menuitem" className="answer-sources-item"
+                                                aria-label={isReplaced ? `Open current version in reader (v${src?.version})` : `${c.file}, page ${c.page}`}
+                                                onClick={() => { setSourcesMenuFor(null); handleSelectCitation(c, msg.id); }}>
+                                                <span className="answer-sources-item-title">{label}</span>
+                                                <span className="answer-sources-item-page">{isReplaced ? `v${src?.version}` : `p. ${c.page}`}</span>
                                               </button>
                                             );
                                           })}
+                                          <button type="button" role="menuitem" className="answer-sources-item answer-sources-details"
+                                            onClick={() => { setSourcesMenuFor(null); handleSeeRetrieval(msg.id); }}>Retrieval details</button>
                                         </div>
-                                      </div>
-                                    </details>
-                                  );
-                                })()}
-
-                                {/* Restrained Answer Actions (Copy, Save to Note, Retry, Remove turn) */}
-                                <div className="answer-action-toolbar">
-                                  <button
-                                    type="button"
-                                    className="answer-action-btn"
-                                    onClick={() => handleCopyAnswer(msg.content, msg.id)}
-                                    aria-label="Copy"
-                                    data-tooltip={copiedMsgId === msg.id ? 'Copied' : 'Copy'}
-                                  >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
-                                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    type="button"
-                                    className="answer-action-btn"
+                                      )}
+                                    </span>
+                                  )}
+                                  <button type="button" className="answer-action-btn"
                                     onClick={() => {
                                       const msgIdx = messages.findIndex((m) => m.id === msg.id);
                                       const prevUser = [...messages.slice(0, msgIdx)].reverse().find((m) => m.role === 'user');
@@ -2155,54 +2033,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                         onSendMessage(prevUser.content, { is_retry: true, retry_message_id: msg.id });
                                       }
                                     }}
-                                    aria-label="Retry question"
-                                    data-tooltip="Retry"
-                                    data-testid={`retry-btn-${msg.id}`}
-                                  >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
-                                      <polyline points="1 4 1 10 7 10" />
-                                      <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-                                    </svg>
+                                    aria-label="Retry question" data-tooltip="Retry" data-testid={`retry-btn-${msg.id}`}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="answer-action-btn"
-                                    onClick={() => handleSaveToNote(msg)}
-                                    data-tooltip={savedNoteMsgId === msg.id ? 'Saved to notes' : 'Save to notes'}
-                                    aria-label="Save to note"
-                                    data-testid={`save-note-btn-${msg.id}`}
-                                  >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
-                                      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-                                    </svg>
-                                  </button>
-                                  {msg.retrieved && msg.retrieved.length > 0 && (
-                                    <button
-                                      type="button"
-                                      className="answer-action-btn"
-                                      onClick={() => handleSeeRetrieval(msg.id)}
-                                      data-tooltip="Retrieval details"
-                                      aria-label="Retrieval details"
-                                      data-testid={`see-retrieval-btn-${msg.id}`}
-                                    >
-                                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
-                                        <circle cx="11" cy="11" r="8" />
-                                        <line x1="21" y1="21" x2="16.65" y2="16.65" />
-                                      </svg>
-                                    </button>
-                                  )}
-                                  <button
-                                    type="button"
-                                    className="answer-action-btn delete-turn-btn"
-                                    onClick={() => onDeleteMessage?.(msg.id)}
-                                    aria-label="Remove turn"
-                                    data-tooltip="Remove turn"
-                                    data-testid={`delete-turn-btn-${msg.id}`}
-                                  >
-                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
-                                      <polyline points="3 6 5 6 21 6" />
-                                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                    </svg>
+                                  <button type="button" className="answer-action-btn delete-turn-btn" onClick={() => onDeleteMessage?.(msg.id)}
+                                    aria-label="Remove turn" data-tooltip="Remove turn" data-testid={`delete-turn-btn-${msg.id}`}>
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
                                   </button>
                                 </div>
                               </div>
