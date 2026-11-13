@@ -1765,7 +1765,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             {!isNavCollapsed && resizeHandle('left', true)}
             <div className="rail-header">
               <div className="rail-title-group">
-                <span className="workspace-tag">{subject.name}</span>
                 <h2 className="rail-title">Sources<span className="sr-only"> ({sources.length})</span></h2>
                 <span className="rail-count-pill" aria-hidden="true">{sources.length}</span>
               </div>
@@ -1816,12 +1815,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               {sources.length > 0 && (
                 <div className="sources-toolbar">
                   <div className="sources-toolbar-left">
-                    <span className="sources-toolbar-title">Sources</span>
-                    {selectedSourceIds.length > 0 && (
-                      <button type="button" className="sources-clear-btn" onClick={() => onSelectSources([])} aria-label="Clear selection">
-                        Clear
-                      </button>
-                    )}
                     <button type="button" className={`sources-tool-btn ${autoRename ? 'is-active' : ''}`} onClick={toggleAutoRename}
                       aria-label={autoRename ? 'Restore original filenames' : 'Clean up source titles'} aria-pressed={autoRename} data-tip={autoRename ? 'Restore original filenames' : 'Clean up source titles'}>
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
