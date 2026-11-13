@@ -1561,10 +1561,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         </div>
         <div className="workspace-top-right workspace-essential-actions" ref={actionsRef}>
           <BackendStatus className="backend-status-bar" />
-          <button type="button" className="workspace-history-btn" onClick={() => setPaletteOpen(true)} aria-label="Search and commands"
-            title={`Search and commands (${shortcutLabel('K')})`} aria-haspopup="dialog" data-testid="open-command-palette">
+          <div className="header-menu-root palette-root">
+          <button type="button" className="workspace-history-btn" onClick={() => setPaletteOpen((o) => !o)} aria-label="Search and commands"
+            title={`Search and commands (${shortcutLabel('K')})`} aria-haspopup="dialog" aria-expanded={paletteOpen} data-palette-trigger data-testid="open-command-palette">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><span>Search</span><kbd className="workspace-kbd" aria-hidden="true">{shortcutLabel('K')}</kbd>
           </button>
+          {paletteOpen && <CommandPalette items={buildPaletteItems()} onClose={() => setPaletteOpen(false)} />}
+          </div>
           <div className="header-menu-root" ref={historyRootRef}>
             <button type="button" ref={historyBtnRef} className="workspace-history-btn" onClick={() => setHistoryOpen((o) => !o)} aria-label="Conversation history" title="Conversation history" aria-haspopup="dialog" aria-expanded={historyOpen}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 119 10M3 4v7h7M12 7v5l3 2"/></svg>
@@ -2536,7 +2539,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
       </div>
 
-      {paletteOpen && <CommandPalette items={buildPaletteItems()} onClose={() => setPaletteOpen(false)} />}
 
       {/* ======================================================================
           MODALS: Add Source, View Source, Rename Source, Note, Settings

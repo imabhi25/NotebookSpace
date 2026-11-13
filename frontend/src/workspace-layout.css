@@ -4118,3 +4118,28 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 @container study-panel (max-width: 390px) {
   .studio-note .note-toolbar { flex-wrap: wrap !important; row-gap: 4px; }
 }
+
+/* ==========================================================================
+   Command palette as an anchored popover under the Search button (no scrim, no blur).
+   ========================================================================== */
+.workspace-layout .palette-root { position: relative; }
+.workspace-layout .palette-root .command-palette {
+  position: absolute; top: calc(100% + 8px); right: 0; left: auto; z-index: 70;
+  width: 380px; max-width: calc(100vw - 24px); max-height: none;
+  background: #FFFFFF; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 14px;
+  box-shadow: 0 14px 40px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+:root[data-theme="dark"] .workspace-layout .palette-root .command-palette { background: #1B1D21; border-color: rgba(255, 255, 255, 0.08); box-shadow: 0 14px 40px rgba(0, 0, 0, 0.5); }
+.workspace-layout .palette-root .command-palette-search { min-height: 48px; padding: 0 14px; }
+/* Bounded list with even padding, so a trailing section header never sits against the footer. */
+.workspace-layout .palette-root .command-palette-list { max-height: 340px; padding: 6px 6px 10px; scroll-padding: 6px 0 12px; }
+.workspace-layout .palette-root .command-palette-list > li:last-child { margin-bottom: 4px; }
+@media (max-width: 640px) {
+  .workspace-layout .header-menu-root.palette-root { position: static; }
+  .workspace-layout .palette-root .command-palette { position: fixed; top: 141px; left: 12px; right: 12px; width: auto; max-width: none; }
+  .workspace-layout .palette-root .command-palette-list { max-height: min(340px, 52dvh); }
+}
+/* A section header cut by the scroll edge fades out instead of peeking above the footer. */
+.workspace-layout .palette-root .command-palette-list {
+  -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
+}

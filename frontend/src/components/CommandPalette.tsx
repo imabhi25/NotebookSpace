@@ -28,6 +28,18 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ items, onClose }
   const listRef = useRef<HTMLUListElement>(null);
   const baseId = useId();
 
+  // No scrim: a press anywhere outside the popover (and its trigger, which toggles it) closes it.
+  useEffect(() => {
+    const onDown = (e: PointerEvent) => {
+      const t = e.target as Node | null;
+      if (!t || dialogRef.current?.contains(t)) return;
+      if ((t as HTMLElement).closest?.('[data-palette-trigger]')) return;
+      onClose();
+    };
+    document.addEventListener('pointerdown', onDown, true);
+    return () => document.removeEventListener('pointerdown', onDown, true);
+  }, [onClose, dialogRef]);
+
   const results = useMemo(() => rankCommands(items, query), [items, query]);
   useEffect(() => { setActive(0); }, [query]);
   const current = results[Math.min(active, results.length - 1)];
@@ -65,8 +77,8 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ items, onClose }
   let lastGroup = '';
 
   return (
-    <div className="command-palette-backdrop modal-backdrop" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="true" aria-label="Command palette" className="command-palette" data-testid="command-palette">
+    <>
+      <div ref={dialogRef} tabIndex={-1} role="dialog" aria-modal="false" aria-label="Command palette" className="command-palette" data-testid="command-palette">
         <div className="command-palette-search">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
             <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
@@ -115,6 +127,6 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ items, onClose }
         </div>
         <div className="sr-only" role="status" aria-live="polite">{results.length ? `${results.length} results` : 'No results'}</div>
       </div>
-    </div>
+    </>
   );
 };
