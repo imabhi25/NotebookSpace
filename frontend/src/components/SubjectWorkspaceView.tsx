@@ -1,4 +1,3 @@
-import { ReferenceIcon } from './ReferenceIcon';
 import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect, useLayoutEffect, useRef, startTransition } from 'react';
 import { yieldToMain } from '../yieldToMain';
@@ -101,15 +100,11 @@ function writePanelPref(key: string, open: boolean): void {
   }
 }
 
-/** A starter prompt as shown on a card: raw file names become the source's title (or a tidied name), on one line. */
-function cleanStarter(question: string, sources: Source[]): string {
-  const byFile = new Map(sources.map((src) => [src.file_name.toLowerCase(), src.title]));
-  return question.replace(/[\w][\w .-]*?\.(?:pdf|md|markdown|txt)\b/gi, (name) => {
-    const hit = byFile.get(name.trim().toLowerCase());
-    if (hit) return hit;
-    return name.trim().replace(/\.[a-z]+$/i, '').replace(/[_-]+/g, ' ');
-  }).replace(/\s+/g, ' ').trim();
-}
+const STARTER_PROMPTS = [
+  'Summarize key policies & grading',
+  'Check for updates or conflicts',
+  'Outline main topics to study',
+];
 
 /** Notebook title that reads as plain text until clicked, then edits in place. Enter/blur saves, Escape cancels. */
 const NotebookTitle: React.FC<{ name: string; onRename?: (name: string) => Promise<void>; editSignal?: number }> = ({ name, onRename, editSignal = 0 }) => {
@@ -154,7 +149,8 @@ interface SubjectWorkspaceViewProps {
   notes: Note[];
   activeConversationId?: string | null;
   selectedSourceIds: string[];
-  starterQuestions: string[];
+  /** Kept for callers; the empty chat shows a fixed set of study prompts. */
+  starterQuestions?: string[];
   isDemoMode: boolean;
   currentUser?: User | null;
   onBackToDashboard: () => void;
@@ -216,7 +212,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   onSelectConversation,
   onCreateConversation,
   selectedSourceIds,
-  starterQuestions,
   isDemoMode,
   onBackToDashboard,
   onSelectSources,
@@ -1631,15 +1626,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               )}
 
               {sources.length === 0 ? (
-                <button type="button" className="sources-drop-zone" onClick={() => setIsAddSourceOpen(true)} data-testid="sources-drop-zone">
-                  <svg className="sources-drop-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                    <polyline points="17 8 12 3 7 8" />
-                    <line x1="12" y1="3" x2="12" y2="15" />
+                <div className="sources-empty" data-testid="sources-drop-zone">
+                  <svg className="sources-empty-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" />
                   </svg>
-                  <span className="sources-drop-title">Drop PDFs here or click to browse</span>
-                  <span className="sources-drop-hint">PDFs, links, pasted text</span>
-                </button>
+                  <p className="sources-empty-title">Saved sources will appear here</p>
+                  <p className="sources-empty-hint">Add PDFs, Markdown notes, or web pages to ground your answers.</p>
+                  <button type="button" className="sources-empty-link" onClick={() => setIsAddSourceOpen(true)}>add a source</button>
+                </div>
               ) : (
                 <>
                   <p className="sr-only" aria-live="polite">{selectedSourceIds.length} of {readySources.length} selected</p>
@@ -1711,57 +1705,37 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             </div>
           ) : sources.length === 0 ? (
             <div className="empty-state-scroll-container">
-              <div className="empty-state-centered-box workspace-zero-sources-box source-onboarding">
-                <div className="source-onboarding-mark"><ReferenceIcon name="file" size={24} /></div>
-                <div className="source-onboarding-intro">
-                  <p className="source-onboarding-eyebrow">YOUR {subject.name} NOTEBOOK</p>
-                  <h1 className="empty-state-heading" data-testid="empty-state-heading">Make room for understanding.</h1>
-                  <p className="empty-state-subtext">Bring your materials. Connect the ideas. Find answers you can trace back to the source.</p>
-                </div>
-                <div className="source-onboarding-upload">
-                  <div className="source-onboarding-upload-row">
-                    <span className="source-onboarding-upload-icon"><ReferenceIcon name="upload" size={22} /></span>
-                    <div><h2>Start with a source</h2><p>PDFs, lecture slides, readings, and more</p></div>
-                    <button type="button" className="btn btn-primary" onClick={() => openSourceEntry('upload')} data-testid="add-first-source-btn">+ Add source</button>
-                  </div>
-                  <p className="source-onboarding-hint">Add your first source to start a conversation grounded in your materials.</p>
-                </div>
-                <div className="source-onboarding-alternatives">
-                  <button type="button" onClick={() => openSourceEntry('url')}><ReferenceIcon name="globe" /><span><strong>Paste a link</strong><small>Articles &amp; web pages</small></span><span aria-hidden="true">↗</span></button>
-                  <button type="button" onClick={() => openSourceEntry('paste')}><ReferenceIcon name="text" /><span><strong>Add text</strong><small>Notes &amp; copied content</small></span><span aria-hidden="true">↗</span></button>
+              <div className="study-intro workspace-zero-sources-box" data-testid="zero-sources-state">
+                <BrandLogo size={28} />
+                <h1 className="study-intro-heading" data-testid="empty-state-heading">Start your study space</h1>
+                <p className="study-intro-sub">Bring your course PDFs, lecture notes, or handouts to ask grounded questions and keep track of study notes.</p>
+                <div className="study-card-grid" role="group" aria-label="Add sources">
+                  <button type="button" className="study-card" onClick={() => openSourceEntry('upload')} data-testid="add-first-source-btn">
+                    <span>Upload PDFs or notes</span><span className="study-card-arrow" aria-hidden="true">→</span>
+                  </button>
+                  <button type="button" className="study-card" onClick={() => openSourceEntry('paste')}>
+                    <span>Paste lecture text</span><span className="study-card-arrow" aria-hidden="true">→</span>
+                  </button>
+                  <button type="button" className="study-card" onClick={() => openSourceEntry('url')}>
+                    <span>Import a webpage</span><span className="study-card-arrow" aria-hidden="true">→</span>
+                  </button>
                 </div>
               </div>
             </div>
           ) : messages.length === 0 ? (
             <div className="empty-state-scroll-container">
-              <div className="empty-state-centered-box">
-                <div className="empty-state-brand-mark" aria-hidden="true">
-                  <EmptyStateIcon />
-                </div>
-                <h1 className="empty-state-heading" data-testid="empty-state-heading">
-                  What would you like to understand?
-                </h1>
-                <p className="empty-state-subtext">
-                  Ask about your course materials. Every answer starts with your selected sources.
-                </p>
+              <div className="study-intro" data-testid="starter-state">
+                <BrandLogo size={28} />
+                <h1 className="study-intro-heading" data-testid="empty-state-heading">What do you want to study?</h1>
+                <p className="study-intro-sub">Ask a question across your selected sources—answers cite exact pages and flag conflicting updates.</p>
 
-                {/* Starter questions */}
-                {readySources.length > 0 && starterQuestions.length > 0 && (
-                  <div className="starter-chips-container" role="group" aria-label="Starter questions">
-                    {starterQuestions.slice(0, 3).map((sq, idx) => {
-                      const text = cleanStarter(sq, sources);
-                      return (
-                        <button
-                          key={idx}
-                          type="button"
-                          className="starter-chip-btn"
-                          title={text}
-                          onClick={() => onSendMessage(sq)}
-                        >
-                          {text}
-                        </button>
-                      );
-                    })}
+                {readySources.length > 0 && (
+                  <div className="study-card-grid" role="group" aria-label="Starter questions">
+                    {STARTER_PROMPTS.map((q) => (
+                      <button key={q} type="button" className="study-card" onClick={() => onSendMessage(q)}>
+                        <span>{q}</span><span className="study-card-arrow" aria-hidden="true">→</span>
+                      </button>
+                    ))}
                   </div>
                 )}
 
@@ -1777,7 +1751,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                     </button>
                   </div>
                 )}
-
               </div>
             </div>
           ) : (
@@ -2358,10 +2331,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
               <div className="notes-list-scroll">
                 {notes.length === 0 ? (
-                  <button type="button" className="notes-empty-card" onClick={() => openNoteEditor(null)}>
-                    <span className="notes-empty-title">No notes yet</span>
-                    <span className="notes-empty-sub">Save an answer or write your own note.</span>
-                  </button>
+                  <div className="notes-empty">
+                    <svg className="notes-empty-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M5 4h11l3 3v13H5z" /><path d="M9 11h6M9 15h4" />
+                    </svg>
+                    <p className="notes-empty-title">Your notes will appear here</p>
+                    <p className="notes-empty-sub">Save helpful answers or write your own takeaways.</p>
+                  </div>
                 ) : filteredNotes.length === 0 ? (
                   <p className="sidebar-empty-box"><EmptyStateIcon />No notes matching search.</p>
                 ) : (

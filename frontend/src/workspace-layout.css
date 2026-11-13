@@ -3246,3 +3246,31 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 0;
 }
 .workspace-layout .starter-chips-container .starter-chip-btn:hover { background: #F4F4F5; transform: none; box-shadow: none; }
+
+/* ============================================================
+   Empty states: editorial intro with a three-card row
+   ============================================================ */
+.workspace-layout .study-intro { width: 100%; max-width: 680px; margin: auto 0; padding: 32px 24px; text-align: left; display: flex; flex-direction: column; align-items: flex-start; }
+.study-intro .brand-logo-icon { margin-bottom: 16px; }
+.study-intro-heading { margin: 0; font-size: 26px; font-weight: 550; letter-spacing: -0.025em; line-height: 1.2; color: var(--color-text-primary); }
+.study-intro-sub { margin: 10px 0 0; max-width: 560px; font-size: 14.5px; line-height: 1.55; color: var(--color-text-secondary); }
+.study-card-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 24px; width: 100%; }
+.study-card {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 16px; min-height: 108px; padding: 16px;
+  background: #F4F4F5; border: 1px solid rgba(0, 0, 0, 0.05); border-radius: 14px;
+  text-align: left; font: 500 13.5px/1.4 var(--font-family-ui); color: var(--color-text-primary); cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, transform 0.16s ease;
+}
+.study-card:hover { background: #ECEEF2; border-color: rgba(26, 52, 84, 0.16); transform: translateY(-1px); }
+.study-card:focus-visible { outline: 2px solid var(--color-brand-navy); outline-offset: 2px; }
+.study-card-arrow { color: var(--color-text-muted); font-size: 15px; }
+@media (max-width: 640px) { .study-card-grid { grid-template-columns: 1fr; } .study-card { min-height: 0; } }
+@media (prefers-reduced-motion: reduce) { .study-card { transition: none; } .study-card:hover { transform: none; } }
+
+.sources-empty, .notes-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 6px; padding: 32px 20px; color: var(--color-text-muted); }
+.sources-empty { min-height: 220px; flex: 1; }
+.sources-empty-icon, .notes-empty-icon { color: var(--color-text-muted); margin-bottom: 4px; }
+.sources-empty-title, .notes-empty-title { margin: 0; font-size: 13.5px; font-weight: 500; color: var(--color-text-primary); }
+.sources-empty-hint, .notes-empty-sub { margin: 0; max-width: 220px; font-size: 12.5px; line-height: 1.5; color: var(--color-text-muted); }
+.sources-empty-link { margin-top: 6px; padding: 0; border: 0; background: none; font: 500 13px var(--font-family-ui); color: var(--color-brand-navy); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.sources-panel-body.is-drag-over .sources-empty { background: var(--color-accent-soft); border-radius: 12px; }
