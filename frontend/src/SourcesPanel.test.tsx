@@ -156,6 +156,7 @@ describe('Sources panel', () => {
     fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
     fireEvent.click(within(study()).getByText('Heaps'));
     expect(within(study()).queryByRole('button', { name: 'Save' })).toBeNull();
+    expect(within(study()).getByTestId('note-save-status')).toHaveTextContent('✓ Saved');
     const body = within(study()).getByRole('textbox', { name: 'Note body' });
     body.innerHTML = 'Min-heap basics';
     fireEvent.input(body);
