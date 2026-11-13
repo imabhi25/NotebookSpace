@@ -267,8 +267,8 @@ describe('Sources panel', () => {
     expect(screen.queryByRole('complementary', { name: 'Sources' })).toBeNull();
   });
 
-  it('keeps the study panel docked (not an overlay) at 1024px, with a slimmer default width', () => {
-    window.innerWidth = 1024;
+  it('keeps the study panel docked (not an overlay) at 1025px, with a slimmer default width', () => {
+    window.innerWidth = 1025;
     const { container } = render(workspace([src('a', 'Syllabus.pdf')], ['a']));
     expect(screen.getByRole('button', { name: /Toggle study panel/ })).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', { name: 'Toggle sources panel' })).toHaveAttribute('aria-expanded', 'true');

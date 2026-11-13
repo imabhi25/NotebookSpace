@@ -175,7 +175,7 @@
 }
 
 /* ---- Phone and small tablet: study workspace only; navigation is a drawer, materials a bottom sheet ---- */
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .workspace-layout .workspace-control-bar { gap: var(--space-2); }
   .workspace-layout .workspace-essential-actions { gap: var(--space-1); }
   .workspace-layout .workspace-back-btn span { display: inline; }
@@ -307,7 +307,7 @@
   scroll-padding-block: var(--space-4) calc(var(--space-8) + var(--space-4));
   overscroll-behavior: contain;
 }
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .workspace-layout .thread-scroll-container {
     padding-left: max(var(--space-5), env(safe-area-inset-left, 0px));
     padding-right: max(var(--space-5), env(safe-area-inset-right, 0px));
@@ -320,7 +320,7 @@
 
 /* With the on-screen keyboard up on a phone there is little height left: give it to the conversation by hiding
    the dismissible privacy banner, the repeated notebook title and the "sources selected" row until the keyboard closes. */
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   html[data-keyboard="open"] [data-testid="guest-workspace-banner"],
   html[data-keyboard="open"] .workspace-notebook-heading,
   html[data-keyboard="open"] .workspace-chat-context { display: none; }
@@ -401,7 +401,7 @@
   .scope-chip, .scope-link { min-height: var(--target-mobile); }
   .scope-row-label { min-height: var(--target-mobile); }
 }
-@media (max-width: 960px) { .scope-popover { position: fixed; left: var(--space-3); right: var(--space-3); width: auto; bottom: calc(var(--space-16) + env(safe-area-inset-bottom, 0px)); } }
+@media (max-width: 1024px) { .scope-popover { position: fixed; left: var(--space-3); right: var(--space-3); width: auto; bottom: calc(var(--space-16) + env(safe-area-inset-bottom, 0px)); } }
 
 @media (prefers-reduced-motion: reduce) {
   .citation-marker, .scope-chip, .scope-link { transition: none; }
@@ -664,7 +664,7 @@
 .study-row-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .workspace-layout .workspace-note-item { border-radius: 16px; }
 
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .workspace-layout .workspace-control-bar { padding: var(--space-2) var(--space-3); gap: var(--space-2); min-height: 56px; }
   .workspace-brand-name { display: none; }
   .workspace-brand-mark { width: 36px; height: 36px; }
@@ -805,7 +805,7 @@
 @media (max-width: 768px) {
   .workspace-layout .context-slot aside.workspace-context-panel { margin: 0; top: 12px; min-height: 0; max-height: calc(100% - 24px); }
 }
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .workspace-layout .workspace-body { padding: 8px 12px 12px; }
   .workspace-layout aside.workspace-nav.workspace-sources-rail { margin: 0; padding: 0 !important; }
   .workspace-layout .context-slot aside.workspace-context-panel { top: auto; bottom: 8px; margin: 0; }
@@ -844,7 +844,7 @@
 .workspace-layout .study-evidence-body .passage-card { max-height:none; }
 .workspace-history-dialog { max-width:480px; width:calc(100% - 32px); max-height:calc(100dvh - 32px); overflow:auto; }
 .workspace-history-dialog .sessions-view { padding:0 24px 24px; }
-@media(max-width:960px) {
+@media(max-width: 1024px) {
  .workspace-layout .workspace-control-bar { padding:8px 12px; gap:4px; }
  .workspace-history-btn { width:44px; padding:0; justify-content:center; }
  .workspace-history-btn span { display:none; }
@@ -994,7 +994,7 @@
   .workspace-layout .context-slot aside.workspace-context-panel[data-reader] { height: 100%; }
   .workspace-layout .workspace-main-area { padding-inline: var(--space-4); }
 }
-@media (min-width: 961px) {
+@media (min-width: 1025px) {
   .workspace-layout .nav-slot { width: var(--nav-w); }
   .workspace-layout .nav-slot { border-right: 1px solid var(--color-border); }
   .workspace-layout .nav-slot.is-collapsed { border-right-color: transparent; }
@@ -1054,7 +1054,7 @@
   .workspace-layout .context-slot aside.workspace-context-panel .right-panel-body,
   .workspace-layout .context-slot aside.workspace-context-panel .sidebar-tab-content { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
 }
-@media (min-width: 961px) {
+@media (min-width: 1025px) {
   .workspace-layout .nav-slot { width: var(--nav-w); }
   .workspace-layout aside.workspace-nav.workspace-sources-rail {
     height: 100%; margin: 0; padding: 0 !important; border: 0; border-right: 1px solid var(--border-subtle); border-radius: 0; background: transparent;
@@ -1289,7 +1289,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 
 /* Center feed: breathing room, question as a clean title (no white strip) */
 .workspace-layout .thread-scroll-container { padding-top: 28px; padding-inline: 32px; }
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .workspace-layout .thread-scroll-container { padding-inline: max(var(--space-5), env(safe-area-inset-left, 0px)); }
 }
 :root[data-theme] .workspace-layout .user-turn-wrapper {
@@ -1632,7 +1632,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .rail-source-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 .nav-rail-sources [data-tip]::after { left: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
 .nav-expand-rail { overflow: visible; }
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .workspace-layout .nav-slot.is-collapsed { width: 0 !important; }
   .workspace-layout .nav-slot .nav-expand-rail {
     inset: 8px auto auto 8px; width: auto; flex-direction: row; padding: 3px; gap: 4px; background: var(--bg-elevated, var(--color-surface));
@@ -2034,7 +2034,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 }
 .workspace-layout[data-reader] .panel-resize-handle { display: none; }
 @media (max-width: 768px) { .workspace-layout .panel-resize-right { display: none; } }
-@media (max-width: 960px) { .workspace-layout .panel-resize-left { display: none; } }
+@media (max-width: 1024px) { .workspace-layout .panel-resize-left { display: none; } }
 
 /* ---- Note studio v2: header, title row, toolbar, popovers, rich canvas ---- */
 .studio-note .note-editor-bar { padding: 16px 20px 8px; display: flex; justify-content: space-between; align-items: center; }
@@ -2148,7 +2148,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   .workspace-layout .workspace-main-area { background: var(--center-canvas); border: 0; border-radius: 0; box-shadow: none; }
   .workspace-layout .context-slot, .workspace-layout .context-slot aside.workspace-context-panel { background: var(--sidebar-surface); border-color: rgba(0, 0, 0, 0.08); }
 }
-@media (min-width: 961px) {
+@media (min-width: 1025px) {
   .workspace-layout .nav-slot, .workspace-layout aside.workspace-nav.workspace-sources-rail { background: var(--sidebar-surface); border-color: rgba(0, 0, 0, 0.08); }
 }
 :root[data-theme="dark"] .workspace-layout .context-slot,
@@ -3287,7 +3287,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .workspace-history-btn[aria-label="Conversation history"],
 .workspace-layout .workspace-top-icon-btn { width: 32px; height: 32px; min-width: 32px; padding: 0; border: 0; border-radius: 50%; justify-content: center; }
 
-@media (min-width: 961px) {
+@media (min-width: 1025px) {
   .workspace-layout { background: var(--color-bg-subtle, var(--color-desk)); }
   .workspace-layout .workspace-body { padding: 0 12px 12px; gap: 12px; background: var(--color-bg-subtle, var(--color-desk)); }
   .workspace-layout .nav-slot, .workspace-layout .context-slot { padding: 0; }
@@ -3748,7 +3748,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   }
   .workspace-layout .context-slot.is-collapsed aside.workspace-context-panel { opacity: 0; transform: translateX(16px); visibility: hidden; }
 }
-@media (min-width: 961px) {
+@media (min-width: 1025px) {
   .workspace-layout .nav-slot {
     width: var(--nav-w) !important; background: #F7F7F8; border-right: 1px solid rgba(0, 0, 0, 0.07); overflow: hidden;
   }
@@ -3761,7 +3761,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   .workspace-layout .workspace-canvas .context-slot { height: auto !important; max-height: none !important; }
   .workspace-layout .workspace-canvas .context-slot aside.workspace-context-panel { height: 100% !important; max-height: none !important; }
 }
-@media (min-width: 961px) {
+@media (min-width: 1025px) {
   .workspace-layout .workspace-canvas .nav-slot aside.workspace-nav.workspace-sources-rail.sources-panel {
     background: #F7F7F8 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 !important;
   }
@@ -3897,12 +3897,12 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
    Collapsed Sources: the 52px icon rail must keep its column (the unified-shell rule used to zero it,
    leaving the rail covered by the chat and unclickable). Below 961px the rail floats as a pill above the chat.
    ========================================================================== */
-@media (min-width: 961px) {
+@media (min-width: 1025px) {
   .workspace-layout .nav-slot.is-collapsed {
     width: 52px !important; border-right-color: rgba(0, 0, 0, 0.07); overflow: visible; position: relative; z-index: 30;
   }
 }
-@media (min-width: 769px) and (max-width: 960px) {
+@media (min-width: 769px) and (max-width: 1024px) {
   .workspace-layout .nav-slot.is-collapsed { overflow: visible; position: relative; z-index: 30; }
 }
 @media (max-width: 768px) {
@@ -3955,14 +3955,14 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   .workspace-layout .workspace-canvas > .context-slot .context-expand-btn { top: 10px; right: 12px; }
   .workspace-layout.is-resizing .workspace-canvas > .context-slot { transition: none !important; }
 }
-@media (min-width: 961px) {
+@media (min-width: 1025px) {
   .workspace-layout .workspace-canvas > .nav-slot {
     background: #F7F7F8; border: 1px solid rgba(0, 0, 0, 0.08) !important; border-radius: 14px; overflow: hidden; height: 100%;
   }
   .workspace-layout .workspace-canvas > .nav-slot.is-collapsed { width: 52px !important; overflow: visible; }
   .workspace-layout .workspace-canvas > .nav-slot aside.workspace-nav.workspace-sources-rail { border-radius: 0 !important; }
 }
-@media (min-width: 769px) and (max-width: 960px) {
+@media (min-width: 769px) and (max-width: 1024px) {
   /* The Sources drawer floats; its zero-width slot must not add a phantom 12px gap. */
   .workspace-layout .workspace-canvas > .nav-slot { margin-right: -12px; }
 }
@@ -3994,7 +3994,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 :root[data-theme="dark"] .note-delete-confirm { background: rgba(240, 82, 72, 0.14); border-color: #F05248; color: #F8A19B; }
 
 /* Half-window (769-960px): Notes is an on-demand drawer over the right edge, never a third docked column. */
-@media (min-width: 769px) and (max-width: 960px) {
+@media (min-width: 769px) and (max-width: 1024px) {
   .workspace-layout .workspace-canvas > .context-slot {
     position: absolute !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: auto !important;
     height: auto !important; width: min(var(--ctx-w), calc(100% - 24px)) !important; z-index: 41; margin: 0;
@@ -4014,7 +4014,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 
 /* Sources drawer (960px and below): a real overlay sheet with its own width. Its zero-width slot used to
    squeeze it to a 2px sliver. */
-@media (max-width: 960px) {
+@media (max-width: 1024px) {
   .workspace-layout .workspace-canvas > .nav-slot:not(.is-collapsed) aside.workspace-nav.workspace-sources-rail {
     position: absolute !important; top: 12px !important; bottom: 12px !important; left: 12px !important; right: auto !important;
     width: min(320px, calc(100vw - 24px)) !important; height: auto !important; z-index: 42;
@@ -4022,4 +4022,28 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
     box-shadow: var(--shadow-4) !important; overflow: hidden !important;
   }
   :root[data-theme="dark"] .workspace-layout .workspace-canvas > .nav-slot:not(.is-collapsed) aside.workspace-nav.workspace-sources-rail { background: #17181B !important; border-color: rgba(255, 255, 255, 0.08) !important; }
+}
+
+/* ==========================================================================
+   Drawer mode is ONE breakpoint: 1024px and below (JS: compactViewport / overlayViewport use the same number).
+   Closed drawers are fully off-screen and inert, so no strip leaks at the edge; the centre always fills the width.
+   ========================================================================== */
+@media (max-width: 1024px) {
+  .workspace-layout .workspace-body { padding: 0 !important; gap: 0 !important; display: flex; }
+  .workspace-layout .workspace-canvas { width: 100%; margin: 0; }
+  .workspace-layout .workspace-canvas > .workspace-main-area {
+    display: flex !important; flex: 1 1 0; min-width: 0; min-height: 0; height: 100% !important; opacity: 1; visibility: visible; padding-right: 0 !important;
+  }
+  .workspace-layout .nav-slot.is-collapsed aside.workspace-nav {
+    visibility: hidden !important; pointer-events: none !important; transform: translateX(-105%) !important; opacity: 0;
+  }
+  .workspace-layout .nav-slot:not(.is-collapsed) aside.workspace-nav.workspace-sources-rail { z-index: 60 !important; transform: none; }
+}
+@media (min-width: 769px) and (max-width: 1024px) {
+  .workspace-layout .context-slot.is-collapsed aside.workspace-context-panel {
+    visibility: hidden !important; pointer-events: none !important; transform: translateX(105%) !important; opacity: 0;
+  }
+  .workspace-layout .workspace-canvas > .context-slot:not(.is-collapsed) { z-index: 60; }
+  .workspace-layout .workspace-canvas > .context-slot { width: min(var(--ctx-w), 88vw) !important; }
+  .workspace-layout .workspace-canvas > .context-slot.is-collapsed { width: 0 !important; }
 }
