@@ -988,7 +988,7 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
    Sources panel: materials only. One drop zone is the empty state and the add control.
    ========================================================================== */
 .sources-panel-title { display: flex; align-items: center; gap: var(--space-2); font-size: var(--type-body); font-weight: var(--weight-semibold); color: var(--color-text-primary); }
-.sources-panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: var(--space-3); gap: var(--space-3); }
+.sources-panel-body { display: flex; flex-direction: column; flex: 1; min-height: 0; padding: 0; gap: 0; }
 .sources-panel-body .sources-header-bar, .sources-panel-body .source-search-container { margin: 0; }
 .sources-panel-body .sources-list-scroll { flex: 1; min-height: 0; overflow-y: auto; }
 .sources-drop-zone {
@@ -1021,7 +1021,7 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
 /* ==========================================================================
    Sources panel v2: slim list rows, one quiet "more" menu, resize handle, rail toggle
    ========================================================================== */
-.sources-panel-body { padding: var(--space-3) var(--space-3) var(--space-2); }
+.sources-panel-body { padding: 0; }
 .sources-panel-body .workspace-sources-ul { gap: 0; }
 .source-row {
   display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; column-gap: var(--space-3);
@@ -1121,7 +1121,7 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
    The panel body has equal side padding, so the drop zone (full width of it) stays centered at every panel width.
    ========================================================================== */
 .workspace-sidebar-header { min-height: var(--size-52); padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4); }
-.sources-panel-body { gap: var(--space-3); padding: var(--space-3) var(--space-3) var(--space-2); }
+.sources-panel-body { gap: 0; padding: 0; }
 .sources-panel-body > * { min-width: 0; }
 .sources-action-row { display: flex; gap: var(--space-2); }
 .sources-pill-btn {
@@ -1192,7 +1192,7 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
   .sources-web-go:hover, .sources-filter-btn:hover { background: var(--color-surface-active); color: var(--color-text-primary); }
 }
 @media (max-width: 640px) {
-  .sources-panel-body { padding: var(--space-3); }
+  .sources-panel-body { padding: 0; }
 }
 
 /* ==========================================================================

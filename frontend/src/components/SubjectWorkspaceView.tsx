@@ -796,7 +796,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     onSelectSources(readySources.map((s) => s.id));
   };
 
-  // The link bar adds a page as a source: a link opens the Add sources dialog on its link tab, ready to confirm.
   const handleWebSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const query = webQuery.trim();
@@ -819,6 +818,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
     setWebHint('Web search is not available yet. Paste a link and it is added as a source.');
   };
+
 
   const handleClearSources = () => {
     onSelectSources([]);
@@ -1760,10 +1760,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               </div>
             </div>
           )}
-          <aside className="workspace-nav workspace-sources-rail" id="workspace-nav-panel" aria-label="Sources"
+          <aside className="workspace-nav workspace-sources-rail sources-panel" id="workspace-nav-panel" aria-label="Sources"
             aria-hidden={isNavCollapsed || navHiddenByReader} ref={navPanelRef} tabIndex={-1}>
             {!isNavCollapsed && resizeHandle('left', true)}
-            <div className="rail-header">
+            <div className="rail-header sources-panel-header">
               <div className="rail-title-group">
                 <h2 className="rail-title">Sources<span className="sr-only"> ({sources.length})</span></h2>
                 <span className="rail-count-pill" aria-hidden="true">{sources.length}</span>
@@ -1865,11 +1865,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               ) : (
                 <>
                   <p className="sr-only" aria-live="polite">{selectedSourceIds.length} of {readySources.length} selected</p>
-                  <div className="sources-list-scroll">
+                  <div className="sources-list-scroll sources-list">
                     {filteredSources.length === 0 ? (
                       <p className="sidebar-empty-box"><EmptyStateIcon />No sources matching search.</p>
                     ) : (
-                      <ul className="workspace-sources-ul">
+                      <ul className="workspace-sources-ul sources-list-items">
                         {filteredSources.map((s) => (
                           <SourceRow
                             key={s.id}
@@ -2148,7 +2148,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                 {/* Grounded Answer Body */}
                                 <div className="answer-text">
                                   <MarkdownRenderer
-                                    content={msg.content.replace(SAMPLE_TAG, '')}
+                                    content={(msg.content || '').replace(SAMPLE_TAG, '')}
                                     citations={msg.citations || []}
                                     isThisMessageSelected={selectedCitation?.messageId === msg.id}
                                     selectedCitation={selectedCitation}
@@ -2162,7 +2162,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   <div className="answer-citations-row">
                                     {msg.citations.map((c, cIdx) => {
                                       const src = sources.find((s) => s.id === c.source_id || normalizeFileName(s.file_name) === normalizeFileName(c.file));
-                                      const label = src?.title || c.file.replace(/\.(pdf|md|txt)$/i, '');
+                                      const label = src?.title || c.file?.replace(/\.(pdf|md|txt)$/i, '') || 'Source';
                                       const isSelected = Boolean(
                                         selectedCitation?.messageId === msg.id &&
                                         selectedCitation.page === c.page &&
