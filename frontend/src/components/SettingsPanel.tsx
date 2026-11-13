@@ -1,9 +1,8 @@
 import { ReferenceIcon } from './ReferenceIcon';
 import React, { useState } from 'react';
-import { api } from '../api';
 import { SubjectSettings, User } from '../types';
 import { useModalFocus } from '../useModalFocus';
-import { ThemeSetting, getThemeSetting, setThemeSetting } from '../theme';
+import { exportAllNotes } from '../exportNotes';
 import { ReadingFont, getReadingFont, setReadingFont } from '../readingFont';
 
 const DEFAULTS_KEY = 'notebookspace_default_response_settings';
@@ -36,11 +35,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onRequestReset, on
   const [defaults, setDefaults] = useState<SubjectSettings>(
     () => readDefaultResponseSettings() || { response_length: 'default', response_style: 'general' }
   );
-  const [theme, setTheme] = useState<ThemeSetting>(getThemeSetting);
-  const chooseTheme = (next: ThemeSetting) => {
-    setTheme(next);
-    setThemeSetting(next);
-  };
   const [font, setFont] = useState<ReadingFont>(getReadingFont);
   const chooseFont = (next: ReadingFont) => {
     setFont(next);
@@ -60,36 +54,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onRequestReset, on
   const handleExport = async () => {
     setExportState('working');
     try {
-      const subjects = await api.getSubjects(true);
-      const notebooks = [];
-      for (const s of subjects) {
-        const notes = await api.getNotes(s.id);
-        notebooks.push({
-          name: s.name,
-          course_code: s.course_code,
-          description: s.description,
-          is_archived: s.is_archived,
-          notes: notes.map((n) => ({
-            title: n.title,
-            content: n.content,
-            is_saved_answer: n.is_saved_answer,
-            citations: n.citations,
-            created_at: n.created_at,
-            updated_at: n.updated_at,
-          })),
-        });
-      }
-      const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), notebooks }, null, 2)], {
-        type: 'application/json',
-      });
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `notebookspace-notes-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      URL.revokeObjectURL(url);
+      await exportAllNotes();
       setExportState('done');
     } catch {
       setExportState('failed');
@@ -121,24 +86,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({ onRequestReset, on
         </div>
 
         <div className="settings-panel-body">
-          <section className="settings-section" aria-labelledby="settings-appearance-title">
-            <h3 id="settings-appearance-title" className="settings-section-title">Appearance</h3>
-            <div className="sidebar-filter-pills home-filter-tabs theme-control sliding-tabs" role="radiogroup" aria-labelledby="settings-appearance-title">
-              {(['auto', 'light', 'dark'] as const).map((option) => (
-                <button
-                  key={option}
-                  type="button"
-                  role="radio"
-                  aria-checked={theme === option}
-                  className={`sidebar-filter-pill ${theme === option ? 'active' : ''}`}
-                  onClick={() => chooseTheme(option)}
-                >
-                  {option === 'auto' ? 'System' : option === 'light' ? 'Light' : 'Dark'}
-                </button>
-              ))}
-            </div>
-          </section>
-
           <section className="settings-section" aria-labelledby="settings-reading-title">
             <h3 id="settings-reading-title" className="settings-section-title">Reading &amp; study</h3>
             <div className="settings-field">
