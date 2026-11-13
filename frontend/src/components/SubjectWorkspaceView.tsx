@@ -838,14 +838,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // COMMAND PALETTE AND SHORTCUTS (Cmd/Ctrl+K, B and \)
   // --------------------------------------------------------------------------
   const [paletteOpen, setPaletteOpen] = useState(false);
-  const [sourcesMenuFor, setSourcesMenuFor] = useState<string | null>(null);
+  const [answerMenu, setAnswerMenu] = useState<{ id: string; kind: 'sources' | 'more' } | null>(null);
   useEffect(() => {
-    if (!sourcesMenuFor) return;
-    const onDown = (e: PointerEvent) => { if (!(e.target as Element | null)?.closest?.('[data-sources-menu]')) setSourcesMenuFor(null); };
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setSourcesMenuFor(null); };
+    if (!answerMenu) return;
+    const onDown = (e: PointerEvent) => { if (!(e.target as Element | null)?.closest?.('[data-sources-menu]')) setAnswerMenu(null); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setAnswerMenu(null); };
     document.addEventListener('pointerdown', onDown); document.addEventListener('keydown', onKey);
     return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey); };
-  }, [sourcesMenuFor]);
+  }, [answerMenu]);
   const toggleSourcesPanel = () => (isNavCollapsed ? setNavCollapsed(false) : closeNavPanel());
   const toggleStudyPanel = () => (isContextCollapsed ? setContextCollapsed(false) : closeContextPanel());
   const openNoteEditor = (note: Note | null) => {
@@ -1991,11 +1991,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                   </button>
                                   {msg.retrieved && msg.retrieved.length > 0 && (
                                     <span className="answer-sources-anchor" data-sources-menu>
-                                      <button type="button" className="answer-action-btn" onClick={() => setSourcesMenuFor((id) => (id === msg.id ? null : msg.id))}
-                                        data-tooltip="Sources" aria-label="Retrieval details" aria-haspopup="menu" aria-expanded={sourcesMenuFor === msg.id} data-testid={`see-retrieval-btn-${msg.id}`}>
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /><path d="M9 13h6M9 17h4" /></svg>
+                                      <button type="button" className="answer-action-btn"
+                                        onClick={() => ((msg.citations || []).length > 0 ? setAnswerMenu((m) => (m?.id === msg.id && m.kind === 'sources' ? null : { id: msg.id, kind: 'sources' })) : handleSeeRetrieval(msg.id))}
+                                        data-tooltip="Sources" aria-label="Sources" aria-haspopup="menu" aria-expanded={answerMenu?.id === msg.id && answerMenu.kind === 'sources'} data-testid={`sources-btn-${msg.id}`}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>
                                       </button>
-                                      {sourcesMenuFor === msg.id && (
+                                      {answerMenu?.id === msg.id && answerMenu.kind === 'sources' && (
                                         <div className="answer-sources-menu" role="menu" aria-label="Sources for this answer">
                                           {(msg.citations || []).map((c, cIdx) => {
                                             const src = sources.find((x) => x.id === c.source_id || normalizeFileName(x.file_name) === normalizeFileName(c.file));
@@ -2012,14 +2013,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                             return (
                                               <button key={`${c.file}-${c.page}-${cIdx}`} type="button" role="menuitem" className="answer-sources-item"
                                                 aria-label={isReplaced ? `Open current version in reader (v${src?.version})` : `${c.file}, page ${c.page}`}
-                                                onClick={() => { setSourcesMenuFor(null); handleSelectCitation(c, msg.id); }}>
+                                                onClick={() => { setAnswerMenu(null); handleSelectCitation(c, msg.id); }}>
                                                 <span className="answer-sources-item-title">{label}</span>
                                                 <span className="answer-sources-item-page">{isReplaced ? `v${src?.version}` : `p. ${c.page}`}</span>
                                               </button>
                                             );
                                           })}
-                                          <button type="button" role="menuitem" className="answer-sources-item answer-sources-details"
-                                            onClick={() => { setSourcesMenuFor(null); handleSeeRetrieval(msg.id); }}>Retrieval details</button>
                                         </div>
                                       )}
                                     </span>
@@ -2036,10 +2035,22 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                     aria-label="Retry question" data-tooltip="Retry" data-testid={`retry-btn-${msg.id}`}>
                                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true"><polyline points="1 4 1 10 7 10" /><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" /></svg>
                                   </button>
-                                  <button type="button" className="answer-action-btn delete-turn-btn" onClick={() => onDeleteMessage?.(msg.id)}
-                                    aria-label="Remove turn" data-tooltip="Remove turn" data-testid={`delete-turn-btn-${msg.id}`}>
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                                  </button>
+                                  <span className="answer-sources-anchor" data-sources-menu>
+                                    <button type="button" className="answer-action-btn" onClick={() => setAnswerMenu((m) => (m?.id === msg.id && m.kind === 'more' ? null : { id: msg.id, kind: 'more' }))}
+                                      aria-label="More actions" data-tooltip="More" aria-haspopup="menu" aria-expanded={answerMenu?.id === msg.id && answerMenu.kind === 'more'} data-testid={`more-btn-${msg.id}`}>
+                                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><circle cx="5" cy="12" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="19" cy="12" r="1.6" /></svg>
+                                    </button>
+                                    {answerMenu?.id === msg.id && answerMenu.kind === 'more' && (
+                                      <div className="answer-sources-menu" role="menu" aria-label="More actions">
+                                        {msg.retrieved && msg.retrieved.length > 0 && (
+                                          <button type="button" role="menuitem" className="answer-sources-item" data-testid={`see-retrieval-btn-${msg.id}`}
+                                            onClick={() => { setAnswerMenu(null); handleSeeRetrieval(msg.id); }}>Retrieval details</button>
+                                        )}
+                                        <button type="button" role="menuitem" className="answer-sources-item is-danger" data-testid={`delete-turn-btn-${msg.id}`}
+                                          onClick={() => { setAnswerMenu(null); onDeleteMessage?.(msg.id); }}>Remove turn</button>
+                                      </div>
+                                    )}
+                                  </span>
                                 </div>
                               </div>
                             )}
@@ -2088,6 +2099,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 placeholder="Ask anything about your sources..."
                 onAddSources={() => openAddSources()}
                 scrollDown={{ visible: showScrollDown, onClick: scrollThreadToBottom }}
+                depth={{
+                  value: subject.settings?.response_length ?? 'default',
+                  onChange: (v) => saveSettings({ response_length: v, response_style: v === 'detailed' ? 'learning-guide' : 'general' }),
+                }}
               />
         </section>
 

@@ -478,6 +478,7 @@ describe('SubjectWorkspaceView component', () => {
       />
     );
 
+    fireEvent.click(screen.getByTestId('more-btn-msg-2'));
     const seeRetrievalBtn = screen.getByTestId('see-retrieval-btn-msg-2');
     expect(seeRetrievalBtn).toBeInTheDocument();
     expect(seeRetrievalBtn).toHaveAccessibleName('Retrieval details');
@@ -620,6 +621,7 @@ describe('SubjectWorkspaceView component', () => {
       />
     );
 
+    fireEvent.click(screen.getByTestId('more-btn-msg-2'));
     const seeRetrievalBtn = screen.getByTestId('see-retrieval-btn-msg-2');
     expect(seeRetrievalBtn).toBeInTheDocument();
 
@@ -629,10 +631,6 @@ describe('SubjectWorkspaceView component', () => {
 
     await act(async () => {
       fireEvent.click(seeRetrievalBtn);
-    });
-    // The Sources icon opens a small menu; its last row opens the retrieval details.
-    await act(async () => {
-      fireEvent.click(screen.getByRole('menuitem', { name: 'Retrieval details' }));
     });
 
     // Right panel inspector should now be visible and on Retrieval view

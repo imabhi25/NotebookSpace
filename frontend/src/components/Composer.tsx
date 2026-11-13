@@ -23,6 +23,8 @@ interface ComposerProps {
   scope?: ComposerScope;
   /** Opens the add-sources dialog from a `+` button in the composer. */
   onAddSources?: () => void;
+  /** Answer depth picker inside the pill, wired to the notebook's response length. */
+  depth?: { value: 'concise' | 'default' | 'detailed'; onChange: (v: 'concise' | 'default' | 'detailed') => void };
   /** Floating jump-to-latest button above the composer. */
   scrollDown?: { visible: boolean; onClick: () => void };
 }
@@ -145,6 +147,41 @@ function ScopeChip({ scope }: { scope: ComposerScope }) {
   );
 }
 
+const DEPTHS: Array<{ value: 'concise' | 'default' | 'detailed'; label: string }> = [
+  { value: 'concise', label: 'Concise' }, { value: 'default', label: 'Balanced' }, { value: 'detailed', label: 'Detailed' },
+];
+/** Compact answer-depth picker: a small "Concise v" button with a three-item menu above it. */
+function DepthPicker({ value, onChange }: { value: 'concise' | 'default' | 'detailed'; onChange: (v: 'concise' | 'default' | 'detailed') => void }) {
+  const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (!rootRef.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); } };
+    document.addEventListener('mousedown', onDown); window.addEventListener('keydown', onKey, true);
+    return () => { document.removeEventListener('mousedown', onDown); window.removeEventListener('keydown', onKey, true); };
+  }, [open]);
+  const current = DEPTHS.find((d) => d.value === value) ?? DEPTHS[1];
+  return (
+    <div className="composer-depth-wrap" ref={rootRef}>
+      <button type="button" className="composer-depth" aria-haspopup="menu" aria-expanded={open} aria-label={`Answer depth: ${current.label}`} onClick={() => setOpen((o) => !o)}>
+        {current.label}
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+      {open && (
+        <div className="composer-depth-menu" role="menu" aria-label="Answer depth">
+          {DEPTHS.map((d) => (
+            <button key={d.value} type="button" role="menuitemradio" aria-checked={d.value === value} className="composer-depth-item"
+              onClick={() => { setOpen(false); onChange(d.value); }}>
+              {d.label}{d.value === value && <span aria-hidden="true">✓</span>}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export const Composer: React.FC<ComposerProps> = ({
   question,
   setQuestion,
@@ -157,6 +194,7 @@ export const Composer: React.FC<ComposerProps> = ({
   blockedReason,
   onAddSources,
   scrollDown,
+  depth,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const lastSendTimeRef = useRef<number>(0);
@@ -263,17 +301,16 @@ export const Composer: React.FC<ComposerProps> = ({
           Ask a question about your course materials:
         </label>
         {scope ? (
-          <div className="composer-box composer-box-stacked">
+          <div className="composer-box composer-box-stacked composer-box-pill">
+            {onAddSources && (
+              <button type="button" className="composer-add-btn" onClick={onAddSources} aria-label="Add sources" data-tooltip="Add sources">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
+            )}
             {textarea}
-            <div className="composer-foot">
-              {onAddSources && (
-                <button type="button" className="composer-add-btn" onClick={onAddSources} aria-label="Add sources" data-tooltip="Add sources">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                </button>
-              )}
-              <ScopeChip scope={scope} />
-              {sendButton}
-            </div>
+            <ScopeChip scope={scope} />
+            {depth && <DepthPicker value={depth.value} onChange={depth.onChange} />}
+            {sendButton}
           </div>
         ) : (
           <div className="composer-box">
