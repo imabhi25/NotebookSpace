@@ -205,6 +205,28 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
+  it('cycles answer depth in the settings popover, saves it, and has no second settings window', async () => {
+    const update = vi.fn(async () => {});
+    render(React.cloneElement(workspace(), { onUpdateSettings: update }));
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(screen.queryByRole('menuitem', { name: /All settings/ })).toBeNull();
+    const depth = screen.getByRole('menuitem', { name: /Answer depth/ });
+    expect(depth).toHaveTextContent('Concise');
+    fireEvent.click(depth);
+    await waitFor(() => expect(update).toHaveBeenCalledWith({ response_length: 'detailed', response_style: 'learning-guide' }));
+  });
+
+  it('shows clean starter prompts and no hardcoded suggestion pills above the composer', () => {
+    render(React.cloneElement(workspace(), {
+      messages: [], starterQuestions: ['Summarize announcement_week4.md and the syllabus'],
+    }));
+    expect(screen.queryByRole('group', { name: 'Suggested questions' })).toBeNull();
+    expect(screen.queryByText('What is the late penalty?')).toBeNull();
+    const chip = within(screen.getByRole('group', { name: 'Starter questions' })).getByRole('button');
+    expect(chip.textContent).not.toMatch(/\.md/);
+    expect(chip).toHaveTextContent('announcement week4');
+  });
+
   it('opens help and the reset confirmation from the settings popover', async () => {
     const reset = vi.fn(async () => {});
     render(React.cloneElement(workspace(), { onResetWorkspace: reset }));

@@ -27,6 +27,9 @@ describe('Light-only theme', () => {
     renderSettings();
     expect(screen.queryByRole('radiogroup', { name: 'Appearance' })).toBeNull();
     expect(screen.queryByText(/Appearance|Dark|System/)).toBeNull();
+    expect(document.querySelector('select')).toBeNull();
+    expect(screen.getByRole('radio', { name: 'Academic Serif' })).toBeVisible();
+    expect(screen.getByRole('radio', { name: 'Detailed' })).toBeVisible();
     render(
       <DashboardView subjects={[]} loading={false} onOpenSubject={() => {}} onCreateSubject={noop} onUpdateSubject={noop}
         onArchiveSubject={noop} onRestoreSubject={noop} onDeleteSubject={noop} />

@@ -101,6 +101,16 @@ function writePanelPref(key: string, open: boolean): void {
   }
 }
 
+/** A starter prompt as shown on a card: raw file names become the source's title (or a tidied name), on one line. */
+function cleanStarter(question: string, sources: Source[]): string {
+  const byFile = new Map(sources.map((src) => [src.file_name.toLowerCase(), src.title]));
+  return question.replace(/[\w][\w .-]*?\.(?:pdf|md|markdown|txt)\b/gi, (name) => {
+    const hit = byFile.get(name.trim().toLowerCase());
+    if (hit) return hit;
+    return name.trim().replace(/\.[a-z]+$/i, '').replace(/[_-]+/g, ' ');
+  }).replace(/\s+/g, ' ').trim();
+}
+
 /** Notebook title that reads as plain text until clicked, then edits in place. Enter/blur saves, Escape cancels. */
 const NotebookTitle: React.FC<{ name: string; onRename?: (name: string) => Promise<void>; editSignal?: number }> = ({ name, onRename, editSignal = 0 }) => {
   const [editing, setEditing] = useState(false);
@@ -1462,6 +1472,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           </button>
           {isDemoMode && <span className="demo-pill" data-testid="demo-pill">Public demo</span>}
           <WorkspaceHeaderMenus hasChat={messages.length > 0}
+            answerDepth={subject.settings?.response_length === 'detailed' ? 'detailed' : 'concise'}
+            onAnswerDepth={(depth) => saveSettings(depth === 'detailed'
+              ? { response_length: 'detailed', response_style: 'learning-guide' }
+              : { response_length: 'concise', response_style: 'general' })}
             onConfigureChat={openSettings}
             onCustomize={() => setRenameTick((n) => n + 1)}
             onRetrievalAnalytics={() => openContext('retrieval')}
@@ -1734,16 +1748,20 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 {/* Starter questions */}
                 {readySources.length > 0 && starterQuestions.length > 0 && (
                   <div className="starter-chips-container" role="group" aria-label="Starter questions">
-                    {starterQuestions.map((sq, idx) => (
-                      <button
-                        key={idx}
-                        type="button"
-                        className="starter-chip-btn"
-                        onClick={() => onSendMessage(sq)}
-                      >
-                        {sq}
-                      </button>
-                    ))}
+                    {starterQuestions.slice(0, 3).map((sq, idx) => {
+                      const text = cleanStarter(sq, sources);
+                      return (
+                        <button
+                          key={idx}
+                          type="button"
+                          className="starter-chip-btn"
+                          title={text}
+                          onClick={() => onSendMessage(sq)}
+                        >
+                          {text}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -2129,25 +2147,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
             </>
           )}
-              {/* Floating Suggestion Chips Dock */}
-              {sources.length > 0 && !chatLoading && (
-                <div className="composer-suggestions-dock" role="group" aria-label="Suggested questions">
-                  {[
-                    'What is the late penalty?',
-                    'List required C functions',
-                    'Show exam dates',
-                  ].map((suggestion, sIdx) => (
-                    <button
-                      key={sIdx}
-                      type="button"
-                      className="composer-suggestion-pill"
-                      onClick={() => onSendMessage(suggestion)}
-                    >
-                      {suggestion}
-                    </button>
-                  ))}
-                </div>
-              )}
               {/* Pinned Bottom Composer */}
               <Composer
                 question={question}

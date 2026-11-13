@@ -27,7 +27,8 @@ describe('Workspace settings', () => {
     render(<DashboardView {...dashboardProps} onCreateSubject={onCreateSubject} />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Workspace settings' }));
-    fireEvent.change(screen.getByLabelText('Answer depth'), { target: { value: 'concise' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Detailed' }));
+    fireEvent.click(screen.getByRole('radio', { name: 'Concise' }));
     expect(readDefaultResponseSettings()).toEqual({ response_length: 'concise', response_style: 'general' });
     fireEvent.click(screen.getByRole('button', { name: 'Close' }));
 
@@ -96,7 +97,7 @@ describe('Workspace settings', () => {
     render(<DashboardView {...dashboardProps} />);
     expect(document.querySelector('.library-account')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Workspace settings' }));
-    fireEvent.change(screen.getByLabelText('Reading font'), { target: { value: 'serif' } });
+    fireEvent.click(screen.getByRole('radio', { name: 'Academic Serif' }));
     expect(document.documentElement.getAttribute('data-reading-font')).toBe('serif');
     expect(window.localStorage.getItem('notebookspace_reading_font')).toBe('serif');
     document.documentElement.removeAttribute('data-reading-font');
