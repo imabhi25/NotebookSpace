@@ -4123,3 +4123,22 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 /* Jump-to-latest sits 10px clear above the composer; the thread leaves room so it never covers text. */
 .composer-container > .scroll-bottom-btn { top: -42px; }
 .workspace-layout .thread-scroll-container { padding-bottom: 48px; }
+
+/* ==========================================================================
+   Reading rhythm and one left edge (final word)
+   Paragraphs, headings and the question share x; bullets hang 18px in, nested bullets step 16px further.
+   ========================================================================== */
+.workspace-layout .thread-scroll-container { padding-top: 16px; }
+.workspace-layout .question-heading { margin: 0 0 10px; }
+.workspace-layout .answer-text, .workspace-layout .assistant-message .answer-text,
+.workspace-layout .answer-text .md-paragraph, .workspace-layout .answer-text .md-list-item,
+.workspace-layout .assistant-message .answer-text .md-paragraph, .workspace-layout .assistant-message .answer-text .md-list-item,
+.workspace-layout .assistant-message .markdown-content { font-size: 14.5px; line-height: 1.55; }
+.workspace-layout .answer-text .md-paragraph { margin: 6px 0; }
+.workspace-layout .answer-text .md-list-item { margin: 3px 0 3px 18px; padding-left: 2px; list-style-position: outside; }
+.workspace-layout .answer-text .md-list-item > p { margin: 0; }
+.workspace-layout .answer-text .md-numbered-item { margin: 3px 0; }
+.workspace-layout .answer-text .md-heading-1, .workspace-layout .answer-text .md-heading-2, .workspace-layout .answer-text .md-heading-3,
+.workspace-layout .answer-text .answer-section-heading { margin: 12px 0 4px; font-size: 15px; font-weight: 600; line-height: 1.4; }
+.workspace-layout .answer-text > :first-child { margin-top: 0; }
+.workspace-layout .thread-turn.turn-user .user-turn-wrapper { margin-top: 0; }

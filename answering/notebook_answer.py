@@ -112,7 +112,12 @@ def build_system_prompt(settings: dict[str, Any]) -> str:
         "- If there is a conflict, report it under 'conflicts' with the topic and contrasting claims.\n"
         "- If there is no conflict, 'conflicts' must be an empty list [].\n\n"
         "Formatting:\n"
-        "- You may use markdown formatting (headings, bullet lists, bold text, code blocks, tables) for clarity.\n"
+        "- Write natural, concise prose paragraphs for summaries and explanations, the way a careful tutor would.\n"
+        "- Give a section its own heading as a bold line (for example **Opening & Background**) or a markdown subheading on its own line. "
+        "NEVER put a bullet or dash in front of a heading, and never write a heading as '- **Heading:**'.\n"
+        "- Use bullet points ONLY when genuinely enumerating discrete items (for example separate contact details, "
+        "requirements, or steps). Do not turn ordinary sentences into bullets, and do not bullet a single item.\n"
+        "- Code blocks and tables are fine when the content is code or tabular.\n"
         "- You must respond ONLY with a JSON object in this exact format:\n"
         "{\n"
         '  "supported": true,\n'
