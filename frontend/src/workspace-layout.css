@@ -1308,9 +1308,8 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
    ============================================================ */
 
 /* ---- Sources & Notes header: title + count pill left, collapse toggle right (Figma 44px baseline) ---- */
-.sources-panel-header,
 .notes-panel-header,
-.workspace-layout .rail-header {
+.workspace-layout .context-slot .rail-header {
   height: 44px !important;
   min-height: 44px !important;
   max-height: 44px !important;
@@ -1322,17 +1321,44 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   padding: 0 14px !important;
   border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08)) !important;
 }
+.sources-panel-header,
+.workspace-layout .workspace-sources-rail .rail-header {
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 0 12px !important;
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08)) !important;
+}
 :root[data-theme="dark"] .workspace-layout .rail-header,
 :root[data-theme="dark"] .sources-panel-header,
 :root[data-theme="dark"] .notes-panel-header {
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 .sources-panel-header .workspace-nav-toggle,
+.sources-panel-header .rail-icon-btn {
+  width: 22px !important;
+  height: 28px !important;
+  min-width: 22px !important;
+  min-height: 28px !important;
+  max-width: 22px !important;
+  max-height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 6px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
 .notes-panel-header .context-collapse-btn,
-.workspace-layout .rail-header .rail-icon-btn.workspace-nav-toggle,
-.workspace-layout .rail-header .rail-icon-btn.context-collapse-btn,
-.sources-panel-header .rail-icon-btn,
-.notes-panel-header .rail-icon-btn {
+.notes-panel-header .rail-icon-btn,
+.workspace-layout .rail-header .rail-icon-btn.context-collapse-btn {
   width: 28px !important;
   height: 28px !important;
   min-width: 28px !important;
@@ -1360,13 +1386,24 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   align-items: center !important;
   gap: 8px !important;
   flex: none !important;
-  padding: 10px 14px 6px !important;
+  padding: 10px 12px 6px !important;
   box-sizing: border-box !important;
   margin: 0 !important;
 }
 .workspace-layout .sources-search, .workspace-layout .rail-find {
-  flex: 1; min-width: 0; min-height: 34px; height: 34px; display: flex; align-items: center; gap: 6px; padding: 0 12px; margin: 0 !important;
-  border-radius: 999px; overflow: hidden; background: var(--bg-canvas, var(--color-surface)); border: 1px solid var(--border-subtle, var(--color-border));
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  min-height: 34px !important;
+  height: 34px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 0 12px !important;
+  margin: 0 !important;
+  border-radius: 999px !important;
+  overflow: hidden !important;
+  background: var(--bg-canvas, var(--color-surface)) !important;
+  border: 1px solid var(--border-subtle, var(--color-border)) !important;
 }
 .workspace-layout .sources-search input, .workspace-layout .rail-find input,
 .workspace-layout .sources-search input:focus, .workspace-layout .rail-find input:focus,
@@ -1374,11 +1411,11 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   background: transparent !important; border: none !important; outline: none !important; box-shadow: none !important; border-radius: 0; height: 100%; min-height: 0;
 }
 .sources-add-btn {
-  width: 28px !important;
+  width: 22px !important;
   height: 28px !important;
-  min-width: 28px !important;
+  min-width: 22px !important;
   min-height: 28px !important;
-  max-width: 28px !important;
+  max-width: 22px !important;
   max-height: 28px !important;
   flex-shrink: 0 !important;
   flex: none !important;
@@ -1409,7 +1446,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   box-sizing: border-box !important;
   flex: none !important;
   margin: 0 !important;
-  padding: 4px 14px 6px !important;
+  padding: 4px 12px 6px !important;
 }
 .sources-toolbar-left { display: flex !important; align-items: center !important; gap: 6px !important; margin: 0 !important; padding: 0 !important; }
 .sources-tool-btn {
@@ -1419,11 +1456,11 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   background: transparent; color: var(--color-text-muted); transition: background-color 0.15s ease, color 0.15s ease;
 }
 .sources-toolbar-left > .sources-tool-btn:first-child {
-  margin-left: -6px !important;
-  padding-left: 6px !important;
-  padding-right: 6px !important;
+  margin: 0 !important;
+  margin-left: 0 !important;
+  padding: 0 !important;
   box-sizing: border-box !important;
-  justify-content: flex-start !important;
+  justify-content: center !important;
 }
 .sources-tool-btn:hover { background: var(--color-surface-hover); color: var(--color-text-primary); }
 .sources-tool-btn.is-active { color: var(--color-accent); background: var(--color-accent-soft, var(--color-surface-hover)); }
@@ -1434,7 +1471,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 }
 .sources-select-all .source-row-checkbox {
   margin: 0 !important; padding: 0 !important; width: 16px !important; height: 16px !important; min-width: 16px !important; max-width: 16px !important;
-  min-height: 16px !important; max-height: 16px !important; border-radius: 4px; flex-shrink: 0 !important;
+  min-height: 16px !important; max-height: 16px !important; border-radius: 4px; flex-shrink: 0 !important; box-sizing: border-box !important;
 }
 .sources-sort { position: relative; }
 .sources-sort-menu {
@@ -1471,7 +1508,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   scrollbar-gutter: auto !important;
 }
 .workspace-layout .sources-list {
-  padding: 2px 6px !important;
+  padding: 2px 12px !important;
   margin: 0 !important;
   box-sizing: border-box !important;
 }
@@ -1487,7 +1524,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .source-row,
 .workspace-layout .workspace-sources-rail .source-row,
 .sources-panel .source-row {
-  padding: 0 8px !important;
+  padding: 0 !important;
   margin: 0 !important;
   height: 34px !important;
   min-height: 34px !important;
@@ -3423,10 +3460,9 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   border-color: rgba(255, 255, 255, 0.08) !important;
 }
 
-.sources-panel-header,
 .notes-panel-header,
 .study-panel-header,
-.workspace-layout .rail-header {
+.workspace-layout .context-slot .rail-header {
   height: 44px !important;
   min-height: 44px !important;
   max-height: 44px !important;
@@ -3436,6 +3472,19 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   justify-content: space-between !important;
   gap: 8px !important;
   padding: 0 14px !important;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08)) !important;
+}
+.sources-panel-header,
+.workspace-layout .workspace-sources-rail .rail-header {
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 0 12px !important;
   border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08)) !important;
 }
 :root[data-theme="dark"] .sources-panel-header,
