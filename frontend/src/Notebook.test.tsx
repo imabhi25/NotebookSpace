@@ -630,6 +630,10 @@ describe('SubjectWorkspaceView component', () => {
     await act(async () => {
       fireEvent.click(seeRetrievalBtn);
     });
+    // The Sources icon opens a small menu; its last row opens the retrieval details.
+    await act(async () => {
+      fireEvent.click(screen.getByRole('menuitem', { name: 'Retrieval details' }));
+    });
 
     // Right panel inspector should now be visible and on Retrieval view
     expect(screen.getByRole('button', { name: 'Back to notes' })).toBeVisible();
