@@ -70,7 +70,7 @@ describe('Add sources dialog: link form (round-2 audit M3)', () => {
 
     // 1. Upload a file on the upload tab
     const file = new File(['sample content'], 'doc.txt', { type: 'text/plain' });
-    const dropzone = screen.getByRole('button', { name: /Drag and drop files here/i });
+    const dropzone = screen.getByRole('button', { name: /Drop files here/i });
     fireEvent.drop(dropzone, {
       dataTransfer: { files: [file], types: ['Files'] },
     });
@@ -107,7 +107,7 @@ describe('Add sources dialog: link form (round-2 audit M3)', () => {
 
     // 1. Upload a file so Done button is displayed
     const file = new File(['content'], 'test.txt', { type: 'text/plain' });
-    fireEvent.drop(screen.getByRole('button', { name: /Drag and drop files here/i }), {
+    fireEvent.drop(screen.getByRole('button', { name: /Drop files here/i }), {
       dataTransfer: { files: [file], types: ['Files'] },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Add Source' }));
@@ -140,7 +140,7 @@ describe('Add sources dialog: link form (round-2 audit M3)', () => {
 
     // 1. Upload a file so Done button is displayed
     const file = new File(['content'], 'test.txt', { type: 'text/plain' });
-    fireEvent.drop(screen.getByRole('button', { name: /Drag and drop files here/i }), {
+    fireEvent.drop(screen.getByRole('button', { name: /Drop files here/i }), {
       dataTransfer: { files: [file], types: ['Files'] },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Add Source' }));

@@ -3478,3 +3478,48 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   padding: 24px 20px !important;
   margin: auto 0 !important;
 }
+
+/* ===== Add sources modal: Midnight Navy refresh ===== */
+.modal-tab-bar { background: #EAECEF !important; }
+.modal-tab-btn.active { background: #FFFFFF !important; color: #18181B !important; }
+.drop-zone {
+  border: 1.5px dashed rgba(26, 52, 84, 0.22) !important; background: #F8FAFC !important; box-shadow: none !important;
+  border-radius: 12px !important; padding: 28px 20px !important; min-height: 0 !important;
+  display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; cursor: pointer;
+  transition: border-color .16s ease, background-color .16s ease;
+}
+.drop-zone:hover, .drop-zone-active { border-color: #1A3454 !important; background: rgba(26, 52, 84, 0.04) !important; }
+.drop-zone-icon { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: rgba(26, 52, 84, 0.08); color: #1A3454; margin-bottom: 4px; }
+.drop-zone-text { margin: 0; font-size: 14px; color: #18181B; }
+.drop-zone-link { color: #1A3454; font-weight: 600; text-decoration: none; }
+.drop-zone:hover .drop-zone-link { text-decoration: underline; }
+.drop-zone-hint { margin: 0; font-size: 12px; color: #71717A; }
+.selected-files-list, .upload-results-panel { background: transparent; border: none; padding: 0; margin-top: 14px; box-shadow: none; }
+.file-queue-title { margin: 0 0 8px; font-size: 12px; font-weight: 500; color: #71717A; }
+.file-queue { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; background: transparent; border: none; max-height: 220px; overflow-y: auto; }
+.file-row { display: flex; align-items: center; gap: 10px; min-height: 44px; height: 44px; padding: 0 12px; border-radius: 10px; background: #F7F7F8; border: 1px solid rgba(0,0,0,0.06); box-sizing: border-box; flex: none; }
+.file-row svg:first-child { flex: none; width: 18px; height: 18px; }
+.file-row .file-name, .file-row .upload-result-name { flex: 1; min-width: 0; font-size: 13px; font-weight: 500; color: #18181B; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.file-row .upload-result-reason { font-size: 11px; color: #B42318; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-row .file-size { font-size: 12px; color: #71717A; flex-shrink: 0; }
+.file-remove-btn { width: 24px; height: 24px; flex: none; border: none; border-radius: 6px; background: transparent; color: #71717A; font-size: 18px; line-height: 1; cursor: pointer; display: grid; place-items: center; padding: 0; }
+.file-remove-btn:hover { background: rgba(0,0,0,0.06); color: #18181B; }
+.file-spinner { color: #1A3454; flex: none; }
+.file-done { color: #16794C; font-size: 13px; width: 15px; text-align: center; flex: none; }
+.sm-spinner { animation: sm-spin .8s linear infinite; flex: none; }
+@keyframes sm-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .sm-spinner { animation-duration: 2s; } }
+.upload-status-badge { flex: none; font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; }
+.upload-status-badge.badge-added { background: #E6F4EC; color: #16794C; }
+.upload-status-badge.badge-failed { background: #FDECEA; color: #B42318; }
+.upload-status-badge.badge-skipped { background: #F1F1F3; color: #52525B; }
+.modal-actions { border-top: 1px solid rgba(0,0,0,0.06); padding-top: 14px; margin-top: 16px; }
+.modal-actions .btn { height: 36px; border-radius: 8px; padding: 0 16px; font-size: 13px; font-weight: 500; display: inline-flex; align-items: center; gap: 8px; }
+.modal-actions .btn-primary { background: #1A3454; color: #fff; border-color: #1A3454; }
+.modal-actions .btn-primary:hover:not(:disabled) { background: #142842; border-color: #142842; }
+.modal-actions .btn-primary:disabled { opacity: 0.4; }
+.modal-actions .btn-primary.is-loading:disabled { opacity: 0.88; cursor: progress; background: #1A3454; color: #fff; }
+.modal-actions .btn-ghost { color: #52525B; background: transparent; }
+.modal-form .form-group input, .modal-form .form-group textarea { background: #fff; border: 1px solid rgba(0,0,0,0.12); }
+.modal-form .form-group input:focus, .modal-form .form-group textarea:focus { border-color: #1A3454; outline: none; box-shadow: 0 0 0 3px rgba(26, 52, 84, 0.16); }
