@@ -2767,3 +2767,61 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   align-items: center;
   padding: 12px 0;
 }
+
+/* Note Studio Save Feedback */
+.note-save-status {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #52525B;
+  white-space: nowrap;
+  letter-spacing: -0.01em;
+  user-select: none;
+  animation: fadeIn 150ms ease-out;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+:root[data-theme="dark"] .note-save-status {
+  color: #A1A1AA;
+}
+
+/* Abstention / Not-Found Recovery Chips */
+.abstain-recovery-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  margin-bottom: 4px;
+}
+
+.abstain-recovery-chip {
+  min-height: 30px !important;
+  padding: 5px 12px !important;
+  font-size: 12.5px !important;
+  font-weight: 500 !important;
+  border-radius: 9999px !important;
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+  color: #18181B !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04) !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.abstain-recovery-chip:hover {
+  background: #F4F4F5 !important;
+  border-color: rgba(0, 0, 0, 0.14) !important;
+  transform: translateY(-1px) !important;
+}
+
+:root[data-theme="dark"] .abstain-recovery-chip {
+  background: #18181B !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
+  color: #F4F4F5 !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+}
+
+:root[data-theme="dark"] .abstain-recovery-chip:hover {
+  background: #27272A !important;
+  border-color: rgba(255, 255, 255, 0.2) !important;
+}

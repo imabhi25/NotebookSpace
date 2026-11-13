@@ -106,4 +106,12 @@ describe('Not-found answers in the workspace (mocked)', () => {
     expect(screen.queryByTestId('status-strip')).toBeNull();
     expect(screen.queryByText(/Model:/)).toBeNull();
   });
+  it('offers clickable recovery chips below the abstained answer', () => {
+    const onSend = vi.fn();
+    render(view([question, notFound()], onSend));
+    const recoveryChip = screen.getByRole('button', { name: 'Summarize selected sources' });
+    expect(recoveryChip).toBeInTheDocument();
+    fireEvent.click(recoveryChip);
+    expect(onSend).toHaveBeenCalledWith('Summarize selected sources');
+  });
 });

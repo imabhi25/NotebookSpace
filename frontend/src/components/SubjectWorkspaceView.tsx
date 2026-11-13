@@ -869,6 +869,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       noteInitialHtml.current = html;
       setNoteFormContent(html);
       noteSavedRef.current = { title: note?.title ?? 'New Note', content: html.trim() };
+      setNoteSaveStatus(note ? 'saved' : 'idle');
       setNoteSession((n) => n + 1);
       setNoteBlock('normal');
       setNoteMenu(null);
@@ -883,6 +884,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [noteMenu, setNoteMenu] = useState<null | 'block' | 'more'>(null);
   const [noteFormats, setNoteFormats] = useState({ bold: false, italic: false });
   const noteSavedRef = useRef({ title: '', content: '' });
+  const [noteSaveStatus, setNoteSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [noteBlock, setNoteBlock] = useState('normal');
   // Persist the open note (no Save button). New notes are created once they have something worth keeping.
   const persistNote = async () => {
@@ -891,14 +893,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     await yieldToMain();
     const content = sanitizeNoteHtml(noteFormContent).trim();
     const saved = noteSavedRef.current;
-    if (title === saved.title && content === saved.content) return;
+    if (title === saved.title && content === saved.content) {
+      setNoteSaveStatus((prev) => (prev === 'saving' ? 'saved' : prev));
+      return;
+    }
     if (editingNote) {
       noteSavedRef.current = { title, content };
       await onUpdateNote(editingNote.id, title, content);
+      setNoteSaveStatus('saved');
     } else if (content || title !== 'New Note') {
       noteSavedRef.current = { title, content };
       await onCreateNote(title, content);
       setEditingNote(null);
+      setNoteSaveStatus('saved');
     }
   };
   const flushNote = async () => {
@@ -907,12 +914,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     withViewTransition(() => {
       setIsCreateNoteOpen(false);
       setEditingNote(null);
+      setNoteSaveStatus('idle');
     });
   };
   const closeNoteEditor = () => {
     withViewTransition(() => {
       setIsCreateNoteOpen(false);
       setEditingNote(null);
+      setNoteSaveStatus('idle');
     });
   };
   const flushRef = useRef(flushNote);
@@ -922,7 +931,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Debounced autosave for notes that already exist (a new note is created when you leave it).
   useEffect(() => {
     if (!isCreateNoteOpen || !editingNote) return;
-    const t = window.setTimeout(() => { void persistRef.current(); }, 700);
+    const t = window.setTimeout(async () => {
+      await persistRef.current();
+      setNoteSaveStatus('saved');
+    }, 700);
     return () => window.clearTimeout(t);
   }, [noteFormTitle, noteFormContent, isCreateNoteOpen, editingNote]);
 
@@ -938,7 +950,10 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     const el = noteBodyRef.current;
     if (!el) return;
     const html = noteIsBlank(el) ? '' : el.innerHTML;
-    startTransition(() => setNoteFormContent(html));
+    startTransition(() => {
+      setNoteFormContent(html);
+      setNoteSaveStatus('saving');
+    });
     noteSyncFormats();
   };
   const noteExec = (cmd: string, value?: string) => {
@@ -2016,6 +2031,21 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                             {msg.abstained || msg.abstain_reason === 'generation_failed' ? (
                               (() => {
                                 const copy = abstainCopy(msg, selectedSourceIds.length);
+                                const recoveryChips: string[] = [];
+                                if (selectedSourceIds.length > 0) {
+                                  recoveryChips.push('Summarize selected sources');
+                                } else if (sources.length > 0) {
+                                  recoveryChips.push('Summarize sources');
+                                }
+                                recoveryChips.push('List key topics');
+                                const hasSyllabusOrPolicy = sources.some((s) =>
+                                  /syllabus|policy|grading|schedule|handout|rule/i.test(s.title || s.file_name || '')
+                                );
+                                if (hasSyllabusOrPolicy) {
+                                  recoveryChips.push('Show course policies');
+                                } else {
+                                  recoveryChips.push('Explain core concepts');
+                                }
                                 return (
                                   <div className="abstain-prose" data-testid="abstained-view" role={copy.tone === 'error' ? 'alert' : 'status'}>
                                     <p className="answer-text">
@@ -2023,6 +2053,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                         ? <><span>{copy.title}.</span> <span>{copy.body}</span></>
                                         : abstainText(msg, selectedSourceIds.length)}
                                     </p>
+                                    <div className="abstain-recovery-chips" role="group" aria-label="Suggested follow-up questions">
+                                      {recoveryChips.slice(0, 3).map((chipText) => (
+                                        <button
+                                          key={chipText}
+                                          type="button"
+                                          className="starter-chip-btn abstain-recovery-chip"
+                                          onClick={() => onSendMessage(chipText)}
+                                        >
+                                          {chipText}
+                                        </button>
+                                      ))}
+                                    </div>
                                     <div className="answer-action-toolbar">
                                       <button
                                         type="button"
@@ -2474,7 +2516,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </div>
                   <div className="note-title-row">
                     <input id="note-title-input" className="note-editor-title note-studio-title" type="text" placeholder="New Note" aria-label="Note title"
-                      value={noteFormTitle} onChange={(e) => setNoteFormTitle(e.target.value)} onFocus={(e) => { if (e.currentTarget.value === 'New Note') e.currentTarget.select(); }} />
+                      value={noteFormTitle} onChange={(e) => { setNoteFormTitle(e.target.value); setNoteSaveStatus('saving'); }} onFocus={(e) => { if (e.currentTarget.value === 'New Note') e.currentTarget.select(); }} />
+                    {noteSaveStatus !== 'idle' && (
+                      <span className="note-save-status" aria-live="polite" data-testid="note-save-status">
+                        {noteSaveStatus === 'saving' ? 'Saving…' : '✓ Saved'}
+                      </span>
+                    )}
                     <button type="button" className="rail-icon-btn note-editor-delete tip-end" aria-label="Delete note" data-tooltip="Delete note"
                       onClick={() => {
                         if (editingNote) {
