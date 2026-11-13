@@ -776,12 +776,7 @@
 
 /* Native reference type and surfaces, scoped to the workspace. */
 .workspace-layout { --type-body: 14px; --type-small: 12px; --type-caption: 12px; font-size: 14px; }
-:root[data-theme="dark"] .workspace-layout {
-  --color-desk: #101113; --color-surface: #191b1e; --color-surface-raised: #23262b;
-  --color-border: #30343a; --color-control-border: #30343a; --color-border-sheet: #30343a;
-  --color-accent: #a7c9f4; --color-text-primary: #f3f4f6; --color-text-secondary: #9ca3ae; --color-text-muted: #9ca3ae;
-  background: var(--color-desk);
-}
+.workspace-layout { background: var(--color-desk); }
 .workspace-layout .workspace-toggle-btn { font-size: 12px; background: var(--color-surface-raised); }
 .workspace-layout .workspace-brand-mark { color: var(--color-accent); background: var(--color-surface-raised); border: 0; }
 .workspace-layout .source-row-sub, .workspace-layout .source-row-status, .workspace-layout .rail-selected-count { font-size: 12px; }
@@ -1769,7 +1764,6 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 }
 :root[data-theme="dark"] .workspace-layout .citation-marker { background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.12); color: rgba(255, 255, 255, 0.75); }
 :root[data-theme="dark"] .workspace-layout .citation-marker:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
-:root[data-theme="dark"] .workspace-layout .citation-marker.active { background: #FFFFFF; color: #09090B; border-color: #FFFFFF; }
 
 /* ============================================================
    Study panel header: self-contained segmented track + fixed collapse button (Figma 44px baseline)
@@ -3138,4 +3132,43 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 :root[data-theme="dark"] .abstain-recovery-chip:hover {
   background: #27272A !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+/* ============================================================
+   Airy workspace header: [Logo] Title ... quiet actions.
+   No border line; panels float as elevated sheets on a subtle canvas.
+   ============================================================ */
+.workspace-layout .workspace-control-bar {
+  height: 54px; min-height: 54px; padding: 0 20px; gap: 14px;
+  border-bottom: none; background: transparent; box-shadow: none;
+}
+.workspace-layout .workspace-brand { gap: 0; }
+.workspace-layout .workspace-logo-btn {
+  display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0;
+  border: 0; border-radius: 8px; background: transparent; color: var(--color-text-primary); cursor: pointer;
+}
+.workspace-layout .workspace-logo-btn:hover:not(:disabled) { background: var(--color-surface-hover); }
+.workspace-layout .workspace-breadcrumb { display: flex; align-items: center; min-width: 0; flex: 1 1 auto; }
+.workspace-layout .workspace-breadcrumb .workspace-subject-pill-name,
+.workspace-layout .workspace-notebook-identity .workspace-subject-pill-name {
+  font-size: 18px; font-weight: 450; letter-spacing: -0.015em; color: var(--color-text-primary);
+}
+.workspace-layout .workspace-top-right { gap: 8px; }
+.workspace-layout .workspace-history-btn { height: 32px; min-height: 32px; padding: 0 10px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 500; }
+.workspace-layout .workspace-history-btn[aria-label="Conversation history"],
+.workspace-layout .workspace-top-icon-btn { width: 32px; height: 32px; min-width: 32px; padding: 0; border: 0; border-radius: 50%; justify-content: center; }
+
+@media (min-width: 961px) {
+  .workspace-layout { background: var(--color-bg-subtle, var(--color-desk)); }
+  .workspace-layout .workspace-body { padding: 0 12px 12px; gap: 12px; background: var(--color-bg-subtle, var(--color-desk)); }
+  .workspace-layout .nav-slot, .workspace-layout .context-slot { padding: 0; }
+  .workspace-layout aside.workspace-nav.workspace-sources-rail,
+  .workspace-layout .context-slot aside.workspace-context-panel,
+  .workspace-layout .workspace-main-area {
+    background: var(--color-bg-surface, var(--color-surface));
+    border: 1px solid rgba(0, 0, 0, 0.06); border-radius: 14px; overflow: hidden;
+  }
+  :root[data-theme="dark"] .workspace-layout aside.workspace-nav.workspace-sources-rail,
+  :root[data-theme="dark"] .workspace-layout .context-slot aside.workspace-context-panel,
+  :root[data-theme="dark"] .workspace-layout .workspace-main-area { border-color: rgba(255, 255, 255, 0.08); }
 }
