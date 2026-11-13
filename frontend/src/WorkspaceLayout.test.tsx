@@ -235,8 +235,10 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(screen.getByRole('heading', { name: 'Start your study space' })).toBeVisible();
     const cards = within(screen.getByRole('group', { name: 'Add sources' })).getAllByRole('button');
     expect(cards).toHaveLength(3);
-    expect(screen.getByText('Saved sources will appear here')).toBeVisible();
-    expect(screen.getByRole('button', { name: 'add a source' })).toBeVisible();
+    expect(screen.getByText('Drop PDFs or notes here')).toBeVisible();
+    expect(screen.getByRole('button', { name: '+ Add source' })).toBeVisible();
+    expect(screen.queryByRole('searchbox', { name: 'Search the web for new sources' })).toBeNull();
+    expect(screen.getByTestId('scope-chip')).toHaveTextContent('0 sources');
     expect(screen.getByText('Your notes will appear here')).toBeVisible();
   });
 

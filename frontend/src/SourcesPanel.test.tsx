@@ -47,24 +47,24 @@ describe('Sources panel', () => {
   it('with no sources shows the actions, the link bar and the drop zone, with no count and no selection row', () => {
     render(workspace([], []));
     const zone = within(panel()).getByTestId('sources-drop-zone');
-    expect(zone).toHaveTextContent('Saved sources will appear here');
-    expect(zone).toHaveTextContent('Add PDFs, Markdown notes, or web pages');
+    expect(zone).toHaveTextContent('Drop PDFs or notes here');
     expect(within(panel()).getByRole('heading', { name: /^Sources \(\d+\)$/ })).toHaveTextContent(/^Sources \(\d+\)$/);
     expect(within(panel()).queryByText(/of \d+ selected/)).toBeNull();
     expect(within(panel()).queryByText('Select all')).toBeNull();
     expect(screen.queryByText('No materials added yet.')).toBeNull();
-    expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
+    expect(within(panel()).queryByRole('button', { name: 'Add sources' })).toBeNull(); // the empty state carries the one add action
+    expect(within(panel()).getByRole('button', { name: '+ Add source' })).toBeInTheDocument();
     expect(within(panel()).queryByRole('button', { name: 'Create note' })).toBeNull(); // notes live in the study panel
     expect(within(panel()).queryByRole('button', { name: /Switch notebook/ })).toBeNull(); // the breadcrumb switches notebooks
     expect(within(panel()).queryByRole('button', { name: 'Add materials' })).toBeNull();
-    expect(within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' })).toBeInTheDocument();
+    expect(within(panel()).queryByRole('searchbox', { name: 'Search the web for new sources' })).toBeNull(); // no link bar while empty
     expect(within(panel()).queryByRole('combobox', { name: 'Where to search' })).toBeNull(); // the single-option select was removed
     expect(within(panel()).queryByRole('combobox', { name: 'Research depth' })).toBeNull(); // the disabled depth selector was removed
   });
 
   it('opens the add dialog from the drop zone, and queues dropped files in it', async () => {
     render(workspace([], []));
-    fireEvent.click(within(panel()).getByRole('button', { name: 'add a source' }));
+    fireEvent.click(within(panel()).getByRole('button', { name: '+ Add source' }));
     expect(await screen.findByText('Add sources to notebook')).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
 
@@ -108,7 +108,7 @@ describe('Sources panel', () => {
   });
 
   it('the link bar opens the add dialog on the link tab with the link filled in, and explains anything else', async () => {
-    render(workspace([], []));
+    render(workspace([src('a', 'Syllabus.pdf')], ['a']));
     const bar = within(panel()).getByRole('searchbox', { name: 'Search the web for new sources' });
     fireEvent.change(bar, { target: { value: 'how do heaps work' } });
     fireEvent.click(within(panel()).getByRole('button', { name: 'Add this link as a source' }));
