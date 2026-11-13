@@ -1653,26 +1653,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         ref={titleMeasureRef} aria-hidden="true" data-title={`${subject.name} ${subject.course_code || ''}`} />
       <header className="workspace-top-bar workspace-control-bar" ref={headerRef}>
         <div className="workspace-brand" ref={brandRef}>
-          <span className="workspace-brand-mark" aria-hidden="true">
+          <button type="button" className="workspace-logo-btn workspace-back-btn" ref={backButtonRef}
+            onClick={onBackToDashboard} title="All notebooks" aria-label="Back to notebooks">
             <BrandLogo size={22} />
-          </span>
-          <span className="workspace-brand-name">NotebookSpace</span>
-        </div>
-        <nav className="workspace-breadcrumb" aria-label="Breadcrumb">
-          <button type="button" className="workspace-back-btn" ref={backButtonRef}
-            onClick={onBackToDashboard} title="Back to notebooks dashboard" aria-label="Back to notebooks dashboard">
-            <span>Notebooks</span>
           </button>
+        </div>
+        <div className="workspace-breadcrumb">
           {!titleBelowBar && (
-            <>
-              <svg className="workspace-crumb-sep" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6" /></svg>
-              <div className="workspace-subject-pill workspace-notebook-identity">
-                <NotebookTitle name={subject.name} onRename={onRenameSubject} />
-                {subject.course_code && <span className="workspace-subject-pill-code">{subject.course_code}</span>}
-              </div>
-            </>
+            <div className="workspace-subject-pill workspace-notebook-identity">
+              <NotebookTitle name={subject.name} onRename={onRenameSubject} />
+            </div>
           )}
-        </nav>
+        </div>
         <div className="workspace-top-right workspace-essential-actions" ref={actionsRef}>
           <BackendStatus className="backend-status-bar" />
           <button type="button" className="workspace-history-btn" onClick={() => setPaletteOpen(true)} aria-label="Search and commands"
@@ -1709,7 +1701,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <div className="workspace-notebook-heading">
           <div className="workspace-subject-pill workspace-notebook-identity">
             <NotebookTitle name={subject.name} onRename={onRenameSubject} />
-            {subject.course_code && <span className="workspace-subject-pill-code">{subject.course_code}</span>}
           </div>
         </div>
       )}

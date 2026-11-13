@@ -74,7 +74,7 @@ describe('Workspace navigation and progressive disclosure', () => {
       onOpenSubject={vi.fn()} onCreateSubject={done} onUpdateSubject={done} onArchiveSubject={done}
       onRestoreSubject={done} onDeleteSubject={done}>{workspace(back)}</DashboardView>);
     expect(screen.queryByRole('complementary', { name: 'Notebooks sidebar' })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to notebooks dashboard' }));
+    fireEvent.click(screen.getByRole('button', { name: "Back to notebooks" }));
     expect(back).toHaveBeenCalledOnce();
   });
 
@@ -88,10 +88,10 @@ describe('Workspace navigation and progressive disclosure', () => {
     vi.spyOn(api, 'getNotes').mockResolvedValue([]);
     vi.spyOn(api, 'getStarterQuestions').mockResolvedValue([]);
     render(<App />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to notebooks dashboard' }));
+    fireEvent.click(await screen.findByRole('button', { name: "Back to notebooks" }));
     await waitFor(() => expect(screen.getByRole('heading', { name: 'My notebooks' })).toBeVisible());
     expect(screen.getByTestId('subject-card-' + subject.id)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Back to notebooks dashboard' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: "Back to notebooks" })).not.toBeInTheDocument();
     expect(window.location.pathname).toBe('/');
   });
 
