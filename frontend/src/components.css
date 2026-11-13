@@ -1024,13 +1024,13 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
 .sources-panel-body { padding: 0; }
 .sources-panel-body .workspace-sources-ul { gap: 0; }
 .source-row {
-  display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; column-gap: var(--space-3);
-  padding: var(--space-2) var(--space-1) var(--space-2) var(--space-2); border-radius: var(--radius-control);
+  display: grid; grid-template-columns: 18px minmax(0, 1fr) 22px 16px; align-items: center; gap: 8px;
+  padding: 0 8px; margin: 0; height: 34px; border-radius: 6px; box-sizing: border-box;
   transition: background-color var(--motion-fast) var(--motion-ease);
 }
 .source-row + .source-row { margin-top: var(--size-2); }
 .source-type-badge {
-  display: grid; place-items: center; width: var(--source-badge-size); height: var(--source-badge-size); border-radius: var(--radius-sm);
+  display: grid; place-items: center; width: 18px; height: 18px; border-radius: var(--radius-sm);
   font-size: var(--type-micro); font-weight: var(--weight-semibold); letter-spacing: var(--tracking-label); line-height: 1;
   background: var(--tone-6); color: var(--color-text-secondary);
 }
@@ -1052,14 +1052,14 @@ button.settings-row:disabled { opacity: 1; cursor: default; }
 .source-row-meta .status-failed, .source-row-meta .status-processing { display: inline; font-weight: var(--weight-medium); }
 .source-row-meta :is(.status-failed, .status-processing)::before { width: auto; height: auto; border-radius: 0; background: none; animation: none; }
 .source-row-more {
-  display: grid; place-items: center; width: var(--size-28); height: var(--size-28); padding: 0; border: none; cursor: pointer;
-  border-radius: var(--radius-sm); background: var(--color-transparent); color: var(--color-text-muted);
+  display: grid; place-items: center; width: 22px; height: 22px; padding: 0; margin: 0; border: none; cursor: pointer;
+  border-radius: 4px; background: var(--color-transparent); color: var(--color-text-muted);
   transition: background-color var(--motion-fast) var(--motion-ease), color var(--motion-fast) var(--motion-ease);
 }
 .source-row-more svg { width: var(--icon-size-sm); height: var(--icon-size-sm); }
 .source-row.menu-open .source-row-more { background: var(--color-surface-active); color: var(--color-text-primary); }
 .source-row.menu-open { background: var(--color-surface-hover); }
-.source-row-checkbox { width: var(--size-16); height: var(--size-16); margin: 0 var(--space-1); cursor: pointer; }
+.source-row-checkbox { width: var(--size-16); height: var(--size-16); margin: 0; padding: 0; box-sizing: border-box; cursor: pointer; }
 .source-row-checkbox:disabled { cursor: not-allowed; }
 .source-row-menu { position: fixed; z-index: 200; width: var(--source-menu-width); display: flex; flex-direction: column; transform-origin: top right; }
 .source-row-menu .notebook-menu-item { width: 100%; text-align: left; background: var(--color-transparent); border: none; cursor: pointer; }
