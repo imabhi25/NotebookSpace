@@ -40,14 +40,45 @@ import { Composer, ComposerScope } from './Composer';
 import { BrandLogo } from './BrandLogo';
 import { WorkspaceHeaderMenus } from './WorkspaceHeaderMenus';
 
+const TRASH_ICON = (size: number) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6" /><path d="M4 6h16" /><path d="M6.5 9l1 10a2 2 0 0 0 2 1.8h5a2 2 0 0 0 2-1.8l1-10" />
+  </svg>
+);
+// Two-step delete: the first click turns the trash into a red "Delete?" pill (auto-cancels after 4s, on blur or Escape).
+function NoteDeleteButton({ variant, label, onConfirm, skipConfirm }: { variant: 'editor' | 'list'; label: string; onConfirm: () => void; skipConfirm?: boolean }) {
+  const [armed, setArmed] = useState(false);
+  useEffect(() => {
+    if (!armed) return;
+    const t = window.setTimeout(() => setArmed(false), 4000);
+    return () => window.clearTimeout(t);
+  }, [armed]);
+  const base = variant === 'editor' ? 'rail-icon-btn note-editor-delete tip-end' : 'source-item-btn source-delete-btn';
+  if (armed) {
+    return (
+      <button type="button" className={`note-delete-confirm ${variant === 'editor' ? 'is-editor' : ''}`} autoFocus data-testid="note-delete-confirm"
+        aria-label={`Confirm delete note ${label}`} onClick={(e) => { e.stopPropagation(); setArmed(false); onConfirm(); }}
+        onBlur={() => setArmed(false)} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setArmed(false); } }}>
+        Delete?
+      </button>
+    );
+  }
+  return (
+    <button type="button" className={base} aria-label="Delete note" title="Delete note" data-tooltip="Delete note"
+      onClick={(e) => { e.stopPropagation(); if (skipConfirm) onConfirm(); else setArmed(true); }}>
+      {TRASH_ICON(variant === 'editor' ? 18 : 13)}
+    </button>
+  );
+}
+
 const SAMPLE_TAG = /^\*\*\[Sample Answer\]\*\*\s*/;
 
 const NAV_PREF_KEY = 'notebookspace_nav_open';
 const CONTEXT_PREF_KEY = 'notebookspace_context_open';
 const NAV_W_KEY = 'notebookspace_nav_w';
 const CTX_W_KEY = 'notebookspace_ctx_w';
-const NAV_W = { def: 280, min: 220, max: 440, snap: 130 };
-const CTX_W = { def: 340, min: 280, max: 540, snap: 180, note: 420 };
+const NAV_W = { def: 280, min: 220, max: 420, snap: 130 };
+const CTX_W = { def: 340, min: 280, max: 520, snap: 180, note: 420 };
 // Narrower desktops keep all three columns comfortable: a slimmer default and note width below 1280px.
 const narrowDesktop = () => typeof window !== 'undefined' && window.innerWidth < 1280;
 const ctxDefault = () => (narrowDesktop() ? 340 : CTX_W.def);
@@ -241,7 +272,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // LAYOUT STATE: Independently Collapsible Side Panels
   // --------------------------------------------------------------------------
   const compactViewport = () => typeof window !== 'undefined' && window.innerWidth <= 960;
-  const overlayViewport = () => typeof window !== 'undefined' && window.innerWidth <= 768;
+  const overlayViewport = () => typeof window !== 'undefined' && window.innerWidth <= 960;
   const [isCompact, setIsCompact] = useState(compactViewport);
   // Navigation (left) and materials (right) collapse independently. Where they are docked the
   // choice is remembered; where they are overlays they always start closed.
@@ -293,14 +324,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
     onStopGeneration?.();
   };
-  // The study panel stays docked beside the conversation from 769px up; below that it is an on-demand overlay.
+  // The study panel stays docked beside the conversation above 960px; at 960px and below it is an on-demand overlay drawer.
   // Navigation becomes a drawer at 960px and below.
-  const isContextOverlay = useMediaQuery('(max-width: 768px)', overlayViewport());
+  const isContextOverlay = useMediaQuery('(max-width: 960px)', overlayViewport());
   const resizingRef = useRef(false);
   // Reopening a closed panel always starts from its default width, not the squeezed one it was closed at.
   const resetNavWidth = () => { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); rootRef.current?.style.setProperty('--nav-w', `${NAV_W.def}px`); };
   const resetCtxWidth = () => { noteWidthRestore.current = null; setCtxW(ctxDefault()); writeWidth(CTX_W_KEY, ctxDefault()); rootRef.current?.style.setProperty('--ctx-w', `${ctxDefault()}px`); };
+  const navAutoCollapsed = useRef(false);
   const setNavCollapsed = (collapsed: boolean, remember = true) => {
+    if (remember) navAutoCollapsed.current = false;
     if (!collapsed && isNavCollapsed && !resizingRef.current) resetNavWidth();
     setIsNavCollapsed(collapsed);
     if (remember && !isCompact) writePanelPref(NAV_PREF_KEY, !collapsed);
@@ -333,6 +366,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     let collapsed = collapsed0;
     setResizing(side);
     resizingRef.current = true;
+    document.body.style.userSelect = 'none';
+    window.getSelection()?.removeAllRanges();
     const move = (ev: PointerEvent) => {
       const raw = startW + (side === 'left' ? ev.clientX - startX : startX - ev.clientX);
       const shouldCollapse = raw < cfg.snap;
@@ -352,6 +387,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       window.removeEventListener('pointercancel', done);
       setResizing(null);
       resizingRef.current = false;
+      document.body.style.userSelect = '';
       if (side === 'left') { setNavW(width); writeWidth(NAV_W_KEY, width); } else { setCtxW(width); writeWidth(CTX_W_KEY, width); }
     };
     window.addEventListener('pointermove', move);
@@ -709,9 +745,15 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     const bottom = threadBottomRef.current;
     const scroller = bottom?.closest('.thread-scroll-container') as HTMLElement | null;
     const appended = prev > 0 && messages.length > prev && messages.length - prev <= 2;
-    if (chatLoading || appended) {
-      if (bottom && typeof bottom.scrollIntoView === 'function') bottom.scrollIntoView({ behavior: 'smooth' });
-    } else if (scroller) {
+    const reduce = typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!scroller) return;
+    if (scroller.scrollHeight <= scroller.clientHeight + 1) {
+      // Everything fits: rest at the very top so the first line is never cut by the edge.
+      scroller.scrollTop = 0;
+    } else if (chatLoading || appended) {
+      // Scroll the thread itself (not the page) to the latest turn.
+      scroller.scrollTo?.({ top: scroller.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+    } else if (prev === 0) {
       scroller.scrollTop = 0;
     }
   }, [messages, chatLoading]);
@@ -977,10 +1019,17 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   useEffect(() => {
     if (isCreateNoteOpen && contextView === 'notes') {
       if (noteWidthRestore.current === null && ctxW < ctxNoteWidth()) { noteWidthRestore.current = ctxW; setCtxW(ctxNoteWidth()); }
+      // On <=1420px desktops the note editor would squeeze the chat, so Sources folds to its rail (not remembered).
+      if (window.innerWidth <= 1420 && window.innerWidth > 960 && !isNavCollapsed && !navAutoCollapsed.current) {
+        navAutoCollapsed.current = true; setNavCollapsed(true, false);
+      }
     } else if (noteWidthRestore.current !== null) {
       const prev = noteWidthRestore.current;
       noteWidthRestore.current = null;
       setCtxW((w) => (w === ctxNoteWidth() ? prev : w));
+    }
+    if (!(isCreateNoteOpen && contextView === 'notes') && navAutoCollapsed.current) {
+      navAutoCollapsed.current = false; setNavCollapsed(false, false);
     }
   }, [isCreateNoteOpen, contextView, ctxW]);
   // A shortcut never opens on top of another dialog; the dialog owns the keyboard until it closes.
@@ -2259,16 +2308,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                         {noteSaveStatus === 'saving' ? 'Saving…' : '✓ Saved'}
                       </span>
                     )}
-                    <button type="button" className="rail-icon-btn note-editor-delete tip-end" aria-label="Delete note" data-tooltip="Delete note"
-                      onClick={() => {
-                        if (editingNote) {
-                          if (!window.confirm(`Delete note "${editingNote.title}"?`)) return;
-                          onDeleteNote(editingNote.id);
-                        }
-                        closeNoteEditor();
-                      }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 6V4.5A1.5 1.5 0 0 1 10.5 3h3A1.5 1.5 0 0 1 15 4.5V6" /><path d="M4 6h16" /><path d="M6.5 9l1 10a2 2 0 0 0 2 1.8h5a2 2 0 0 0 2-1.8l1-10" /></svg>
-                    </button>
+                    <NoteDeleteButton variant="editor" label={editingNote?.title ?? 'note'} onConfirm={() => { if (editingNote) onDeleteNote(editingNote.id); closeNoteEditor(); }}
+                      skipConfirm={!editingNote && !sanitizeNoteHtml(noteFormContent).replace(/<[^>]*>/g, '').trim() && (noteFormTitle.trim() === '' || noteFormTitle === 'New Note')} />
                   </div>
                   <div className="note-toolbar" role="toolbar" aria-label="Formatting">
                     <button type="button" className="note-tool tip-start" aria-label="Undo" data-tooltip="Undo" onMouseDown={(e) => e.preventDefault()} onClick={() => noteHistory('undo')}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H6" /></svg></button>
@@ -2421,22 +2462,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                           <span className="note-date">
                             {new Date(n.updated_at).toLocaleDateString()}
                           </span>
-                          <button
-                            type="button"
-                            className="source-item-btn source-delete-btn"
-                            title="Delete note"
-                            onClick={() => {
-                              if (window.confirm(`Delete note "${n.title}"?`)) {
-                                onDeleteNote(n.id);
-                              }
-                            }}
-                            aria-label="Delete note"
-                          >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2">
-                              <polyline points="3 6 5 6 21 6" />
-                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                            </svg>
-                          </button>
+                          <NoteDeleteButton variant="list" label={n.title} onConfirm={() => onDeleteNote(n.id)} />
                         </div>
                       </li>
                     ))}
