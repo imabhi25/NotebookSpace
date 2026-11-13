@@ -2347,27 +2347,119 @@ aside .retrieval-svg,
 @media (pointer: coarse) { .settings-action-btn, .settings-field select { min-height: 44px; } }
 
 /* ---- Segmented filter tabs: a measured pill that sits exactly under the active label ---- */
+.filter-group,
 .notebooks-home .home-filter-tabs.sliding-tabs {
-  position: relative; display: inline-flex; align-items: center; gap: 0; padding: 3px; border-radius: 10px;
-  background: rgba(0, 0, 0, 0.05); border: 1px solid var(--border-subtle, var(--color-border)); box-shadow: none;
+  position: relative !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  padding: 3px !important;
+  border-radius: 10px !important;
+  background: rgba(0, 0, 0, 0.055) !important;
+  border: none !important;
+  box-shadow: none !important;
+  isolation: isolate;
 }
-:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs { background: rgba(255, 255, 255, 0.06); }
+:root[data-theme="dark"] .filter-group,
+:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+
+.filter-group::before,
 .notebooks-home .home-filter-tabs.sliding-tabs.sliding-tabs::before {
-  display: block; top: 3px; bottom: 3px; left: 0; border-radius: 7px; pointer-events: none;
-  background: var(--bg-canvas, #fff); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
-  transition: transform .22s cubic-bezier(0.16, 1, 0.3, 1), width .22s cubic-bezier(0.16, 1, 0.3, 1);
+  content: '' !important;
+  display: block !important;
+  position: absolute !important;
+  z-index: 0 !important;
+  top: 3px !important;
+  bottom: 3px !important;
+  left: 0 !important;
+  width: var(--ind-w, 0px) !important;
+  transform: translateX(var(--ind-x, 0px)) !important;
+  background: #FFFFFF !important;
+  border-radius: 7px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06) !important;
+  pointer-events: none !important;
+  inset-inline-start: auto !important;
+  inset-inline-end: auto !important;
+  position-anchor: none !important;
+  opacity: 0;
 }
+:root[data-theme="dark"] .filter-group::before,
 :root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs.sliding-tabs::before {
-  background: rgba(255, 255, 255, 0.12); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  background: rgba(255, 255, 255, 0.14) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4) !important;
 }
+
+.filter-group[data-ind-ready]::before,
+.notebooks-home .home-filter-tabs[data-ind-ready].sliding-tabs::before {
+  opacity: 1 !important;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), width 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.filter-group .sidebar-filter-pill,
 .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill {
-  border-radius: 7px; min-height: 28px; padding: 5px 14px; font-size: 13px; font-weight: 500; line-height: 1.2;
-  color: var(--color-text-secondary);
+  position: relative !important;
+  z-index: 1 !important;
+  background: transparent !important;
+  border: none !important;
+  border-radius: 7px !important;
+  min-height: 28px !important;
+  padding: 6px 14px !important;
+  font-size: 13px !important;
+  font-weight: 500 !important;
+  line-height: 1.2 !important;
+  color: #52525B !important;
+  cursor: pointer !important;
+  transition: color 0.15s ease !important;
+  box-shadow: none !important;
 }
-:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill:not(.active) { color: rgba(255, 255, 255, 0.65); }
-.notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill:hover:not(.active) { color: var(--color-text-primary); }
-.notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill.active { color: #09090b; font-weight: 550; }
-:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill.active { color: #fff; }
+:root[data-theme="dark"] .filter-group .sidebar-filter-pill,
+:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill {
+  color: rgba(255, 255, 255, 0.65) !important;
+}
+
+.filter-group .sidebar-filter-pill:hover:not(.active),
+.notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill:hover:not(.active) {
+  color: #18181B !important;
+}
+:root[data-theme="dark"] .filter-group .sidebar-filter-pill:hover:not(.active),
+:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill:hover:not(.active) {
+  color: #FFFFFF !important;
+}
+
+.filter-group .sidebar-filter-pill.active,
+.notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill.active {
+  color: #18181B !important;
+  font-weight: 600 !important;
+}
+:root[data-theme="dark"] .filter-group .sidebar-filter-pill.active,
+:root[data-theme="dark"] .notebooks-home .home-filter-tabs.sliding-tabs .sidebar-filter-pill.active {
+  color: #FFFFFF !important;
+}
+
+/* Primary CTA: Midnight Ink Navy */
+.home-new-btn,
+.notebooks-home .home-new-btn {
+  background: #1A3454 !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 1px 2px rgba(26, 52, 84, 0.2) !important;
+  transition: background-color 0.15s ease, box-shadow 0.15s ease !important;
+}
+.home-new-btn:hover:not(:disabled),
+.notebooks-home .home-new-btn:hover:not(:disabled) {
+  background: #142842 !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 4px rgba(26, 52, 84, 0.3) !important;
+}
+
+/* Archived tab empty state tightening */
+.notebooks-home .dashboard-empty-state.archived-empty,
+.notebooks-home .dashboard-empty-state[data-tab="archived"] {
+  padding: 48px 32px !important;
+  min-height: 0 !important;
+}
 
 /* Workspace header uses the same duo-tone open-notebook mark as the dashboard. */
 .workspace-layout .workspace-brand-mark { width: 26px; height: 26px; background: transparent; border-radius: 0; color: var(--color-text-primary); display: grid; place-items: center; }
@@ -2526,13 +2618,13 @@ aside .retrieval-svg,
 
 /* Sliding segmented highlight: let the browser track the active tab instead of JS measurements. */
 @supports (anchor-name: --a) and (position-area: top) {
-  .sliding-tabs { anchor-scope: --tab-active; }
-  .sliding-tabs > :is(.active, [aria-selected="true"]) { anchor-name: --tab-active; }
-  .sliding-tabs.sliding-tabs::before {
+  .sliding-tabs:not(.home-filter-tabs):not(.filter-group) { anchor-scope: --tab-active; }
+  .sliding-tabs:not(.home-filter-tabs):not(.filter-group) > :is(.active, [aria-selected="true"]) { anchor-name: --tab-active; }
+  .sliding-tabs:not(.home-filter-tabs):not(.filter-group).sliding-tabs::before {
     position-anchor: --tab-active;
     left: anchor(left); width: anchor-size(width); transform: none;
   }
-  .sliding-tabs[data-ind-ready].sliding-tabs::before {
+  .sliding-tabs:not(.home-filter-tabs):not(.filter-group)[data-ind-ready].sliding-tabs::before {
     transition: left .24s cubic-bezier(0.16, 1, 0.3, 1), width .24s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }

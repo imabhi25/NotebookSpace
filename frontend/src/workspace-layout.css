@@ -2996,12 +2996,12 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 
 /* 2. Anchor Positioning Glide for Sliding Tabs */
 @supports (position-anchor: --active-tab) or (position-anchor: auto) {
-  .sliding-tabs .active,
-  .sliding-tabs [aria-selected="true"],
-  .sliding-tabs [aria-pressed="true"] {
+  .sliding-tabs:not(.home-filter-tabs):not(.filter-group) .active,
+  .sliding-tabs:not(.home-filter-tabs):not(.filter-group) [aria-selected="true"],
+  .sliding-tabs:not(.home-filter-tabs):not(.filter-group) [aria-pressed="true"] {
     anchor-name: --active-tab;
   }
-  .sliding-tabs.sliding-tabs::before {
+  .sliding-tabs:not(.home-filter-tabs):not(.filter-group).sliding-tabs::before {
     position: absolute;
     position-anchor: --active-tab;
     inset-block: 3px;

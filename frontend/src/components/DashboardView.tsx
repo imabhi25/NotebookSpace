@@ -567,7 +567,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="sidebar-filter-row">
-            <div className="sidebar-filter-pills sliding-tabs" role="tablist" ref={sideTabsRef}>
+            <div className="filter-group sidebar-filter-pills sliding-tabs" role="tablist" ref={sideTabsRef}>
               <button
                 type="button"
                 role="tab"
@@ -785,7 +785,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               </button></div>
 
               <div className="home-toolbar">
-                <div className="sidebar-filter-pills home-filter-tabs sliding-tabs" role="tablist" ref={homeTabsRef}>
+                <div className="filter-group sidebar-filter-pills home-filter-tabs sliding-tabs" role="tablist" ref={homeTabsRef}>
                   {(['all', 'active', 'archived'] as const).map((mode) => (
                     <button
                       key={mode}
@@ -823,7 +823,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                   ))}
                 </div>
               ) : homeFiltered.length === 0 && (search || homeTab === 'archived') ? (
-            <div className="dashboard-empty-state" data-testid="dashboard-empty-state">
+            <div
+              className={`dashboard-empty-state ${homeTab === 'archived' ? 'archived-empty' : ''}`}
+              data-testid="dashboard-empty-state"
+              data-tab={homeTab}
+            >
               <h2 className="empty-heading">{homeTab === 'archived' ? 'No archived notebooks' : 'No matching notebooks found'}</h2>
               <p className="empty-subtext">
                 {homeTab === 'archived'
