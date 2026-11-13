@@ -1,29 +1,30 @@
 import React from 'react';
 
-export const BrandLogo: React.FC<{ size?: number; className?: string }> = ({ size = 22, className = '' }) => {
+/** NotebookSpace mark: a geometric lowercase "n" in midnight ink navy with a warm amber dot. */
+export const BrandLogo: React.FC<{ size?: number; className?: string }> = ({ size = 24, className = '' }) => {
   return (
     <svg
       className={`brand-logo-icon ${className}`}
       width={size}
       height={size}
-      viewBox="0 0 24 24"
+      viewBox="0 0 32 32"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
       style={{ display: 'block', flexShrink: 0 }}
     >
-      {/* Left Page (Dominant / Shaded) */}
+      {/* Left stem (open-page angled bottom) */}
       <path
-        className="logo-page-left"
-        d="M10.8 2.2C6.8 0.8 3.2 1.3 1.5 2.5C0.6 3.1 0 4.1 0 5.2V19.8C0 21.2 1.1 22.3 2.5 22.5C4.8 22.9 8.2 23.4 10.8 24V2.2Z"
-        fill="currentColor"
+        d="M5 12.5C5 10.567 6.567 9 8.5 9H10.5V24.2C10.5 24.85 10.08 25.43 9.46 25.63L6.2 26.7C5.55 26.91 5 26.43 5 25.75V12.5Z"
+        fill="#1A3454"
       />
-      {/* Right Page (Lighter Duo-Tone) */}
+      {/* Right curved arch stem (angled bottom) */}
       <path
-        className="logo-page-right"
-        d="M13.2 2.2C17.2 0.8 20.8 1.3 22.5 2.5C23.4 3.1 24 4.1 24 5.2V19.8C24 21.2 22.9 22.3 21.5 22.5C19.2 22.9 15.8 23.4 13.2 24V2.2Z"
-        fill="currentColor"
+        d="M12.5 9H15.5C19.642 9 23 12.358 23 16.5V24.2C23 24.85 22.58 25.43 21.96 25.63L18.7 26.7C18.05 26.91 17.5 26.43 17.5 25.75V16.8C17.5 15.143 16.157 13.8 14.5 13.8H12.5V9Z"
+        fill="#1A3454"
       />
+      {/* Warm amber idea dot */}
+      <circle cx="23.5" cy="5.5" r="2.8" fill="#EB984E" />
     </svg>
   );
 };

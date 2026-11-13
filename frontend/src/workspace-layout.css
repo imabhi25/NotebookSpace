@@ -3208,3 +3208,14 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .shortcut-row dt { color: var(--color-text-primary); }
 .shortcut-row dd { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .header-menu { transition: none; } }
+
+/* ============================================================
+   Brand identity: navy wordmark, sized mark
+   ============================================================ */
+.sidebar-brand-title, .brand-title, .workspace-brand-name,
+.notebooks-home .home-brand .sidebar-brand-title {
+  color: var(--color-brand-navy); font-weight: 600; letter-spacing: -0.025em;
+}
+.notebooks-home .brand-mark-wrapper { width: 26px; height: 26px; }
+.notebooks-home .brand-logo-icon { width: 26px; height: 26px; }
+.brand-logo-icon { color: var(--color-brand-navy); }
