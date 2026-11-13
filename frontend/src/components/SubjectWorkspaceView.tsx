@@ -2,7 +2,6 @@ import { ReferenceIcon } from './ReferenceIcon';
 import { EmptyStateIcon } from './EmptyStateIcon';
 import React, { useState, useEffect, useLayoutEffect, useRef, startTransition } from 'react';
 import { yieldToMain } from '../yieldToMain';
-import { useSlidingIndicator } from '../useSlidingIndicator';
 import { api } from '../api';
 import {
   Subject,
@@ -12,7 +11,6 @@ import {
   Note,
   Citation,
   ActiveCitation,
-  PassageItem,
   SubjectSettings,
   User,
   normalizeFileName,
@@ -28,7 +26,6 @@ import { useSourceText } from '../useSourceText';
 import type { PassageInput } from '../sourcePages';
 import { RetrievalMapView } from './RetrievalMapView';
 import { SessionsView } from './WorkspaceNav';
-import { InlineEvidence } from './EvidenceBody';
 import { abstainCopy, abstainText } from '../abstain';
 import { CommandPalette } from './CommandPalette';
 import { BackendStatus } from './BackendStatus';
@@ -276,8 +273,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     return () => el.removeEventListener('scroll', update);
   }, [messages.length, chatLoading]);
   const contextPanelRef = useRef<HTMLElement>(null);
-  const evidenceRef = useRef<HTMLElement>(null);
-  const [cardFocusTick, setCardFocusTick] = useState(0);
   const evidenceOpenerRef = useRef<HTMLElement | null>(null);
   const lastSendTimeRef = useRef<number>(0);
 
@@ -396,8 +391,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Derived, never stored: the saved navigation preference is not touched.
   const navHiddenByReader = readerExpanded && !isContextOverlay && !roomForNav;
   useModalFocus<HTMLElement>(navDrawerOpen, closeNavPanel, navPanelRef);
-  const [evidenceFocusTick, setEvidenceFocusTick] = useState(0);
-  const passageRequestRef = useRef(0);
 
   useEffect(() => {
     let wasCompact = compactViewport();
@@ -455,10 +448,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
   }, [navDrawerOpen]);
 
-  // Opened from the keyboard: move focus to the evidence that appeared under the answer.
-  useEffect(() => {
-    if (evidenceFocusTick > 0) evidenceRef.current?.focus();
-  }, [evidenceFocusTick]);
 
 
 
@@ -473,10 +462,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   }, [isNavCollapsed, navHiddenByReader]);
   const [droppedFiles, setDroppedFiles] = useState<File[]>([]);
 
-  // Right contextual panel tab: 'passage' | 'notes' | 'retrieval'
-  const [contextView, setContextView] = useState<'notes' | 'evidence' | 'retrieval'>('evidence');
-  const contextTabsRef = useRef<HTMLDivElement>(null);
-  useSlidingIndicator(contextTabsRef, contextView === 'notes' ? 'notes' : 'evidence');
+  // Right contextual panel view: 'notes' | 'retrieval'
+  const [contextView, setContextView] = useState<'notes' | 'retrieval'>('notes');
   const [historyOpen, setHistoryOpen] = useState(false);
   const historyRef = useModalFocus(historyOpen, () => setHistoryOpen(false));
   const [selectedRetrievalMessageId, setSelectedRetrievalMessageId] = useState<string | null>(null);
@@ -668,10 +655,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
   // Citation inspection state
   const [selectedCitation, setSelectedCitation] = useState<ActiveCitation | null>(null);
-  const [passages, setPassages] = useState<PassageItem[]>([]);
-  const [passageLoading, setPassageLoading] = useState(false);
-  // Passages already fetched this session, so stepping back to a citation renders at once with no spinner.
-  const passageCache = useRef<Map<string, PassageItem[]>>(new Map());
 
   // Composer & Turn Feedback
   // The draft question is kept per notebook and session, so switching, reloading or a failed send never loses it.
@@ -713,20 +696,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
   }, [messages, chatLoading]);
 
-  // Auto-select the first citation of the latest cited answer, so the Evidence panel is never empty on load.
-  const autoSelectedForRef = useRef<string | null>(null);
-  const suppressEvidenceScrollRef = useRef(false);
-  useEffect(() => {
-    if (selectedCitation || autoSelectedForRef.current === subject.id) return;
-    const answered = [...messages].reverse().find((m) => m.role === 'assistant' && m.citations && m.citations.length > 0);
-    if (!answered) return;
-    autoSelectedForRef.current = subject.id;
-    suppressEvidenceScrollRef.current = true;
-    const first = answered.citations[0];
-    setSelectedCitation({ ...first, messageId: answered.id });
-    loadPassages(first);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages, subject.id]);
 
   // Escape key handler to close all workspace modals
   useEffect(() => {
@@ -1076,7 +1045,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // CITATION INSPECTION HANDLERS
   // --------------------------------------------------------------------------
   // Show a view in the materials panel, opening it (as an overlay where it is one) if it is closed.
-  const openContext = (view?: 'notes' | 'evidence' | 'retrieval') => {
+  const openContext = (view: 'notes' | 'retrieval' = 'notes') => {
     if (view) { setContextView(view); if (reader) { setReader(null); setReaderExpanded(false); } }
     setIsContextCollapsed(false);
   };
@@ -1094,46 +1063,37 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (!options?.keepOpener) {
       evidenceOpenerRef.current = active instanceof HTMLElement && active !== document.body ? active : null;
     }
-    try {
-      // :focus-visible matches only when the citation was activated from the keyboard.
-      if (active instanceof HTMLElement && active.matches(':focus-visible') && !options?.keepOpener) {
-        setEvidenceFocusTick((t) => t + 1);
-      }
-    } catch {
-      /* selector unsupported: skip */
-    }
-    setSelectedCitation({ ...cit, messageId });
-    openContext('evidence');
-    if (!messages.some((m) => m.id === messageId)) setCardFocusTick((t) => t + 1);
-    loadPassages(cit);
-  };
+    const activeCit: ActiveCitation = { ...cit, messageId };
+    setSelectedCitation(activeCit);
 
-  // Keep newly opened evidence in view; smooth scrolling only when motion is welcome.
-  useEffect(() => {
-    if (suppressEvidenceScrollRef.current) { suppressEvidenceScrollRef.current = false; return; }
-    const el = evidenceRef.current;
-    if (!el || typeof el.scrollIntoView !== 'function') return;
-    const reduce = typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Evidence taller than the thread area is aligned to its top, so Prev/Next/Close stay reachable.
-    const scroller = el.closest('.thread-scroll-container');
-    const tall = scroller ? el.getBoundingClientRect().height > scroller.clientHeight - 96 : false;
-    el.scrollIntoView({ block: tall ? 'start' : 'nearest', behavior: reduce ? 'auto' : 'smooth' });
-  }, [selectedCitation?.messageId, selectedCitation?.file, selectedCitation?.page]);
+    const matchingSource =
+      sources.find((s) => s.id === cit.source_id) ??
+      sources.find((s) => normalizeFileName(s.file_name) === normalizeFileName(cit.file) || s.title === cit.file);
 
-  // A citation chosen from a note or the retrieval map has no answer to anchor to: focus its card in the panel.
-  useEffect(() => {
-    if (cardFocusTick > 0) evidenceRef.current?.focus();
-  }, [cardFocusTick]);
+    const fallbackSrc: Source = {
+      id: cit.source_id || 'removed-source',
+      subject_id: subject.id,
+      user_id: 'user',
+      title: cit.file,
+      file_name: cit.file,
+      status: 'ready',
+      version: cit.source_version ?? 1,
+      source_type: (cit.file.endsWith('.pdf') ? 'pdf' : cit.file.endsWith('.md') ? 'md' : 'txt') as any,
+      page_count: 0,
+      word_count: 0,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
 
-  // Collapse the evidence and hand focus back to the control that opened it.
-  const closeEvidence = () => {
-    const opener = evidenceOpenerRef.current;
-    evidenceOpenerRef.current = null;
-    setSelectedCitation(null);
-    setTimeout(() => {
-      if (opener && opener.isConnected) opener.focus();
-      else chatAreaRef.current?.focus();
-    }, 0);
+    const isReplaced = Boolean(matchingSource && cit.source_version && matchingSource.version !== cit.source_version);
+    const targetSrc = matchingSource ?? fallbackSrc;
+    startReader(
+      targetSrc,
+      cit.page,
+      isReplaced ? 'current' : 'cited',
+      isReplaced ? targetSrc.version : (cit.source_version ?? targetSrc.version),
+      { messageId, citation: activeCit }
+    );
   };
 
   const handleSelectPassageFromRetrieval = (fileName: string, pageNumber: number) => {
@@ -1146,143 +1106,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     };
     handleSelectCitation(cit, '');
   };
-
-  const loadPassages = async (cit: Citation) => {
-    const requestId = ++passageRequestRef.current;
-    const isLatest = () => requestId === passageRequestRef.current;
-    const matchingSource =
-      sources.find((s) => s.id === cit.source_id) ??
-      (cit.source_id ? undefined : sources.find((s) => normalizeFileName(s.file_name) === normalizeFileName(cit.file)));
-    const isHistoricalOnly =
-      Boolean(cit.source_id && !matchingSource) ||
-      Boolean(cit.source_id && matchingSource && typeof cit.source_version === 'number' && matchingSource.version !== cit.source_version);
-
-    if (isHistoricalOnly) {
-      setPassages([]);
-      setPassageLoading(false);
-      return;
-    }
-
-    // A file that is not among this notebook's sources cannot be read back: do not look it up by name alone.
-    if (!matchingSource) {
-      setPassages([]);
-      setPassageLoading(false);
-      return;
-    }
-
-    const cacheKey = `${subject.id}:${matchingSource.id}:v${matchingSource.version ?? 0}:${cit.page}`;
-    const cached = passageCache.current.get(cacheKey);
-    if (cached) {
-      setPassages(cached);
-      setPassageLoading(false);
-      return;
-    }
-
-    setPassageLoading(true);
-    try {
-      const lookupFile = matchingSource.file_name || cit.file;
-      // Scoped to this notebook and source, so a same-named file elsewhere can never be shown.
-      const data = await api.getPassages(lookupFile, cit.page, subject.id, matchingSource.id);
-      // Backup guard: deduplicate passages by chunk_index & text
-      const seen = new Set<string>();
-      const deduped = data.filter((p) => {
-        const key = `${p.chunk_index ?? ''}:${(p.text || p.chunk_text || '').trim()}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      passageCache.current.set(cacheKey, deduped);
-      if (isLatest()) setPassages(deduped);
-    } catch {
-      if (isLatest()) setPassages([]);
-    } finally {
-      if (isLatest()) setPassageLoading(false);
-    }
-  };
-
-  // Active message & citations for right passage inspector
-  const activeMessage = selectedCitation
-    ? messages.find((m) => m.id === selectedCitation.messageId)
-    : [...messages].reverse().find((m) => m.role === 'assistant' && m.citations && m.citations.length > 0);
-
-  const activeCitations = activeMessage?.citations || [];
-  const activeRetrieved = activeMessage?.retrieved || [];
-
-  // Citation stepping in the right panel (Prev / Next)
-  const currentCitationIndex = selectedCitation
-    ? activeCitations.findIndex(
-        (c) =>
-          normalizeFileName(c.file) === normalizeFileName(selectedCitation.file) &&
-          c.page === selectedCitation.page
-      )
-    : -1;
-
-  const hasPreviousCitation = currentCitationIndex > 0;
-  const hasNextCitation = currentCitationIndex >= 0 && currentCitationIndex < activeCitations.length - 1;
-
-  const handlePreviousCitation = () => {
-    if (hasPreviousCitation && selectedCitation?.messageId) {
-      const prevCit = activeCitations[currentCitationIndex - 1];
-      withViewTransition(() => {
-        handleSelectCitation(prevCit, selectedCitation.messageId, { keepOpener: true });
-      });
-    }
-  };
-
-  const handleNextCitation = () => {
-    if (hasNextCitation && selectedCitation?.messageId) {
-      const nextCit = activeCitations[currentCitationIndex + 1];
-      withViewTransition(() => {
-        handleSelectCitation(nextCit, selectedCitation.messageId, { keepOpener: true });
-      });
-    }
-  };
-
-  // Passage chunk highlight calculation
-  const retrievedMatchingChunks = selectedCitation
-    ? activeRetrieved.filter((r) => {
-        const rFile = r.file || r.file_name;
-        const rPage = r.page !== undefined ? r.page : r.page_number;
-        const rText = r.text || r.chunk_text;
-        return (
-          rFile &&
-          normalizeFileName(rFile) === normalizeFileName(selectedCitation.file) &&
-          rPage === selectedCitation.page &&
-          typeof rText === 'string' &&
-          rText.trim().length > 0
-        );
-      })
-    : [];
-
-  const hasRetrievedChunkText = retrievedMatchingChunks.length > 0;
-
-  const isChunkHighlighted = (chunkText: string, chunkIndex?: number): boolean => {
-    if (!hasRetrievedChunkText) return false;
-    return retrievedMatchingChunks.some((r) => {
-      const rText = (r.text || r.chunk_text || '').trim();
-      if (!rText) return false;
-      const cText = chunkText.trim();
-      return (
-        cText.includes(rText) ||
-        rText.includes(cText) ||
-        (typeof chunkIndex === 'number' &&
-          typeof (r as any).chunk_index === 'number' &&
-          chunkIndex === (r as any).chunk_index)
-      );
-    });
-  };
-
-  // Historical citation detection
-  const matchedSource = selectedCitation?.source_id && sources
-    ? sources.find((s) => s.id === selectedCitation.source_id)
-    : undefined;
-  const isSourceDeleted = Boolean(selectedCitation?.source_id && sources && !matchedSource);
-  const isSourceReplaced = Boolean(
-    selectedCitation?.source_id &&
-    matchedSource &&
-    typeof selectedCitation.source_version === 'number' &&
-    matchedSource.version !== selectedCitation.source_version
-  );
 
   // --------------------------------------------------------------------------
   // SOURCE READER
@@ -1324,22 +1147,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (el && el.isConnected) el.focus({ preventScroll: true });
   }, 0);
 
-  const readerActionFor = (cit: ActiveCitation | null) => {
-    if (!cit || !cit.source_id) return null;
-    const src = sources.find((s) => s.id === cit.source_id);
-    if (!src || src.status !== 'ready') return null;
-    const replaced = typeof cit.source_version === 'number' && src.version !== cit.source_version;
-    return replaced
-      ? { label: `Open current version in reader (v${src.version})`, onOpen: () => openReader(cit, 'current') }
-      : { label: 'Open in reader', onOpen: () => openReader(cit, 'cited') };
-  };
-  const readerAction = readerActionFor(selectedCitation);
-
-  const openReader = (cit: ActiveCitation, intent: 'cited' | 'current') => {
-    const src = cit.source_id ? sources.find((s) => s.id === cit.source_id) : undefined;
-    if (!src) return;
-    startReader(src, cit.page, intent, intent === 'cited' ? (cit.source_version ?? src.version) : src.version, { messageId: cit.messageId, citation: cit });
-  };
   // Opening a source to read it, with no citation: first page, no passage mark.
   const openSourceInReader = (src: Source) => {
     if (src.status !== 'ready') return;
@@ -1388,7 +1195,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     // while expanded), so fall back to the current "Open source" button, then the evidence block.
     const back = () => (opener && opener.isConnected && !opener.closest('[inert]') ? opener : null)
       ?? document.querySelector<HTMLElement>('[data-testid="open-reader-btn"]')
-      ?? evidenceRef.current ?? chatAreaRef.current;
+      ?? chatAreaRef.current;
     if (wasCollapsed) {
       focusSoon(() => back() ?? contextToggleRef.current);
     } else {
@@ -1436,7 +1243,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         scroller.style.overflowAnchor = '';
       }
       // Focus moves after the scroll, so it cannot scroll the answer away from the restored place.
-      const target = [readerExpandRef.current, evidenceRef.current, chatAreaRef.current].find((el) => el && el.isConnected);
+      const target = [readerExpandRef.current, chatAreaRef.current].find((el) => el && el.isConnected);
       target?.focus({ preventScroll: true });
     };
 
@@ -1574,14 +1381,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     setSelectedRetrievalMessageId(messageId);
     openContext('retrieval');
     setTimeout(() => {
-      const retrievalTabBtn = document.querySelector<HTMLButtonElement>(
-        '[data-testid="right-panel-tab-evidence"]'
-      );
-      if (retrievalTabBtn) {
-        retrievalTabBtn.focus();
-      } else {
-        contextPanelRef.current?.focus();
-      }
+      contextPanelRef.current?.focus();
     }, 0);
   };
 
@@ -2132,15 +1932,31 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                         selectedCitation.page === c.page &&
                                         normalizeFileName(selectedCitation.file) === normalizeFileName(c.file)
                                       );
+                                      const state = citationStateOf(c);
+                                      if (state === 'removed') {
+                                        return (
+                                          <span
+                                            key={cIdx}
+                                            className="citation-pill-badge is-removed"
+                                            title={`${label} was removed from the notebook`}
+                                            data-testid={`citation-pill-${cIdx}`}
+                                          >
+                                            [{label} p.{c.page} (removed)]
+                                          </span>
+                                        );
+                                      }
+                                      const isReplaced = state === 'replaced';
                                       return (
                                         <button
                                           key={cIdx}
                                           type="button"
-                                          className={`citation-pill-badge ${isSelected ? 'is-active' : ''}`}
+                                          className={`citation-pill-badge ${isReplaced ? 'is-replaced' : ''} ${isSelected ? 'is-active' : ''}`}
                                           onClick={() => handleSelectCitation(c, msg.id)}
-                                          title={`Jump to ${label} page ${c.page} in Citations panel`}
+                                          aria-label={isReplaced ? `Open current version in reader (v${src?.version})` : `${c.file}, page ${c.page}`}
+                                          data-testid={`citation-pill-${cIdx}`}
+                                          title={isReplaced ? `Open current version of ${label} (v${src?.version}) in reader` : `Open ${label} page ${c.page} in reader`}
                                         >
-                                          [{label} p.{c.page}]
+                                          [{label} p.{c.page}{isReplaced ? ` (v${src?.version})` : ''}]
                                         </button>
                                       );
                                     })}
@@ -2189,7 +2005,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                                                 type="button"
                                                 className="sources-matched-item"
                                                 onClick={() => handleSelectCitation(item.citation, msg.id)}
-                                                title={`Select ${item.title}, page ${item.page} in Citations panel`}
+                                                title={`Open ${item.title}, page ${item.page} in reader`}
                                                 data-testid={`matched-source-item-${item.file}-${item.page}`}
                                               >
                                                 <div className="sources-matched-item-info">
@@ -2365,7 +2181,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           {isContextCollapsed && resizeHandle('right', false)}
         {isContextCollapsed && (
           <button type="button" ref={contextToggleRef} className="rail-icon-btn context-expand-btn" onClick={() => setContextCollapsed(false)}
-            title={`Open citations panel (${shortcutLabel('\\')})`} aria-label="Open citations panel" aria-expanded={false} aria-controls="workspace-sources-panel">
+            title={`Toggle study panel (${shortcutLabel('\\')})`} aria-label="Toggle study panel" aria-expanded={false} aria-controls="workspace-sources-panel">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
               <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
             </svg>
@@ -2380,7 +2196,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           aria-label={reader ? 'Source reader' : 'Study panel'} data-reader={reader ? (readerExpanded ? 'expanded' : 'compact') : undefined}
         >
           {!isContextCollapsed && resizeHandle('right', true)}
-          {reader && (
+          {reader ? (
             <SourceReader
               title={readerSource?.title ?? reader.cite?.citation.file ?? 'Source'}
               sourceType={readerSource?.source_type ?? 'pdf'}
@@ -2400,60 +2216,25 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               expandButtonRef={readerExpandRef}
               headingRef={readerHeadingRef}
             />
-          )}
-          {!(contextView === 'notes' && isCreateNoteOpen) && <div className="context-tabs-row">
-          <div className="context-view-switcher sidebar-segment-switcher sliding-tabs" ref={contextTabsRef} role="group" aria-label="Panel view" data-active={contextView === 'notes' ? 'notes' : 'evidence'}>
-            <button type="button" className={`segment-btn ${contextView === 'notes' ? 'active' : ''}`} aria-pressed={contextView === 'notes'} onClick={() => { void flushNote(); setContextView('notes'); }}>{notes.length > 0 ? `Notes · ${notes.length}` : 'Notes'}</button>
-            <button type="button" className={`segment-btn ${contextView !== 'notes' ? 'active' : ''}`} aria-pressed={contextView !== 'notes'} onClick={() => { void flushNote(); setContextView('evidence'); }} data-testid="right-panel-tab-evidence">Citations</button>
-          </div>
-          <button type="button" ref={contextToggleRef} className="rail-icon-btn context-collapse-btn" onClick={closeContextPanel}
-            title={`Hide study panel (${shortcutLabel('\\')})`} aria-label="Toggle study panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
-              <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
-            </svg>
-          </button>
-          </div>}
-
-          {contextView === 'evidence' && (
-            <div className="right-panel-body study-evidence-body tab-panel-fade" key="panel-evidence">
-              {selectedCitation ? <section data-testid="selected-source-card" className="evidence-source-summary" tabIndex={-1}>
-                {!matchedSource && !selectedCitation.source_id && <p className="evidence-note">This file is not among the notebook’s current sources.</p>}
-                                  <InlineEvidence
-                                    ref={evidenceRef}
-                                    citation={selectedCitation}
-                                    passages={passages}
-                                    loading={passageLoading}
-                                    retrievedChunks={retrievedMatchingChunks}
-                                    isHighlighted={isChunkHighlighted}
-                                    sourceRemoved={isSourceDeleted}
-                                    sourceReplaced={isSourceReplaced}
-                                    currentVersion={matchedSource?.version}
-                                    readerAction={readerAction}
-                                    index={currentCitationIndex}
-                                    total={activeCitations.length}
-                                    onPrevious={handlePreviousCitation}
-                                    onNext={handleNextCitation}
-                                    onClose={closeEvidence}
-                                    displayTitle={matchedSource ? displayTitleFor(matchedSource) : undefined}
-                                    footerExtra={
-                                      <button type="button" className="evidence-reader-btn evidence-save-btn" onClick={() => {
-                                        setEditingNote(null);
-                                        setNoteFormTitle(matchedSource?.title || selectedCitation.file);
-                                        const passage = retrievedMatchingChunks.map(c => c.text).join('\n\n') || selectedCitation.excerpt || '';
-                                        setNoteFormContent(`${passage}\n\nSource: ${selectedCitation.file}, page ${selectedCitation.page}`);
-                                        setIsCreateNoteOpen(true);
-                                        setContextView('notes');
-                                      }} aria-label="Save passage to notes">Save to notes</button>
-                                    }
-                                  />
-              </section> : <p className="study-empty">Select a citation in an answer to inspect its source.</p>}
-              {selectedRetrievalMessageId && <button type="button" className="selected-source-view" onClick={() => setContextView('retrieval')}>Show retrieval diagnostics</button>}
-            </div>
-          )}
-
-          {/* RIGHT PANEL CONTENT: SAVED NOTES VIEW */}
-          {contextView === 'notes' && (
-            <div className="right-panel-body tab-panel-fade" key="panel-notes">
+          ) : (
+            <>
+              {contextView === 'notes' && (
+                <>
+                  {!isCreateNoteOpen && (
+                    <div className="rail-header notes-panel-header">
+                      <div className="rail-title-group">
+                        <h2 className="rail-title">Notes<span className="sr-only"> ({notes.length})</span></h2>
+                        {notes.length > 0 && <span className="rail-count-pill" aria-hidden="true">{notes.length}</span>}
+                      </div>
+                      <button type="button" ref={contextToggleRef} className="rail-icon-btn context-collapse-btn" onClick={closeContextPanel}
+                        title={`Hide study panel (${shortcutLabel('\\')})`} aria-label="Toggle study panel" aria-expanded={!isContextCollapsed} aria-controls="workspace-sources-panel">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.75" aria-hidden="true">
+                          <rect x="3" y="3" width="18" height="18" rx="3" /><path d="M15 3v18" />
+                        </svg>
+                      </button>
+                    </div>
+                  )}
+                  <div className="right-panel-body tab-panel-fade" key="panel-notes">
               {isCreateNoteOpen ? (
                 <form className="note-editor studio-note" data-testid="inline-note-editor" aria-label={editingNote ? 'Edit note' : 'New note'}
                   onSubmit={(e) => { e.preventDefault(); void flushNote(); }}
@@ -2663,13 +2444,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               </>
               )}
             </div>
+            </>
           )}
-
 
           {/* RIGHT PANEL CONTENT: RETRIEVAL MAP VIEW */}
           {contextView === 'retrieval' && (
             <div className="right-panel-body retrieval-panel-body">
-              <button type="button" className="selected-source-view" onClick={() => setContextView('evidence')}>Back to evidence</button>
+              <button type="button" className="selected-source-view" onClick={() => setContextView('notes')}>Back to notes</button>
               <RetrievalMapView
                 subjectId={subject.id}
                 conversationId={activeConversationId || (messages.length > 0 ? messages[0].conversation_id : undefined)}
@@ -2680,6 +2461,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               />
             </div>
           )}
+          </>
+        )}
 
         </aside>
         </div>

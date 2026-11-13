@@ -129,7 +129,6 @@ describe('Sources panel', () => {
     expect(within(panel()).queryByText('Syllabus.pdf')).toBeNull();
     expect(within(panel()).getByText('Lecture 7.pdf')).toBeInTheDocument();
 
-    fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
     fireEvent.click(within(study()).getByTestId('new-note-btn'));
     expect(within(study()).getByTestId('inline-note-editor')).toBeInTheDocument();
     expect(screen.queryByRole('dialog', { name: /note/i })).toBeNull();
@@ -138,7 +137,6 @@ describe('Sources panel', () => {
   it('writes and saves a note inline in the study panel, with Ctrl+Enter', async () => {
     const onCreateNote = vi.fn(async () => {});
     render(React.cloneElement(workspace([src('a', 'Syllabus.pdf')], ['a']), { onCreateNote }));
-    fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
     fireEvent.click(within(study()).getByTestId('new-note-btn'));
     fireEvent.change(within(study()).getByPlaceholderText('New Note'), { target: { value: 'Heaps' } });
     const body = within(study()).getByRole('textbox', { name: 'Note body' });
@@ -153,7 +151,6 @@ describe('Sources panel', () => {
     const onUpdateNote = vi.fn(async () => {});
     const note = { id: 'n1', title: 'Heaps', content: 'Min-heap', citations: [], created_at: '', updated_at: '' } as any;
     render(React.cloneElement(workspace([src('a', 'Syllabus.pdf')], ['a']), { onUpdateNote, notes: [note] }));
-    fireEvent.click(within(study()).getByRole('button', { name: /^Notes/ }));
     fireEvent.click(within(study()).getByText('Heaps'));
     expect(within(study()).queryByRole('button', { name: 'Save' })).toBeNull();
     expect(within(study()).getByTestId('note-save-status')).toHaveTextContent('✓ Saved');

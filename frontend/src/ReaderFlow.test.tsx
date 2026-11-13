@@ -54,17 +54,11 @@ beforeEach(() => {
 });
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 
-const openEvidence = async () => {
-  const opener = screen.queryByRole('button', { name: 'Open citations panel' });
-  if (opener) fireEvent.click(opener);
-  return screen.findByTestId('inline-evidence');
-};
 const openReader = async () => {
-  const pane = await openEvidence();
-  const button = within(pane).getByRole('button', { name: 'Open in reader' });
-  button.focus();
-  fireEvent.click(button);
-  return button;
+  const pill = await screen.findByRole('button', { name: /a\.pdf, page 2/ });
+  pill.focus();
+  fireEvent.click(pill);
+  return pill;
 };
 const reader = () => screen.getByTestId('source-reader');
 const escape = () => act(() => { window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); });
@@ -166,14 +160,14 @@ describe('Source reader: expand, pointer and Escape (docked)', () => {
 });
 
 describe('Source reader: closing', () => {
-  it('Back returns to the evidence view and focuses the Open in reader button', async () => {
+  it('Back returns to the answer and focuses the opener', async () => {
     render(view());
-    await openReader();
+    const opener = await openReader();
     await waitFor(() => expect(reader().querySelector('mark.reader-mark')).not.toBeNull());
     fireEvent.click(within(reader()).getByRole('button', { name: 'Back to answer' }));
     await waitFor(() => expect(document.querySelector('.workspace-layout')).not.toHaveAttribute('data-reader'));
     expect(document.querySelector('.context-slot')).not.toHaveClass('is-collapsed');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Open in reader' })).toHaveFocus());
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 });
 
@@ -192,12 +186,10 @@ describe('Source reader: overlay (700px)', () => {
     expect(document.querySelector('.context-slot')).not.toHaveClass('is-collapsed');
     await waitFor(() => expect(within(reader()).getByRole('button', { name: 'Expand reader' })).toHaveFocus(), { timeout: 2000 });
 
-    escape(); // compact -> reader closed; the panel stays open on the evidence, focus returns to the opener
+    escape(); // compact -> reader closed; overlay panel returns to collapsed and focus returns to opener
     await waitFor(() => expect(document.querySelector('.workspace-layout')).not.toHaveAttribute('data-reader'));
-    expect(document.querySelector('.context-slot')).not.toHaveClass('is-collapsed');
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Open in reader' })).toHaveFocus());
-    escape(); // evidence view in the overlay -> panel closed
-    await waitFor(() => expect(document.querySelector('.context-slot')).toHaveClass('is-collapsed'));
+    expect(document.querySelector('.context-slot')).toHaveClass('is-collapsed');
+    await waitFor(() => expect(opener).toHaveFocus());
     expect(opener).toBeDefined();
   });
 });
@@ -206,9 +198,8 @@ describe('Source reader: replaced and removed sources', () => {
   it('offers only the current version for a replaced source and shows no mark', async () => {
     detail.mockImplementation(async (_s, id) => ({ ...mkSource({ id, version: 2 }), raw_content: raw }));
     render(view([mkSource({ version: 2 })]));
-    const pane = await openEvidence();
-    expect(within(pane).queryByRole('button', { name: 'Open in reader' })).toBeNull();
-    fireEvent.click(within(pane).getByRole('button', { name: 'Open current version in reader (v2)' }));
+    expect(screen.queryByRole('button', { name: 'a.pdf, page 2' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Open current version in reader (v2)' }));
     await waitFor(() => expect(reader()).toHaveTextContent('Second line of intro.'));
     expect(reader()).toHaveTextContent(/Current version \(v2\), not what the answer used/);
     expect(reader().querySelector('mark.reader-mark')).toBeNull();
@@ -216,8 +207,7 @@ describe('Source reader: replaced and removed sources', () => {
 
   it('offers nothing for a deleted source', async () => {
     render(view([other]));
-    const pane = await openEvidence();
-    expect(within(pane).queryByRole('button', { name: /^Open/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /^Open/ })).toBeNull();
   });
 
   it('switches to current text when the source is replaced while the reader is open', async () => {
