@@ -1569,21 +1569,23 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 }
               }}
             >
+              {sources.length > 0 && (
               <div className="sources-search-row">
-                {sources.length > 0 && (
-                  <label className="rail-find sources-search">
-                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="20" y1="20" x2="16.5" y2="16.5" /></svg>
-                    <input type="search" placeholder="Find in sources" aria-label="Find in sources" value={sourceSearch}
-                      onChange={(e) => setSourceSearch(e.target.value)} />
-                  </label>
-                )}
-                <button type="button" className="sources-add-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn"
-                  aria-label="Add sources" title="Add sources">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
-                    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-                  </svg>
-                </button>
-              </div>
+                  {sources.length > 0 && (
+                    <label className="rail-find sources-search">
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="20" y1="20" x2="16.5" y2="16.5" /></svg>
+                      <input type="search" placeholder="Find in sources" aria-label="Find in sources" value={sourceSearch}
+                        onChange={(e) => setSourceSearch(e.target.value)} />
+                    </label>
+                  )}
+                  <button type="button" className="sources-add-btn" onClick={() => setIsAddSourceOpen(true)} data-testid="add-source-btn"
+                    aria-label="Add sources" title="Add sources">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" aria-hidden="true">
+                      <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
 
               {sources.length > 0 && (
                 <div className="sources-toolbar">
@@ -1630,9 +1632,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   <svg className="sources-empty-icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5M9 13h6M9 17h4" />
                   </svg>
-                  <p className="sources-empty-title">Saved sources will appear here</p>
-                  <p className="sources-empty-hint">Add PDFs, Markdown notes, or web pages to ground your answers.</p>
-                  <button type="button" className="sources-empty-link" onClick={() => setIsAddSourceOpen(true)}>add a source</button>
+                  <p className="sources-empty-title">Drop PDFs or notes here</p>
+                  <button type="button" className="sources-empty-link" onClick={() => setIsAddSourceOpen(true)}>+ Add source</button>
                 </div>
               ) : (
                 <>
@@ -1665,7 +1666,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 </>
               )}
 
-              <div className="rail-footer">
+              {sources.length > 0 && <div className="rail-footer">
                 <form className="sources-web-search" role="search" aria-label="Add a web page as a source" onSubmit={handleWebSearch}>
                   <input type="search" className="sources-web-input" placeholder="Paste a link to add it"
                     aria-label="Search the web for new sources" value={webQuery}
@@ -1680,7 +1681,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </div>
                   {webHint && <p className="sources-web-hint" role="status">{webHint}</p>}
                 </form>
-              </div>
+              </div>}
             </div>
           </aside>
         </div>
@@ -1708,7 +1709,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               <div className="study-intro workspace-zero-sources-box" data-testid="zero-sources-state">
                 <BrandLogo size={28} />
                 <h1 className="study-intro-heading" data-testid="empty-state-heading">Start your study space</h1>
-                <p className="study-intro-sub">Bring your course PDFs, lecture notes, or handouts to ask grounded questions and keep track of study notes.</p>
+                <p className="study-intro-sub">Bring your course PDFs, lecture notes, or web pages to ask grounded questions and write study notes.</p>
                 <div className="study-card-grid" role="group" aria-label="Add sources">
                   <button type="button" className="study-card" onClick={() => openSourceEntry('upload')} data-testid="add-first-source-btn">
                     <span>Upload PDFs or notes</span><span className="study-card-arrow" aria-hidden="true">→</span>

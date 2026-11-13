@@ -3274,3 +3274,24 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .sources-empty-hint, .notes-empty-sub { margin: 0; max-width: 220px; font-size: 12.5px; line-height: 1.5; color: var(--color-text-muted); }
 .sources-empty-link { margin-top: 6px; padding: 0; border: 0; background: none; font: 500 13px var(--font-family-ui); color: var(--color-brand-navy); text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
 .sources-panel-body.is-drag-over .sources-empty { background: var(--color-accent-soft); border-radius: 12px; }
+
+/* Empty-notebook polish */
+.scope-dot.none { display: none; }
+.workspace-layout .study-intro { max-width: 660px; padding: 0 24px; margin: auto; }
+.study-intro-heading { font-weight: 600; color: #18181B; margin: 0 0 8px; }
+.study-intro-sub { color: #52525B; margin: 0 0 22px; }
+.study-card-grid { margin-top: 0; }
+.study-card { min-height: 92px; padding: 14px 16px; border-radius: 12px; transition: all 0.16s ease; color: #18181B; }
+.study-card:hover { background: #EAECEF; border-color: rgba(26, 52, 84, 0.16); }
+.sources-empty-link { color: #1A3454; font-weight: 500; text-decoration: none; }
+.sources-empty-link:hover { text-decoration: underline; text-underline-offset: 3px; }
+.workspace-layout .workspace-control-bar { gap: 10px; }
+.workspace-layout .workspace-brand { margin: 0; padding: 0; width: auto; min-width: 0; flex: none; }
+.workspace-layout .workspace-logo-btn { width: auto; min-width: 0; height: 32px; padding: 2px; margin: 0; line-height: 1; }
+.workspace-layout .workspace-breadcrumb { flex: 1 1 auto; margin: 0; padding: 0; }
+.workspace-layout .workspace-control-bar { gap: 8px; }
+.workspace-layout .workspace-logo-btn { width: 28px; min-width: 28px; }
+.workspace-layout .workspace-breadcrumb .workspace-notebook-identity,
+.workspace-layout .workspace-breadcrumb .workspace-subject-pill-name { padding-left: 0; padding-right: 0; }
+.workspace-layout .workspace-logo-btn { display: inline-flex; align-items: center; justify-content: center; }
+.workspace-layout .workspace-logo-btn .brand-logo-icon { width: 24px; height: 24px; flex: none; }
