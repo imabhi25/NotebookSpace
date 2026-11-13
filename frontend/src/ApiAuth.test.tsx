@@ -66,7 +66,7 @@ describe('Notebook settings save', () => {
     renderWorkspace(onUpdateSettings);
 
     fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /Notebook settings/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Configure chat/i }));
     fireEvent.change(screen.getByLabelText('Response Length'), { target: { value: 'detailed' } });
 
     const alert = await screen.findByRole('alert');
@@ -79,7 +79,7 @@ describe('Notebook settings save', () => {
     renderWorkspace(onUpdateSettings);
 
     fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /Notebook settings/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Configure chat/i }));
     fireEvent.change(screen.getByLabelText('Response Length'), { target: { value: 'detailed' } });
     await screen.findByRole('alert');
 
@@ -96,7 +96,7 @@ describe('Notebook settings save', () => {
     renderWorkspace(onUpdateSettings, stale);
 
     fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
-    fireEvent.click(screen.getByRole('menuitem', { name: /Notebook settings/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Configure chat/i }));
     fireEvent.change(screen.getByLabelText('Response Style'), { target: { value: 'learning-guide' } });
 
     await waitFor(() => expect(onUpdateSettings).toHaveBeenCalledTimes(1));
