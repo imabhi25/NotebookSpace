@@ -1048,7 +1048,7 @@
   .workspace-layout .context-slot.is-collapsed { width: 0; }
   .workspace-layout .context-slot aside.workspace-context-panel {
     position: relative; top: 0; height: 100%; max-height: none; min-height: 0; margin: 0;
-    border: 0 !important; border-left: 1px solid var(--border-subtle) !important; border-radius: 0 !important;
+    border: 0; border-left: 1px solid var(--border-subtle); border-radius: 0;
     box-shadow: none; background: transparent;
   }
   .workspace-layout .context-slot aside.workspace-context-panel .right-panel-body,
@@ -1885,7 +1885,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 
 /* Passage card fills the panel down to the action bar; no fade, no artificial cap. */
 @media (min-width: 769px) {
-  .workspace-layout .context-slot aside.workspace-context-panel:not([data-reader]) { height: calc(100% - 2 * var(--ctx-inset)); max-height: calc(100% - 2 * var(--ctx-inset)); }
+  .workspace-layout .context-slot aside.workspace-context-panel:not([data-reader]) { height: 100%; max-height: none; }
 }
 
 .workspace-layout .context-slot aside.workspace-context-panel .study-evidence-body { flex: 1 1 auto; min-height: 0; }
@@ -3256,13 +3256,29 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   .workspace-layout .nav-slot, .workspace-layout .context-slot { padding: 0; }
   .workspace-layout aside.workspace-nav.workspace-sources-rail,
   .workspace-layout .context-slot aside.workspace-context-panel,
-  .workspace-layout .workspace-main-area {
-    background: var(--color-bg-surface, var(--color-surface));
-    border: 1px solid rgba(0, 0, 0, 0.06); border-radius: 14px; overflow: hidden;
+  .workspace-layout .study-panel,
+  .workspace-layout .workspace-main-area,
+  .workspace-layout .workspace-center {
+    background: var(--color-bg-surface, var(--color-surface)) !important;
+    border: 1px solid rgba(0, 0, 0, 0.06) !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    box-shadow: none !important;
+    height: 100% !important;
+    max-height: none !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    top: 0 !important;
+    align-self: stretch !important;
+    display: flex !important;
+    flex-direction: column !important;
+    box-sizing: border-box !important;
   }
   :root[data-theme="dark"] .workspace-layout aside.workspace-nav.workspace-sources-rail,
   :root[data-theme="dark"] .workspace-layout .context-slot aside.workspace-context-panel,
-  :root[data-theme="dark"] .workspace-layout .workspace-main-area { border-color: rgba(255, 255, 255, 0.08); }
+  :root[data-theme="dark"] .workspace-layout .study-panel,
+  :root[data-theme="dark"] .workspace-layout .workspace-main-area,
+  :root[data-theme="dark"] .workspace-layout .workspace-center { border-color: rgba(255, 255, 255, 0.08) !important; }
 }
 
 /* ============================================================
@@ -3381,3 +3397,84 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .workspace-breadcrumb .workspace-subject-pill-name { padding-left: 0; padding-right: 0; }
 .workspace-layout .workspace-logo-btn { display: inline-flex; align-items: center; justify-content: center; }
 .workspace-layout .workspace-logo-btn .brand-logo-icon { width: 24px; height: 24px; flex: none; }
+
+/* ============================================================
+   Panel 3 (Study / Notes): Identical Full-Height Stretch & Surface to Panel 1 (Sources)
+   ============================================================ */
+.workspace-layout .study-panel,
+.workspace-layout .context-slot aside.workspace-context-panel {
+  height: 100% !important;
+  max-height: none !important;
+  min-height: 0 !important;
+  align-self: stretch !important;
+  display: flex !important;
+  flex-direction: column !important;
+  margin: 0 !important;
+  top: 0 !important;
+  background: var(--color-bg-surface, var(--color-surface)) !important;
+  border: 1px solid rgba(0, 0, 0, 0.06) !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+  overflow: hidden !important;
+}
+:root[data-theme="dark"] .workspace-layout .study-panel,
+:root[data-theme="dark"] .workspace-layout .context-slot aside.workspace-context-panel {
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.sources-panel-header,
+.notes-panel-header,
+.study-panel-header,
+.workspace-layout .rail-header {
+  height: 44px !important;
+  min-height: 44px !important;
+  max-height: 44px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 0 14px !important;
+  border-bottom: 1px solid var(--color-border-subtle, rgba(0, 0, 0, 0.08)) !important;
+}
+:root[data-theme="dark"] .sources-panel-header,
+:root[data-theme="dark"] .notes-panel-header,
+:root[data-theme="dark"] .study-panel-header,
+:root[data-theme="dark"] .workspace-layout .rail-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.workspace-layout .study-panel .right-panel-body,
+.workspace-layout .study-panel-body,
+.workspace-layout .context-slot aside.workspace-context-panel .right-panel-body {
+  padding: 12px 14px !important;
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
+}
+
+.workspace-layout .study-panel .notes-list-scroll,
+.workspace-layout .context-slot aside.workspace-context-panel .notes-list-scroll {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 0 !important;
+  overflow-y: auto !important;
+}
+
+.workspace-layout .study-panel .notes-empty,
+.workspace-layout .context-slot aside.workspace-context-panel .notes-empty {
+  flex: 1 1 auto !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  gap: 6px !important;
+  padding: 24px 20px !important;
+  margin: auto 0 !important;
+}
