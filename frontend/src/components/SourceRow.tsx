@@ -35,7 +35,7 @@ export const SourceTypeIcon: React.FC<{ type: string; badge: string }> = ({ type
   const badgeFill = isPdf ? '#EF4444' : '#3B82F6';
 
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <path d="M6 2.5h8l5 5v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1v-17a1 1 0 0 1 1-1Z" stroke={strokeColor} strokeWidth="1.5" strokeLinejoin="round" fill={fillColor} />
       <path d="M14 2.5V7a1 1 0 0 0 1 1h4" stroke={strokeColor} strokeWidth="1.5" strokeLinejoin="round" />
       <rect x="2" y="13" width="20" height="7.5" rx="2" fill={badgeFill} />
@@ -189,7 +189,7 @@ export const SourceRow: React.FC<SourceRowProps> = ({
         title="More options"
         onClick={() => setIsMenuOpen((open) => !open)}
       >
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
           <circle cx="5" cy="12" r="1.6" />
           <circle cx="12" cy="12" r="1.6" />
           <circle cx="19" cy="12" r="1.6" />
