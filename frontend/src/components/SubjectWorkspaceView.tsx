@@ -1689,7 +1689,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         {/* --------------------------------------------------------------------
             2. CENTER CHAT AREA: ChatGPT / Claude Reading Experience
             -------------------------------------------------------------------- */}
-        <section className="workspace-main-area" aria-label="Chat" ref={chatAreaRef} tabIndex={-1} data-focus-fallback>
+        <section className="workspace-main-area workspace-center" aria-label="Chat" ref={chatAreaRef} tabIndex={-1} data-focus-fallback>
           {/* Conversation Thread */}
           {historyLoading ? (
             <div className="empty-state-scroll-container" role="status" aria-live="polite" aria-label="Loading conversation history" data-testid="chat-history-loading">
@@ -2164,7 +2164,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             RIGHT: floating materials panel (sources)
             -------------------------------------------------------------------- */}
         <aside
-          className={`workspace-sidebar workspace-context-panel ${!isContextCollapsed ? 'sidebar-open' : ''}`}
+          className={`workspace-sidebar workspace-context-panel study-panel ${!isContextCollapsed ? 'sidebar-open' : ''}`}
           id="workspace-sources-panel" aria-hidden={isContextCollapsed} ref={contextPanelRef} tabIndex={-1}
           aria-label={reader ? 'Source reader' : 'Study panel'} data-reader={reader ? (readerExpanded ? 'expanded' : 'compact') : undefined}
         >
@@ -2194,7 +2194,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               {contextView === 'notes' && (
                 <>
                   {!isCreateNoteOpen && (
-                    <div className="rail-header notes-panel-header">
+                    <div className="rail-header notes-panel-header study-panel-header">
                       <div className="rail-title-group">
                         <h2 className="rail-title">Notes<span className="sr-only"> ({notes.length})</span></h2>
                         {notes.length > 0 && <span className="rail-count-pill" aria-hidden="true">{notes.length}</span>}
@@ -2207,7 +2207,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                       </button>
                     </div>
                   )}
-                  <div className="right-panel-body tab-panel-fade" key="panel-notes">
+                  <div className="right-panel-body study-panel-body tab-panel-fade" key="panel-notes">
               {isCreateNoteOpen ? (
                 <form className="note-editor studio-note" data-testid="inline-note-editor" aria-label={editingNote ? 'Edit note' : 'New note'}
                   onSubmit={(e) => { e.preventDefault(); void flushNote(); }}
