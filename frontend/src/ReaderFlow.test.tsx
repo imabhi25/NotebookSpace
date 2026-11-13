@@ -55,7 +55,7 @@ beforeEach(() => {
 afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 
 const openReader = async () => {
-  const trigger = await screen.findByRole('button', { name: 'Retrieval details' });
+  const trigger = await screen.findByRole('button', { name: 'Sources' });
   trigger.focus();
   fireEvent.click(trigger);
   fireEvent.click(await screen.findByRole('menuitem', { name: /a\.pdf, page 2/ }));
@@ -200,7 +200,7 @@ describe('Source reader: replaced and removed sources', () => {
     detail.mockImplementation(async (_s, id) => ({ ...mkSource({ id, version: 2 }), raw_content: raw }));
     render(view([mkSource({ version: 2 })]));
     expect(screen.queryByRole('menuitem', { name: 'a.pdf, page 2' })).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: 'Retrieval details' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Sources' }));
     expect(screen.queryByRole('menuitem', { name: 'a.pdf, page 2' })).toBeNull();
     fireEvent.click(screen.getByRole('menuitem', { name: 'Open current version in reader (v2)' }));
     await waitFor(() => expect(reader()).toHaveTextContent('Second line of intro.'));

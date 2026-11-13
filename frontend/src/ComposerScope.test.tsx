@@ -183,7 +183,7 @@ describe('Answer actions and citation access without the chip row (mocked)', () 
     render(<Harness />);
     expect(screen.queryByTestId('citation-chip-0')).toBeNull();
     expect(screen.queryByTestId('inline-citation')).toBeNull();
-    for (const name of ['Copy', 'Save to note', 'Retrieval details']) {
+    for (const name of ['Copy', 'Save to note', 'Sources', 'More actions']) {
       expect(screen.getByRole('button', { name: new RegExp(name.replace('Copy', '^Copy')) })).toBeInTheDocument();
     }
   });
