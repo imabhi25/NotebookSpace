@@ -556,6 +556,19 @@ export function App({
     }
   };
 
+  // Removes every turn of the open chat; the thread is re-synced if any deletion does not persist.
+  const handleClearChat = async () => {
+    if (!activeSubject || !activeConversationId) return;
+    const subjectId = activeSubject.id;
+    const conversationId = activeConversationId;
+    const ids = messages.map((m) => m.id);
+    setMessages([]);
+    const results = await Promise.allSettled(ids.map((id) => api.deleteMessage(subjectId, conversationId, id)));
+    if (results.some((r) => r.status === 'rejected')) {
+      try { setMessages(await api.getMessages(subjectId, conversationId)); } catch { /* leave the thread empty */ }
+    }
+  };
+
   const handleDeleteMessage = async (msgId: string) => {
     if (!activeSubject || !activeConversationId) return;
     const subjectId = activeSubject.id;
@@ -1219,6 +1232,7 @@ export function App({
               onUpdateNote={handleUpdateNote}
               onDeleteNote={handleDeleteNote}
               onDeleteMessage={handleDeleteMessage}
+              onClearChat={handleClearChat}
               messages={messages}
               chatLoading={chatLoading}
               historyLoading={historyLoading}

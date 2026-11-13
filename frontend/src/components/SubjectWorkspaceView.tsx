@@ -43,6 +43,7 @@ const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceM
 const SourceViewerModal = lazyView(() => import('./SourceViewerModal').then((m) => m.SourceViewerModal));
 import { Composer, ComposerScope } from './Composer';
 import { BrandLogo } from './BrandLogo';
+import { WorkspaceHeaderMenus } from './WorkspaceHeaderMenus';
 
 const SAMPLE_TAG = /^\*\*\[Sample Answer\]\*\*\s*/;
 
@@ -105,12 +106,14 @@ function writePanelPref(key: string, open: boolean): void {
 }
 
 /** Notebook title that reads as plain text until clicked, then edits in place. Enter/blur saves, Escape cancels. */
-const NotebookTitle: React.FC<{ name: string; onRename?: (name: string) => Promise<void> }> = ({ name, onRename }) => {
+const NotebookTitle: React.FC<{ name: string; onRename?: (name: string) => Promise<void>; editSignal?: number }> = ({ name, onRename, editSignal = 0 }) => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(name);
   const inputRef = useRef<HTMLInputElement>(null);
   const doneRef = useRef(false);
   useEffect(() => { if (editing) { inputRef.current?.focus(); inputRef.current?.select(); } }, [editing]);
+  // The notebook menu's Customize action asks for the same inline edit as clicking the title.
+  useEffect(() => { if (editSignal > 0 && onRename) { doneRef.current = false; setDraft(name); setEditing(true); } }, [editSignal]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!onRename) return <h1 className="workspace-subject-pill-name">{name}</h1>;
   const finish = (save: boolean) => {
     if (doneRef.current) return;
@@ -175,6 +178,8 @@ interface SubjectWorkspaceViewProps {
   historyLoading?: boolean;
   onStopGeneration?: () => void;
   onResetWorkspace?: () => Promise<void>;
+  /** Removes every turn of the open chat. */
+  onClearChat?: () => Promise<void>;
 }
 
 interface ReaderState {
@@ -207,7 +212,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   selectedSourceIds,
   starterQuestions,
   isDemoMode,
-  currentUser,
   onBackToDashboard,
   onSelectSources,
   onUploadFiles,
@@ -230,6 +234,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   historyLoading = false,
   onStopGeneration,
   onResetWorkspace,
+  onClearChat,
 }) => {
   // --------------------------------------------------------------------------
   // LAYOUT STATE: Independently Collapsible Side Panels
@@ -245,7 +250,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const [resizing, setResizing] = useState<'left' | 'right' | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const [isContextCollapsed, setIsContextCollapsed] = useState(() => overlayViewport() || !readPanelPref(CONTEXT_PREF_KEY));
-  const [isActionsOpen, setIsActionsOpen] = useState(false);
+  const [renameTick, setRenameTick] = useState(0);
   const [titleBelowBar, setTitleBelowBar] = useState(compactViewport);
   const headerRef = useRef<HTMLElement>(null);
   const brandRef = useRef<HTMLDivElement>(null);
@@ -255,9 +260,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const contextToggleRef = useRef<HTMLButtonElement>(null);
   const navToggleRef = useRef<HTMLButtonElement>(null);
   const navPanelRef = useRef<HTMLElement>(null);
-  const menuRootRef = useRef<HTMLDivElement>(null);
-  const menuButtonRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const chatAreaRef = useRef<HTMLElement>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
   const scrollThreadToBottom = () => {
@@ -459,30 +461,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (evidenceFocusTick > 0) evidenceRef.current?.focus();
   }, [evidenceFocusTick]);
 
-  useEffect(() => {
-    if (!isActionsOpen) return;
-    menuRef.current?.querySelector<HTMLButtonElement>('[role="menuitem"]')?.focus();
-    const closeOutside = (event: PointerEvent) => {
-      if (!menuRootRef.current?.contains(event.target as Node)) setIsActionsOpen(false);
-    };
-    document.addEventListener('pointerdown', closeOutside);
-    return () => document.removeEventListener('pointerdown', closeOutside);
-  }, [isActionsOpen]);
 
-  const closeActions = () => { setIsActionsOpen(false); menuButtonRef.current?.focus(); };
-  const handleMenuKeys = (event: React.KeyboardEvent) => {
-    const items = [...(menuRef.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') || [])];
-    const index = items.indexOf(document.activeElement as HTMLButtonElement);
-    if (event.key === 'Escape' || event.key === 'Tab') {
-      if (event.key === 'Escape') { event.preventDefault(); event.stopPropagation(); }
-      closeActions();
-    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
-      event.preventDefault();
-      const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
-        : (index + (event.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
-      items[next]?.focus();
-    }
-  };
 
   const [isPanelDragOver, setIsPanelDragOver] = useState(false);
 
@@ -764,8 +743,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           setViewingSource(null);
         } else if (isAddSourceOpen) {
           setIsAddSourceOpen(false);
-        } else if (isActionsOpen) {
-          closeActions();
         } else if (contextOverlayOpen) {
           panelEscapeRef.current();
         } else if (readerExpanded) {
@@ -778,7 +755,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, isActionsOpen, contextOverlayOpen, navDrawerOpen, readerExpanded]);
+  }, [renamingSource, isCreateNoteOpen, isSettingsOpen, viewingSource, isAddSourceOpen, contextOverlayOpen, navDrawerOpen, readerExpanded]);
 
   // Ready sources
   const readySources = sources.filter((s) => s.status === 'ready');
@@ -1042,6 +1019,21 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
+
+  // Downloads the notebook's notes and the open chat as one Markdown file.
+  const exportNotes = () => {
+    const parts = [`# ${subject.name}`];
+    if (notes.length) parts.push('## Notes', ...notes.map((n) => `### ${n.title || 'Untitled note'}\n\n${noteToText(n.content)}`));
+    if (messages.length) parts.push('## Chat', ...messages.map((m) => `**${m.role === 'user' ? 'You' : 'Assistant'}:** ${m.content}`));
+    const blob = new Blob([parts.join('\n\n') + '\n'], { type: 'text/markdown' });
+    if (typeof URL.createObjectURL !== 'function') return;
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${subject.name.replace(/[^\w.-]+/g, '-').replace(/^-+|-+$/g, '') || 'notebook'}-notes.md`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   const buildPaletteItems = (): CommandItem[] => {
     const theme = getThemeSetting();
@@ -1661,7 +1653,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <div className="workspace-breadcrumb">
           {!titleBelowBar && (
             <div className="workspace-subject-pill workspace-notebook-identity">
-              <NotebookTitle name={subject.name} onRename={onRenameSubject} />
+              <NotebookTitle name={subject.name} onRename={onRenameSubject} editSignal={renameTick} />
             </div>
           )}
         </div>
@@ -1674,33 +1666,20 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           <button type="button" className="workspace-history-btn" onClick={() => setHistoryOpen(true)} aria-label="Conversation history" title="Conversation history">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 119 10M3 4v7h7M12 7v5l3 2"/></svg>
           </button>
-          <div className="workspace-actions-menu" ref={menuRootRef}>
-            <button type="button" ref={menuButtonRef} className="btn-icon workspace-top-icon-btn"
-              aria-label="Notebook actions" title="Notebook actions" aria-haspopup="menu" aria-expanded={isActionsOpen}
-              aria-controls="workspace-actions-menu" onClick={() => setIsActionsOpen(!isActionsOpen)}
-              onKeyDown={(event) => { if (event.key === 'ArrowDown') { event.preventDefault(); setIsActionsOpen(true); } }}>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" aria-hidden="true">
-                <circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" />
-              </svg>
-            </button>
-            {isActionsOpen && (
-              <div id="workspace-actions-menu" className="notebook-overflow-menu workspace-overflow-menu"
-                ref={menuRef} role="menu" aria-label="Notebook actions" onKeyDown={handleMenuKeys}>
-                <button type="button" className="notebook-menu-item" role="menuitem"
-                  onClick={() => { closeActions(); openSettings(); }}>Notebook settings</button>
-                <button type="button" className="notebook-menu-item" role="menuitem" data-testid="guest-workspace-badge"
-                  title="Your notebook workspace is private to this browser."
-                  onClick={() => { closeActions(); onResetWorkspace?.(); }}>{currentUser?.email || 'Guest Workspace'}</button>
-                {isDemoMode && <span className="demo-pill" data-testid="demo-pill">Public demo</span>}
-              </div>
-            )}
-          </div>
+          {isDemoMode && <span className="demo-pill" data-testid="demo-pill">Public demo</span>}
+          <WorkspaceHeaderMenus hasChat={messages.length > 0}
+            onConfigureChat={openSettings}
+            onCustomize={() => setRenameTick((n) => n + 1)}
+            onRetrievalAnalytics={() => openContext('retrieval')}
+            onExportNotes={exportNotes}
+            onClearChat={onClearChat}
+            onResetWorkspace={onResetWorkspace} />
         </div>
       </header>
       {titleBelowBar && (
         <div className="workspace-notebook-heading">
           <div className="workspace-subject-pill workspace-notebook-identity">
-            <NotebookTitle name={subject.name} onRename={onRenameSubject} />
+            <NotebookTitle name={subject.name} onRename={onRenameSubject} editSignal={renameTick} />
           </div>
         </div>
       )}

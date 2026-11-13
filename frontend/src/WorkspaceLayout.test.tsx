@@ -150,19 +150,73 @@ describe('Workspace navigation and progressive disclosure', () => {
     }
   });
 
-  it('keeps notebook settings reachable through the keyboard-operated actions menu', () => {
+  it('keeps chat settings reachable through the keyboard-operated notebook menu', () => {
     render(workspace());
     const trigger = screen.getByRole('button', { name: 'Notebook actions' });
     fireEvent.keyDown(trigger, { key: 'ArrowDown' });
-    const settings = screen.getByRole('menuitem', { name: 'Notebook settings' });
-    expect(settings).toHaveFocus();
-    fireEvent.keyDown(settings, { key: 'ArrowDown' });
-    expect(screen.getByRole('menuitem', { name: 'Guest Workspace' })).toHaveFocus();
+    const configure = screen.getByRole('menuitem', { name: 'Configure chat' });
+    expect(configure).toHaveFocus();
+    fireEvent.keyDown(configure, { key: 'ArrowDown' });
+    expect(screen.getByRole('menuitem', { name: 'Customize notebook' })).toHaveFocus();
     fireEvent.keyDown(document.activeElement!, { key: 'Escape' });
     expect(trigger).toHaveFocus();
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-    fireEvent.click(trigger); fireEvent.click(screen.getByRole('menuitem', { name: 'Notebook settings' }));
+    fireEvent.click(trigger); fireEvent.click(screen.getByRole('menuitem', { name: 'Configure chat' }));
     expect(screen.getByLabelText('Response Length')).toBeVisible();
+  });
+
+  it('lists the notebook actions, with delete chat history disabled when there is no chat', () => {
+    render(React.cloneElement(workspace(), { messages: [] }));
+    fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
+    for (const name of ['Configure chat', 'Customize notebook', 'Retrieval analytics', 'Export notes']) {
+      expect(screen.getByRole('menuitem', { name })).toBeEnabled();
+    }
+    expect(screen.getByRole('menuitem', { name: /Delete chat history/ })).toBeDisabled();
+  });
+
+  it('customizes the notebook title inline from the menu', () => {
+    render(React.cloneElement(workspace(), { onRenameSubject: done }));
+    fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Customize notebook' }));
+    expect(screen.getByLabelText('Notebook name')).toHaveFocus();
+  });
+
+  it('confirms before deleting chat history', async () => {
+    const clear = vi.fn(async () => {});
+    render(React.cloneElement(workspace(), { onClearChat: clear }));
+    fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Delete chat history/ }));
+    expect(clear).not.toHaveBeenCalled();
+    fireEvent.click(await screen.findByRole('button', { name: 'Delete history' }));
+    expect(clear).toHaveBeenCalledOnce();
+  });
+
+  it('switches theme and reading font from the settings popover, and closes on outside press', () => {
+    render(workspace());
+    fireEvent.click(screen.getByRole('button', { name: 'App settings' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Dark' }));
+    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
+    expect(screen.getByRole('menuitemradio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Serif' }));
+    expect(document.documentElement.getAttribute('data-reading-font')).toBe('serif');
+    fireEvent.pointerDown(document.body);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'App settings' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Light' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sans' }));
+  });
+
+  it('opens help and the reset confirmation from the settings popover', async () => {
+    const reset = vi.fn(async () => {});
+    render(React.cloneElement(workspace(), { onResetWorkspace: reset }));
+    fireEvent.click(screen.getByRole('button', { name: 'App settings' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Help & shortcuts' }));
+    expect(await screen.findByRole('dialog', { name: 'Help & shortcuts' })).toBeVisible();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    fireEvent.click(screen.getByRole('button', { name: 'App settings' }));
+    fireEvent.click(screen.getByRole('menuitem', { name: 'Reset workspace' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Reset Workspace' }));
+    expect(reset).toHaveBeenCalledOnce();
   });
 
   it('keeps Notes and Evidence in Study and opens history separately', () => {
