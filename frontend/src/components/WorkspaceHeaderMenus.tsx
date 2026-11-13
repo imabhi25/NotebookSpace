@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useModalFocus } from '../useModalFocus';
-import { getThemeSetting, setThemeSetting, ThemeSetting } from '../theme';
+import { exportAllNotes } from '../exportNotes';
 import { getReadingFont, setReadingFont, ReadingFont } from '../readingFont';
 import { shortcutLabel } from '../commandPalette';
 import { SettingsPanel } from './SettingsPanel';
@@ -16,10 +16,9 @@ const Icon: Record<string, React.ReactNode> = {
   activity: <svg {...svgProps}><path d="M3 12h4l3-8 4 16 3-8h4" /></svg>,
   download: <svg {...svgProps}><path d="M12 4v11M7.5 11 12 15.5 16.5 11M5 20h14" /></svg>,
   trash: <svg {...svgProps}><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" /></svg>,
-  sun: <svg {...svgProps}><circle cx="12" cy="12" r="4" /><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" /></svg>,
   type: <svg {...svgProps}><path d="M5 7V5h14v2M12 5v14M9 19h6" /></svg>,
   help: <svg {...svgProps}><circle cx="12" cy="12" r="9" /><path d="M9.6 9.5a2.5 2.5 0 1 1 3.4 2.3c-.7.3-1 .8-1 1.5M12 17h.01" /></svg>,
-  gear: <svg {...svgProps}><circle cx="12" cy="12" r="3" /><path d="M12 3v2.2M12 18.8V21M3 12h2.2M18.8 12H21M5.6 5.6l1.6 1.6M16.8 16.8l1.6 1.6M5.6 18.4l1.6-1.6M16.8 7.2l1.6-1.6" /></svg>,
+  gear: <svg {...svgProps}><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>,
   reset: <svg {...svgProps}><path d="M4 12a8 8 0 1 0 2.5-5.8M4 4v4h4" /></svg>,
   settings: <svg {...svgProps}><path d="M4 8h9M17 8h3M4 16h3M11 16h9" /><circle cx="15" cy="8" r="2" /><circle cx="9" cy="16" r="2" /></svg>,
 };
@@ -67,15 +66,6 @@ const HeaderMenu: React.FC<{
     </div>
   );
 };
-
-const Segmented: React.FC<{ label: string; value: string; options: [string, string][]; onChange: (v: string) => void }> = ({ label, value, options, onChange }) => (
-  <div className="header-menu-segmented" role="group" aria-label={label}>
-    {options.map(([v, text]) => (
-      <button key={v} type="button" role="menuitemradio" aria-checked={value === v} className="header-menu-seg"
-        onClick={() => onChange(v)}>{text}</button>
-    ))}
-  </div>
-);
 
 const Confirm: React.FC<{ title: string; body: string; action: string; onConfirm: () => void; onCancel: () => void }> = ({ title, body, action, onConfirm, onCancel }) => {
   const ref = useModalFocus<HTMLDivElement>(true, onCancel);
@@ -125,13 +115,13 @@ export interface WorkspaceHeaderMenusProps {
 export const WorkspaceHeaderMenus: React.FC<WorkspaceHeaderMenusProps> = ({
   hasChat, onConfigureChat, onCustomize, onRetrievalAnalytics, onExportNotes, onClearChat, onResetWorkspace,
 }) => {
-  const [theme, setTheme] = useState<ThemeSetting>(getThemeSetting);
   const [font, setFont] = useState<ReadingFont>(getReadingFont);
   const [dialog, setDialog] = useState<null | 'clear' | 'reset' | 'help' | 'settings'>(null);
   const close = () => setDialog(null);
-  const row = (icon: React.ReactNode, text: React.ReactNode, onClick: () => void, o: { disabled?: boolean; danger?: boolean } = {}) => (
+  const row = (icon: React.ReactNode, text: React.ReactNode, onClick: () => void, o: { disabled?: boolean; danger?: boolean; value?: string } = {}) => (
     <button type="button" role="menuitem" className={`header-menu-item${o.danger ? ' is-danger' : ''}`} disabled={o.disabled} onClick={onClick}>
       {icon}<span className="header-menu-text">{text}</span>
+      {o.value && <span className="header-menu-value" aria-hidden="true">{o.value}<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="m9 6 6 6-6 6" /></svg></span>}
     </button>
   );
   return (
@@ -147,20 +137,13 @@ export const WorkspaceHeaderMenus: React.FC<WorkspaceHeaderMenusProps> = ({
             () => { done(); setDialog('clear'); }, { disabled: !hasChat || !onClearChat })}
         </>)}
       </HeaderMenu>
-      <HeaderMenu label="App settings" icon={Icon.gear} menuClass="header-menu-narrow">
+      <HeaderMenu label="Settings" icon={Icon.gear} menuClass="header-menu-narrow">
         {(done) => (<>
-          <div className="header-menu-field">
-            <span className="header-menu-field-label">{Icon.sun}Appearance</span>
-            <Segmented label="Appearance" value={theme} options={[['light', 'Light'], ['dark', 'Dark'], ['auto', 'System']]}
-              onChange={(v) => { setTheme(v as ThemeSetting); setThemeSetting(v as ThemeSetting); }} />
-          </div>
-          <div className="header-menu-field">
-            <span className="header-menu-field-label">{Icon.type}Reading font</span>
-            <Segmented label="Reading font" value={font} options={[['sans', 'Sans'], ['serif', 'Serif']]}
-              onChange={(v) => { setFont(v as ReadingFont); setReadingFont(v as ReadingFont); }} />
-          </div>
+          {row(Icon.type, 'Reading font', () => { const next = font === 'sans' ? 'serif' : 'sans'; setFont(next); setReadingFont(next); },
+            { value: font === 'sans' ? 'Sans' : 'Serif' })}
           {row(Icon.help, 'Help & shortcuts', () => { done(); setDialog('help'); })}
-          {row(Icon.settings, 'All settings…', () => { done(); setDialog('settings'); })}
+          {row(Icon.download, 'Export notes', () => { done(); void exportAllNotes().catch(() => undefined); })}
+          {row(Icon.settings, 'All settings...', () => { done(); setDialog('settings'); })}
           <div className="header-menu-divider" role="separator" />
           {row(Icon.reset, 'Reset workspace', () => { done(); setDialog('reset'); }, { danger: true, disabled: !onResetWorkspace })}
         </>)}

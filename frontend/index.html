@@ -4,23 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content" />
     <meta name="theme-color" content="#F5F5F7" />
-    <meta name="color-scheme" content="light dark" />
+    <meta name="color-scheme" content="light" />
     <script>
-      // Set the theme before first paint so the page never flashes the wrong one.
-      (function () {
-        var theme = 'light';
-        try {
-          var stored = localStorage.getItem('notebookspace_theme');
-          if (stored === 'dark') theme = 'dark';
-          else if (stored === 'light') theme = 'light';
-          else if (stored === 'auto' || stored === 'system') {
-            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) theme = 'dark';
-          }
-        } catch (e) {}
-        document.documentElement.setAttribute('data-theme', theme);
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', theme === 'dark' ? '#0F1012' : '#F7F7F8');
-      })();
+      // Light only: pin the theme before first paint.
+      document.documentElement.setAttribute('data-theme', 'light');
     </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="referrer" content="strict-origin-when-cross-origin" />

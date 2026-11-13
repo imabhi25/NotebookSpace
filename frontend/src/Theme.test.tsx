@@ -1,84 +1,37 @@
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { SettingsPanel } from './components/SettingsPanel';
 import { DashboardView } from './components/DashboardView';
-import { applyTheme, getThemeSetting, watchSystemTheme, THEME_STORAGE_KEY } from './theme';
+import { applyTheme, THEME_STORAGE_KEY } from './theme';
 
 const noop = async () => {};
-
-// A controllable stand-in for the operating system's colour-scheme preference.
-const mockSystem = (dark: boolean) => {
-  const listeners = new Set<() => void>();
-  const query = {
-    matches: dark,
-    addEventListener: (_: string, fn: () => void) => listeners.add(fn),
-    removeEventListener: (_: string, fn: () => void) => listeners.delete(fn),
-  };
-  window.matchMedia = vi.fn().mockReturnValue(query) as any;
-  return { set: (next: boolean) => { query.matches = next; listeners.forEach((fn) => fn()); } };
-};
 
 const renderSettings = () =>
   render(<SettingsPanel onRequestReset={() => {}} onClose={() => {}} />);
 
-describe('Theme setting', () => {
+describe('Light-only theme', () => {
   beforeEach(() => {
     window.localStorage.clear();
     document.documentElement.removeAttribute('data-theme');
   });
 
-  it('defaults to Light on fresh load regardless of OS dark mode preference', () => {
-    const system = mockSystem(true);
+  it('is always light, even with a stored dark choice or an OS dark preference', () => {
+    window.localStorage.setItem(THEME_STORAGE_KEY, 'dark');
+    window.matchMedia = vi.fn().mockReturnValue({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }) as any;
     applyTheme();
-    const stop = watchSystemTheme();
-    expect(getThemeSetting()).toBe('light');
     expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-
-    system.set(false);
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-    stop();
+    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBeNull();
   });
 
-  it('offers System, Light and Dark in Settings, applies the choice and persists it', () => {
-    mockSystem(false);
+  it('shows no theme control in Settings or on the dashboard', () => {
     renderSettings();
-    const group = screen.getByRole('radiogroup', { name: 'Appearance' });
-    expect(group).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Light' })).toHaveAttribute('aria-checked', 'true');
-
-    fireEvent.click(screen.getByRole('radio', { name: 'Dark' }));
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark');
-    expect(screen.getByRole('radio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
-
-    // A reload reads the stored choice, whatever the system says.
-    document.documentElement.removeAttribute('data-theme');
-    applyTheme();
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-  });
-
-  it('an explicit choice ignores system changes; System follows system changes', () => {
-    const system = mockSystem(false);
-    const stop = watchSystemTheme();
-    renderSettings();
-    fireEvent.click(screen.getByRole('radio', { name: 'Light' }));
-    system.set(true);
-    expect(document.documentElement.getAttribute('data-theme')).toBe('light');
-
-    fireEvent.click(screen.getByRole('radio', { name: 'System' }));
-    expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('auto');
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    stop();
-  });
-
-  it('has no theme control outside Settings', () => {
-    mockSystem(false);
+    expect(screen.queryByRole('radiogroup', { name: 'Appearance' })).toBeNull();
+    expect(screen.queryByText(/Appearance|Dark|System/)).toBeNull();
     render(
       <DashboardView subjects={[]} loading={false} onOpenSubject={() => {}} onCreateSubject={noop} onUpdateSubject={noop}
         onArchiveSubject={noop} onRestoreSubject={noop} onDeleteSubject={noop} />
     );
-    expect(screen.queryByRole('radiogroup', { name: 'Appearance' })).toBeNull();
-    expect(screen.queryByRole('button', { name: /theme|dark|light/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /theme|dark/i })).toBeNull();
   });
 });
 

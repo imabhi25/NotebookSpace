@@ -36,7 +36,6 @@ import { CrossSourceCheck } from './CrossSourceCheck';
 import { crossSourceCheck } from '../answerTelemetry';
 import { CommandItem, matchShortcut, shortcutLabel } from '../commandPalette';
 import { toEditorHtml, noteToText, sanitizeNoteHtml, safeNoteUrl } from '../noteHtml';
-import { getThemeSetting, setThemeSetting, ThemeSetting } from '../theme';
 
 // Dialogs load when first opened and are fetched in the background once the workspace is idle.
 const SourceModal = lazyView(() => import('./SourceModal').then((m) => m.SourceModal));
@@ -1036,8 +1035,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   };
 
   const buildPaletteItems = (): CommandItem[] => {
-    const theme = getThemeSetting();
-    const chooseTheme = (next: ThemeSetting) => () => setThemeSetting(next);
     const typeLabel = (t: string) => ({ pdf: 'PDF', url: 'Web page', pasted: 'Pasted text', markdown: 'Markdown', txt: 'Text' }[t] ?? 'Document');
     const items: CommandItem[] = [];
     if (onCreateConversation) {
@@ -1049,9 +1046,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       { id: 'a-history', group: 'Actions', label: 'Conversation history', keywords: 'sessions past chats', run: () => setHistoryOpen(true) },
       { id: 'a-sources-panel', group: 'Actions', label: isNavCollapsed ? 'Show sources panel' : 'Hide sources panel', keywords: 'sidebar rail', shortcut: 'B', run: toggleSourcesPanel },
       { id: 'a-study-panel', group: 'Actions', label: isContextCollapsed ? 'Show study panel' : 'Hide study panel', keywords: 'notes evidence', shortcut: '\\', run: toggleStudyPanel },
-      { id: 'a-theme-light', group: 'Actions', label: 'Switch to light theme', hint: theme === 'light' ? 'Current' : undefined, keywords: 'appearance mode', run: chooseTheme('light') },
-      { id: 'a-theme-dark', group: 'Actions', label: 'Switch to dark theme', hint: theme === 'dark' ? 'Current' : undefined, keywords: 'appearance mode', run: chooseTheme('dark') },
-      { id: 'a-theme-auto', group: 'Actions', label: 'Match system theme', hint: theme === 'auto' ? 'Current' : undefined, keywords: 'appearance mode automatic', run: chooseTheme('auto') },
       { id: 'a-notebooks', group: 'Actions', label: 'Back to notebooks', keywords: 'library home dashboard', run: onBackToDashboard },
     );
     for (const c of conversations ?? []) {

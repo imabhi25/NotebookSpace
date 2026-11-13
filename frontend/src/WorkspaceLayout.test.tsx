@@ -191,29 +191,30 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(clear).toHaveBeenCalledOnce();
   });
 
-  it('switches theme and reading font from the settings popover, and closes on outside press', () => {
+  it('toggles the reading font from a single-line settings row, with no theme picker anywhere', () => {
     render(workspace());
-    fireEvent.click(screen.getByRole('button', { name: 'App settings' }));
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Dark' }));
-    expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
-    expect(screen.getByRole('menuitemradio', { name: 'Dark' })).toHaveAttribute('aria-checked', 'true');
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Serif' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    expect(screen.queryByText(/Appearance|Dark|System/)).toBeNull();
+    expect(screen.queryAllByRole('menuitemradio')).toHaveLength(0);
+    const font = screen.getByRole('menuitem', { name: /Reading font/ });
+    expect(font).toHaveTextContent('Sans');
+    fireEvent.click(font);
     expect(document.documentElement.getAttribute('data-reading-font')).toBe('serif');
+    expect(font).toHaveTextContent('Serif');
+    fireEvent.click(font);
+    expect(document.documentElement.getAttribute('data-reading-font')).toBe('sans');
     fireEvent.pointerDown(document.body);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'App settings' }));
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Light' }));
-    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Sans' }));
   });
 
   it('opens help and the reset confirmation from the settings popover', async () => {
     const reset = vi.fn(async () => {});
     render(React.cloneElement(workspace(), { onResetWorkspace: reset }));
-    fireEvent.click(screen.getByRole('button', { name: 'App settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Help & shortcuts' }));
     expect(await screen.findByRole('dialog', { name: 'Help & shortcuts' })).toBeVisible();
     fireEvent.keyDown(document, { key: 'Escape' });
-    fireEvent.click(screen.getByRole('button', { name: 'App settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
     fireEvent.click(screen.getByRole('menuitem', { name: 'Reset workspace' }));
     fireEvent.click(await screen.findByRole('button', { name: 'Reset Workspace' }));
     expect(reset).toHaveBeenCalledOnce();

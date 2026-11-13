@@ -1,53 +1,9 @@
-export type ThemeSetting = 'auto' | 'light' | 'dark';
-
+// NotebookSpace is light-only. There is no theme setting; this pins the document to light.
 export const THEME_STORAGE_KEY = 'notebookspace_theme';
 
-const darkQuery = () =>
-  typeof window !== 'undefined' && typeof window.matchMedia === 'function'
-    ? window.matchMedia('(prefers-color-scheme: dark)')
-    : null;
-
-export const getThemeSetting = (): ThemeSetting => {
-  try {
-    const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (stored === 'light' || stored === 'dark') return stored;
-    if (stored === 'auto' || stored === 'system') return 'auto';
-  } catch {
-    // ignore
-  }
-  return 'light';
-};
-
-export const resolveTheme = (setting: ThemeSetting): 'light' | 'dark' =>
-  setting === 'auto' ? (darkQuery()?.matches ? 'dark' : 'light') : setting;
-
-// Mirrors the inline script in index.html, which sets the theme before first paint.
-export const applyTheme = (setting: ThemeSetting = getThemeSetting()): void => {
+export const applyTheme = (): void => {
   if (typeof document === 'undefined') return;
-  const theme = resolveTheme(setting);
-  document.documentElement.setAttribute('data-theme', theme);
-  const meta = document.querySelector('meta[name="theme-color"]');
-  // The browser chrome colour comes from the same token the page background uses.
-  const chrome = getComputedStyle(document.documentElement).getPropertyValue('--theme-color').trim();
-  if (meta && chrome) meta.setAttribute('content', chrome);
-};
-
-export const setThemeSetting = (setting: ThemeSetting): void => {
-  try {
-    window.localStorage.setItem(THEME_STORAGE_KEY, setting);
-  } catch {
-    // ignore
-  }
-  applyTheme(setting);
-};
-
-// While the setting is Auto, follow the operating system as it changes.
-export const watchSystemTheme = (): (() => void) => {
-  const query = darkQuery();
-  if (!query) return () => undefined;
-  const handle = () => {
-    if (getThemeSetting() === 'auto') applyTheme('auto');
-  };
-  query.addEventListener('change', handle);
-  return () => query.removeEventListener('change', handle);
+  document.documentElement.setAttribute('data-theme', 'light');
+  // A dark or system choice stored by an earlier version no longer applies.
+  try { window.localStorage.removeItem(THEME_STORAGE_KEY); } catch { /* ignore */ }
 };

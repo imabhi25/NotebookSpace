@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { SubjectWorkspaceView } from './components/SubjectWorkspaceView';
 import { CommandItem, matchShortcut, rankCommands, scoreCommand } from './commandPalette';
-import { THEME_STORAGE_KEY } from './theme';
 import { Conversation, Note, Source, Subject } from './types';
 import { api } from './api';
 
@@ -140,15 +139,13 @@ describe('Command palette in the workspace', () => {
     expect(all[all.length - 1]).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('runs commands: switching theme, opening a source, and a note', async () => {
+  it('runs commands: opening a source and offers no theme commands', async () => {
     render(view());
     press('k');
-    fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'dark theme' } });
-    fireEvent.click(within(palette()).getByRole('option', { name: /Switch to dark theme/ }));
-    await waitFor(() => expect(window.localStorage.getItem(THEME_STORAGE_KEY)).toBe('dark'));
+    fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'theme' } });
+    expect(within(palette()).queryAllByRole('option', { name: /theme/i })).toHaveLength(0);
 
-    press('k');
-    fireEvent.change(await screen.findByRole('combobox'), { target: { value: 'syllabus' } });
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'syllabus' } });
     fireEvent.click(within(palette()).getByRole('option', { name: /Syllabus/ }));
     expect(await screen.findByRole('dialog', { name: /Syllabus/ })).toBeInTheDocument();
   });
