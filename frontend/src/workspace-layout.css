@@ -3915,3 +3915,14 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   position: absolute; top: -44px; left: 50%; transform: translateX(-50%); z-index: 20;
   background: #FFFFFF; border: 1px solid rgba(0, 0, 0, 0.1); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
 }
+
+/* Inline notebook rename: a soft navy-ringed 8px field instead of the browser's rectangular focus box. */
+.workspace-layout .notebook-title .notebook-title-input,
+.workspace-layout .notebook-title .notebook-title-input:focus,
+.workspace-layout .notebook-title .notebook-title-input:focus-visible {
+  box-sizing: content-box; padding: 5px 10px; margin: 0 -4px; border-radius: 8px; border: 1.5px solid #1A3454; background: #FFFFFF;
+  font-size: 18px; font-weight: 500; line-height: 1.2; letter-spacing: -0.015em; color: #18181B;
+  outline: none !important; box-shadow: 0 0 0 3px rgba(26, 52, 84, 0.08); min-width: 8ch; max-width: min(40ch, 46vw);
+}
+:root[data-theme="dark"] .workspace-layout .notebook-title .notebook-title-input,
+:root[data-theme="dark"] .workspace-layout .notebook-title .notebook-title-input:focus { background: #1B1D21; color: #F4F4F5; border-color: #A9C1E4; box-shadow: 0 0 0 3px rgba(169, 193, 228, 0.14); }
