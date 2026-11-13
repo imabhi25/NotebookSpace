@@ -1293,8 +1293,22 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
    Workspace upgrade: Sources panel, 52px icon rail, citations, evidence, feed, composer
    ============================================================ */
 
-/* ---- Sources header: title + count pill left, collapse toggle right ---- */
-.workspace-layout .rail-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+/* ---- Sources header: title + count pill left, collapse toggle right (Figma 48px baseline) ---- */
+.workspace-layout .rail-header {
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 8px !important;
+  padding: 0 16px !important;
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08)) !important;
+}
+:root[data-theme="dark"] .workspace-layout .rail-header {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
+}
 .rail-title-group { display: inline-flex; align-items: center; gap: 8px; min-width: 0; }
 .rail-count-pill {
   display: inline-flex; align-items: center; justify-content: center; min-width: 20px; height: 18px; padding: 0 6px; border-radius: 999px;
@@ -1560,14 +1574,28 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 :root[data-theme="dark"] .workspace-layout .citation-marker.active { background: #FFFFFF; color: #09090B; border-color: #FFFFFF; }
 
 /* ============================================================
-   Study panel header: self-contained segmented track + fixed collapse button
+   Study panel header: self-contained segmented track + fixed collapse button (Figma 48px baseline)
    ============================================================ */
-.workspace-layout .workspace-context-panel .context-tabs-row {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px; flex: none;
-  margin: 0; padding: 12px 14px; border-bottom: 1px solid var(--border-subtle, var(--color-border));
+.workspace-layout .workspace-context-panel .context-tabs-row,
+.workspace-layout .workspace-context-panel .note-editor-bar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 10px !important;
+  flex: none !important;
+  height: 48px !important;
+  min-height: 48px !important;
+  max-height: 48px !important;
+  box-sizing: border-box !important;
+  margin: 0 !important;
+  padding: 0 16px !important;
+  border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08)) !important;
+}
+:root[data-theme="dark"] .workspace-layout .workspace-context-panel :is(.context-tabs-row, .note-editor-bar) {
+  border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 .workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher.sliding-tabs {
-  position: relative; display: grid; grid-template-columns: 1fr 1fr; flex: 1 1 auto; width: auto; max-width: 210px; min-width: 0; height: 30px;
+  position: relative; display: grid; grid-template-columns: 1fr 1fr; flex: 1 1 auto; width: auto; max-width: 210px; min-width: 0; height: 32px;
   padding: 2px; margin: 0; gap: 0; border-radius: 8px; border: 1px solid var(--border-subtle, var(--color-border)); background: rgba(0, 0, 0, 0.05);
 }
 :root[data-theme="dark"] .workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher.sliding-tabs { background: rgba(255, 255, 255, 0.06); }
@@ -2228,50 +2256,125 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   color: #A1A1AA !important;
 }
 
-.workspace-layout .evidence-reader-link-btn {
-  font-size: 12px !important;
+/* Standardized Secondary Action Buttons (Figma Consistency & Control Geometry) */
+:is(
+  .workspace-layout .evidence-reader-link-btn,
+  .workspace-layout .evidence-save-btn,
+  .workspace-layout .notes-new-pill,
+  .workspace-layout .sources-matched-pill,
+  .workspace-layout .evidence-reader-btn
+) {
+  height: 32px !important;
+  min-height: 32px !important;
+  max-height: 32px !important;
+  box-sizing: border-box !important;
+  border-radius: 8px !important;
+  font-size: 12.5px !important;
   font-weight: 500 !important;
-  color: #18181B !important;
-  background: #F4F4F5 !important;
-  border: 1px solid #E4E4E7 !important;
-  border-radius: 6px !important;
-  padding: 3px 8px !important;
-  cursor: pointer !important;
+  line-height: 1 !important;
+  padding: 0 12px !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 4px !important;
+  justify-content: center !important;
+  gap: 6px !important;
+  border: 1px solid rgba(0, 0, 0, 0.09) !important;
+  background: var(--bg-surface, #FFFFFF) !important;
+  color: var(--color-text-primary, #18181B) !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04) !important;
+  cursor: pointer !important;
+  transition: all 0.15s cubic-bezier(0.16, 1, 0.3, 1) !important;
   white-space: nowrap !important;
   text-decoration: none !important;
   flex-shrink: 0 !important;
-  transition: all 0.15s ease !important;
 }
 
-.workspace-layout .evidence-reader-link-btn:hover {
-  background: #E4E4E7 !important;
-  border-color: #D4D4D8 !important;
+:is(
+  .workspace-layout .evidence-reader-link-btn,
+  .workspace-layout .evidence-save-btn,
+  .workspace-layout .notes-new-pill,
+  .workspace-layout .sources-matched-pill,
+  .workspace-layout .evidence-reader-btn
+):hover {
+  background: var(--color-surface-hover, #F4F4F5) !important;
+  border-color: rgba(0, 0, 0, 0.15) !important;
   color: #000000 !important;
+  transform: translateY(-0.5px) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06) !important;
 }
 
-:root[data-theme="dark"] .workspace-layout .evidence-reader-link-btn {
-  background: rgba(255, 255, 255, 0.06) !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+:root[data-theme="dark"] :is(
+  .workspace-layout .evidence-reader-link-btn,
+  .workspace-layout .evidence-save-btn,
+  .workspace-layout .notes-new-pill,
+  .workspace-layout .sources-matched-pill,
+  .workspace-layout .evidence-reader-btn
+) {
+  background: #181A20 !important;
+  border-color: rgba(255, 255, 255, 0.12) !important;
   color: #F4F4F5 !important;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) !important;
 }
 
-:root[data-theme="dark"] .workspace-layout .evidence-reader-link-btn:hover {
-  background: rgba(255, 255, 255, 0.12) !important;
+:root[data-theme="dark"] :is(
+  .workspace-layout .evidence-reader-link-btn,
+  .workspace-layout .evidence-save-btn,
+  .workspace-layout .notes-new-pill,
+  .workspace-layout .sources-matched-pill,
+  .workspace-layout .evidence-reader-btn
+):hover {
+  background: #22252C !important;
   border-color: rgba(255, 255, 255, 0.2) !important;
   color: #FFFFFF !important;
 }
 
-/* Quiet icon action row under answers */
-.workspace-layout .answer-action-toolbar { display: flex; align-items: center; gap: 4px; margin-top: 6px; padding-top: 0; border-top: 0; flex-wrap: nowrap; }
-.workspace-layout .answer-action-toolbar .answer-action-btn {
-  width: 28px; height: 28px; min-height: 0; padding: 0; border: 0; border-radius: 6px; background: transparent; box-shadow: none;
-  color: var(--color-text-muted); display: inline-flex; align-items: center; justify-content: center; position: relative;
+/* Quiet icon action row under answers (Figma Progressive Disclosure) */
+.workspace-layout .answer-action-toolbar {
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+  margin-top: 6px !important;
+  padding-top: 0 !important;
+  border-top: 0 !important;
+  flex-wrap: nowrap !important;
+  opacity: 0.45 !important;
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
-.workspace-layout .answer-action-toolbar .answer-action-btn:hover { background: rgba(0, 0, 0, 0.06); color: var(--color-text-primary); }
-:root[data-theme="dark"] .workspace-layout .answer-action-toolbar .answer-action-btn:hover { background: rgba(255, 255, 255, 0.1); }
+
+.workspace-layout .thread-turn:hover .answer-action-toolbar,
+.workspace-layout .thread-turn:focus-within .answer-action-toolbar,
+.workspace-layout .assistant-message:hover .answer-action-toolbar,
+.workspace-layout .assistant-message:focus-within .answer-action-toolbar,
+.workspace-layout .answer-action-toolbar:hover,
+.workspace-layout .answer-action-toolbar:focus-within {
+  opacity: 1 !important;
+}
+
+.workspace-layout .answer-action-toolbar .answer-action-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: var(--color-text-muted, #71717A) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  transition: color 0.14s ease, background-color 0.14s ease !important;
+}
+
+.workspace-layout .answer-action-toolbar .answer-action-btn:hover {
+  background: rgba(0, 0, 0, 0.06) !important;
+  color: var(--color-text-primary, #18181B) !important;
+}
+
+:root[data-theme="dark"] .workspace-layout .answer-action-toolbar .answer-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+  color: #FFFFFF !important;
+}
 
 /* Dark pill tooltips (shared) */
 .answer-action-btn[data-tooltip]::after, .composer-add-btn[data-tooltip]::after {
