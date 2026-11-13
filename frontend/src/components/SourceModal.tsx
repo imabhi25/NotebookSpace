@@ -1,5 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useModalFocus } from '../useModalFocus';
+import { SourceTypeIcon } from './SourceRow';
+
+const fileKind = (name: string) => {
+  const ext = name.split('.').pop()?.toLowerCase();
+  if (ext === 'pdf') return { type: 'pdf', badge: 'PDF' };
+  if (ext === 'md' || ext === 'markdown') return { type: 'markdown', badge: 'MD' };
+  return { type: 'txt', badge: 'TXT' };
+};
+
+const Spinner: React.FC<{ size: number; className?: string }> = ({ size, className }) => (
+  <svg className={`sm-spinner ${className ?? ''}`} width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeOpacity="0.25" strokeWidth="3" /><path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="3" strokeLinecap="round" /></svg>
+);
 
 export interface FileUploadResult {
   filename: string;
@@ -48,6 +60,11 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [uploadResults, setUploadResults] = useState<FileUploadResult[] | null>(null);
+  const [doneCount, setDoneCount] = useState(0);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => () => { if (closeTimer.current) clearTimeout(closeTimer.current); }, []);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
 
@@ -133,6 +150,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
 
         const MAX_UPLOAD_SIZE = 50 * 1024 * 1024;
         const results: FileUploadResult[] = [];
+        setDoneCount(0);
 
         for (const file of selectedFiles) {
           if (file.size > MAX_UPLOAD_SIZE) {
@@ -141,6 +159,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               status: 'failed',
               reason: `File exceeds 50 MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`,
             });
+            setDoneCount(results.length);
             continue;
           }
 
@@ -166,9 +185,16 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               });
             }
           }
+          setDoneCount(results.length);
         }
 
         setUploadResults(results);
+        if (results.length > 0 && results.every((r) => r.status === 'added')) {
+          closeTimer.current = setTimeout(() => {
+            closeTimer.current = null;
+            handleDismissDialog();
+          }, 650);
+        }
         return; // Keep dialog open so user sees per-file result rows
       } else if (tab === 'paste') {
         if (!pasteTitle.trim()) throw new Error('Please enter a title for the pasted content.');
@@ -192,6 +218,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
   };
 
   const handleDismissDialog = () => {
+    if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; }
     setError(null);
     setUploadResults(null);
     setSelectedFiles([]);
@@ -199,7 +226,7 @@ export const SourceModal: React.FC<SourceModalProps> = ({
     setPasteText('');
     setUrlInput('');
     setUrlTitle('');
-    onClose();
+    onCloseRef.current();
   };
 
   const handleDone = async () => {
@@ -316,36 +343,23 @@ export const SourceModal: React.FC<SourceModalProps> = ({
               {uploadResults ? (
                 /* Per-file results view after batch upload */
                 <div className="upload-results-panel" data-testid="upload-results-panel">
-                  <div className="upload-results-header">
-                    <h4>Upload Results</h4>
-                    <span className="upload-results-summary">
-                      {uploadResults.filter((r) => r.status === 'added').length} of {uploadResults.length} files added
-                    </span>
-                  </div>
-                  <div className="upload-results-list" data-testid="upload-results-list">
-                    {uploadResults.map((res, rIdx) => (
-                      <div
-                        key={rIdx}
-                        className={`upload-result-item status-${res.status}`}
-                        data-testid={`upload-result-${rIdx}`}
-                      >
-                        <div className="upload-result-info">
-                          <span className="upload-result-name">{res.filename}</span>
-                          {res.reason && (
-                            <span className="upload-result-reason" title={res.reason}>
-                              {res.reason}
-                            </span>
-                          )}
+                  <h4 className="file-queue-title">Upload Results</h4>
+                  <div className="file-queue" data-testid="upload-results-list">
+                    {uploadResults.map((res, rIdx) => {
+                      const k = fileKind(res.filename);
+                      return (
+                        <div key={rIdx} className={`file-row upload-result-item status-${res.status}`} data-testid={`upload-result-${rIdx}`}>
+                          <SourceTypeIcon type={k.type} badge={k.badge} />
+                          <div className="file-row-main">
+                            <span className="file-name upload-result-name">{res.filename}</span>
+                            {res.reason && <span className="upload-result-reason" title={res.reason}>{res.reason}</span>}
+                          </div>
+                          <span className={`upload-status-badge badge-${res.status}`}>
+                            {res.status === 'added' ? '✓ Added' : res.status === 'skipped' ? '⊘ Skipped' : '✕ Failed'}
+                          </span>
                         </div>
-                        <span className={`upload-status-badge badge-${res.status}`}>
-                          {res.status === 'added'
-                            ? '✓ Added'
-                            : res.status === 'skipped'
-                            ? '⊘ Skipped'
-                            : '✕ Failed'}
-                        </span>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ) : (
@@ -368,33 +382,37 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                       onChange={handleFileChange}
                     />
                     <div className="drop-zone-icon" aria-hidden="true">
-                      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
                         <polyline points="17 8 12 3 7 8" />
                         <line x1="12" y1="3" x2="12" y2="15" />
                       </svg>
                     </div>
                     <p className="drop-zone-text">
-                      Drag and drop files here, or <span className="drop-zone-link">browse</span>
+                      Drop files here, or <span className="drop-zone-link">browse</span>
                     </p>
-                    <p className="drop-zone-hint">
-                      <span className="format-chip">PDF</span>
-                      <span className="format-chip">TXT</span>
-                      <span className="format-chip">MD</span>
-                      <span className="format-chip">Max 50MB</span>
-                    </p>
+                    <p className="drop-zone-hint">PDF, TXT, or Markdown · up to 50 MB</p>
                   </div>
 
                   {selectedFiles.length > 0 && (
                     <div className="selected-files-list">
-                      <h4 className="selected-files-title">Selected files ({selectedFiles.length}):</h4>
-                      <ul>
-                        {selectedFiles.map((file, idx) => (
-                          <li key={idx} className="selected-file-row">
-                            <span className="file-name">{file.name}</span>
-                            <span className="file-size">{formatFileSize(file.size)}</span>
-                          </li>
-                        ))}
+                      <h4 className="file-queue-title">Selected files ({selectedFiles.length})</h4>
+                      <ul className="file-queue">
+                        {selectedFiles.map((file, idx) => {
+                          const k = fileKind(file.name);
+                          return (
+                            <li key={`${file.name}-${idx}`} className="file-row selected-file-row">
+                              <SourceTypeIcon type={k.type} badge={k.badge} />
+                              <span className="file-name" title={file.name}>{file.name}</span>
+                              <span className="file-size">{formatFileSize(file.size)}</span>
+                              {loading ? (
+                                idx < doneCount ? <span className="file-done" aria-hidden="true">✓</span> : <Spinner size={15} className="file-spinner" />
+                              ) : (
+                                <button type="button" className="file-remove-btn" aria-label="Remove file" onClick={() => setSelectedFiles((f) => f.filter((_, i) => i !== idx))}>&times;</button>
+                              )}
+                            </li>
+                          );
+                        })}
                       </ul>
                     </div>
                   )}
@@ -463,15 +481,24 @@ export const SourceModal: React.FC<SourceModalProps> = ({
 
           <div className="modal-actions">
             {uploadResults ? (
-              <button
-                type="button"
-                className="btn btn-primary"
-                onClick={handleDone}
-                disabled={loading}
-                data-testid="upload-results-done-btn"
-              >
-                {loading ? 'Processing & Ingesting...' : 'Done'}
-              </button>
+              <>
+                <button
+                  type="button"
+                  className="btn btn-ghost modal-cancel-btn"
+                  onClick={() => { if (closeTimer.current) { clearTimeout(closeTimer.current); closeTimer.current = null; } setUploadResults(null); setSelectedFiles([]); }}
+                >
+                  Add more
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleDone}
+                  disabled={loading}
+                  data-testid="upload-results-done-btn"
+                >
+                  Done
+                </button>
+              </>
             ) : (
               <>
                 <button
@@ -484,11 +511,16 @@ export const SourceModal: React.FC<SourceModalProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className={`btn btn-primary ${loading ? 'is-loading' : ''}`}
                   disabled={loading || (tab === 'upload' && selectedFiles.length === 0)}
                   data-testid="submit-add-source-btn"
                 >
-                  {loading ? 'Processing & Ingesting...' : 'Add Source'}
+                  {loading ? (
+                    <>
+                      <Spinner size={14} />
+                      {tab === 'upload' && selectedFiles.length > 1 ? `Adding ${selectedFiles.length} sources...` : 'Adding sources...'}
+                    </>
+                  ) : tab === 'upload' && selectedFiles.length > 1 ? `Add ${selectedFiles.length} Sources` : 'Add Source'}
                 </button>
               </>
             )}
