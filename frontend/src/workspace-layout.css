@@ -3749,3 +3749,26 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 :root[data-theme="dark"] .command-palette-footer kbd { background: transparent; color: #A1A1AA; border-color: rgba(255, 255, 255, 0.14); }
 :root[data-theme="dark"] .command-palette-item.is-active { background: rgba(169, 193, 228, 0.12); color: #A9C1E4; }
 :root[data-theme="dark"] .command-palette-item.is-active .command-palette-label, :root[data-theme="dark"] .command-palette-item.is-active .command-palette-icon { color: #A9C1E4; }
+
+/* ==========================================================================
+   Collapsed Sources: the 52px icon rail must keep its column (the unified-shell rule used to zero it,
+   leaving the rail covered by the chat and unclickable). Below 961px the rail floats as a pill above the chat.
+   ========================================================================== */
+@media (min-width: 961px) {
+  .workspace-layout .nav-slot.is-collapsed {
+    width: 52px !important; border-right-color: rgba(0, 0, 0, 0.07); overflow: visible; position: relative; z-index: 30;
+  }
+}
+@media (min-width: 769px) and (max-width: 960px) {
+  .workspace-layout .nav-slot.is-collapsed { overflow: visible; position: relative; z-index: 30; }
+}
+@media (max-width: 768px) {
+  .workspace-layout .nav-slot.is-collapsed { overflow: visible; z-index: 30; }
+}
+
+/* Jump-to-latest: always anchored to the composer container, 12px clear of the composer card. */
+.composer-container { position: relative; }
+.composer-container > .scroll-bottom-btn {
+  position: absolute; top: -44px; left: 50%; transform: translateX(-50%); z-index: 20;
+  background: #FFFFFF; border: 1px solid rgba(0, 0, 0, 0.1); box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+}
