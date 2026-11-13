@@ -724,7 +724,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <input
                 type="text"
                 className="sidebar-search-input"
-                placeholder="Search your notebooks"
+                placeholder="Search notebooks…"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 aria-label="Search notebooks"

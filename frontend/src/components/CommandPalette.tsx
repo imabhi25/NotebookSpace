@@ -73,7 +73,7 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({ items, onClose }
           </svg>
           <input
             type="text" data-autofocus value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={onKeyDown}
-            placeholder="Search or run a command"
+            placeholder="Search or run command…"
             role="combobox" aria-expanded="true" aria-controls={`${baseId}-list`} aria-autocomplete="list"
             aria-activedescendant={current ? optionId(current) : undefined} aria-label="Search or run a command"
             autoComplete="off" spellCheck={false}
