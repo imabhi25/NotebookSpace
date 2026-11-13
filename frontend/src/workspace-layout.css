@@ -3663,3 +3663,30 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; height: 34px; min-height: 34px;
   border-radius: 8px !important; box-shadow: none !important; box-sizing: border-box;
 }
+
+/* ---- History popover (anchored under the clock button; matches the ⋮ and ⚙ menus) ---- */
+.header-menu.history-popover { min-width: 280px; max-width: 320px; top: calc(100% + 6px); gap: 0; }
+.history-new-btn {
+  display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; border: 0; border-radius: 8px; background: transparent;
+  color: #1A3454; font: 550 13px var(--font-family-ui); cursor: pointer; width: 100%; text-align: left;
+}
+.history-new-btn:hover:not(:disabled), .history-new-btn:focus-visible { background: #F4F4F5; outline: none; }
+.history-new-btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.history-divider { height: 1px; margin: 6px 0 2px; background: rgba(0, 0, 0, 0.06); }
+.history-label { margin: 0; padding: 6px 10px 4px; font: 600 11px var(--font-family-ui); letter-spacing: 0.04em; color: #71717A; text-transform: none; }
+.history-list { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 2px; }
+.history-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 8px 10px; border: 0 !important;
+  border-radius: 8px; background: transparent; box-shadow: none !important; outline: none; cursor: pointer; text-align: left;
+}
+.history-row:hover, .history-row:focus-visible, .history-row.active { background: #F4F4F5; }
+.history-row:focus-visible { box-shadow: inset 0 0 0 2px var(--color-accent) !important; }
+.history-row-text { display: flex; flex-direction: column; min-width: 0; flex: 1; }
+.history-row-title { font: 500 13px var(--font-family-ui); color: #18181B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-row-sub { font: 400 11.5px var(--font-family-ui); color: #71717A; }
+.history-row-check { flex: none; color: #1A3454; }
+.history-empty { margin: 0; padding: 8px 10px; font-size: 12.5px; color: #71717A; }
+:root[data-theme="dark"] .history-new-btn { color: #A9C1E4; }
+:root[data-theme="dark"] .history-new-btn:hover:not(:disabled), :root[data-theme="dark"] .history-row:hover, :root[data-theme="dark"] .history-row.active { background: rgba(255, 255, 255, 0.07); }
+:root[data-theme="dark"] .history-row-title { color: #F4F4F5; }
+:root[data-theme="dark"] .history-row-check { color: #A9C1E4; }

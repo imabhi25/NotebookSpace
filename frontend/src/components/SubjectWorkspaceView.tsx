@@ -24,7 +24,7 @@ import { SourceReader, type ReaderNotice } from './SourceReader';
 import { useSourceText } from '../useSourceText';
 import type { PassageInput } from '../sourcePages';
 import { RetrievalMapView } from './RetrievalMapView';
-import { SessionsView } from './WorkspaceNav';
+import { SessionsPopoverList } from './WorkspaceNav';
 import { abstainCopy, abstainText } from '../abstain';
 import { CommandPalette } from './CommandPalette';
 import { BackendStatus } from './BackendStatus';
@@ -470,7 +470,16 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Right contextual panel view: 'notes' | 'retrieval'
   const [contextView, setContextView] = useState<'notes' | 'retrieval'>('notes');
   const [historyOpen, setHistoryOpen] = useState(false);
-  const historyRef = useModalFocus(historyOpen, () => setHistoryOpen(false));
+  const historyRootRef = useRef<HTMLDivElement>(null);
+  const historyBtnRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    if (!historyOpen) return;
+    const onDown = (e: PointerEvent) => { if (!historyRootRef.current?.contains(e.target as Node)) setHistoryOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') { e.stopPropagation(); setHistoryOpen(false); historyBtnRef.current?.focus(); } };
+    document.addEventListener('pointerdown', onDown);
+    document.addEventListener('keydown', onKey, true);
+    return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey, true); };
+  }, [historyOpen]);
   const [selectedRetrievalMessageId, setSelectedRetrievalMessageId] = useState<string | null>(null);
 
   useEffect(() => {
@@ -969,7 +978,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     }
   }, [isCreateNoteOpen, contextView, ctxW]);
   // A shortcut never opens on top of another dialog; the dialog owns the keyboard until it closes.
-  const dialogOpen = isAddSourceOpen || isCreateNoteOpen || isSettingsOpen || historyOpen || Boolean(viewingSource) || Boolean(renamingSource);
+  const dialogOpen = isAddSourceOpen || isCreateNoteOpen || isSettingsOpen || Boolean(viewingSource) || Boolean(renamingSource);
   const shortcutRef = useRef({ dialogOpen, paletteOpen, toggleSourcesPanel, toggleStudyPanel });
   shortcutRef.current = { dialogOpen, paletteOpen, toggleSourcesPanel, toggleStudyPanel };
   useEffect(() => {
@@ -1462,9 +1471,18 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             title={`Search and commands (${shortcutLabel('K')})`} aria-haspopup="dialog" data-testid="open-command-palette">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg><span>Search</span><kbd className="workspace-kbd" aria-hidden="true">{shortcutLabel('K')}</kbd>
           </button>
-          <button type="button" className="workspace-history-btn" onClick={() => setHistoryOpen(true)} aria-label="Conversation history" title="Conversation history">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 119 10M3 4v7h7M12 7v5l3 2"/></svg>
-          </button>
+          <div className="header-menu-root" ref={historyRootRef}>
+            <button type="button" ref={historyBtnRef} className="workspace-history-btn" onClick={() => setHistoryOpen((o) => !o)} aria-label="Conversation history" title="Conversation history" aria-haspopup="dialog" aria-expanded={historyOpen}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M3 11a9 9 0 119 10M3 4v7h7M12 7v5l3 2"/></svg>
+            </button>
+            {historyOpen && (
+              <div className="header-menu history-popover" role="dialog" aria-label="Conversation history">
+                <SessionsPopoverList conversations={conversations ?? []} activeConversationId={activeConversationId}
+                  onNewSession={onCreateConversation ? () => { void onCreateConversation(); setHistoryOpen(false); } : undefined}
+                  onSelectSession={onSelectConversation ? id => { onSelectConversation(id); setHistoryOpen(false); } : undefined} />
+              </div>
+            )}
+          </div>
           {isDemoMode && <span className="demo-pill" data-testid="demo-pill">Public demo</span>}
           <WorkspaceHeaderMenus hasChat={messages.length > 0}
             answerDepth={subject.settings?.response_length === 'detailed' ? 'detailed' : 'concise'}
@@ -2449,14 +2467,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
 
       {paletteOpen && <CommandPalette items={buildPaletteItems()} onClose={() => setPaletteOpen(false)} />}
 
-      {historyOpen && <div className="modal-backdrop" onClick={() => setHistoryOpen(false)}>
-        <div className="modal-content workspace-history-dialog" ref={historyRef} role="dialog" aria-modal="true" aria-labelledby="history-title" onClick={e => e.stopPropagation()}>
-          <div className="modal-header"><h2 id="history-title">Conversation history</h2><button type="button" className="modal-close-btn" aria-label="Close history" onClick={() => setHistoryOpen(false)}>×</button></div>
-          <SessionsView conversations={conversations ?? []} activeConversationId={activeConversationId}
-            onNewSession={onCreateConversation ? () => { void onCreateConversation(); setHistoryOpen(false); } : undefined}
-            onSelectSession={onSelectConversation ? id => { onSelectConversation(id); setHistoryOpen(false); } : undefined} />
-        </div>
-      </div>}
       {/* ======================================================================
           MODALS: Add Source, View Source, Rename Source, Note, Settings
           ====================================================================== */}

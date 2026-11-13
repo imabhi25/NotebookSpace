@@ -160,8 +160,9 @@ describe('Command palette in the workspace', () => {
 
   it('does not open over another dialog', async () => {
     render(view());
-    fireEvent.click(screen.getByRole('button', { name: 'Conversation history' }));
-    await screen.findByRole('dialog', { name: /Conversation history/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Notebook actions' }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /Configure chat/ }));
+    await screen.findByText('Notebook Settings');
     press('k');
     expect(screen.queryByTestId('command-palette')).toBeNull();
   });
