@@ -46,8 +46,9 @@ afterEach(() => { window.innerWidth = originalWidth; vi.restoreAllMocks(); });
 describe('Sources panel', () => {
   it('with no sources shows the actions, the link bar and the drop zone, with no count and no selection row', () => {
     render(workspace([], []));
-    const zone = within(panel()).getByRole('button', { name: /Drop PDFs here or click to browse/ });
-    expect(zone).toHaveTextContent('PDFs, links, pasted text');
+    const zone = within(panel()).getByTestId('sources-drop-zone');
+    expect(zone).toHaveTextContent('Saved sources will appear here');
+    expect(zone).toHaveTextContent('Add PDFs, Markdown notes, or web pages');
     expect(within(panel()).getByRole('heading', { name: /^Sources \(\d+\)$/ })).toHaveTextContent(/^Sources \(\d+\)$/);
     expect(within(panel()).queryByText(/of \d+ selected/)).toBeNull();
     expect(within(panel()).queryByText('Select all')).toBeNull();
@@ -63,19 +64,19 @@ describe('Sources panel', () => {
 
   it('opens the add dialog from the drop zone, and queues dropped files in it', async () => {
     render(workspace([], []));
-    fireEvent.click(within(panel()).getByRole('button', { name: /Drop PDFs here/ }));
+    fireEvent.click(within(panel()).getByRole('button', { name: 'add a source' }));
     expect(await screen.findByText('Add sources to notebook')).toBeInTheDocument();
     fireEvent.keyDown(window, { key: 'Escape' });
 
     const file = new File(['%PDF-1.4'], 'handout.pdf', { type: 'application/pdf' });
-    fireEvent.drop(within(panel()).getByRole('button', { name: /Drop PDFs here/ }), { dataTransfer: { files: [file], types: ['Files'] } });
+    fireEvent.drop(within(panel()).getByTestId('sources-drop-zone'), { dataTransfer: { files: [file], types: ['Files'] } });
     expect(await screen.findByText('handout.pdf')).toBeInTheDocument();
   });
 
   it('with sources drops the drop zone, has no select-all row, and shows the count in the title', () => {
     const onSelectSources = vi.fn();
     render(workspace([src('a', 'Syllabus.pdf'), src('b', 'Lecture 7.pdf')], ['a'], onSelectSources));
-    expect(within(panel()).queryByRole('button', { name: /Drop PDFs here/ })).toBeNull();
+    expect(within(panel()).queryByTestId('sources-drop-zone')).toBeNull();
     expect(within(panel()).getByRole('button', { name: 'Add sources' })).toBeInTheDocument();
     expect(within(panel()).getByRole('heading', { name: /^Sources \(\d+\)$/ })).toHaveTextContent(/^Sources \(\d+\)$/);
     expect(within(panel()).getByText('Select all')).toBeInTheDocument();

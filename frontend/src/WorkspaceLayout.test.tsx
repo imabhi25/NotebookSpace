@@ -51,10 +51,10 @@ describe('Workspace navigation and progressive disclosure', () => {
     render(React.cloneElement(workspace(), { sources: [], messages: [], starterQuestions: ['A suggested question'] }));
     expect(screen.getByRole('button', { name: 'Ask Question' })).toBeDisabled();
     expect(screen.queryByText('A suggested question')).toBeNull();
-    fireEvent.click(screen.getByRole('button', { name: /Paste a link/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Import a webpage/ }));
     expect(await screen.findByLabelText(/Public Webpage URL/)).toBeVisible();
     fireEvent.keyDown(window, { key: 'Escape' });
-    fireEvent.click(screen.getByRole('button', { name: /Add text/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Paste lecture text/ }));
     expect(await screen.findByLabelText(/Text Content/)).toBeVisible();
   });
 
@@ -216,15 +216,28 @@ describe('Workspace navigation and progressive disclosure', () => {
     await waitFor(() => expect(update).toHaveBeenCalledWith({ response_length: 'detailed', response_style: 'learning-guide' }));
   });
 
-  it('shows clean starter prompts and no hardcoded suggestion pills above the composer', () => {
-    render(React.cloneElement(workspace(), {
-      messages: [], starterQuestions: ['Summarize announcement_week4.md and the syllabus'],
-    }));
+  it('shows three starter cards that send their question, and no pills above the composer', () => {
+    const send = vi.fn(async () => {});
+    render(React.cloneElement(workspace(), { messages: [], onSendMessage: send }));
+    expect(screen.getByRole('heading', { name: 'What do you want to study?' })).toBeVisible();
     expect(screen.queryByRole('group', { name: 'Suggested questions' })).toBeNull();
     expect(screen.queryByText('What is the late penalty?')).toBeNull();
-    const chip = within(screen.getByRole('group', { name: 'Starter questions' })).getByRole('button');
-    expect(chip.textContent).not.toMatch(/\.md/);
-    expect(chip).toHaveTextContent('announcement week4');
+    const cards = within(screen.getByRole('group', { name: 'Starter questions' })).getAllByRole('button');
+    expect(cards.map((c) => c.textContent?.replace('→', ''))).toEqual([
+      'Summarize key policies & grading', 'Check for updates or conflicts', 'Outline main topics to study',
+    ]);
+    fireEvent.click(cards[1]);
+    expect(send).toHaveBeenCalledWith('Check for updates or conflicts');
+  });
+
+  it('with no sources shows the study-space heading and three add-source cards', () => {
+    render(React.cloneElement(workspace(), { sources: [], messages: [] }));
+    expect(screen.getByRole('heading', { name: 'Start your study space' })).toBeVisible();
+    const cards = within(screen.getByRole('group', { name: 'Add sources' })).getAllByRole('button');
+    expect(cards).toHaveLength(3);
+    expect(screen.getByText('Saved sources will appear here')).toBeVisible();
+    expect(screen.getByRole('button', { name: 'add a source' })).toBeVisible();
+    expect(screen.getByText('Your notes will appear here')).toBeVisible();
   });
 
   it('opens help and the reset confirmation from the settings popover', async () => {
