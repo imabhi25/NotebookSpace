@@ -46,8 +46,8 @@ const NAV_PREF_KEY = 'notebookspace_nav_open';
 const CONTEXT_PREF_KEY = 'notebookspace_context_open';
 const NAV_W_KEY = 'notebookspace_nav_w';
 const CTX_W_KEY = 'notebookspace_ctx_w';
-const NAV_W = { def: 260, min: 210, max: 400, snap: 130 };
-const CTX_W = { def: 360, min: 280, max: 520, snap: 160, note: 420 };
+const NAV_W = { def: 280, min: 220, max: 440, snap: 130 };
+const CTX_W = { def: 340, min: 280, max: 540, snap: 180, note: 420 };
 // Narrower desktops keep all three columns comfortable: a slimmer default and note width below 1280px.
 const narrowDesktop = () => typeof window !== 'undefined' && window.innerWidth < 1280;
 const ctxDefault = () => (narrowDesktop() ? 340 : CTX_W.def);
