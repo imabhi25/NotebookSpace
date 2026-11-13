@@ -1443,13 +1443,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       <div className="workspace-subject-pill workspace-subject-pill-name workspace-title-measure"
         ref={titleMeasureRef} aria-hidden="true" data-title={`${subject.name} ${subject.course_code || ''}`} />
       <header className="workspace-top-bar workspace-control-bar" ref={headerRef}>
-        <div className="workspace-brand" ref={brandRef}>
-          <button type="button" className="workspace-logo-btn workspace-back-btn" ref={backButtonRef}
-            onClick={onBackToDashboard} title="All notebooks" aria-label="Back to notebooks">
-            <BrandLogo size={24} />
-          </button>
-        </div>
-        <div className="workspace-breadcrumb">
+        <div className="workspace-header-left">
+          <div className="workspace-brand" ref={brandRef}>
+            <button type="button" className="workspace-logo-btn workspace-back-btn" ref={backButtonRef}
+              onClick={onBackToDashboard} title="All notebooks" aria-label="Back to notebooks">
+              <BrandLogo size={24} />
+            </button>
+          </div>
           {!titleBelowBar && (
             <div className="workspace-subject-pill workspace-notebook-identity">
               <NotebookTitle name={subject.name} onRename={onRenameSubject} editSignal={renameTick} />

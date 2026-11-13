@@ -29,7 +29,7 @@ button:disabled, input:disabled, textarea:disabled, select:disabled { opacity: v
     border-color var(--motion-fast) var(--motion-ease), box-shadow var(--motion-fast) var(--motion-ease);
 }
 :is(button, [role="button"]):focus-visible { transition: none; }
-:is(button, aside, header, .modal-content, .right-panel-empty-state) svg:not(.retrieval-svg) {
+:is(button, aside, header, .modal-content, .right-panel-empty-state) svg:not(.retrieval-svg):not(.brand-logo-icon) {
   width: var(--icon-size); height: var(--icon-size); stroke-width: var(--icon-stroke); flex-shrink: 0;
 }
 
