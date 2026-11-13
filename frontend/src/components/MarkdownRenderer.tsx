@@ -20,8 +20,10 @@ interface MarkdownRendererProps {
 function renderInlineFormatting(text: string): React.ReactNode[] {
   if (!text) return [];
   const parts: React.ReactNode[] = [];
-  // Regex to match `code`, **bold**, or *italic*
-  const inlineRegex = /(`[^`]+`|\*\*[^*]+?\*\*|\*[^*]+?\*)/g;
+  // `code`, ***bold italic***, **bold** (tolerating a sloppy single closing *), then *italic*.
+  const inlineRegex = /(`[^`]+`|\*\*\*[^*]+?\*\*\*|\*\*[^*]+?\*{1,2}|\*[^*\s](?:[^*]*?[^*\s])?\*)/g;
+  // Any asterisk left over is an orphan marker, never visible prose.
+  const pushText = (t: string) => { const c = t.replace(/\*+/g, ''); if (c) parts.push(c); };
   let lastIdx = 0;
   let match: RegExpExecArray | null;
 
@@ -30,38 +32,26 @@ function renderInlineFormatting(text: string): React.ReactNode[] {
     const end = inlineRegex.lastIndex;
     const raw = match[0];
 
-    if (start > lastIdx) {
-      parts.push(text.slice(lastIdx, start));
-    }
+    if (start > lastIdx) pushText(text.slice(lastIdx, start));
 
-    if (raw.startsWith('`') && raw.endsWith('`')) {
-      parts.push(
-        <code key={`code-${start}`} className="inline-code">
-          {raw.slice(1, -1)}
-        </code>
-      );
-    } else if (raw.startsWith('**') && raw.endsWith('**')) {
-      parts.push(
-        <strong key={`bold-${start}`} className="md-strong">
-          {raw.slice(2, -2)}
-        </strong>
-      );
-    } else if (raw.startsWith('*') && raw.endsWith('*')) {
-      parts.push(
-        <em key={`em-${start}`} className="md-em">
-          {raw.slice(1, -1)}
-        </em>
-      );
+    if (raw.startsWith('`')) {
+      parts.push(<code key={`code-${start}`} className="inline-code">{raw.slice(1, -1)}</code>);
     } else {
-      parts.push(raw);
+      const inner = raw.replace(/^\*+/, '').replace(/\*+$/, '');
+      const lead = raw.length - raw.replace(/^\*+/, '').length;
+      if (lead >= 3) {
+        parts.push(<strong key={`bi-${start}`} className="md-strong"><em className="md-em">{inner}</em></strong>);
+      } else if (lead === 2) {
+        parts.push(<strong key={`bold-${start}`} className="md-strong">{inner}</strong>);
+      } else {
+        parts.push(<em key={`em-${start}`} className="md-em">{inner}</em>);
+      }
     }
 
     lastIdx = end;
   }
 
-  if (lastIdx < text.length) {
-    parts.push(text.slice(lastIdx));
-  }
+  if (lastIdx < text.length) pushText(text.slice(lastIdx));
 
   return parts;
 }
@@ -271,11 +261,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({
       continue;
     }
 
-    // Bullet points
-    if (line.startsWith('- ') || line.startsWith('* ')) {
+    // Bullet points ("-", "*" or "•", optionally indented)
+    const bulletMatch = line.match(/^(\s*)[-*•]\s+(.*)$/);
+    if (bulletMatch && !/^\s*\*\*/.test(line)) {
       blocks.push(
-        <li key={`li-${i}`} className="md-list-item">
-          {renderTextWithCitations(line.slice(2), citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}
+        <li key={`li-${i}`} className="md-list-item" style={bulletMatch[1].length >= 2 ? { marginLeft: 16 } : undefined}>
+          {renderTextWithCitations(bulletMatch[2], citations, isThisMessageSelected, selectedCitation, onSelectCitation, citationState)}
         </li>
       );
       continue;

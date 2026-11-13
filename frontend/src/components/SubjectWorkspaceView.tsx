@@ -1498,6 +1498,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
               else closeNavPanel();
             }} />
         )}
+        <div className="workspace-canvas">
         {/* LEFT: sources (notebook, add, find, selection, list) */}
         <div className={`nav-slot ${isNavCollapsed || navHiddenByReader ? 'is-collapsed' : ''}`}>
           {isNavCollapsed && resizeHandle('left', false)}
@@ -2441,6 +2442,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         )}
 
         </aside>
+        </div>
         </div>
 
       </div>

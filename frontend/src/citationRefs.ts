@@ -38,7 +38,9 @@ export function trailingPunctuationGap(rest: string): number {
  */
 export function stripCitationMarkers(text: string): string {
   const re = new RegExp(`[ \\t]*(?:${CITATION_PATTERN}[ \\t]*)+`, 'giu');
-  return text.replace(re, (m: string, ...args: unknown[]) => {
+  // A marker still streaming in ("[file.pdf p.1" with no closing bracket) is hidden too.
+  const withoutPartial = text.replace(/[ \t]*\[[^\[\]\r\n]*\.\w{2,5}(?:\s*,?\s*(?:pp?\.?|pages?\.?)?\s*[\d,\s&–-]*)?$/i, '');
+  return withoutPartial.replace(re, (m: string, ...args: unknown[]) => {
     const offset = args[args.length - 2] as number;
     const whole = args[args.length - 1] as string;
     const before = offset === 0 || whole[offset - 1] === '\n';
