@@ -437,11 +437,6 @@ describe('SubjectWorkspaceView component', () => {
     expect(screen.getByText(/What is the grading policy\?/i)).toBeInTheDocument();
     expect(screen.queryByTestId('inline-citation')).toBeNull();
 
-    // Inspector panel should display cited passage once loading settles
-    await waitFor(() => {
-      expect(screen.getByText(/Midterm Exam: 25% of final grade/i)).toBeInTheDocument();
-    });
-
     // Test Save as Note
     const saveNoteBtn = screen.getByRole('button', { name: /^save to note$/i });
     await act(async () => { fireEvent.click(saveNoteBtn); });
@@ -636,9 +631,8 @@ describe('SubjectWorkspaceView component', () => {
       fireEvent.click(seeRetrievalBtn);
     });
 
-    // Right panel inspector should now be visible and on Retrieval tab
-    const retrievalTab = screen.getByTestId('right-panel-tab-evidence');
-    expect(retrievalTab).toHaveClass('active');
+    // Right panel inspector should now be visible and on Retrieval view
+    expect(screen.getByRole('button', { name: 'Back to notes' })).toBeVisible();
 
     // api.getRetrievalMap should have been called with messageId: 'msg-2'
     await waitFor(() => {

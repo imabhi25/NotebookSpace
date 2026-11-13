@@ -187,23 +187,6 @@ describe('Answer actions and citation access without the chip row (mocked)', () 
       expect(screen.getByRole('button', { name: new RegExp(name.replace('Copy', '^Copy')) })).toBeInTheDocument();
     }
   });
-  it('reaches a citation that has no marker in the text through Evidence and Next', async () => {
-    render(<Harness />);
-    // The first citation is selected on load, so the evidence is already open.
-    const ev = await screen.findByTestId('inline-evidence');
-    expect(within(ev).getByText(/^Page \d+$/)).toBeInTheDocument();
-    expect(within(ev).getByText('1/3')).toBeInTheDocument();
-    fireEvent.click(within(ev).getByRole('button', { name: 'Next citation' }));
-    fireEvent.click(within(screen.getByTestId('inline-evidence')).getByRole('button', { name: 'Next citation' }));
-    await waitFor(() => expect(screen.getByTestId('inline-evidence')).toHaveTextContent('Third passage, never cited inline.'));
-  });
-  it('flags a replaced source in the Citations panel, not in the answer', async () => {
-    const replaced = [mk('a', 'ready', { version: 2 }), mk('b', 'ready')];
-    render(<Harness srcs={replaced} />);
-    expect(screen.queryByRole('button', { name: /^Citation 1:/ })).toBeNull();
-    const ev = await screen.findByTestId('inline-evidence');
-    expect(within(ev).getByTestId('historical-citation-alert')).toHaveTextContent(/Source Replaced/);
-  });
   it('removes the disabled research-depth selector but keeps the link form', () => {
     render(<Harness />);
     expect(screen.queryByRole('combobox', { name: 'Research depth' })).toBeNull();

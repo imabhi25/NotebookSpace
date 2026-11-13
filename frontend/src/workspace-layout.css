@@ -1307,8 +1307,9 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
    Workspace upgrade: Sources panel, 52px icon rail, citations, evidence, feed, composer
    ============================================================ */
 
-/* ---- Sources header: title + count pill left, collapse toggle right (Figma 44px baseline) ---- */
+/* ---- Sources & Notes header: title + count pill left, collapse toggle right (Figma 44px baseline) ---- */
 .sources-panel-header,
+.notes-panel-header,
 .workspace-layout .rail-header {
   height: 44px !important;
   min-height: 44px !important;
@@ -1322,12 +1323,16 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08)) !important;
 }
 :root[data-theme="dark"] .workspace-layout .rail-header,
-:root[data-theme="dark"] .sources-panel-header {
+:root[data-theme="dark"] .sources-panel-header,
+:root[data-theme="dark"] .notes-panel-header {
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
 .sources-panel-header .workspace-nav-toggle,
+.notes-panel-header .context-collapse-btn,
 .workspace-layout .rail-header .rail-icon-btn.workspace-nav-toggle,
-.sources-panel-header .rail-icon-btn {
+.workspace-layout .rail-header .rail-icon-btn.context-collapse-btn,
+.sources-panel-header .rail-icon-btn,
+.notes-panel-header .rail-icon-btn {
   width: 28px !important;
   height: 28px !important;
   min-width: 28px !important;
@@ -1766,46 +1771,47 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 :root[data-theme="dark"] .workspace-layout .citation-marker:hover { background: rgba(255, 255, 255, 0.14); color: #fff; }
 
 /* ============================================================
-   Study panel header: self-contained segmented track + fixed collapse button (Figma 44px baseline)
+   Study panel header: Notes header & Note editor bar (Figma 44px baseline, 14px insets)
    ============================================================ */
-.workspace-layout .workspace-context-panel .context-tabs-row,
-.workspace-layout .workspace-context-panel .note-editor-bar {
+.workspace-layout .workspace-context-panel .notes-panel-header,
+.workspace-layout .workspace-context-panel .note-editor-bar,
+.studio-note .note-editor-bar {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
-  gap: 10px !important;
+  gap: 8px !important;
   flex: none !important;
   height: 44px !important;
   min-height: 44px !important;
   max-height: 44px !important;
   box-sizing: border-box !important;
   margin: 0 !important;
-  padding: 0 12px !important;
+  padding: 0 14px !important;
   border-bottom: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08)) !important;
 }
-:root[data-theme="dark"] .workspace-layout .workspace-context-panel :is(.context-tabs-row, .note-editor-bar) {
+:root[data-theme="dark"] .workspace-layout .workspace-context-panel :is(.notes-panel-header, .note-editor-bar),
+:root[data-theme="dark"] .studio-note .note-editor-bar {
   border-bottom-color: rgba(255, 255, 255, 0.08) !important;
 }
-.workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher.sliding-tabs {
-  position: relative; display: grid; grid-template-columns: 1fr 1fr; flex: 1 1 auto; width: auto; max-width: 210px; min-width: 0; height: 32px;
-  padding: 2px; margin: 0; gap: 0; border-radius: 8px; border: 1px solid var(--border-subtle, var(--color-border)); background: rgba(0, 0, 0, 0.05);
+.workspace-layout .workspace-context-panel .context-collapse-btn,
+.workspace-layout .notes-panel-header .context-collapse-btn,
+.workspace-layout .note-editor-bar .context-collapse-btn {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  min-height: 28px !important;
+  max-width: 28px !important;
+  max-height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  border: none !important;
+  flex-shrink: 0 !important;
 }
-:root[data-theme="dark"] .workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher.sliding-tabs { background: rgba(255, 255, 255, 0.06); }
-.workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher.sliding-tabs.sliding-tabs::before {
-  content: ''; display: block; position: absolute; z-index: 0; top: 2px; bottom: 2px; left: 2px; height: auto; width: calc(50% - 2px);
-  border-radius: 6px; background: var(--bg-canvas, #fff); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08); opacity: 1;
-  transform: translateX(0%); transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
-}
-.workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher.sliding-tabs[data-active="evidence"]::before { transform: translateX(100%); }
-:root[data-theme="dark"] .workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher.sliding-tabs.sliding-tabs::before { background: rgba(255, 255, 255, 0.12); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.4); }
-.workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher .segment-btn {
-  position: relative; z-index: 1; display: flex; align-items: center; justify-content: center; height: 100%; min-height: 0; width: auto; flex: none;
-  padding: 0 8px; border: none !important; border-radius: 6px; background: transparent !important; box-shadow: none !important;
-  font-size: 12.5px; font-weight: 500; line-height: 1; white-space: nowrap; color: var(--color-text-secondary);
-}
-.workspace-layout .workspace-context-panel .context-tabs-row .context-view-switcher .segment-btn.active { color: var(--color-text-primary); }
-.workspace-layout .context-tabs-row .context-collapse-btn { margin-left: 0; width: 28px; height: 28px; flex: 0 0 28px; border-radius: 6px; background: transparent; border: none; }
-@media (prefers-reduced-motion: reduce) { .workspace-layout .context-view-switcher.sliding-tabs.sliding-tabs::before { transition: none !important; } }
 
 /* ---- Notes list ---- */
 .notes-top-bar { display: flex; align-items: center; justify-content: space-between; flex: none; margin-bottom: 10px; }
@@ -1862,7 +1868,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .context-slot aside.workspace-context-panel .right-panel-body:not(:has(.studio-note)),
 .workspace-layout .workspace-context-panel .right-panel-body:not(:has(.studio-note)),
 .workspace-layout .study-panel .right-panel-body:not(:has(.studio-note)) {
-  padding: 12px !important;
+  padding: 14px !important;
   box-sizing: border-box !important;
 }
 .workspace-layout .context-slot aside.workspace-context-panel {

@@ -107,16 +107,14 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
   });
 
-  it.each([1440, 768, 390])('opens cited evidence in the study panel at %ipx', async width => {
+  it.each([1440, 768, 390])('keeps the study panel with notes accessible at %ipx', async width => {
     window.innerWidth = width;
     render(workspace());
-    const opener = screen.queryByRole('button', { name: 'Open citations panel' });
-    if (opener) fireEvent.click(opener);
-    await waitFor(() => expect(api.getPassages).toHaveBeenCalledWith('lecture.pdf', 1, subject.id, 'source'));
-    const evidence = screen.getByTestId('inline-evidence');
-    expect(evidence).toBeVisible();
-    expect(evidence).toHaveAccessibleName('Evidence from lecture.pdf, page 1');
-    expect(evidence.closest('.workspace-context-panel')).not.toBeNull();
+    if (studyToggle().getAttribute('aria-expanded') === 'false') {
+      fireEvent.click(studyToggle());
+    }
+    expect(screen.getByRole('complementary', { name: 'Study panel' })).toBeVisible();
+    expect(screen.getByTestId('new-note-btn')).toBeVisible();
     expect(studyToggle()).toHaveAttribute('aria-expanded', 'true');
   });
 
@@ -220,13 +218,9 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(reset).toHaveBeenCalledOnce();
   });
 
-  it('keeps Notes and Evidence in Study and opens history separately', () => {
+  it('keeps Notes in Study and opens history separately', () => {
     render(workspace());
     expect(within(screen.getByRole('complementary', { name: 'Sources' })).getByTestId('add-source-btn')).toBeVisible();
-    fireEvent.click(screen.getByTestId('right-panel-tab-evidence'));
-    // The first citation of the answer is selected on load, so Evidence is never an empty box.
-    expect(screen.getByTestId('selected-source-card')).toBeVisible();
-    fireEvent.click(screen.getByRole('button', { name: /^Notes/ }));
     expect(screen.getByTestId('new-note-btn')).toBeVisible();
     fireEvent.click(screen.getByRole('button', { name: 'Conversation history' }));
     expect(screen.getByRole('dialog', { name: 'Conversation history' })).toBeVisible();
