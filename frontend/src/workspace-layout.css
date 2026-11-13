@@ -3965,53 +3965,6 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 :root[data-theme="dark"] .workspace-layout .notebook-title .notebook-title-input,
 :root[data-theme="dark"] .workspace-layout .notebook-title .notebook-title-input:focus { background: #1B1D21; color: #F4F4F5; border-color: #A9C1E4; box-shadow: 0 0 0 3px rgba(169, 193, 228, 0.14); }
 
-/* ==========================================================================
-   Three sibling sheets (final word, 769px and up): Sources | Center | Notes are separate single-border
-   14px cards with a 12px gap. No card sits inside another card and nothing is padded twice: the centre
-   takes whatever width is left (flex: 1), so it can never be crushed by a reserved + a docked column.
-   ========================================================================== */
-@media (min-width: 769px) {
-  .workspace-layout .workspace-canvas {
-    gap: 12px; background: transparent !important; border: 0 !important; border-radius: 0 !important; overflow: visible !important;
-    box-shadow: none !important;
-  }
-  .workspace-layout .workspace-canvas > .workspace-main-area,
-  .workspace-layout[data-context-open="true"] .workspace-canvas > .workspace-main-area {
-    flex: 1 1 0; min-width: 0; padding-right: 0 !important;
-    background: var(--color-bg-surface, #FFFFFF) !important; border: 1px solid rgba(0, 0, 0, 0.08) !important;
-    border-radius: 14px !important; overflow: hidden !important; height: 100% !important; transition: none;
-  }
-  .workspace-layout .workspace-canvas > .context-slot {
-    position: relative !important; inset: auto !important; flex: 0 0 auto; width: var(--ctx-w) !important; max-width: none;
-    height: 100% !important; margin: 0; padding: 0; overflow: visible; display: block; z-index: 25;
-  }
-  .workspace-layout .workspace-canvas > .context-slot.is-collapsed { width: 0 !important; margin-left: -12px; }
-  .workspace-layout .workspace-canvas > .context-slot aside.workspace-context-panel {
-    position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important;
-    box-shadow: none !important; border: 1px solid rgba(0, 0, 0, 0.08) !important; border-radius: 14px !important;
-  }
-  .workspace-layout .workspace-canvas > .context-slot .context-expand-btn { top: 10px; right: 12px; }
-  .workspace-layout.is-resizing .workspace-canvas > .context-slot { transition: none !important; }
-}
-@media (min-width: 1025px) {
-  .workspace-layout .workspace-canvas > .nav-slot {
-    background: #F7F7F8; border: 1px solid rgba(0, 0, 0, 0.08) !important; border-radius: 14px; overflow: hidden; height: 100%;
-  }
-  .workspace-layout .workspace-canvas > .nav-slot.is-collapsed { width: 52px !important; overflow: visible; }
-  .workspace-layout .workspace-canvas > .nav-slot aside.workspace-nav.workspace-sources-rail { border-radius: 0 !important; }
-}
-@media (min-width: 769px) and (max-width: 1024px) {
-  /* The Sources drawer floats; its zero-width slot must not add a phantom 12px gap. */
-  .workspace-layout .workspace-canvas > .nav-slot { margin-right: -12px; }
-}
-:root[data-theme="dark"] .workspace-layout .workspace-canvas > .workspace-main-area,
-:root[data-theme="dark"] .workspace-layout .workspace-canvas > .nav-slot,
-:root[data-theme="dark"] .workspace-layout .workspace-canvas > .context-slot aside.workspace-context-panel { border-color: rgba(255, 255, 255, 0.08) !important; }
-:root[data-theme="dark"] .workspace-layout .workspace-canvas > .nav-slot { background: #17181B; }
-
-/* Resize handles sit above every overflow mask, never select text, never scroll the page on touch. */
-.workspace-layout .panel-resize-handle { z-index: 45; pointer-events: auto; touch-action: none; cursor: col-resize; user-select: none; -webkit-user-select: none; }
-
 /* Chat thread: the first line of a turn never lands under the top edge. */
 .workspace-layout .thread-scroll-container { scroll-padding-top: 16px; scroll-padding-bottom: 16px; }
 
@@ -4143,3 +4096,30 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .palette-root .command-palette-list {
   -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 22px), transparent);
 }
+
+/* ==========================================================================
+   Attached shell (final word): Sources + Center share one framed sheet with no gap; Notes floats flush over the
+   right of the Center at top/right/bottom 0. Notes width is reserved once, as padding-right on the Center.
+   ========================================================================== */
+@media (min-width: 1025px) {
+  .workspace-layout .workspace-canvas { gap: 0 !important; overflow: hidden !important; border: 1px solid rgba(0, 0, 0, 0.08) !important; border-radius: 14px !important; background: #FFFFFF !important; }
+  .workspace-layout .workspace-canvas > .nav-slot { border: 0 !important; border-right: 1px solid rgba(0, 0, 0, 0.07) !important; border-radius: 0 !important; height: 100%; }
+  .workspace-layout .workspace-canvas > .nav-slot.is-collapsed { width: 52px !important; }
+  .workspace-layout .workspace-canvas > .workspace-main-area {
+    flex: 1 1 auto; min-width: 0; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; background: #FFFFFF !important; height: 100% !important;
+  }
+  .workspace-layout .workspace-canvas > .context-slot {
+    position: absolute !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: auto !important; margin: 0 !important;
+    width: var(--study-panel-width, var(--ctx-w, 340px)) !important; height: auto !important; z-index: 25;
+  }
+  .workspace-layout .workspace-canvas > .context-slot.is-collapsed { width: 0 !important; margin: 0 !important; }
+  .workspace-layout .workspace-canvas > .context-slot aside.workspace-context-panel {
+    border: 0 !important; border-left: 1px solid rgba(0, 0, 0, 0.08) !important; border-radius: 14px 0 0 14px !important;
+    box-shadow: -8px 0 28px rgba(0, 0, 0, 0.05) !important;
+  }
+}
+:root[data-theme="dark"] .workspace-layout .workspace-canvas { background: #16181D !important; border-color: rgba(255, 255, 255, 0.08) !important; }
+
+/* Jump-to-latest sits 10px clear above the composer; the thread leaves room so it never covers text. */
+.composer-container > .scroll-bottom-btn { top: -42px; }
+.workspace-layout .thread-scroll-container { padding-bottom: 48px; }

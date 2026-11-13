@@ -901,9 +901,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const toggleSourcesPanel = () => (isNavCollapsed ? setNavCollapsed(false) : closeNavPanel());
   const toggleStudyPanel = () => (isContextCollapsed ? setContextCollapsed(false) : closeContextPanel());
   const openNoteEditor = (note: Note | null) => {
-    if (typeof window !== 'undefined' && window.innerWidth <= 1420 && !isNavCollapsed) {
-      setNavCollapsed(true);
-    }
     withViewTransition(() => {
       setEditingNote(note);
       setNoteFormTitle(note?.title ?? 'New Note');
@@ -1053,9 +1050,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const noteWidthRestore = useRef<number | null>(null);
   useEffect(() => {
     if (isCreateNoteOpen && contextView === 'notes') {
-      if (typeof window !== 'undefined' && window.innerWidth <= 1420 && !isNavCollapsed) {
-        setNavCollapsed(true);
-      }
       if (noteWidthRestore.current === null && ctxW < ctxNoteWidth()) { noteWidthRestore.current = ctxW; setCtxW(ctxNoteWidth()); }
       // On <=1420px desktops the note editor would squeeze the chat, so Sources folds to its rail (not remembered).
       if (window.innerWidth <= 1420 && window.innerWidth > 1024 && !isNavCollapsed && !navAutoCollapsed.current) {
@@ -1069,7 +1063,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (!(isCreateNoteOpen && contextView === 'notes') && navAutoCollapsed.current) {
       navAutoCollapsed.current = false; setNavCollapsed(false, false);
     }
-  }, [isCreateNoteOpen, contextView, ctxW, isNavCollapsed]);
+  }, [isCreateNoteOpen, contextView, ctxW]);
   // A shortcut never opens on top of another dialog; the dialog owns the keyboard until it closes.
   const dialogOpen = isAddSourceOpen || isCreateNoteOpen || isSettingsOpen || Boolean(viewingSource) || Boolean(renamingSource);
   const shortcutRef = useRef({ dialogOpen, paletteOpen, toggleSourcesPanel, toggleStudyPanel });
