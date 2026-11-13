@@ -56,7 +56,7 @@ function NoteDeleteButton({ variant, label, onConfirm, skipConfirm }: { variant:
   const base = variant === 'editor' ? 'rail-icon-btn note-editor-delete tip-end' : 'source-item-btn source-delete-btn';
   if (armed) {
     return (
-      <button type="button" className={`note-delete-confirm ${variant === 'editor' ? 'is-editor' : ''}`} autoFocus data-testid="note-delete-confirm"
+      <button type="button" className={`note-delete-confirm note-delete-confirm-btn ${variant === 'editor' ? 'is-editor' : ''}`} autoFocus data-testid="note-delete-confirm"
         aria-label={`Confirm delete note ${label}`} onClick={(e) => { e.stopPropagation(); setArmed(false); onConfirm(); }}
         onBlur={() => setArmed(false)} onKeyDown={(e) => { if (e.key === 'Escape') { e.stopPropagation(); setArmed(false); } }}>
         Delete?
@@ -78,7 +78,7 @@ const CONTEXT_PREF_KEY = 'notebookspace_context_open';
 const NAV_W_KEY = 'notebookspace_nav_w';
 const CTX_W_KEY = 'notebookspace_ctx_w';
 const NAV_W = { def: 280, min: 220, max: 420, snap: 130 };
-const CTX_W = { def: 340, min: 280, max: 520, snap: 180, note: 420 };
+const CTX_W = { def: 340, min: 280, max: 520, snap: 160, note: 400 };
 // Narrower desktops keep all three columns comfortable: a slimmer default and note width below 1280px.
 const narrowDesktop = () => typeof window !== 'undefined' && window.innerWidth < 1280;
 const ctxDefault = () => (narrowDesktop() ? 340 : CTX_W.def);
@@ -357,6 +357,12 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const startResize = (side: 'left' | 'right') => (e: React.PointerEvent<HTMLElement>) => {
     if (e.button !== 0) return;
     e.preventDefault();
+    e.stopPropagation();
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch { /* optional */ }
+    document.body.style.userSelect = 'none';
+    (document.body.style as { webkitUserSelect?: string }).webkitUserSelect = 'none';
     const cfg = side === 'left' ? NAV_W : CTX_W;
     const collapsed0 = side === 'left' ? isNavCollapsed : isContextCollapsed;
     const startW = collapsed0 ? (side === 'left' ? 52 : 0) : (side === 'left' ? navW : ctxW);
@@ -369,6 +375,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     document.body.style.userSelect = 'none';
     window.getSelection()?.removeAllRanges();
     const move = (ev: PointerEvent) => {
+      ev.preventDefault();
       const raw = startW + (side === 'left' ? ev.clientX - startX : startX - ev.clientX);
       const shouldCollapse = raw < cfg.snap;
       if (shouldCollapse !== collapsed) {
@@ -377,18 +384,29 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       }
       width = clampW(raw, cfg.min, cfg.max);
       rootRef.current?.style.setProperty(varName, `${width}px`);
-      if (side === 'right') {
+      if (side === 'left') {
+        rootRef.current?.style.setProperty('--sources-panel-width', `${width}px`);
+      } else {
         rootRef.current?.style.setProperty('--study-panel-width', `${width}px`);
       }
     };
     const done = () => {
+      document.body.style.userSelect = '';
+      (document.body.style as { webkitUserSelect?: string }).webkitUserSelect = '';
       window.removeEventListener('pointermove', move);
       window.removeEventListener('pointerup', done);
       window.removeEventListener('pointercancel', done);
       setResizing(null);
       resizingRef.current = false;
-      document.body.style.userSelect = '';
-      if (side === 'left') { setNavW(width); writeWidth(NAV_W_KEY, width); } else { setCtxW(width); writeWidth(CTX_W_KEY, width); }
+      if (side === 'left') {
+        setNavW(width);
+        writeWidth(NAV_W_KEY, width);
+        rootRef.current?.style.setProperty('--sources-panel-width', `${width}px`);
+      } else {
+        setCtxW(width);
+        writeWidth(CTX_W_KEY, width);
+        rootRef.current?.style.setProperty('--study-panel-width', `${width}px`);
+      }
     };
     window.addEventListener('pointermove', move);
     window.addEventListener('pointerup', done);
@@ -403,10 +421,21 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       onPointerDown={startResize(side)} onDoubleClick={() => resetWidth(side)} onKeyDown={nudgeWidth(side)} />
   );
   const resetWidth = (side: 'left' | 'right') => {
-    if (side === 'left') { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); setNavCollapsed(false); }
-    else { setCtxW(ctxDefault()); writeWidth(CTX_W_KEY, ctxDefault()); setContextCollapsed(false); }
+    if (side === 'left') {
+      setNavW(NAV_W.def);
+      writeWidth(NAV_W_KEY, NAV_W.def);
+      setNavCollapsed(false);
+      rootRef.current?.style.setProperty('--sources-panel-width', `${NAV_W.def}px`);
+    } else {
+      setCtxW(ctxDefault());
+      writeWidth(CTX_W_KEY, ctxDefault());
+      setContextCollapsed(false);
+      rootRef.current?.style.setProperty('--study-panel-width', `${ctxDefault()}px`);
+    }
     rootRef.current?.style.removeProperty(side === 'left' ? '--nav-w' : '--ctx-w');
-    if (side === 'right') {
+    if (side === 'left') {
+      rootRef.current?.style.removeProperty('--sources-panel-width');
+    } else {
       rootRef.current?.style.removeProperty('--study-panel-width');
     }
   };
@@ -751,8 +780,11 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       // Everything fits: rest at the very top so the first line is never cut by the edge.
       scroller.scrollTop = 0;
     } else if (chatLoading || appended) {
-      // Scroll the thread itself (not the page) to the latest turn.
-      scroller.scrollTo?.({ top: scroller.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+      if (bottom && typeof bottom.scrollIntoView === 'function') {
+        bottom.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'nearest' });
+      } else {
+        scroller.scrollTo?.({ top: scroller.scrollHeight, behavior: reduce ? 'auto' : 'smooth' });
+      }
     } else if (prev === 0) {
       scroller.scrollTop = 0;
     }
@@ -869,6 +901,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const toggleSourcesPanel = () => (isNavCollapsed ? setNavCollapsed(false) : closeNavPanel());
   const toggleStudyPanel = () => (isContextCollapsed ? setContextCollapsed(false) : closeContextPanel());
   const openNoteEditor = (note: Note | null) => {
+    if (typeof window !== 'undefined' && window.innerWidth <= 1420 && !isNavCollapsed) {
+      setNavCollapsed(true);
+    }
     withViewTransition(() => {
       setEditingNote(note);
       setNoteFormTitle(note?.title ?? 'New Note');
@@ -1014,10 +1049,13 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     document.addEventListener('keydown', onKey, true);
     return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey, true); };
   }, [noteMenu]);
-  // A note needs room: widen the study panel to 420px while one is open (and restore it afterwards).
+  // A note needs room: widen the study panel to 400px while one is open (and restore it afterwards).
   const noteWidthRestore = useRef<number | null>(null);
   useEffect(() => {
     if (isCreateNoteOpen && contextView === 'notes') {
+      if (typeof window !== 'undefined' && window.innerWidth <= 1420 && !isNavCollapsed) {
+        setNavCollapsed(true);
+      }
       if (noteWidthRestore.current === null && ctxW < ctxNoteWidth()) { noteWidthRestore.current = ctxW; setCtxW(ctxNoteWidth()); }
       // On <=1420px desktops the note editor would squeeze the chat, so Sources folds to its rail (not remembered).
       if (window.innerWidth <= 1420 && window.innerWidth > 1024 && !isNavCollapsed && !navAutoCollapsed.current) {
@@ -1031,7 +1069,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (!(isCreateNoteOpen && contextView === 'notes') && navAutoCollapsed.current) {
       navAutoCollapsed.current = false; setNavCollapsed(false, false);
     }
-  }, [isCreateNoteOpen, contextView, ctxW]);
+  }, [isCreateNoteOpen, contextView, ctxW, isNavCollapsed]);
   // A shortcut never opens on top of another dialog; the dialog owns the keyboard until it closes.
   const dialogOpen = isAddSourceOpen || isCreateNoteOpen || isSettingsOpen || Boolean(viewingSource) || Boolean(renamingSource);
   const shortcutRef = useRef({ dialogOpen, paletteOpen, toggleSourcesPanel, toggleStudyPanel });
@@ -1490,8 +1528,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   return (
     <div className={`workspace-root workspace-layout${resizing ? ' is-resizing' : ''}`} ref={rootRef}
       style={{
-        ...(isCompact ? {} : { '--nav-w': `${navW}px` }),
-        ...(isContextOverlay || reader ? {} : { '--ctx-w': `${ctxW}px` }),
+        ...(isCompact ? {} : { '--nav-w': `${navW}px`, '--sources-panel-width': `${navW}px` }),
+        ...(isContextOverlay || reader ? {} : { '--ctx-w': `${ctxW}px`, '--study-panel-width': `${ctxW}px` }),
       } as React.CSSProperties}
       data-nav-open={!isNavCollapsed && !navHiddenByReader} data-context-open={!isContextCollapsed}
       data-note-open={contextView === 'notes' && isCreateNoteOpen && !reader ? 'true' : undefined}

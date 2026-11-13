@@ -3345,7 +3345,14 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .header-menu-text { display: flex; flex-direction: column; flex: 1; min-width: 0; padding-block: 0; }
 .header-menu-item:has(small) { padding-block: 6px; }
 .header-menu-text small { font-size: 11.5px; font-weight: 400; color: var(--color-text-muted); }
-.header-menu-value { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; color: var(--color-text-muted); }
+.header-menu-value {
+  display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 500;
+  color: var(--color-text-muted, #71717A); background: rgba(0, 0, 0, 0.05); padding: 2px 7px;
+  border-radius: 5px; line-height: 1.2;
+}
+:root[data-theme="dark"] .header-menu-value {
+  background: rgba(255, 255, 255, 0.08); color: #A1A1AA;
+}
 .header-menu-item.is-danger, .header-menu-item.is-danger > svg { color: #DC2626; }
 .header-menu-divider { height: 1px; margin: 4px 8px; background: rgba(0, 0, 0, 0.07); }
 .shortcut-list { margin: 0; padding: 4px 20px 20px; display: flex; flex-direction: column; gap: 4px; }
@@ -3533,9 +3540,9 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   background: transparent !important;
 }
 
-.workspace-layout .study-panel .right-panel-body,
-.workspace-layout .study-panel-body,
-.workspace-layout .context-slot aside.workspace-context-panel .right-panel-body {
+.workspace-layout .study-panel .right-panel-body:not(:has(.studio-note)),
+.workspace-layout .study-panel-body:not(:has(.studio-note)),
+.workspace-layout:not([data-note-open="true"]) .context-slot aside.workspace-context-panel .right-panel-body {
   padding: 12px !important;
   flex: 1 1 auto !important;
   display: flex !important;
@@ -3543,6 +3550,14 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   min-height: 0 !important;
   overflow-y: auto !important;
   box-sizing: border-box !important;
+}
+
+.workspace-layout .study-panel:has(.studio-note) .right-panel-body,
+.workspace-layout .study-panel-body:has(.studio-note),
+.workspace-layout[data-note-open="true"] .study-panel-body,
+.workspace-layout .right-panel-body:has(.studio-note) {
+  padding: 0 !important;
+  overflow: hidden !important;
 }
 
 .workspace-layout .study-panel .notes-list-scroll,
@@ -3730,33 +3745,43 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
     background: #FFFFFF; border: 0 !important; border-radius: 0 !important; box-shadow: none !important; margin: 0 !important;
     padding-right: 0; transition: padding-right 0.26s cubic-bezier(0.16, 1, 0.3, 1);
   }
-  .workspace-layout[data-context-open="true"] .workspace-main-area { padding-right: calc(var(--ctx-w) + 20px); }
+  .workspace-layout[data-context-open="true"] .workspace-main-area { padding-right: var(--study-panel-width, var(--ctx-w, 340px)) !important; }
   .workspace-layout.is-resizing .workspace-main-area, .workspace-layout.is-resizing .context-slot { transition: none !important; }
 
-  /* Notes: a floating card pinned inside the shell's right edge. */
+  /* Notes: flush surface on the right side of the unified shell. */
   .workspace-layout .context-slot {
-    position: absolute; top: 12px; right: 12px; bottom: 12px; left: auto; z-index: 25;
-    width: var(--ctx-w) !important; overflow: visible; display: block;
+    position: absolute !important; top: 0 !important; right: 0 !important; bottom: 0 !important; left: auto !important; z-index: 25;
+    width: var(--study-panel-width, var(--ctx-w, 340px)) !important; overflow: visible !important; display: block;
+    background: transparent !important; border: none !important; box-shadow: none !important;
     transition: width 0.26s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .workspace-layout .context-slot.is-collapsed { width: 0 !important; pointer-events: none; }
   .workspace-layout .context-slot.is-collapsed .context-expand-btn { pointer-events: auto; }
   .workspace-layout .context-slot aside.workspace-context-panel {
-    position: absolute; inset: 0; width: 100% !important; height: 100%; max-height: none; min-height: 0; margin: 0;
-    background: #FFFFFF; border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 14px !important;
-    box-shadow: 0 10px 32px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+    position: absolute !important; inset: 0 !important; width: 100% !important; height: 100% !important; max-height: none !important; min-height: 0 !important; margin: 0 !important;
+    background: #FFFFFF !important; border: 0 !important; border-left: 1px solid rgba(0, 0, 0, 0.08) !important; border-radius: 0 14px 14px 0 !important;
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.04) !important;
   }
   .workspace-layout .context-slot.is-collapsed aside.workspace-context-panel { opacity: 0; transform: translateX(16px); visibility: hidden; }
 }
+:root[data-theme="dark"] .workspace-layout .workspace-canvas { background: #16181D; border-color: rgba(255, 255, 255, 0.08); }
+:root[data-theme="dark"] .workspace-layout .workspace-main-area { background: #16181D; }
+:root[data-theme="dark"] .workspace-layout .context-slot aside.workspace-context-panel {
+  background: #16181D !important; border-left-color: rgba(255, 255, 255, 0.08) !important; box-shadow: -8px 0 24px rgba(0, 0, 0, 0.25) !important;
+}
+
 @media (min-width: 1025px) {
   .workspace-layout .nav-slot {
-    width: var(--nav-w) !important; background: #F7F7F8; border-right: 1px solid rgba(0, 0, 0, 0.07); overflow: hidden;
+    width: var(--sources-panel-width, var(--nav-w, 260px)) !important; background: #F7F7F8; border-right: 1px solid rgba(0, 0, 0, 0.07); overflow: visible !important;
   }
   .workspace-layout .nav-slot.is-collapsed { width: 0 !important; border-right-color: transparent; }
   .workspace-layout aside.workspace-nav.workspace-sources-rail {
-    width: 100%; margin: 0; background: #F7F7F8; border: 0; border-radius: 0; box-shadow: none;
+    width: 100%; margin: 0; background: #F7F7F8; border: 0; border-radius: 0; box-shadow: none; overflow: visible !important;
   }
 }
+:root[data-theme="dark"] .workspace-layout .nav-slot { background: #111215; border-right-color: rgba(255, 255, 255, 0.07); }
+:root[data-theme="dark"] .workspace-layout aside.workspace-nav.workspace-sources-rail { background: #111215; }
+
 @media (min-width: 769px) {
   .workspace-layout .workspace-canvas .context-slot { height: auto !important; max-height: none !important; }
   .workspace-layout .workspace-canvas .context-slot aside.workspace-context-panel { height: 100% !important; max-height: none !important; }
@@ -3769,16 +3794,29 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 
 /* ==========================================================================
    Resize handles + flat Notes surface (final word).
-   Widths come only from --nav-w / --ctx-w (set inline by SubjectWorkspaceView); defaults 280 / 340.
+   Widths come from --nav-w / --ctx-w / --sources-panel-width / --study-panel-width (defaults 260 / 340).
    ========================================================================== */
-.workspace-layout { --nav-w: 280px; --ctx-w: 340px; }
+.workspace-layout { --nav-w: 280px; --ctx-w: 340px; --sources-panel-width: 260px; --study-panel-width: 340px; }
 .workspace-layout .panel-resize-handle {
-  width: 10px; z-index: 40; pointer-events: auto; cursor: col-resize;
+  width: 10px !important; z-index: 45 !important; pointer-events: auto !important; touch-action: none !important; cursor: col-resize !important; position: absolute !important; top: 0 !important; bottom: 0 !important;
 }
-.workspace-layout .panel-resize-left.in-panel, .workspace-layout .panel-resize-left.in-slot { right: 0; }
-.workspace-layout .panel-resize-right.in-panel, .workspace-layout .panel-resize-right.in-slot { left: 0; }
+.workspace-layout .panel-resize-left.in-panel, .workspace-layout .panel-resize-left.in-slot { right: -5px !important; left: auto !important; }
+.workspace-layout .panel-resize-right.in-panel, .workspace-layout .panel-resize-right.in-slot { left: -5px !important; right: auto !important; }
 .workspace-layout .panel-resize-left.in-panel::after, .workspace-layout .panel-resize-left.in-slot::after { right: 0; }
 .workspace-layout .panel-resize-right.in-panel::after, .workspace-layout .panel-resize-right.in-slot::after { left: 0; }
+
+/* Note delete confirm pill */
+.note-delete-confirm-wrap { display: flex; align-items: center; gap: 6px; }
+.note-delete-confirm-btn {
+  background: var(--color-danger, #dc2626); color: #FFFFFF; border: none; border-radius: 6px;
+  font-size: 12px; font-weight: 550; padding: 3px 8px; cursor: pointer; line-height: 1.4; transition: opacity 0.15s ease;
+}
+.note-delete-confirm-btn:hover { opacity: 0.9; }
+.note-delete-cancel-btn {
+  background: transparent; color: var(--color-text-subtle, #71717A); border: none; font-size: 13px;
+  cursor: pointer; padding: 2px 4px; line-height: 1;
+}
+.note-delete-cancel-btn:hover { color: var(--color-text-primary, #18181B); }
 
 /* Source rows: tighter title / menu / checkbox spacing so long filenames get the room. */
 .workspace-layout .source-row,
