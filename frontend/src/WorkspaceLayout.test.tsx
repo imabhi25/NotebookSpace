@@ -264,12 +264,17 @@ describe('Workspace navigation and progressive disclosure', () => {
     expect(screen.getByTestId('nav-new-session')).toBeVisible();
   });
 
-  it('starts Sources and Notes as closed drawers at 1024px and below, docked above it', () => {
-    window.innerWidth = 1024;
+  it('starts Sources as a closed drawer at 768px and below, docked above it; Notes is a drawer at 1024px and below', () => {
+    window.innerWidth = 768;
     const { unmount } = render(workspace());
     expect(studyToggle()).toHaveAttribute('aria-expanded', 'false');
     expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'false');
     unmount();
+    window.innerWidth = 900;
+    const half = render(workspace());
+    expect(studyToggle()).toHaveAttribute('aria-expanded', 'false');
+    expect(sourcesToggle()).toHaveAttribute('aria-expanded', 'true');
+    half.unmount();
     window.innerWidth = 1025;
     render(workspace());
     expect(studyToggle()).toHaveAttribute('aria-expanded', 'true');

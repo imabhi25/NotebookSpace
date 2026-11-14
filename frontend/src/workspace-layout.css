@@ -4284,3 +4284,61 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .workspace-layout .answer-view-container > * + * { margin-top: 12px; }
 .workspace-layout .answer-view-container .answer-action-toolbar.answer-action-toolbar { margin-top: 6px !important; }
 .workspace-layout .answer-text > :last-child, .workspace-layout .answer-text .markdown-content > :last-child { margin-bottom: 0 !important; }
+
+/* ==========================================================================
+   Sources is a drawer only on phones (<= 768px). From 769px up it is docked in flow beside the conversation, so opening
+   or widening it pushes the Center right and never covers chat text or the composer.
+   ========================================================================== */
+.workspace-layout .workspace-panels-overlay { background: rgba(0, 0, 0, 0.35); }
+@media (min-width: 769px) and (max-width: 1024px) {
+  .workspace-layout .workspace-canvas {
+    display: flex !important; gap: 0 !important; overflow: hidden !important; position: relative;
+    border: 1px solid rgba(0, 0, 0, 0.08) !important; border-radius: 14px !important; background: #FFFFFF !important;
+  }
+  .workspace-layout .workspace-body { padding: 0 var(--space-3) var(--space-3) !important; }
+  .workspace-layout .workspace-canvas > .nav-slot {
+    position: relative !important; flex: 0 0 auto !important; height: 100% !important; overflow: visible !important; z-index: 30;
+    width: min(var(--sources-panel-width, 280px), calc(100% - 400px)) !important;
+    background: #F7F7F8; border: 0 !important; border-right: 1px solid rgba(0, 0, 0, 0.07) !important; border-radius: 0 !important;
+  }
+  .workspace-layout .workspace-canvas > .nav-slot.is-collapsed { width: 52px !important; }
+  .workspace-layout .workspace-canvas > .nav-slot:not(.is-collapsed) aside.workspace-nav.workspace-sources-rail {
+    position: relative !important; inset: auto !important; top: auto !important; bottom: auto !important; left: auto !important;
+    width: 100% !important; height: 100% !important; margin: 0 !important; z-index: auto !important;
+    transform: none !important; opacity: 1; visibility: visible;
+    background: #F7F7F8 !important; border: 0 !important; border-radius: 0 !important; box-shadow: none !important;
+  }
+  .workspace-layout .workspace-canvas > .nav-slot .nav-expand-rail {
+    inset: 0 !important; width: 100% !important; flex-direction: column; padding: 8px 0; gap: 6px; background: transparent; border: 0; border-radius: 0;
+  }
+  .workspace-layout .nav-slot .nav-rail-sources, .workspace-layout .nav-slot .nav-rail-divider { display: flex; }
+  .workspace-layout .nav-slot.is-collapsed .nav-expand-rail { display: flex; }
+  .workspace-layout .panel-resize-left { display: block; }
+  .workspace-layout .workspace-canvas > .workspace-main-area { flex: 1 1 0 !important; min-width: 0 !important; }
+}
+:root[data-theme="dark"] .workspace-layout .workspace-canvas > .nav-slot { background: #111215; border-right-color: rgba(255, 255, 255, 0.07) !important; }
+:root[data-theme="dark"] .workspace-layout .workspace-canvas > .nav-slot:not(.is-collapsed) aside.workspace-nav.workspace-sources-rail { background: #111215 !important; }
+@media (min-width: 769px) {
+  .workspace-layout .workspace-canvas > .nav-slot { position: relative; }
+}
+
+/* ==========================================================================
+   Header: [logo] Title ... actions stay on ONE row at every width; a long title ellipsizes.
+   ========================================================================== */
+.workspace-layout .workspace-control-bar, .workspace-layout .workspace-top-bar { flex-wrap: nowrap !important; }
+.workspace-layout .workspace-header-left {
+  flex: 1 1 auto; min-width: 0; display: flex; align-items: center; gap: 10px; flex-wrap: nowrap !important;
+}
+.workspace-layout .workspace-header-left .workspace-brand { flex: 0 0 auto; }
+.workspace-layout .workspace-header-left .workspace-notebook-identity { flex: 1 1 auto; min-width: 0 !important; overflow: hidden; }
+.workspace-layout .workspace-notebook-identity .notebook-title { min-width: 0; max-width: 100%; }
+.workspace-layout .workspace-notebook-identity .notebook-title-text,
+.workspace-layout .workspace-notebook-identity .workspace-subject-pill-name {
+  display: block !important; min-width: 0; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.workspace-layout .workspace-essential-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+@media (max-width: 860px) {
+  .workspace-layout .workspace-history-btn[data-testid="open-command-palette"] { width: 32px; min-width: 32px; padding: 0; justify-content: center; gap: 0; }
+  .workspace-layout .workspace-history-btn[data-testid="open-command-palette"] > span,
+  .workspace-layout .workspace-history-btn[data-testid="open-command-palette"] .workspace-kbd { display: none; }
+}

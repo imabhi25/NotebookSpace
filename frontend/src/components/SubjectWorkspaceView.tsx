@@ -273,7 +273,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // --------------------------------------------------------------------------
   // LAYOUT STATE: Independently Collapsible Side Panels
   // --------------------------------------------------------------------------
-  const compactViewport = () => typeof window !== 'undefined' && window.innerWidth <= 1024;
+  const compactViewport = () => typeof window !== 'undefined' && window.innerWidth <= 768;
   const overlayViewport = () => typeof window !== 'undefined' && window.innerWidth <= 1024;
   const [isCompact, setIsCompact] = useState(compactViewport);
   // Navigation (left) and materials (right) collapse independently. Where they are docked the
@@ -285,12 +285,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const rootRef = useRef<HTMLDivElement>(null);
   const [isContextCollapsed, setIsContextCollapsed] = useState(() => overlayViewport() || !readPanelPref(CONTEXT_PREF_KEY));
   const [renameTick, setRenameTick] = useState(0);
-  const [titleBelowBar, setTitleBelowBar] = useState(compactViewport);
-  const headerRef = useRef<HTMLElement>(null);
-  const brandRef = useRef<HTMLDivElement>(null);
-  const backButtonRef = useRef<HTMLButtonElement>(null);
-  const actionsRef = useRef<HTMLDivElement>(null);
-  const titleMeasureRef = useRef<HTMLDivElement>(null);
   const contextToggleRef = useRef<HTMLButtonElement>(null);
   const navToggleRef = useRef<HTMLButtonElement>(null);
   const navPanelRef = useRef<HTMLElement>(null);
@@ -334,14 +328,27 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const resetNavWidth = () => { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); rootRef.current?.style.setProperty('--nav-w', `${NAV_W.def}px`); };
   const resetCtxWidth = () => { noteWidthRestore.current = null; setCtxW(ctxDefault()); writeWidth(CTX_W_KEY, ctxDefault()); rootRef.current?.style.setProperty('--ctx-w', `${ctxDefault()}px`); };
   const navAutoCollapsed = useRef(false);
+  // Sources is docked beside the conversation above 768px, so it may never squeeze the conversation below 380px.
+  const navMaxWidth = () => {
+    const container = rootRef.current?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 1280);
+    return clampW(Math.min(NAV_W.max, container - 400), NAV_W.min, NAV_W.max);
+  };
+  // Between 769px and 1120px two open panels would leave the conversation under 420px: the other one steps aside.
+  const tightForBothPanels = (navWidth: number, ctxWidth: number) => {
+    if (typeof window === 'undefined') return false;
+    const w = window.innerWidth;
+    return w > 768 && w <= 1120 && w - navWidth - ctxWidth < 420;
+  };
   const setNavCollapsed = (collapsed: boolean, remember = true) => {
     if (remember) navAutoCollapsed.current = false;
     if (!collapsed && isNavCollapsed && !resizingRef.current) resetNavWidth();
+    if (!collapsed && !isContextCollapsed && tightForBothPanels(Math.min(NAV_W.def, navMaxWidth()), ctxW)) setIsContextCollapsed(true);
     setIsNavCollapsed(collapsed);
     if (remember && !isCompact) writePanelPref(NAV_PREF_KEY, !collapsed);
   };
   const setContextCollapsed = (collapsed: boolean, remember = true) => {
     if (!collapsed && isContextCollapsed && !resizingRef.current) resetCtxWidth();
+    if (!collapsed && !isNavCollapsed && !isCompact && tightForBothPanels(navW, ctxW)) setIsNavCollapsed(true);
     setIsContextCollapsed(collapsed);
     if (remember && !isContextOverlay) writePanelPref(CONTEXT_PREF_KEY, !collapsed);
   };
@@ -384,7 +391,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         collapsed = shouldCollapse;
         if (side === 'left') setNavCollapsed(shouldCollapse); else setContextCollapsed(shouldCollapse);
       }
-      width = clampW(raw, cfg.min, cfg.max);
+      width = clampW(raw, cfg.min, side === 'left' ? navMaxWidth() : cfg.max);
       rootRef.current?.style.setProperty(varName, `${width}px`);
       if (side === 'left') {
         rootRef.current?.style.setProperty('--sources-panel-width', `${width}px`);
@@ -445,7 +452,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
     e.preventDefault();
     const dir = (e.key === 'ArrowRight' ? 1 : -1) * (side === 'left' ? 1 : -1) * (e.shiftKey ? 48 : 16);
-    if (side === 'left') { const v = clampW(navW + dir, NAV_W.min, NAV_W.max); setNavW(v); writeWidth(NAV_W_KEY, v); }
+    if (side === 'left') { const v = clampW(navW + dir, NAV_W.min, navMaxWidth()); setNavW(v); writeWidth(NAV_W_KEY, v); }
     else { const v = clampW(ctxW + dir, CTX_W.min, CTX_W.max); setCtxW(v); writeWidth(CTX_W_KEY, v); }
   };
   useEffect(() => {
@@ -485,28 +492,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // Crossing a breakpoint switches between docked (remembered) and overlay (closed) states.
   useEffect(() => { setIsNavCollapsed(isCompact || !readPanelPref(NAV_PREF_KEY)); }, [isCompact]);
   useEffect(() => { setIsContextCollapsed(isContextOverlay || !readPanelPref(CONTEXT_PREF_KEY)); }, [isContextOverlay]);
-
-  // An unusually long title moves below the controls instead of wrapping the bar or losing text.
-  useLayoutEffect(() => {
-    const measure = () => {
-      if (isCompact) { setTitleBelowBar(true); return; }
-      const header = headerRef.current;
-      if (!header || !titleMeasureRef.current || header.clientWidth === 0) return;
-      const style = getComputedStyle(header);
-      const gap = parseFloat(style.columnGap) || 0;
-      const available = header.clientWidth - (parseFloat(style.paddingLeft) || 0)
-        - (parseFloat(style.paddingRight) || 0) - (brandRef.current?.offsetWidth || 0) - (backButtonRef.current?.offsetWidth || 0) - 24
-        - (actionsRef.current?.offsetWidth || 0) - gap * 2;
-      setTitleBelowBar(titleMeasureRef.current.offsetWidth > available);
-    };
-    measure();
-    if (typeof ResizeObserver === 'undefined') return;
-    const observer = new ResizeObserver(measure);
-    if (headerRef.current) observer.observe(headerRef.current);
-    if (titleMeasureRef.current) observer.observe(titleMeasureRef.current);
-    if (actionsRef.current) observer.observe(actionsRef.current);
-    return () => observer.disconnect();
-  }, [isCompact, subject.name, subject.course_code]);
 
   useEffect(() => {
     if (chatAreaRef.current) chatAreaRef.current.inert = contextOverlayOpen || navDrawerOpen;
@@ -1485,23 +1470,19 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         onChange={handleReplaceFileChange}
       />
 
-      <div className="workspace-subject-pill workspace-subject-pill-name workspace-title-measure"
-        ref={titleMeasureRef} aria-hidden="true" data-title={`${subject.name} ${subject.course_code || ''}`} />
-      <header className="workspace-top-bar workspace-control-bar" ref={headerRef}>
+      <header className="workspace-top-bar workspace-control-bar">
         <div className="workspace-header-left">
-          <div className="workspace-brand" ref={brandRef}>
-            <button type="button" className="workspace-logo-btn workspace-back-btn" ref={backButtonRef}
+          <div className="workspace-brand">
+            <button type="button" className="workspace-logo-btn workspace-back-btn"
               onClick={onBackToDashboard} title="All notebooks" aria-label="Back to notebooks">
               <BrandLogo size={24} />
             </button>
           </div>
-          {!titleBelowBar && (
-            <div className="workspace-subject-pill workspace-notebook-identity">
-              <NotebookTitle name={subject.name} onRename={onRenameSubject} editSignal={renameTick} />
-            </div>
-          )}
+          <div className="workspace-subject-pill workspace-notebook-identity">
+            <NotebookTitle name={subject.name} onRename={onRenameSubject} editSignal={renameTick} />
+          </div>
         </div>
-        <div className="workspace-top-right workspace-essential-actions" ref={actionsRef}>
+        <div className="workspace-top-right workspace-essential-actions">
           <BackendStatus className="backend-status-bar" />
           <div className="header-menu-root palette-root">
           <button type="button" className="workspace-history-btn" onClick={() => setPaletteOpen((o) => !o)} aria-label="Search and commands"
@@ -1536,14 +1517,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
             onResetWorkspace={onResetWorkspace} />
         </div>
       </header>
-      {titleBelowBar && (
-        <div className="workspace-notebook-heading">
-          <div className="workspace-subject-pill workspace-notebook-identity">
-            <NotebookTitle name={subject.name} onRename={onRenameSubject} editSignal={renameTick} />
-          </div>
-        </div>
-      )}
-
       {/* ======================================================================
           3-COLUMN WORKSPACE BODY
           ====================================================================== */}
