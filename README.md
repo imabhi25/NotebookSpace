@@ -1,10 +1,17 @@
 # NotebookSpace — Subject-Based Study Notebook
 
-A subject-based study notebook inspired by Gemini Notebook / NotebookLM, built on top of the Course-Document Assistant.
+A study workspace that answers course questions from selected documents and lets students inspect the supporting passages.
 Create independent course subjects, ingest syllabi, slides, and web materials, and select active sources for retrieval.
 Engage in multi-turn conversations with verified citations, inspect 2D PCA retrieval scoring, and capture answers as personal study notes in an inline WYSIWYG studio.
 
 **Live app:** [https://notebookspace.vercel.app](https://notebookspace.vercel.app) (frontend on Vercel · backend API on Render)
+
+## Project overview
+
+- **Try the sample:** open the live app and create the guest sample notebook, ask a course question, then inspect a page citation or the Retrieval tab. Save an answer as a study note.
+- **Full-stack work:** a React and TypeScript workspace connects to a FastAPI API with subject isolation, document ingestion and PostgreSQL storage.
+- **AI and data work:** local embeddings and pgvector support hybrid retrieval; evaluation suites measure retrieval hits, citation support and abstention, with partial results clearly identified below.
+- **Engineering evidence:** [frontend tests](frontend/src/Notebook.test.tsx), [backend tests](tests/), [CI runs](https://github.com/imabhi25/NotebookSpace/actions/workflows/ci.yml) and [evaluation methodology](evals/README.md).
 
 ![NotebookSpace dashboard with the CS 401 sample notebook](docs/screenshots/dashboard.png)
 *Dashboard: the one-click CS 401 sample notebook.*
@@ -12,7 +19,9 @@ Engage in multi-turn conversations with verified citations, inspect 2D PCA retri
 ![CS 401 workspace: sources, grounded answer with a policy-conflict card, and saved notes](docs/screenshots/workspace.png)
 *Workspace: sources on the left, a grounded answer that flags the syllabus vs. week-4 announcement conflict with page-level citations, and a saved note on the right.*
 
-### Verified Quality
+### Recorded quality results
+
+These are previously recorded results. Test totals change as the project evolves, and performance and accessibility scores depend on the audited version and test conditions. See the linked CI runs and evaluation reports for supporting detail; the table is not a live status check.
 
 | Check | Result |
 | --- | --- |
