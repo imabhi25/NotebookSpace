@@ -86,7 +86,7 @@ export function SortMenu<T extends string>({ value, options, onChange, label }: 
         className={`sort-menu-trigger ${isOpen ? 'is-open' : ''}`}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
-        aria-label={label}
+        aria-label={`${label}: ${options[selectedIndex].label}`}
         onClick={() => (isOpen ? close(false) : open())}
         onKeyDown={handleButtonKeyDown}
       >
