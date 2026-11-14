@@ -12,6 +12,9 @@ describe('security headers', () => {
       const text = readFileSync(file, 'utf8');
       expect(text).toContain(hash);
       expect(text).toContain("frame-ancestors 'none'");
+      // Production talks only to this origin; no scheme-wide https: or localhost allowances.
+      expect(text).toContain("connect-src 'self' https://notebookspace-api.onrender.com;");
+      expect(text).not.toMatch(/connect-src[^;]*(\shttps:(\s|;)|localhost|127\.0\.0\.1)/);
       expect(text).toContain('nosniff');
     });
   }
