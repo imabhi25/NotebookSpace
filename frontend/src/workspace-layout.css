@@ -4366,16 +4366,30 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 :root[data-theme="dark"] .workspace-layout .workspace-main-area > .composer-container::before { background: linear-gradient(to top, #17181B, rgba(23, 24, 27, 0)); }
 .workspace-layout .workspace-main-area > .composer-container > .scroll-bottom-btn { top: -44px; z-index: 21; }
 
-/* Note Studio toolbar: all controls on ONE row on narrow screens (no orphan "..."). */
+/* Note Studio toolbar on phones: touch targets stay full size, so the row wraps instead of running off the panel edge;
+   Undo, Redo, Normal, B, I, Link, Inline code, Code block and ••• are all reachable. */
 @media (max-width: 520px) {
-  .studio-note .note-toolbar { flex-wrap: nowrap !important; gap: 1px; padding: 6px 8px; row-gap: 0; }
-  .studio-note .note-toolbar .note-tool { width: 24px; min-width: 24px; height: 24px; }
+  .studio-note .note-toolbar { flex-wrap: wrap !important; gap: 4px; row-gap: 4px; padding: 6px 10px; }
   .studio-note .note-toolbar .note-tool-sep { margin: 0 2px; }
-  .studio-note .note-toolbar .note-block-btn { padding: 0 6px; font-size: 12px; }
+  .studio-note .note-toolbar .note-block-btn { padding: 0 8px; font-size: 13px; }
 }
 @container study-panel (max-width: 390px) {
-  .studio-note .note-toolbar { flex-wrap: nowrap !important; gap: 1px; padding: 6px 8px; }
-  .studio-note .note-toolbar .note-tool { width: 24px; min-width: 24px; height: 24px; }
+  .studio-note .note-toolbar { flex-wrap: wrap !important; gap: 4px; row-gap: 4px; padding: 6px 10px; }
   .studio-note .note-toolbar .note-tool-sep { margin: 0 2px; }
-  .studio-note .note-toolbar .note-block-btn { padding: 0 6px; font-size: 12px; }
 }
+
+/* Study-panel seam: the handle lives in the unclipped slot, so its 10px hit area is centered on the seam
+   and the hover/drag line sits on the seam itself. */
+.workspace-layout .panel-resize-right.in-slot::after { left: 50%; transform: translateX(-50%); }
+
+/* Answer action row hugs the answer: nothing below the last prose line or the policy card pushes it down, so the
+   18px glyphs (28px buttons, 5px inset) sit 6-9px under either one. */
+.workspace-layout .assistant-answer > :last-child,
+.workspace-layout .answer-text > :last-child,
+.workspace-layout .cross-source:last-child,
+.workspace-layout .cross-source:has(+ .answer-action-toolbar) { margin-bottom: 0 !important; }
+.workspace-layout .answer-view-container .answer-action-toolbar.answer-action-toolbar { margin-top: 1px !important; }
+
+/* Note Studio fills the study panel on every layout. Content-height here cut the Text style and ••• menus off at the
+   body's bottom edge on phones (an empty note is short), hiding Heading 2/3. */
+.workspace-layout .context-slot aside.workspace-context-panel .right-panel-body:has(.studio-note) { flex: 1 1 auto; min-height: 0; }
