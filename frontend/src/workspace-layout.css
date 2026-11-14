@@ -2139,7 +2139,7 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 .studio-note .note-more-pill .note-tool { width: 28px; padding: 0; }
 
 /* ============================================================
-   Center chat: open canvas (ChatGPT / Claude / Gemini)
+   Center chat: open conversation canvas
    ============================================================ */
 .workspace-layout { --center-canvas: #FFFFFF; --sidebar-surface: #F7F7F8; --user-pill: #F4F4F5; --composer-border: rgba(0, 0, 0, 0.08); --composer-bg: #FFFFFF; }
 :root[data-theme="dark"] .workspace-layout { --center-canvas: #0C0D0E; --sidebar-surface: #121316; --user-pill: rgba(255, 255, 255, 0.06); --composer-border: rgba(255, 255, 255, 0.08); --composer-bg: #181A20; }

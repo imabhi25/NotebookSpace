@@ -1746,7 +1746,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         </div>
 
         {/* --------------------------------------------------------------------
-            2. CENTER CHAT AREA: ChatGPT / Claude Reading Experience
+            2. CENTER CHAT AREA: Conversation Reading Experience
             -------------------------------------------------------------------- */}
         <section className="workspace-main-area workspace-center" aria-label="Chat" ref={chatAreaRef} tabIndex={-1} data-focus-fallback>
           {/* Conversation Thread */}
