@@ -857,12 +857,15 @@ def search_scoped(
             # Query source metadata for selected sources to detect source name mentions and meta-queries
             cur.execute(
                 """
-                SELECT id, title, file_name, version, updated_at
-                FROM sources
-                WHERE id = ANY(%s::uuid[])
-                  AND status = 'ready';
+                SELECT s.id, s.title, s.file_name, s.version, s.updated_at
+                FROM sources s
+                JOIN subjects sub ON s.subject_id = sub.id
+                WHERE sub.user_id = %s
+                  AND s.subject_id = %s
+                  AND s.id = ANY(%s::uuid[])
+                  AND s.status = 'ready';
                 """,
-                (selected_ids_str,),
+                (str(user_id), str(subject_id), selected_ids_str),
             )
             sources_info = cur.fetchall()
 
@@ -903,13 +906,18 @@ def search_scoped(
                         s.updated_at
                     FROM chunks c
                     JOIN sources s ON c.source_id = s.id
-                    WHERE s.id = ANY(%s::uuid[])
+                    JOIN subjects sub ON s.subject_id = sub.id
+                    WHERE sub.user_id = %s
+                      AND s.subject_id = %s
+                      AND s.id = ANY(%s::uuid[])
                       AND s.status = 'ready'
                     ORDER BY c.page_number ASC, c.chunk_index ASC
                     LIMIT %s;
                     """,
                     (
                         query_vector,
+                        str(user_id),
+                        str(subject_id),
                         target_source_ids,
                         max(k * 2, 8),
                     ),

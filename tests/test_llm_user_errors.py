@@ -84,7 +84,10 @@ def test_question_budget_includes_json_repair(monkeypatch, tmp_path):
 
 
 def test_retry_deletion_failure_is_not_silently_ignored(monkeypatch):
+    import answering.notebook_answer as notebook
     import db.notebook_store as store
+    # The retry first reads the thread to find the message it replaces; this test is about the delete that follows.
+    monkeypatch.setattr(notebook, 'get_messages_for_conversation', lambda **kwargs: [])
     monkeypatch.setattr(store, 'delete_message', lambda **kwargs: (_ for _ in ()).throw(RuntimeError('database unavailable')))
     with pytest.raises(RuntimeError, match='database unavailable'):
         answer_notebook_question('A question?', 'conversation', 'user', 'subject', ['source'], is_retry=True, retry_message_id='message')
