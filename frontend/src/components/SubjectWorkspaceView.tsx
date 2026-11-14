@@ -323,6 +323,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   // The study panel stays docked beside the conversation above 1024px; at 1024px and below it is an on-demand overlay drawer.
   // Navigation becomes a drawer at 1024px and below.
   const isContextOverlay = useMediaQuery('(max-width: 1024px)', overlayViewport());
+  const phoneCopy = useMediaQuery('(max-width: 480px)', typeof window !== 'undefined' && window.innerWidth <= 480);
   const resizingRef = useRef(false);
   // Reopening a closed panel always starts from its default width, not the squeezed one it was closed at.
   const resetNavWidth = () => { setNavW(NAV_W.def); writeWidth(NAV_W_KEY, NAV_W.def); rootRef.current?.style.setProperty('--nav-w', `${NAV_W.def}px`); };
@@ -1605,7 +1606,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   {sources.length > 0 && (
                     <label className="rail-find sources-search">
                       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><line x1="20" y1="20" x2="16.5" y2="16.5" /></svg>
-                      <input type="search" placeholder="Find in sources" aria-label="Find in sources" value={sourceSearch}
+                      <input type="search" placeholder="Filter sources..." aria-label="Find in sources" value={sourceSearch}
                         onChange={(e) => setSourceSearch(e.target.value)} />
                     </label>
                   )}
@@ -2069,7 +2070,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                 onStop={handleSafeStopGeneration}
                 scope={composerScope}
                 blockedReason={sources.length === 0 ? 'Add a source to start chatting' : readySources.length === 0 ? 'Waiting for a ready source' : undefined}
-                placeholder="Ask anything about your sources..."
+                placeholder={phoneCopy ? 'Ask anything...' : 'Ask about your sources...'}
                 onAddSources={() => openAddSources()}
                 scrollDown={{ visible: showScrollDown, onClick: scrollThreadToBottom }}
                 depth={{
