@@ -4342,3 +4342,40 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
   .workspace-layout .workspace-history-btn[data-testid="open-command-palette"] > span,
   .workspace-layout .workspace-history-btn[data-testid="open-command-palette"] .workspace-kbd { display: none; }
 }
+
+/* ==========================================================================
+   Phone (<= 768px): the Sources / Notes toggles live in a slim 40px strip ABOVE the thread, not floating over it.
+   ========================================================================== */
+@media (max-width: 768px) {
+  .workspace-layout .workspace-canvas > .workspace-main-area { position: relative; padding-top: 40px !important; }
+  .workspace-layout .workspace-canvas > .workspace-main-area::before {
+    content: ""; position: absolute; top: 0; left: 0; right: 0; height: 40px; box-sizing: border-box; z-index: 1;
+    background: #FFFFFF; border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+  }
+  :root[data-theme="dark"] .workspace-layout .workspace-canvas > .workspace-main-area::before { background: #17181B; border-bottom-color: rgba(255, 255, 255, 0.08); }
+  .workspace-layout .workspace-canvas > .nav-slot.is-collapsed .nav-expand-rail {
+    inset: 0 auto auto 0 !important; height: 40px; width: auto !important; padding: 0 8px !important; gap: 2px; align-items: center;
+    background: transparent !important; border: 0 !important; border-radius: 0 !important; z-index: 31;
+  }
+  .workspace-layout .workspace-canvas > .nav-slot.is-collapsed .nav-expand-rail .rail-icon-btn { width: 32px; height: 32px; }
+  .workspace-layout .workspace-canvas > .context-slot .context-expand-btn { top: 4px !important; right: 8px !important; width: 32px; height: 32px; z-index: 31; }
+}
+
+/* Composer fade is white on the canvas, so the jump-to-latest arrow sits over a clean fade, never mid-paragraph text. */
+.workspace-layout .workspace-main-area > .composer-container::before { background: linear-gradient(to top, #FFFFFF, rgba(255, 255, 255, 0)); height: 24px; top: -24px; }
+:root[data-theme="dark"] .workspace-layout .workspace-main-area > .composer-container::before { background: linear-gradient(to top, #17181B, rgba(23, 24, 27, 0)); }
+.workspace-layout .workspace-main-area > .composer-container > .scroll-bottom-btn { top: -44px; z-index: 21; }
+
+/* Note Studio toolbar: all controls on ONE row on narrow screens (no orphan "..."). */
+@media (max-width: 520px) {
+  .studio-note .note-toolbar { flex-wrap: nowrap !important; gap: 1px; padding: 6px 8px; row-gap: 0; }
+  .studio-note .note-toolbar .note-tool { width: 24px; min-width: 24px; height: 24px; }
+  .studio-note .note-toolbar .note-tool-sep { margin: 0 2px; }
+  .studio-note .note-toolbar .note-block-btn { padding: 0 6px; font-size: 12px; }
+}
+@container study-panel (max-width: 390px) {
+  .studio-note .note-toolbar { flex-wrap: nowrap !important; gap: 1px; padding: 6px 8px; }
+  .studio-note .note-toolbar .note-tool { width: 24px; min-width: 24px; height: 24px; }
+  .studio-note .note-toolbar .note-tool-sep { margin: 0 2px; }
+  .studio-note .note-toolbar .note-block-btn { padding: 0 6px; font-size: 12px; }
+}
