@@ -923,11 +923,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </div>
                     </div>
                   ))}
-                  {homeTab !== 'archived' && !search && <button type="button" className="library-add-card" onClick={openCreateModal}>
+                  {homeTab !== 'archived' && !search && <div role="listitem" style={{ display: 'contents' }}><button type="button" className="library-add-card" onClick={openCreateModal}>
                     <span className="add-plus" aria-hidden="true">+</span>
                     <strong>New notebook</strong>
                     <small>{subjects.length === 0 ? 'Create another notebook' : 'Upload PDFs, slides, or notes'}</small>
-                  </button>}
+                  </button></div>}
                 </div>
               )}
               {!loading && homeFiltered.length === 1 && !isSampleNotebook(homeFiltered[0]) && homeTab !== 'archived' && !search && <div className="library-first-step"><span className="library-step-icon"><ReferenceIcon name="upload" size={20} /></span><div><strong>Make {homeFiltered[0].name} your own</strong><p>Add lecture slides, a reading, or a few notes to start your first conversation.</p></div><button type="button" className="btn btn-secondary" onClick={() => { try { sessionStorage.setItem('notebookspace_add_materials', homeFiltered[0].id); } catch {} onOpenSubject(homeFiltered[0].id); }}>+ Add materials</button></div>}
