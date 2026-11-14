@@ -15,3 +15,5 @@
 /llms.txt
   Content-Type: text/plain; charset=utf-8
   Access-Control-Allow-Origin: *
+/og-preview.png
+  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
