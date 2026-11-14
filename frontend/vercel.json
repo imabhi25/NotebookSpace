@@ -72,6 +72,15 @@
           "value": "*"
         }
       ]
+    },
+    {
+      "source": "/og-preview.png",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=86400, stale-while-revalidate=604800"
+        }
+      ]
     }
   ],
   "rewrites": [
@@ -80,7 +89,7 @@
       "destination": "https://notebookspace-api.onrender.com/:path*"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!og-preview\\.png).*)",
       "destination": "/index.html"
     }
   ]
