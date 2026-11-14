@@ -6,6 +6,23 @@ Engage in multi-turn conversations with verified citations, inspect 2D PCA retri
 
 **Live app:** [https://notebookspace.vercel.app](https://notebookspace.vercel.app) (frontend on Vercel · backend API on Render)
 
+![NotebookSpace dashboard with the CS 401 sample notebook](docs/screenshots/dashboard.png)
+*Dashboard: the one-click CS 401 sample notebook.*
+
+![CS 401 workspace: sources, grounded answer with a policy-conflict card, and saved notes](docs/screenshots/workspace.png)
+*Workspace: sources on the left, a grounded answer that flags the syllabus vs. week-4 announcement conflict with page-level citations, and a saved note on the right.*
+
+### Verified Quality
+
+| Check | Result |
+| --- | --- |
+| Frontend tests (Vitest, GitHub Actions CI) | 297 passing |
+| Backend tests (Pytest, GitHub Actions CI) | 288 passing |
+| Lighthouse (Performance / Accessibility / Best Practices / SEO) | 100 / 100 / 100 / 100 |
+| PageSpeed Insights (Mobile) | 99 / 100 / 100 / 100, Agentic Browsing 4/4 |
+| MDN HTTP Observatory | A+ (115/100) |
+| WAVE Accessibility | 10/10 |
+
 [![Watch Desktop Demo](docs/media/01-desktop-qa-citation-highlight.png)](docs/media/demo-desktop.mp4)
 *Desktop Q&A walkthrough with citation highlight — click screenshot to watch demo clip (`docs/media/demo-desktop.mp4`).*
 
@@ -229,7 +246,7 @@ The repository maintains full automated test coverage across both frontend and b
 
 ### Frontend Test Suite (Vitest)
 
-The frontend test suite includes **300 passing tests** across 31 test files, validating components, layout transitions, keyboard interactions, WYSIWYG note sanitization, and security headers:
+The frontend test suite includes **297 passing Vitest tests** (green in GitHub Actions CI), validating components, layout transitions, keyboard interactions, WYSIWYG note sanitization, and security headers:
 
 ```bash
 cd frontend
@@ -245,7 +262,7 @@ npm run build
 
 ### Backend Test Suite (Pytest)
 
-The backend test suite covers API routing, authentication, session isolation, document chunking, ONNX embeddings, and retrieval mapping:
+The backend test suite (**288 passing Pytest tests**, green in GitHub Actions CI) covers API routing, authentication, session isolation, document chunking, ONNX embeddings, and retrieval mapping:
 
 ```bash
 pytest
