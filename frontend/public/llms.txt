@@ -1,0 +1,27 @@
+# NotebookSpace
+
+> NotebookSpace is a subject-based study notebook. Upload course materials (PDF, text, Markdown, pasted text, public web articles), ask questions, and get answers grounded in the selected sources with verifiable citations.
+
+NotebookSpace is a single-page web app. The React frontend is served from Vercel; a Python API on Render handles ingestion, retrieval and answering, and is reached through the same-origin `/api/` path. Retrieval is hybrid: local sentence embeddings plus lexical matching, with a score inspector that shows why each passage was retrieved.
+
+## App routes
+
+- [Dashboard](https://notebookspace.vercel.app/): list, search, sort, create, archive and delete notebooks.
+- [Sample notebook](https://notebookspace.vercel.app/?demo=true): a pre-loaded course notebook with grounded Q&A and a deliberate policy conflict between two sources.
+- Notebook workspace at `/subject/<id>`: sources on the left, chat in the middle, citation evidence, retrieval inspector and note editor on the right. Notebooks are per-user, so this route has no public content.
+
+## Key behaviours
+
+- Answers cite the source and page, and a citation opens the matching passage in context.
+- Sources can be switched on and off; unselected sources are never retrieved.
+- Questions the sources cannot answer get an honest abstention rather than a guess.
+- When sources conflict, both are cited.
+
+## Documentation
+
+- [README](https://github.com/imabhi25/NotebookSpace/blob/main/README.md): capabilities, architecture and setup.
+
+## Crawling
+
+- [robots.txt](https://notebookspace.vercel.app/robots.txt): all paths are allowed.
+- [ARD manifest](https://notebookspace.vercel.app/.well-known/ard.json): currently lists no agent resources (no agent cards, MCP servers or skills are published).
