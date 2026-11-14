@@ -24,4 +24,5 @@ NotebookSpace is a single-page web app. The React frontend is served from Vercel
 ## Crawling
 
 - [robots.txt](https://notebookspace.vercel.app/robots.txt): all paths are allowed.
-- [ARD manifest](https://notebookspace.vercel.app/.well-known/ard.json): currently lists no agent resources (no agent cards, MCP servers or skills are published).
+- [ARD manifest](https://notebookspace.vercel.app/.well-known/ard.json): machine-readable index of the API description and this documentation.
+- [OpenAPI description](https://notebookspace-api.onrender.com/openapi.json): the backend API.

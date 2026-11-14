@@ -1,0 +1,20 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "NotebookSpace",
+    "identifier": "notebookspace.vercel.app"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:notebookspace.vercel.app:api:rag-workbench",
+      "displayName": "NotebookSpace RAG API",
+      "type": "application/openapi+json",
+      "url": "https://notebookspace-api.onrender.com/openapi.json",
+      "representativeQueries": [
+        "Summarize course syllabus grading policies",
+        "Check for conflicting updates across course documents",
+        "Inspect hybrid vector and lexical retrieval scores"
+      ]
+    }
+  ]
+}
