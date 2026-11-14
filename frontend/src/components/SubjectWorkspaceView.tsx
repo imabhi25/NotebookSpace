@@ -80,7 +80,7 @@ const CONTEXT_PREF_KEY = 'notebookspace_context_open';
 const NAV_W_KEY = 'notebookspace_nav_w';
 const CTX_W_KEY = 'notebookspace_ctx_w';
 const NAV_W = { def: 280, min: 220, max: 420, snap: 130 };
-const CTX_W = { def: 340, min: 280, max: 520, snap: 160, note: 400 };
+const CTX_W = { def: 340, min: 280, max: 540, snap: 160, note: 400 };
 // Narrower desktops keep all three columns comfortable: a slimmer default and note width below 1280px.
 const narrowDesktop = () => typeof window !== 'undefined' && window.innerWidth < 1280;
 const ctxDefault = () => (narrowDesktop() ? 340 : CTX_W.def);
@@ -204,7 +204,7 @@ interface SubjectWorkspaceViewProps {
   onSendMessage: (question: string, options?: { is_retry?: boolean; retry_message_id?: string }) => Promise<void>;
   onDeleteMessage?: (messageId: string) => Promise<void> | void;
   onUpdateSettings: (settings: SubjectSettings) => Promise<void>;
-  onCreateNote: (title: string, content: string) => Promise<void>;
+  onCreateNote: (title: string, content: string) => Promise<Note | void>;
   onSaveAnswerAsNote: (msg: MessageItem) => Promise<void>;
   onUpdateNote: (noteId: string, title: string, content: string) => Promise<void>;
   onDeleteNote: (noteId: string) => Promise<void>;
@@ -842,6 +842,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
       noteInitialHtml.current = html;
       setNoteFormContent(html);
       noteSavedRef.current = { title: note?.title ?? 'New Note', content: html.trim() };
+      createdNoteRef.current = null; createInFlight.current = null;
+      setNoteEdits(0);
       setNoteSaveStatus(note ? 'saved' : 'idle');
       setNoteSession((n) => n + 1);
       setNoteBlock('normal');
@@ -859,26 +861,45 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   const noteSavedRef = useRef({ title: '', content: '' });
   const [noteSaveStatus, setNoteSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
   const [noteBlock, setNoteBlock] = useState('normal');
-  // Persist the open note (no Save button). New notes are created once they have something worth keeping.
+  // Persist the open note (no Save button). A new note is created on the first save and the editor then keeps
+  // updating that same note, so the status line is honest for new and existing notes alike.
+  const createdNoteRef = useRef<Note | null>(null);
+  const createInFlight = useRef<Promise<Note | void> | null>(null);
   const persistNote = async () => {
     const title = noteFormTitle.trim() || 'New Note';
     // Let the keystroke paint first, then sanitize what is about to be stored (the editor DOM is untrusted).
     await yieldToMain();
-    const content = sanitizeNoteHtml(noteFormContent).trim();
+    // Read the live editor so a toolbar action is never lost to a state update that has not rendered yet.
+    const live = noteBodyRef.current;
+    const raw = live ? ((live.textContent ?? '').trim() || live.querySelector('hr,li,pre,img') ? live.innerHTML : '') : noteFormContent;
+    const content = sanitizeNoteHtml(raw).trim();
+    if (createInFlight.current) await createInFlight.current.catch(() => undefined);
+    const target = editingNote ?? createdNoteRef.current;
     const saved = noteSavedRef.current;
     if (title === saved.title && content === saved.content) {
-      setNoteSaveStatus((prev) => (prev === 'saving' ? 'saved' : prev));
+      setNoteSaveStatus(target || content || title !== 'New Note' ? 'saved' : 'idle');
       return;
     }
-    if (editingNote) {
-      noteSavedRef.current = { title, content };
-      await onUpdateNote(editingNote.id, title, content);
-      setNoteSaveStatus('saved');
-    } else if (content || title !== 'New Note') {
-      noteSavedRef.current = { title, content };
-      await onCreateNote(title, content);
-      setEditingNote(null);
-      setNoteSaveStatus('saved');
+    try {
+      if (target) {
+        noteSavedRef.current = { title, content };
+        await onUpdateNote(target.id, title, content);
+        setNoteSaveStatus('saved');
+      } else if (content || title !== 'New Note') {
+        noteSavedRef.current = { title, content };
+        const creating = onCreateNote(title, content);
+        createInFlight.current = creating;
+        const created = await creating;
+        createInFlight.current = null;
+        if (created) { createdNoteRef.current = created; setEditingNote(created); }
+        setNoteSaveStatus('saved');
+      } else {
+        setNoteSaveStatus('idle');
+      }
+    } catch {
+      createInFlight.current = null;
+      noteSavedRef.current = saved; // nothing was stored: the next edit retries
+      setNoteSaveStatus('idle');
     }
   };
   const flushNote = async () => {
@@ -901,15 +922,14 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
   flushRef.current = flushNote;
   const persistRef = useRef(persistNote);
   persistRef.current = persistNote;
-  // Debounced autosave for notes that already exist (a new note is created when you leave it).
+  // Debounced autosave. It runs on every edit (typing, title, toolbar action), not on state changes, so an action that
+  // leaves the HTML identical still settles the status line instead of leaving it on "Saving…".
+  const [noteEdits, setNoteEdits] = useState(0);
   useEffect(() => {
-    if (!isCreateNoteOpen || !editingNote) return;
-    const t = window.setTimeout(async () => {
-      await persistRef.current();
-      setNoteSaveStatus('saved');
-    }, 700);
+    if (!isCreateNoteOpen || noteEdits === 0) return;
+    const t = window.setTimeout(() => { void persistRef.current(); }, 500);
     return () => window.clearTimeout(t);
-  }, [noteFormTitle, noteFormContent, isCreateNoteOpen, editingNote]);
+  }, [noteEdits, isCreateNoteOpen]);
 
   // WYSIWYG canvas: the browser edits real HTML, the toolbar issues editing commands against the live selection.
   useLayoutEffect(() => {
@@ -925,8 +945,9 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     const html = noteIsBlank(el) ? '' : el.innerHTML;
     startTransition(() => {
       setNoteFormContent(html);
-      setNoteSaveStatus('saving');
     });
+    setNoteSaveStatus('saving');
+    setNoteEdits((n) => n + 1);
     noteSyncFormats();
   };
   const noteExec = (cmd: string, value?: string) => {
@@ -981,16 +1002,22 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
     return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey, true); };
   }, [noteMenu]);
   // A note needs room: widen the study panel to 400px while one is open (and restore it afterwards).
+  // Widening happens once, when the note opens: a width the user drags to afterwards is theirs and is never overridden.
   const noteWidthRestore = useRef<number | null>(null);
+  const noteWidthApplied = useRef(false);
   useEffect(() => {
     if (isCreateNoteOpen && contextView === 'notes') {
-      if (noteWidthRestore.current === null && ctxW < ctxNoteWidth()) { noteWidthRestore.current = ctxW; setCtxW(ctxNoteWidth()); }
+      if (!noteWidthApplied.current) {
+        noteWidthApplied.current = true;
+        if (noteWidthRestore.current === null && ctxW < ctxNoteWidth()) { noteWidthRestore.current = ctxW; setCtxW(ctxNoteWidth()); }
+      }
       // On <=1420px desktops the note editor would squeeze the chat, so Sources folds to its rail (not remembered).
       if (window.innerWidth <= 1420 && window.innerWidth > 1024 && !isNavCollapsed && !navAutoCollapsed.current) {
         navAutoCollapsed.current = true; setNavCollapsed(true, false);
       }
-    } else if (noteWidthRestore.current !== null) {
-      const prev = noteWidthRestore.current;
+    } else if (noteWidthRestore.current !== null || noteWidthApplied.current) {
+      noteWidthApplied.current = false;
+      const prev = noteWidthRestore.current ?? ctxW;
       noteWidthRestore.current = null;
       setCtxW((w) => (w === ctxNoteWidth() ? prev : w));
     }
@@ -2083,7 +2110,8 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
         <div
           className={`context-slot ${isContextCollapsed ? 'is-collapsed' : ''}`}
         >
-          {isContextCollapsed && resizeHandle('right', false)}
+          {/* The slot is unclipped, so the whole 10px hit area sits centered on the seam (inside the aside it was cut to ~5px). */}
+          {resizeHandle('right', false)}
         {isContextCollapsed && (
           <button type="button" ref={contextToggleRef} className="rail-icon-btn context-expand-btn" onClick={() => setContextCollapsed(false)}
             title={`Toggle study panel (${shortcutLabel('\\')})`} aria-label="Toggle study panel" aria-expanded={false} aria-controls="workspace-sources-panel">
@@ -2100,7 +2128,6 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
           id="workspace-sources-panel" aria-hidden={isContextCollapsed} ref={contextPanelRef} tabIndex={-1}
           aria-label={reader ? 'Source reader' : 'Study panel'} data-reader={reader ? (readerExpanded ? 'expanded' : 'compact') : undefined}
         >
-          {!isContextCollapsed && resizeHandle('right', true)}
           {reader ? (
             <SourceReader
               title={readerSource?.title ?? reader.cite?.citation.file ?? 'Source'}
@@ -2159,7 +2186,7 @@ export const SubjectWorkspaceView: React.FC<SubjectWorkspaceViewProps> = ({
                   </div>
                   <div className="note-title-row">
                     <input id="note-title-input" className="note-editor-title note-studio-title" type="text" placeholder="New Note" aria-label="Note title"
-                      value={noteFormTitle} onChange={(e) => { setNoteFormTitle(e.target.value); setNoteSaveStatus('saving'); }} onFocus={(e) => { if (e.currentTarget.value === 'New Note') e.currentTarget.select(); }} />
+                      value={noteFormTitle} onChange={(e) => { setNoteFormTitle(e.target.value); setNoteSaveStatus('saving'); setNoteEdits((n) => n + 1); }} onFocus={(e) => { if (e.currentTarget.value === 'New Note') e.currentTarget.select(); }} />
                     {noteSaveStatus !== 'idle' && (
                       <span className="note-save-status" aria-live="polite" data-testid="note-save-status">
                         {noteSaveStatus === 'saving' ? 'Saving…' : '✓ Saved'}

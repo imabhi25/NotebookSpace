@@ -606,10 +606,11 @@ export function App({
   };
 
   // Notes
-  const handleCreateNote = async (title: string, content: string) => {
+  const handleCreateNote = async (title: string, content: string): Promise<Note | void> => {
     if (!activeSubject) return;
     const note = await api.createNote(activeSubject.id, { title, content });
     setNotes((prev) => [note, ...prev]);
+    return note;
   };
 
   const handleSaveAnswerAsNote = async (msg: MessageItem) => {
