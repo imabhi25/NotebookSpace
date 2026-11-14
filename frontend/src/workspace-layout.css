@@ -4244,3 +4244,43 @@ body .source-row-menu.notebook-overflow-menu .menu-item-danger:hover { backgroun
 :root[data-theme="dark"] .workspace-layout .answer-action-toolbar .answer-action-btn.answer-action-btn:hover { background: rgba(255, 255, 255, 0.1) !important; color: #FFFFFF !important; }
 .answer-toolbar svg,
 .workspace-layout .answer-action-toolbar .answer-action-btn svg { width: 18px !important; height: 18px !important; }
+
+/* ==========================================================================
+   ChatGPT-style center column: one 680px column shared by thread + composer,
+   right-aligned user bubble, answers on the open canvas.
+   ========================================================================== */
+.workspace-layout .workspace-center { min-width: 0; overflow-x: hidden; }
+.workspace-layout .workspace-main-area .thread-scroll-container {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain;
+  padding: 24px 24px 32px; box-sizing: border-box;
+}
+.workspace-layout .thread-content-max { width: 100%; max-width: 680px; margin: 0 auto; box-sizing: border-box; }
+.workspace-layout .workspace-main-area > .composer-container {
+  width: 100%; max-width: 728px; margin: 0 auto; padding: 0 24px 18px; box-sizing: border-box;
+}
+.workspace-layout .composer-form { max-width: 100%; }
+.workspace-layout .thread-turn.turn-user .user-turn-wrapper {
+  display: flex; justify-content: flex-end; width: 100%; padding: 0; margin: 0 0 14px; background: transparent !important; border: 0 !important; box-shadow: none !important;
+}
+.workspace-layout .thread-turn.turn-user .question-heading {
+  margin: 0 0 0 auto; max-width: 80%; width: fit-content; background: #F4F4F5; color: #18181B; border-radius: 18px; padding: 10px 16px;
+  font-size: 15.5px; font-weight: 400; line-height: 1.5; letter-spacing: 0; text-align: left; overflow-wrap: anywhere; white-space: pre-wrap;
+}
+:root[data-theme="dark"] .workspace-layout .thread-turn.turn-user .question-heading { background: rgba(255, 255, 255, 0.08); color: #F4F4F5; }
+.workspace-layout .thread-turn.turn-assistant { margin-bottom: 24px; }
+.workspace-layout .assistant-answer > *:last-child, .workspace-layout .answer-text > *:last-child { margin-bottom: 0 !important; }
+.workspace-layout .answer-text :is(h1, h2, h3, h4, h5, h6) { list-style: none; }
+.workspace-layout .answer-text :is(h1, h2, h3, h4)::before { content: none; }
+.workspace-layout .answer-text :is(table, pre) { max-width: 100%; overflow-x: auto; display: block; }
+.workspace-layout .answer-text { overflow-wrap: anywhere; }
+@media (max-width: 1024px) { .workspace-layout .workspace-center { width: 100%; max-width: 100%; } }
+@media (max-width: 480px) {
+  .workspace-layout .workspace-main-area .thread-scroll-container { padding: 16px 16px 24px; }
+  .workspace-layout .workspace-main-area > .composer-container { padding: 0 16px calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .workspace-layout .thread-turn.turn-user .question-heading { max-width: 88%; }
+}
+/* Action row sits 6px under the last line: no flex gap before the toolbar. */
+.workspace-layout .answer-view-container { gap: 0 !important; }
+.workspace-layout .answer-view-container > * + * { margin-top: 12px; }
+.workspace-layout .answer-view-container .answer-action-toolbar.answer-action-toolbar { margin-top: 6px !important; }
+.workspace-layout .answer-text > :last-child, .workspace-layout .answer-text .markdown-content > :last-child { margin-bottom: 0 !important; }
