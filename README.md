@@ -11,7 +11,7 @@ A study notebook in the style of NotebookLM. Create a notebook per course, add s
 *Workspace: sources on the left, a grounded answer that flags the syllabus vs. week-4 announcement conflict with page-level citations, and a saved note on the right.*
 
 [![Watch the desktop demo](docs/media/01-desktop-qa-citation-highlight.png)](docs/media/demo-desktop.mp4)
-*Click to watch the desktop demo: a question, its answer, and the cited passage highlighted in the source.*
+*Click to watch the 35-second demo: open the sample notebook, check a citation, ask a new question, save the answer as a note, and inspect retrieval.*
 
 ### Verified quality
 
@@ -36,7 +36,7 @@ A study notebook in the style of NotebookLM. Create a notebook per course, add s
 - **Note studio.** A rich-text editor in the side panel; one click saves an answer as a note with its citations. Note HTML is sanitized against XSS.
 
 ![Retrieval inspector with 2D PCA projection](docs/media/02-desktop-retrieval.png)
-*Retrieval tab: 2D PCA embedding projection, query point, raw cosine and final score ranking.*
+*Retrieval details: hybrid boost slider, 2D PCA projection of the query and chunks, and passages ranked by raw cosine and final score.*
 
 ## Architecture and stack
 
