@@ -4,27 +4,16 @@ A study notebook in the style of NotebookLM. Create a notebook per course, add s
 
 **Live app:** [notebookspace.vercel.app](https://notebookspace.vercel.app) (frontend on Vercel · backend API on Render free tier, so the first request after idle can take up to a minute)
 
+[![Watch the desktop demo](docs/media/01-desktop-qa-citation-highlight.png)](docs/media/demo-desktop.mp4)
+*Click to watch the 35-second demo: open the sample notebook, check a citation, ask a new question, save the answer as a note, and inspect retrieval.*
+
+On two 30-question sets from an OpenStax textbook, the hybrid retriever found the target page in its first five results for **17/30 (56.7%)** and **22/30 (73.3%)** questions. See the [evaluation](#evaluation) for a failure example and what I'd test next.
+
 ![NotebookSpace dashboard with the CS 401 sample notebook](docs/screenshots/dashboard.png)
 *Dashboard: the one-click CS 401 sample notebook.*
 
 ![CS 401 workspace: sources, grounded answer with a policy-conflict card, and saved notes](docs/screenshots/workspace.png)
 *Workspace: sources on the left, a grounded answer that flags the syllabus vs. week-4 announcement conflict with page-level citations, and a saved note on the right.*
-
-[![Watch the desktop demo](docs/media/01-desktop-qa-citation-highlight.png)](docs/media/demo-desktop.mp4)
-*Click to watch the 35-second demo: open the sample notebook, check a citation, ask a new question, save the answer as a note, and inspect retrieval.*
-
-### Verified quality
-
-| Check | Result |
-| --- | --- |
-| Frontend tests (Vitest, GitHub Actions CI) | 297 passing |
-| Backend tests (Pytest, GitHub Actions CI) | 288 passing |
-| Lighthouse (Performance / Accessibility / Best Practices / SEO) | 100 / 100 / 100 / 100 |
-| PageSpeed Insights (Mobile) | 99 / 100 / 100 / 100 |
-| MDN HTTP Observatory | A+ |
-| WAVE Accessibility | 10/10 |
-
----
 
 ## What it does
 
@@ -51,9 +40,9 @@ A study notebook in the style of NotebookLM. Create a notebook per course, add s
 
 ## Evaluation
 
-The goal was to measure where retrieval and generation work and where they fail, not just to report the good numbers. Full methodology and per-question results are in [evals/README.md](evals/README.md) and [evaluation/RESULTS.md](evaluation/RESULTS.md).
+The [retrieval benchmark](evals/README.md) documents the methodology. The [answer audit](evaluation/RESULTS.md) includes per-question results.
 
-**Real-corpus retrieval.** 4 chapters (108 pages) of OpenStax *Introduction to Python Programming* (CC BY 4.0), two independently generated 30-question sets. Top-5 covers only 4.6% of the corpus.
+**Real-corpus retrieval.** 4 chapters (108 pages) of OpenStax *Introduction to Python Programming* (CC BY 4.0), two independently generated sets of 30 answerable questions. Hit@5 requires the expected file and page among the first five retrieved chunks.
 
 | Metric | Set A (hybrid) | Set B (hybrid) |
 | --- | :---: | :---: |
@@ -64,6 +53,8 @@ The goal was to measure where retrieval and generation work and where they fail,
 | Abstention on absent facts | 6 / 6 | 6 / 6 |
 
 **Synthetic course corpus (60-question benchmark).** Retrieval was evaluated on all 45 answerable questions: top-5 any-source recall 93.3% (42 / 45), and 90% of questions with conflicting sources retrieved every required source. Generation was spot-checked on 14 single-page questions: 13 / 14 factually correct, and every citation (16 / 16) supported its claim. Median generation latency 3.6 s (p95 18.3 s).
+
+One documented miss in the synthetic course benchmark was a question about the data structure required for Assignment 1. The top five passages missed the assignment page that specified a concurrent hash map, so the answer cited the project title and left out the data structure. I'd test retrieving a larger candidate pool and reranking it before passing five passages to the model, measuring target-page recall, latency, and memory. [Case study](evaluation/RESULTS.md#4-partial-generation-results-questions-s1-to-s14) · [Reranking benchmarks](evals/README.md#3-comprehensive-experimental-matrix-set--configuration)
 
 A smaller 35-question synthetic suite (Hit@5 100%, MRR 0.751, 8 / 8 abstentions) is documented in [evals/README.md](evals/README.md).
 
@@ -104,6 +95,18 @@ cd frontend && npm run build  # type check and production build
 ```
 
 End-to-end journeys: `PYTHONPATH=. python tests/verify_e2e_journey.py` and `PYTHONPATH=. python tests/verify_guest_journey.py`.
+
+### Verified quality
+
+| Check | Result |
+| --- | --- |
+| Frontend tests (Vitest, GitHub Actions CI) | 297 passing |
+| Backend tests (Pytest, GitHub Actions CI) | 288 passing |
+| Lighthouse (Performance / Accessibility / Best Practices / SEO) | 100 / 100 / 100 / 100 |
+| PageSpeed Insights (Mobile) | 99 / 100 / 100 / 100 |
+| MDN HTTP Observatory | A+ |
+| WAVE Accessibility | 10/10 |
+
 
 ## Deployment
 
